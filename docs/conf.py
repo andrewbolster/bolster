@@ -33,7 +33,7 @@ import bolster
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
     'sphinx.ext.autodoc',
-    'sphinx.ext.viewcode'
+    'sphinx.ext.viewcode',
     'sphinx.ext.inheritance_diagram',
     'sphinx_click.ext',
     'sphinx.ext.napoleon',
@@ -42,7 +42,6 @@ extensions = [
     'sphinx.ext.autosectionlabel',
     'nbsphinx',
     'sphinx_issues',
-    'sphinx_copybutton',
     'sphinx_autodoc_typehints',
     'autoapi.sphinx'
 ]
