@@ -12,6 +12,8 @@ install: pip install -U tox-travis
 
 # Command to run tests, e.g. python setup.py test
 script: tox
+after_success:
+    - bash <(curl -s https://codecov.io/bash)
 
 # Assuming you have installed the travis-ci CLI tool, after you
 # create the Github repo and add it to Travis, run the
@@ -19,19 +21,11 @@ script: tox
 # $ travis encrypt --add deploy.password
 deploy:
     provider: pypi
-  distributions: sdist bdist_wheel
-  user: bolster
+    distributions: sdist bdist_wheel
+    user: bolster
     password:
-        secure: Px9g29V8TuDB6RYqsOVfSJ8pvgPBIP5k8flSC8LSUmpcFOYL28JtQ5GkYToqLYBiTfTFZgglkdm3smK1JSq2agz0GpTyMMzkxAzXysyFeMo4k3F0asTduNh
-        SLsglSQCQWTRvWyDU17RjZA0ImnEzUAqPxbUQpjvuBohFMfH8VWE1euL76+74zkb3B3kPh/XVGTfuhpwB/KsnhhHiil5Sp/5y5Fd1u7nxgle+XS0Ggrrm8t04hcpFo/JwMn
-        JTDLG99/+O21Wx1d4mfq7b5Wm00ozBOVw0tBf3wN5o6ryvIuHhX3AfxBRZj46eXFdFgybUEETehzDAUkegEKocNcpIk9fPnQDvMIcDf0tYK4Zl+/6TprNuSnDl4sKTQys9q
-        hmpF0nPgnHMZhPHDGmiJQnWyDV++6HOzfFxlrCeAJgkt3b+VZs0PpP/1KqWocKd46pw4XDZz+w/jZTcfKH7moYrt+3eB2F2A/Xd3f2z9PR1FxqJLP+FkyPHZ/CHgTK8OcBR
-        cx+l0xGGSZhI3J41q2o8lT6EyOub80/ni87fXJVReCQ49pwwSz8tSfKvT38S1xhGouGphwULpUgqISPOAJcVj6ZryP2vli9MxPQRaP8lLVIx+1+LN1ctFkrzzxx0QWUc0Pn
-        Xglq9+V20/edZqilHmkcSuqf9VHLFmt7OGGIBZo8=
+        secure: Px9g29V8TuDB6RYqsOVfSJ8pvgPBIP5k8flSC8LSUmpcFOYL28JtQ5GkYToqLYBiTfTFZgglkdm3smK1JSq2agz0GpTyMMzkxAzXysyFeMo4k3F0asTduNhSLsglSQCQWTRvWyDU17RjZA0ImnEzUAqPxbUQpjvuBohFMfH8VWE1euL76+74zkb3B3kPh/XVGTfuhpwB/KsnhhHiil5Sp/5y5Fd1u7nxgle+XS0Ggrrm8t04hcpFo/JwMnJTDLG99/+O21Wx1d4mfq7b5Wm00ozBOVw0tBf3wN5o6ryvIuHhX3AfxBRZj46eXFdFgybUEETehzDAUkegEKocNcpIk9fPnQDvMIcDf0tYK4Zl+/6TprNuSnDl4sKTQys9qhmpF0nPgnHMZhPHDGmiJQnWyDV++6HOzfFxlrCeAJgkt3b+VZs0PpP/1KqWocKd46pw4XDZz+w/jZTcfKH7moYrt+3eB2F2A/Xd3f2z9PR1FxqJLP+FkyPHZ/CHgTK8OcBRcx+l0xGGSZhI3J41q2o8lT6EyOub80/ni87fXJVReCQ49pwwSz8tSfKvT38S1xhGouGphwULpUgqISPOAJcVj6ZryP2vli9MxPQRaP8lLVIx+1+LN1ctFkrzzxx0QWUc0PnXglq9+V20/edZqilHmkcSuqf9VHLFmt7OGGIBZo8=
     on:
         tags: true
         repo: andrewbolster/bolster
         python: 3.8
-
-after_success:
-    - bash <(curl -s https://codecov.io/bash)
