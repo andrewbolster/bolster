@@ -5,7 +5,6 @@ python:
     - 3.8
     - 3.7
     - 3.6
-    - 3.5
 
 # Travis doesn't have the appropriate pip installed for 3.6 compat  causing rusty errors in cryptography
 # https://travis-ci.community/t/pip-install-cryptography-fails-on-py36/11233
