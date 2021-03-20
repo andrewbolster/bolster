@@ -19,7 +19,7 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.abspath('../'))
 
 import bolster
 
@@ -32,18 +32,26 @@ import bolster
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.viewcode',
-    'sphinx.ext.inheritance_diagram',
-    'sphinx_click.ext',
-    'sphinx.ext.napoleon',
-    'sphinx.ext.mathjax',
-    'sphinx.ext.viewcode',
-    'sphinx.ext.autosectionlabel',
+    'autoapi.sphinx',
     'nbsphinx',
-    'sphinx_issues',
+    'sphinx.ext.autodoc',
+    'sphinx.ext.autosectionlabel',
+    'sphinx.ext.coverage',
+    'sphinx.ext.doctest',
+    'sphinx.ext.githubpages',
+    'sphinx.ext.ifconfig',
+    'sphinx.ext.imgmath',
+    'sphinx.ext.inheritance_diagram',
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.mathjax',
+    'sphinx.ext.napoleon',
+    'sphinx.ext.napoleon',
+    'sphinx.ext.todo',
+    'sphinx.ext.viewcode',
     'sphinx_autodoc_typehints',
-    'autoapi.sphinx'
+    'sphinx_click.ext',
+    'sphinx_issues',
+    'sphinxcontrib.apidoc',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -69,7 +77,7 @@ github_root = f'https://github.com/{github_stub}/'
 github_doc_root = f'{github_root}tree/main/docs/'
 
 issues_github_path = github_stub
-autoapi_modules = {github_project: None}
+
 
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout
@@ -179,5 +187,26 @@ texinfo_documents = [
      'Miscellaneous'),
 ]
 
+# -- Extension configuration -------------------------------------------------
+# autoapi_modules = {github_project: None}
+# -- Options for intersphinx extension ---------------------------------------
 
+# Example configuration for intersphinx: refer to the Python standard library.
+intersphinx_mapping = {'https://docs.python.org/': None}
 
+# -- Options for todo extension ----------------------------------------------
+
+# If true, `todo` and `todoList` produce output, else they produce nothing.
+todo_include_todos = True
+
+apidoc_module_dir = f"../../{github_project}"
+apidoc_excluded_paths = ['tests', 'setup.py']
+apidoc_output_dir = 'src'
+
+# -- Options for Napoleon
+
+napoleon_google_docstring = True
+
+# -- Options for Autodoc
+
+autodoc_member_order = 'bysource'

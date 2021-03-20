@@ -8,7 +8,7 @@ Welcome to Bolster's documentation!
    readme
    installation
    usage
-   modules
+   src/bolster
    contributing
    authors
    history

@@ -537,8 +537,10 @@ def aggregate(base: List[Dict],
     """
     Abstracted groupby-sum for lists of dicts
     operationally equivalent to
-        df = pd.DataFrame(base)
-        df.where(condition).groupby(group_key)[item_key].sum()
+    ```
+    df = pd.DataFrame(base)
+    df.where(condition).groupby(group_key)[item_key].sum()
+    ```
 
     Args:
         base:
