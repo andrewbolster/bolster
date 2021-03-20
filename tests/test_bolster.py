@@ -3,10 +3,8 @@
 """Tests for `bolster` package."""
 
 import pytest
-
 from click.testing import CliRunner
 
-from bolster import bolster
 from bolster import cli
 
 
