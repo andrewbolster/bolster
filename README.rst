@@ -13,11 +13,13 @@ Bolster
         :target: https://bolster.readthedocs.io/en/latest/?version=latest
         :alt: Documentation Status
 
-
 .. image:: https://pyup.io/repos/github/andrewbolster/bolster/shield.svg
      :target: https://pyup.io/repos/github/andrewbolster/bolster/
      :alt: Updates
 
+.. image:: https://requires.io/github/andrewbolster/bolster/requirements.svg?branch=main
+     :target: https://requires.io/github/andrewbolster/bolster/requirements/?branch=main
+     :alt: Requirements Status
 
 
 Bolster's Brain, you've been warned
@@ -30,7 +32,12 @@ Bolster's Brain, you've been warned
 Features
 --------
 
-* TODO
+* Efficient tree/node traversal and iteration
+* Datetime helpers
+* Concurrecy Helpers
+* Web safe Encapsulation/Decapsulation helpers
+* `pandas`-esque `aggregate`/`transform_r` functions
+* "Best Practice" AWS service handling
 
 Credits
 -------
