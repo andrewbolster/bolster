@@ -8,7 +8,6 @@ Welcome to Bolster's documentation!
    readme
    installation
    usage
-   src/bolster
    contributing
    authors
    history

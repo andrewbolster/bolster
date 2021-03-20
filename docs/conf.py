@@ -32,10 +32,9 @@ import bolster
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
-    'autoapi.sphinx',
+    'autoapi.extension',
     'nbsphinx',
     'sphinx.ext.autodoc',
-    'sphinx.ext.autosectionlabel',
     'sphinx.ext.coverage',
     'sphinx.ext.doctest',
     'sphinx.ext.githubpages',
@@ -45,10 +44,9 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.mathjax',
     'sphinx.ext.napoleon',
-    'sphinx.ext.napoleon',
     'sphinx.ext.todo',
     'sphinx.ext.viewcode',
-    'sphinx_autodoc_typehints',
+    'sphinx.ext.autodoc.typehints',
     'sphinx_click.ext',
     'sphinx_issues',
     'sphinxcontrib.apidoc',
@@ -188,7 +186,7 @@ texinfo_documents = [
 ]
 
 # -- Extension configuration -------------------------------------------------
-# autoapi_modules = {github_project: None}
+autoapi_modules = {github_project: None}
 # -- Options for intersphinx extension ---------------------------------------
 
 # Example configuration for intersphinx: refer to the Python standard library.
@@ -199,14 +197,15 @@ intersphinx_mapping = {'https://docs.python.org/': None}
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
 
-apidoc_module_dir = f"../../{github_project}"
-apidoc_excluded_paths = ['tests', 'setup.py']
-apidoc_output_dir = 'src'
+# apidoc_module_dir = f"../{github_project}"
+# apidoc_excluded_paths = ['tests', 'setup.py']
+# apidoc_output_dir = 'src'
 
 # -- Options for Napoleon
 
 napoleon_google_docstring = True
 
 # -- Options for Autodoc
-
+autoapi_dirs = [f'../{github_project}']
 autodoc_member_order = 'bysource'
+autodoc_typehints = 'description'

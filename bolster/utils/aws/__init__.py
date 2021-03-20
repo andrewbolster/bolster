@@ -21,7 +21,7 @@ import botocore.exceptions
 import psycopg2
 import psycopg2.extras
 
-from ... import chunks
+from bolster import chunks
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
