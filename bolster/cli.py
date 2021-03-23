@@ -1,5 +1,6 @@
 """Console script for bolster."""
 import sys
+
 import click
 
 

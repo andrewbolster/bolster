@@ -22,7 +22,7 @@ from itertools import chain, islice, groupby
 from operator import itemgetter
 from pathlib import Path
 from typing import Sequence, Generator, Iterable, List, Dict, Iterator, Union, AnyStr, Optional, Callable, SupportsInt, \
-    SupportsFloat, Tuple, Set
+    SupportsFloat, Tuple, Set, Hashable
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -38,6 +38,20 @@ def _dumb_passthrough(x, **kwargs):
 
     """
     return x
+
+
+def always(x, **kwargs) -> bool:
+    """Pointless passthrough replacement for 'always true' filtering
+
+    >>> always('false')
+    True
+    >>> always(False)
+    True
+    >>> always(True)
+    True
+    """
+
+    return True
 
 
 def poolmap(f: Callable, iterable: Iterable,
@@ -674,3 +688,13 @@ def uncollect_object(d: Dict) -> Dict:
         else:
             new_d[k] = v
     return new_d
+
+
+def dict_concat_safe(d: Dict,
+                     keys: List[Hashable],
+                     default: Optional = None) -> Iterator:
+    """
+    Really Lazy Func because `dict.get('key',default)` is a pain in the ass for lists
+    """
+    for k in keys:
+        yield d.get(k, default)
