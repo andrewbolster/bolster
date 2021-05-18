@@ -1,34 +1,21 @@
-# Config file for automatic testing at travis-ci.com
-
 language: python
 python:
-    - 3.8
-    - 3.7
-    - 3.6
-
-# Travis doesn't have the appropriate pip installed for 3.6 compat  causing rusty errors in cryptography
-# https://travis-ci.community/t/pip-install-cryptography-fails-on-py36/11233
+- 3.8
+- 3.7
+- 3.6
 before_install:
-    - python -m pip install --upgrade virtualenv
-# Command to install dependencies, e.g. pip install -r requirements.txt --use-mirrors
+- python -m pip install --upgrade virtualenv
 install: pip install -U tox-travis
-
-# Command to run tests, e.g. python setup.py test
 script: tox
 after_success:
-    - bash <(curl -s https://codecov.io/bash)
-
-# Assuming you have installed the travis-ci CLI tool, after you
-# create the Github repo and add it to Travis, run the
-# following command to finish PyPI deployment setup:
-# $ travis encrypt --add deploy.password
+- bash <(curl -s https://codecov.io/bash)
 deploy:
-    provider: pypi
-    distributions: sdist bdist_wheel
-    user: bolster
-    password:
-        secure: Px9g29V8TuDB6RYqsOVfSJ8pvgPBIP5k8flSC8LSUmpcFOYL28JtQ5GkYToqLYBiTfTFZgglkdm3smK1JSq2agz0GpTyMMzkxAzXysyFeMo4k3F0asTduNhSLsglSQCQWTRvWyDU17RjZA0ImnEzUAqPxbUQpjvuBohFMfH8VWE1euL76+74zkb3B3kPh/XVGTfuhpwB/KsnhhHiil5Sp/5y5Fd1u7nxgle+XS0Ggrrm8t04hcpFo/JwMnJTDLG99/+O21Wx1d4mfq7b5Wm00ozBOVw0tBf3wN5o6ryvIuHhX3AfxBRZj46eXFdFgybUEETehzDAUkegEKocNcpIk9fPnQDvMIcDf0tYK4Zl+/6TprNuSnDl4sKTQys9qhmpF0nPgnHMZhPHDGmiJQnWyDV++6HOzfFxlrCeAJgkt3b+VZs0PpP/1KqWocKd46pw4XDZz+w/jZTcfKH7moYrt+3eB2F2A/Xd3f2z9PR1FxqJLP+FkyPHZ/CHgTK8OcBRcx+l0xGGSZhI3J41q2o8lT6EyOub80/ni87fXJVReCQ49pwwSz8tSfKvT38S1xhGouGphwULpUgqISPOAJcVj6ZryP2vli9MxPQRaP8lLVIx+1+LN1ctFkrzzxx0QWUc0PnXglq9+V20/edZqilHmkcSuqf9VHLFmt7OGGIBZo8=
-    on:
-        tags: true
-        repo: andrewbolster/bolster
-        python: 3.8
+  provider: pypi
+  distributions: sdist bdist_wheel
+  username: __token__
+  on:
+    tags: true
+    repo: andrewbolster/bolster
+    python: 3.8
+  password:
+    secure: mS1gicG0LfQXU5PjygB0/TifGJnEgfmczcdBNTukoJIBQ9V5J78BwcXOKswovKEJbXaVW7/71usVKJvCbOAyLJRRzisGTbvS3GhF3+xZWWpqUAlN6gkwN9tcZc6eOIkL7hMJIk3WEuE7TLKoubVMkpmDKAIlIAZRN0DIVPk56AfpcUqZqbY9oCUS2rYKf9Ig2Df/HykFlEH+JwVzgoyruVgFqWs1Qt70T28QAcdTklkRssIUuMk+oTi+tqdVceq7ib+b2RPAT9SHNT4IwuF2OPNQq1zajLqXi0d0Cbs6Kiy6c29Ic/uTO2g76mpV2dTfEosn2ygFWr314ANql3rRE3vslYCjWWN8e7wsSa3Dy+dOwQQ7eH0h+jmfRkzvbrS+Ynd3yw1NDn+Nkp7Q/ygwVVRiOVl3o10aWixIl/VF2xku5zlqm5v+gq76WY7u6m0K+VdXEwS96JEWoaxk6FB+QijAEmq/SPATdQOBJaDfP3qbKWL/7zeAkrMWYd91Bo1LiDwftTIpplDV1di8XGA8Uyh/H9XeEndrfRik6gP6Y5TnYFYr6tmxmnGbPWdN7z+xb6Wu+RoWEcipXvQjsFCAOFDu3cE0t/G9HRK9cSHLNC7yvuUvDO5TLUDaR+GNpqLtlcoNaD8/rVdRe0tWwRPzg34nB7rbvYnWElfWPzoAXYw=
