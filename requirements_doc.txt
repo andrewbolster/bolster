@@ -7,3 +7,5 @@ sphinx-autodoc-typehints==1.10.3
 autoapi==2.0.1
 Click==7.1.2
 sphinx-autoapi==1.7.0
+nbsphinx
+sphinxcontrib-apidoc==0.3.0
