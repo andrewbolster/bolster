@@ -2,8 +2,8 @@
 """Top-level package for Bolster."""
 
 __author__ = """Andrew Bolster"""
-__email__ = 'me@andrewbolster.info'
-__version__ = '0.1.1'
+__email__ = "me@andrewbolster.info"
+__version__ = "0.1.1"
 
 import base64
 import contextlib
@@ -21,8 +21,23 @@ from functools import wraps, partial
 from itertools import chain, islice, groupby
 from operator import itemgetter
 from pathlib import Path
-from typing import Sequence, Generator, Iterable, List, Dict, Iterator, Union, AnyStr, Optional, Callable, SupportsInt, \
-    SupportsFloat, Tuple, Set, Hashable
+from typing import (
+    Sequence,
+    Generator,
+    Iterable,
+    List,
+    Dict,
+    Iterator,
+    Union,
+    AnyStr,
+    Optional,
+    Callable,
+    SupportsInt,
+    SupportsFloat,
+    Tuple,
+    Set,
+    Hashable,
+)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -54,9 +69,13 @@ def always(x, **kwargs) -> bool:
     return True
 
 
-def poolmap(f: Callable, iterable: Iterable,
-            max_workers: Optional[int] = None, progress: Callable = None,
-            **kwargs) -> Dict:
+def poolmap(
+    f: Callable,
+    iterable: Iterable,
+    max_workers: Optional[int] = None,
+    progress: Callable = None,
+    **kwargs,
+) -> Dict:
     """Helper function to encapsulate a ThreadPoolExecutor mapped function workflow
     Accepts (assumed to be `tqdm` style) progress monitor callback
 
@@ -105,7 +124,7 @@ def batch(seq: Sequence, n: int = 1) -> Generator[Iterable, None, None]:
     """
     parent_length = len(seq)
     for ndx in range(0, parent_length, n):
-        yield seq[ndx:min(ndx + n, parent_length)]
+        yield seq[ndx : min(ndx + n, parent_length)]
 
 
 def chunks(iterable: Iterable, size=10) -> Generator[List, None, None]:
@@ -151,10 +170,13 @@ def arg_exception_logger(func: Callable) -> Callable:
 
 
 # noinspection PyShadowingNames
-def backoff(exception_to_check: Union[BaseException, Sequence[BaseException]],
-            tries: SupportsInt = 5, delay: SupportsFloat = 0.2,
-            backoff: SupportsFloat = 2,
-            logger: Optional[logging.Logger] = logger):
+def backoff(
+    exception_to_check: Union[BaseException, Sequence[BaseException]],
+    tries: SupportsInt = 5,
+    delay: SupportsFloat = 0.2,
+    backoff: SupportsFloat = 2,
+    logger: Optional[logging.Logger] = logger,
+):
     """Retry calling the decorated function using an exponential backoff.
 
     http://www.saltycrane.com/blog/2009/11/trying-out-retry-decorator-python/
@@ -238,12 +260,14 @@ class MultipleErrors(BaseException):
     @classmethod
     def _traceback_for(cls, exc_info):
         """Formatting!"""
-        return ''.join(traceback.format_exception(*exc_info))
+        return "".join(traceback.format_exception(*exc_info))
 
     def __str__(self):
-        tracebacks = "\n\n".join(self._traceback_for(exc_info) for exc_info in self.errors)
+        tracebacks = "\n\n".join(
+            self._traceback_for(exc_info) for exc_info in self.errors
+        )
         parts = ("See the following exception tracebacks:", "=" * 78, tracebacks)
-        msg = '\n'.join(parts)
+        msg = "\n".join(parts)
         return msg
 
     def capture_current_exception(self):
@@ -278,7 +302,9 @@ def tag_gen(seq: Iterator[Dict], **kwargs) -> Iterator[Dict]:
         yield new_item
 
 
-def exceptional_executor(futures: Sequence[Future], exception_handler=None, timeout=None) -> Iterator:
+def exceptional_executor(
+    futures: Sequence[Future], exception_handler=None, timeout=None
+) -> Iterator:
     """Generator for concurrent.Futures handling
 
     When an exception is raised in an executing Future, f.result() called on it's own will raise that
@@ -344,7 +370,7 @@ def compress_for_relay(obj: Union[List, Dict]) -> AnyStr:
     {'test': 'test'}
 
     """
-    return base64.b64encode(gzip.compress(json.dumps(obj).encode('utf-8'), 6)).decode()
+    return base64.b64encode(gzip.compress(json.dumps(obj).encode("utf-8"), 6)).decode()
 
 
 def decompress_from_relay(msg: AnyStr) -> Union[List, Dict]:
@@ -413,7 +439,9 @@ class memoize(object):
         return res
 
 
-def pretty_print_request(req, expose_auth=False, authentication_header_blacklist: Optional[List] = None) -> None:
+def pretty_print_request(
+    req, expose_auth=False, authentication_header_blacklist: Optional[List] = None
+) -> None:
     """At this point it is completely built and ready
     to be fired; it is "prepared".
 
@@ -432,12 +460,10 @@ def pretty_print_request(req, expose_auth=False, authentication_header_blacklist
     if not expose_auth:
         for header in authentication_header_blacklist:
             if header in printable_headers.keys():
-                printable_headers[header] = '<<REDACTED>>'
+                printable_headers[header] = "<<REDACTED>>"
     print(
-        f"-----------START-----------\n"
-        f"{req.method} {req.url}\n",
-        '\n'.join('{}: {}'.format(k, v)
-                  for k, v in printable_headers.items())
+        f"-----------START-----------\n" f"{req.method} {req.url}\n",
+        "\n".join("{}: {}".format(k, v) for k, v in printable_headers.items()),
     )
     if req.body is not None:
         print(req.body)
@@ -518,7 +544,7 @@ def transform_(r: Dict, rule_keys: Dict[AnyStr, Optional[Tuple]]) -> Dict:
             try:
                 new_k, f = v
             except ValueError:
-                logger.exception('Rules must have either None value or a 2-tuple')
+                logger.exception("Rules must have either None value or a 2-tuple")
                 raise
 
             if new_k is None:
@@ -538,16 +564,20 @@ def diff(new: Dict, old: Dict, excluded_fields: Optional[set] = None) -> Dict:
     if excluded_fields is None:
         excluded_fields = set()
 
-    diffed_values = {k: {'old': old.get(k, None), 'new': new.get(k, None)}
-                     for k in set(new.keys()).union(old.keys()) - excluded_fields
-                     if old.get(k, None) != new.get(k, None)
-                     }
+    diffed_values = {
+        k: {"old": old.get(k, None), "new": new.get(k, None)}
+        for k in set(new.keys()).union(old.keys()) - excluded_fields
+        if old.get(k, None) != new.get(k, None)
+    }
     return diffed_values
 
 
-def aggregate(base: List[Dict],
-              group_key: Union[AnyStr, Tuple[AnyStr], List[AnyStr]],
-              item_key: AnyStr, condition: Optional[Callable] = None):
+def aggregate(
+    base: List[Dict],
+    group_key: Union[AnyStr, Tuple[AnyStr], List[AnyStr]],
+    item_key: AnyStr,
+    condition: Optional[Callable] = None,
+):
     """
     Abstracted groupby-sum for lists of dicts
     operationally equivalent to
@@ -664,7 +694,7 @@ def leaf_paths(d: Dict, path: Optional[List] = None) -> Iterator[Tuple[List, Dic
         yield (path, d)
 
 
-def flatten_dict(d: Dict, head: AnyStr = '', sep: AnyStr = ':') -> Dict:
+def flatten_dict(d: Dict, head: AnyStr = "", sep: AnyStr = ":") -> Dict:
     new_d = {}
     for k, v in d.items():
         if isinstance(v, dict):
@@ -672,7 +702,7 @@ def flatten_dict(d: Dict, head: AnyStr = '', sep: AnyStr = ':') -> Dict:
                 flatten_dict(
                     # Sort the inner items first to have alpha order but preserve outer structure
                     dict(sorted(v.items())),
-                    head=k
+                    head=k,
                 )
             )
         else:
@@ -690,9 +720,9 @@ def uncollect_object(d: Dict) -> Dict:
     return new_d
 
 
-def dict_concat_safe(d: Dict,
-                     keys: List[Hashable],
-                     default: Optional = None) -> Iterator:
+def dict_concat_safe(
+    d: Dict, keys: List[Hashable], default: Optional = None
+) -> Iterator:
     """
     Really Lazy Func because `dict.get('key',default)` is a pain in the ass for lists
     """

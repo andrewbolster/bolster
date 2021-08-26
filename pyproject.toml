@@ -13,18 +13,21 @@ classifiers = [
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         'Natural Language :: English',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
 ]
 
 [tool.poetry.dependencies]
-python = "^3.8.0"
+python = ">=3.8.0,<3.10"
 click = "^8.0.1"
 click-log = "^0.3.2"
 psycopg2-binary = "^2.9.1"
 tqdm = "^4.62.1"
 bs4 = "^0.0.1"
+requests = "^2.26.0"
+numpy = "^1.21.2"
+pandas = "^1.3.2"
+scipy = "^1.7.1"
 
 [tool.poetry.urls]
 Changelog = "https://github.com/andrewbolster/bolster/releases"
@@ -51,6 +54,8 @@ sphinx-autodoc-typehints = "1.12.0"
 autoapi = "2.0.1"
 sphinx-autoapi = "1.8.1"
 sphinxcontrib-apidoc = "0.3.0"
+nox-poetry = "^0.8.6"
+
 [tool.coverage.paths]
 source = ["src", "*/site-packages"]
 
