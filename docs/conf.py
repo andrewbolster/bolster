@@ -200,6 +200,6 @@ todo_include_todos = True
 napoleon_google_docstring = True
 
 # -- Options for Autodoc
-autoapi_dirs = [f"../{github_project}"]
+autoapi_dirs = [f"../src/{github_project}"]
 autodoc_member_order = "bysource"
 autodoc_typehints = "description"

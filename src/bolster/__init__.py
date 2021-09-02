@@ -36,7 +36,7 @@ from typing import (
     SupportsFloat,
     Tuple,
     Set,
-    Hashable,
+    Hashable, Any,
 )
 
 logger = logging.getLogger(__name__)
@@ -326,7 +326,7 @@ def exceptional_executor(
     def default_hdl(e: BaseException, f: Future):
         try:
             raise e
-        except:
+        except BaseException:
             logging.exception(f"Caught exception in a future: {f}")
 
     if exception_handler is None:
@@ -341,7 +341,7 @@ def exceptional_executor(
 
 
 @contextlib.contextmanager
-def working_directory(path: Union[str, Path]) -> contextlib.AbstractContextManager:
+def working_directory(path: Union[str, Path]) -> Generator:
     """Contextmanager that changes working directory and returns to previous on exit.
 
     Args:
@@ -440,7 +440,7 @@ class memoize(object):
 
 
 def pretty_print_request(
-    req, expose_auth=False, authentication_header_blacklist: Optional[List] = None
+    req, expose_auth=False, authentication_header_blacklist: Optional[Sequence] = None
 ) -> None:
     """At this point it is completely built and ready
     to be fired; it is "prepared".
@@ -536,7 +536,7 @@ def transform_(r: Dict, rule_keys: Dict[AnyStr, Optional[Tuple]]) -> Dict:
     """
     out_record = {}
     for k, v in rule_keys.items():
-        f = lambda x: x
+        f = lambda x: x  # noqa: E731
 
         if v is None:
             new_k = k
@@ -550,7 +550,7 @@ def transform_(r: Dict, rule_keys: Dict[AnyStr, Optional[Tuple]]) -> Dict:
             if new_k is None:
                 new_k = k
             if f is None:
-                f = lambda x: x
+                f = lambda x: x  # noqa: E731
 
         out_record[new_k] = f(r[k]) if k in r else None
 
@@ -597,7 +597,7 @@ def aggregate(
     """
     agg_c = Counter()
     if condition is None:
-        condition = lambda x: True
+        condition = lambda x: True  # noqa: E731
 
     if isinstance(group_key, (tuple, list)):
         grouper = itemgetter(*group_key)
@@ -607,8 +607,8 @@ def aggregate(
     for source_key, g in groupby(filter(condition, base), grouper):
         for sig in g:
             agg_c[source_key] += sig[item_key]
-    agg_c = dict(sorted(agg_c.items(), key=itemgetter(1), reverse=True))
-    return agg_c
+    agg_d = dict(sorted(agg_c.items(), key=itemgetter(1), reverse=True))
+    return agg_d
 
 
 def breadth(d):
@@ -625,7 +625,7 @@ def breadth(d):
     return width
 
 
-def depth(d: Dict) -> SupportsInt:
+def depth(d: Dict[Any,int]) -> int:
     """
     Get the maximum depth of a tree
     """
@@ -694,7 +694,7 @@ def leaf_paths(d: Dict, path: Optional[List] = None) -> Iterator[Tuple[List, Dic
         yield (path, d)
 
 
-def flatten_dict(d: Dict, head: AnyStr = "", sep: AnyStr = ":") -> Dict:
+def flatten_dict(d: Dict, head: str = "", sep: str = ":") -> Dict:
     new_d = {}
     for k, v in d.items():
         if isinstance(v, dict):
@@ -721,7 +721,7 @@ def uncollect_object(d: Dict) -> Dict:
 
 
 def dict_concat_safe(
-    d: Dict, keys: List[Hashable], default: Optional = None
+    d: Dict, keys: List[Hashable], default: Optional[Any] = None
 ) -> Iterator:
     """
     Really Lazy Func because `dict.get('key',default)` is a pain in the ass for lists

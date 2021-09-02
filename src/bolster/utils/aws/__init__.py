@@ -439,7 +439,7 @@ def decapsulate_kinesis_payloads(event: Dict) -> List[Dict]:
         try:
             b64payload = base64.b64decode(record["kinesis"]["data"]).decode("utf-8")
             records.append(json.loads(b64payload))
-        except Exception as e:
+        except Exception:
             logger.exception(f"FAILED {record}")
     return records
 
@@ -458,7 +458,7 @@ def iterate_kinesis_payloads(event: Dict) -> Generator[Dict, None, None]:
         try:
             b64payload = base64.b64decode(record["kinesis"]["data"]).decode("utf-8")
             yield json.loads(b64payload)
-        except Exception as e:
+        except Exception:
             logger.exception(f"FAILED {record}")
 
 
@@ -663,12 +663,12 @@ def query(
             ) as cur:
                 cur.execute(q, vars=kwargs if kwargs is not None else {})
                 yield from cur
-    except:
+    except BaseException:  # todo workout what the likely exceptions being thrown by postgreql are likely to be
         logger.exception(f"Failed with connection: {redshift_conn_dict}")
         raise
 
 
-def SQSWrapper(
+def SQSWrapper(  # noqa: C901
     event,
     context,
     queuename,
@@ -688,7 +688,7 @@ def SQSWrapper(
         meta_counter = Counter()
         try:
             sqs_url = client.get_queue_url(QueueName=queuename)["QueueUrl"]
-        except:
+        except BaseException:
             logger.exception(f"Error connecting to {queuename}")
             raise
         n = 0
@@ -707,7 +707,7 @@ def SQSWrapper(
                 if not deduplicate or message["MD5OfBody"] not in md5_map:
                     try:
                         results = function(message["Body"], **fkwargs)
-                    except:
+                    except BaseException:
                         results = None
                         logger.exception(f"{function.__name__}: Failed on {message}")
                         if raise_exceptions:
@@ -750,6 +750,6 @@ def SQSWrapper(
 
         return meta_counter
 
-    except:
+    except BaseException:
         logger.exception(f"Unhandled Exception in {context.function_name}")
         raise

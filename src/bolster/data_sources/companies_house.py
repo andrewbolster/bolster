@@ -1,5 +1,5 @@
 import csv
-from typing import AnyStr
+from typing import AnyStr, Text
 from typing import Callable
 from typing import Dict
 from typing import Iterator
@@ -8,12 +8,12 @@ import bs4
 import requests
 from tqdm.auto import tqdm
 
-from bolster import always
-from bolster import dict_concat_safe
-from bolster.utils.web import download_extract_zip
+from .. import always
+from .. import dict_concat_safe
+from ..utils.web import download_extract_zip
 
 
-def get_basic_company_data_url() -> AnyStr:
+def get_basic_company_data_url() -> Text:
     """
     Parse the companies house website to get the current URL for the 'BasicCompanyData'
 
@@ -24,7 +24,9 @@ def get_basic_company_data_url() -> AnyStr:
     for a in s.find_all("a"):
         if a.get("href").startswith("BasicCompanyDataAsOneFile"):
             url = f"http://download.companieshouse.gov.uk/{a.get('href')}"
-            return url
+            break  # assume first time lucky
+
+    return url
 
 
 def query_basic_company_data(

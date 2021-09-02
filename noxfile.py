@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 from textwrap import dedent
 
-import nox
+import nox # type: ignore
 
 try:
     from nox_poetry import Session
@@ -20,7 +20,7 @@ except ImportError:
 
 
 package = "bolster"
-python_versions = ["3.10","3.9", "3.8"]
+python_versions = ["3.10", "3.9", "3.8"]
 nox.needs_version = ">= 2021.6.6"
 nox.options.sessions = (
     "pre-commit",
@@ -96,6 +96,7 @@ def precommit(session: Session) -> None:
         "flake8-bugbear",
         "flake8-docstrings",
         "flake8-rst-docstrings",
+        "flake8-annotations",
         "pep8-naming",
         "pre-commit",
         "pre-commit-hooks",
@@ -117,12 +118,19 @@ def safety(session: Session) -> None:
 @session(python=python_versions)
 def mypy(session: Session) -> None:
     """Type-check using mypy."""
-    args = session.posargs or ["src", "tests", "docs/conf.py"]
+    args = session.posargs or ["--install-types","--non-interactive","src", "tests", "docs/conf.py"]
     session.install(".")
     session.install("mypy", "pytest")
     session.run("mypy", *args)
     if not session.posargs:
-        session.run("mypy", f"--python-executable={sys.executable}", "noxfile.py")
+        # https://mypy.readthedocs.io/en/stable/running_mypy.html#library-stubs-not-installed
+        session.run(
+            "mypy",
+            "--install-types",
+            "--non-interactive",
+            f"--python-executable={sys.executable}",
+            "noxfile.py",
+        )
 
 
 @session(python=python_versions)
@@ -172,7 +180,17 @@ def docs_build(session: Session) -> None:
     """Build the documentation."""
     args = session.posargs or ["docs", "docs/_build"]
     session.install(".")
-    session.install("sphinx", "sphinx-click", "sphinx-rtd-theme")
+    session.install(
+        "sphinx",
+        "sphinx-click",
+        "sphinx-issues",
+        "sphinx-rtd-theme",
+        "sphinx-autoapi",
+        "sphinx-autodoc-typehints",
+        "sphinxcontrib-apidoc",
+        "nbsphinx",
+        "autoapi",
+    )
 
     build_dir = Path("docs", "_build")
     if build_dir.exists():
