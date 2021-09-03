@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 from textwrap import dedent
 
-import nox # type: ignore
+import nox  # type: ignore
 
 try:
     from nox_poetry import Session
@@ -118,7 +118,13 @@ def safety(session: Session) -> None:
 @session(python=python_versions)
 def mypy(session: Session) -> None:
     """Type-check using mypy."""
-    args = session.posargs or ["--install-types","--non-interactive","src", "tests", "docs/conf.py"]
+    args = session.posargs or [
+        "--install-types",
+        "--non-interactive",
+        "src",
+        "tests",
+        "docs/conf.py",
+    ]
     session.install(".")
     session.install("mypy", "pytest")
     session.run("mypy", *args)

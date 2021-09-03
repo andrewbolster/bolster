@@ -36,7 +36,8 @@ from typing import (
     SupportsFloat,
     Tuple,
     Set,
-    Hashable, Any,
+    Hashable,
+    Any,
 )
 
 logger = logging.getLogger(__name__)
@@ -625,7 +626,7 @@ def breadth(d):
     return width
 
 
-def depth(d: Dict[Any,int]) -> int:
+def depth(d: Dict[Any, int]) -> int:
     """
     Get the maximum depth of a tree
     """
