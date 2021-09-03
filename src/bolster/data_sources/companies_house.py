@@ -1,8 +1,8 @@
 import csv
-from typing import AnyStr, Text
 from typing import Callable
 from typing import Dict
 from typing import Iterator
+from typing import Text
 
 import bs4
 import requests
