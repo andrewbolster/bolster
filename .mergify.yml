@@ -1,9 +1,13 @@
 pull_request_rules:
-    - name: Merge pull requests from pyup if CI passes
+    - name: Merge pull requests from dependabot if CI passes
       conditions:
-          - author=pyup-bot
-          - status-success=continuous-integration/travis-ci/pr
+          - author=dependabot[bot]
+          - check-success=pre-commit 3.9 / ubuntu-latest
+          - check-success=tests 3.9 / windows-latest
+          - check-success=tests 3.9 / ubuntu-latest
+          - check-success=tests 3.9 / macos-latest
+          - check-success=codecov/project
       actions:
           merge:
               method: squash
-              strict: true
+              commit_message: title+body
