@@ -59,7 +59,7 @@ autoapi = "2.0.1"
 sphinx-autoapi = "1.8.4"
 sphinxcontrib-apidoc = "0.3.0"
 nox-poetry = "^0.8.6"
-nox = "^2021.6.12"
+nox = "^2021.10.1"
 flake8-annotations = "^2.6.2"
 
 
