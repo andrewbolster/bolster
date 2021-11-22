@@ -125,7 +125,7 @@ def batch(seq: Sequence, n: int = 1) -> Generator[Iterable, None, None]:
     """
     parent_length = len(seq)
     for ndx in range(0, parent_length, n):
-        yield seq[ndx: min(ndx + n, parent_length)]
+        yield seq[ndx : min(ndx + n, parent_length)]
 
 
 def chunks(iterable: Iterable, size=10) -> Generator[List, None, None]:
@@ -743,4 +743,4 @@ def build_default_mapping_dict_from_keys(keys: List[str]) -> Dict[str, str]:
     >>> build_default_mapping_dict_from_keys(['a_b','b_c','c_d'])
     {'a_b': 'A B', 'b_c': 'B C', 'c_d': 'C D'}
     """
-    return dict([(f, f.replace('_', ' ').title()) for f in keys])
+    return dict([(f, f.replace("_", " ").title()) for f in keys])

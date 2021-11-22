@@ -1,4 +1,5 @@
-from typing import Dict, AnyStr
+from typing import AnyStr
+from typing import Dict
 
 import pandas as pd
 from pandas._typing import FilePathOrBuffer

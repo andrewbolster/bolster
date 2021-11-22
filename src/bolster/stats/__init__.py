@@ -3,7 +3,12 @@ from typing import AnyStr
 import pandas as pd
 
 
-def add_totals(df: pd.DataFrame, column_total: AnyStr = 'total', row_total: AnyStr = 'total', inplace=True):
+def add_totals(
+    df: pd.DataFrame,
+    column_total: AnyStr = "total",
+    row_total: AnyStr = "total",
+    inplace=True,
+):
     """
     Add Row and Column totals to a dataframe (in place)
 
@@ -58,7 +63,9 @@ def fix_datetime_tz_columns(df: pd.DataFrame, inplace=True) -> pd.DataFrame:
     """
     if not inplace:
         df = df.copy(deep=True)
-    date_columns = df.select_dtypes(include=['datetime64[ns, UTC]', 'datetimetz']).columns
+    date_columns = df.select_dtypes(
+        include=["datetime64[ns, UTC]", "datetimetz"]
+    ).columns
     for date_column in date_columns:
         df[date_column] = df[date_column].dt.tz_localize(None)
     return df
