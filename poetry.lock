@@ -629,7 +629,7 @@ python-versions = ">=3.5"
 
 [[package]]
 name = "nox"
-version = "2021.10.1"
+version = "2022.1.7"
 description = "Flexible test automation."
 category = "dev"
 optional = false
@@ -1416,7 +1416,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8.0,<3.10"
-content-hash = "273db58b2066c271afa6a0dcf3aa9fb6989c45c9966ce656e4bb2f91ba596cf9"
+content-hash = "58b8e2ad14594a6f29c97816ea98ea68c1adb40a706f5fb5a9069da33d208dc5"
 
 [metadata.files]
 alabaster = [
@@ -1839,8 +1839,8 @@ nest-asyncio = [
     {file = "nest_asyncio-1.5.4.tar.gz", hash = "sha256:f969f6013a16fadb4adcf09d11a68a4f617c6049d7af7ac2c676110169a63abd"},
 ]
 nox = [
-    {file = "nox-2021.10.1-py3-none-any.whl", hash = "sha256:1bb224fb09c26c482932f0e3038ef01c27b4025d559066443a4da1f96daad01a"},
-    {file = "nox-2021.10.1.tar.gz", hash = "sha256:0a1c735d5e90fa234046b58a5ad61d08bc13ae77ab213da9b58d5cc2d25023ae"},
+    {file = "nox-2022.1.7-py3-none-any.whl", hash = "sha256:efee12f02d39405b16d68f60e7a06fe1fc450ae58669d6cdda8c7f48e3bae9e3"},
+    {file = "nox-2022.1.7.tar.gz", hash = "sha256:b375238cebb0b9df2fab74b8d0ce1a50cd80df60ca2e13f38f539454fcd97d7e"},
 ]
 nox-poetry = [
     {file = "nox-poetry-0.9.0.tar.gz", hash = "sha256:ea48fa535cd048854da35af7c6c3e92046fbed9b9023bb81193fb4d2d3a47c92"},
