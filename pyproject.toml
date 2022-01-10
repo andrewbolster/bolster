@@ -8,13 +8,13 @@ homepage = "https://github.com/andrewbolster/bolster"
 repository = "https://github.com/andrewbolster/bolster"
 documentation = "https://bolster.readthedocs.io"
 classifiers = [
-        'Development Status :: 2 - Pre-Alpha',
-        'Intended Audience :: Developers',
-        'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
-        'Natural Language :: English',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: 3.9',
+    'Development Status :: 2 - Pre-Alpha',
+    'Intended Audience :: Developers',
+    'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
+    'Natural Language :: English',
+    'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.8',
+    'Programming Language :: Python :: 3.9',
 ]
 
 [tool.poetry.dependencies]
@@ -47,7 +47,6 @@ tox = "3.24.5"
 coverage = "6.2"
 twine = "3.7.1"
 pytest = "6.2.5"
-pytest-runner = "5.3.1"
 pytest-cov = "3.0.0"
 Sphinx = "4.3.2"
 sphinx-click = "3.0.2"
