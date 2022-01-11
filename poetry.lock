@@ -1076,7 +1076,7 @@ go = ["sphinxcontrib-golangdomain"]
 
 [[package]]
 name = "sphinx-autodoc-typehints"
-version = "1.15.1"
+version = "1.15.2"
 description = "Type hints (PEP 484) support for the Sphinx autodoc extension"
 category = "dev"
 optional = false
@@ -1416,7 +1416,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8.0,<3.10"
-content-hash = "cded6c21ff78d9ecb2f90e878cd26b58ad83441efdf864a06b32366932adf330"
+content-hash = "2e76e8c7cfb187e6602f4b32eec4adab02de97d625c0819202e39e9bd4373505"
 
 [metadata.files]
 alabaster = [
@@ -2220,8 +2220,8 @@ sphinx-autoapi = [
     {file = "sphinx_autoapi-1.8.4-py2.py3-none-any.whl", hash = "sha256:007bf9e24cd2aa0ac0561f67e8bcd6a6e2e8911ef4b4fd54aaba799d8832c8d0"},
 ]
 sphinx-autodoc-typehints = [
-    {file = "sphinx_autodoc_typehints-1.15.1-py3-none-any.whl", hash = "sha256:477302d72565c907756c16e907daa6ad7ad78ac7574a18c0eae9f493158c220c"},
-    {file = "sphinx_autodoc_typehints-1.15.1.tar.gz", hash = "sha256:47bd87c2d99173e20c44d5604917ff890bb2d2e77174d952b061dcfaa99f0b7d"},
+    {file = "sphinx_autodoc_typehints-1.15.2-py3-none-any.whl", hash = "sha256:bd6b70b93fc53d63a167738ba4fb40643ef7eb9b8d915a886c372949981b8eac"},
+    {file = "sphinx_autodoc_typehints-1.15.2.tar.gz", hash = "sha256:1480d4af8ac465aa87b793e22bb0feb4578b9c93b36e01b35c983bd6f596326f"},
 ]
 sphinx-click = [
     {file = "sphinx-click-3.0.2.tar.gz", hash = "sha256:29896dd12bfaacb566a8c7af2e2b675d010d69b0c5aad3b52495d4842358b15b"},
