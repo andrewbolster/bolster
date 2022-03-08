@@ -113,7 +113,7 @@ def safety(session: Session) -> None:
     requirements = session.poetry.export_requirements()
     session.install("safety")
     session.run(
-        "safety", "check", "--full-report", f"--file={requirements}", "--ignore 44715"
+        "safety", "check", "--full-report", f"--file={requirements}", "--ignore", "44715"
     )
 
 
