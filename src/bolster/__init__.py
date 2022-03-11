@@ -17,9 +17,9 @@ import time
 import traceback
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed, Future
-from functools import wraps, partial
+from functools import wraps, partial, reduce
 from itertools import chain, islice, groupby
-from operator import itemgetter
+from operator import itemgetter, getitem
 from pathlib import Path
 from typing import (
     Sequence,
@@ -722,6 +722,14 @@ def uncollect_object(d: Dict) -> Dict:
         else:
             new_d[k] = v
     return new_d
+
+
+def getFromDict(dataDict, mapList):
+    return reduce(getitem, mapList, dataDict)
+
+
+def setInDict(dataDict, mapList, value):
+    getFromDict(dataDict, mapList[:-1])[mapList[-1]] = value
 
 
 def dict_concat_safe(
