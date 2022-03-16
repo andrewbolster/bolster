@@ -698,6 +698,10 @@ def leaf_paths(d: Dict, path: Optional[List] = None) -> Iterator[Tuple[List, Dic
         yield (path, d)
 
 
+def nested_defaultdict():
+    return defaultdict(nested_defaultdict)
+
+
 def flatten_dict(d: Dict, head: str = "", sep: str = ":") -> Dict:
     new_d = {}
     for k, v in d.items():
