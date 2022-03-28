@@ -1,0 +1,9 @@
+Sphinx
+sphinx-click
+sphinx-issues
+nbsphinx
+sphinx-rtd-theme
+sphinx-autodoc-typehints
+sphinx-autoapi
+autoapi
+sphinxcontrib-apidoc
