@@ -19,7 +19,7 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath("../"))
+sys.path.insert(0, os.path.abspath("../src"))
 
 import bolster  # noga: E402
 
@@ -76,7 +76,6 @@ github_doc_root = f"{github_root}tree/main/docs/"
 
 issues_github_path = github_stub
 
-
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout
 # the built documents.
@@ -104,7 +103,6 @@ pygments_style = "sphinx"
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
 
-
 # -- Options for HTML output -------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
@@ -123,12 +121,10 @@ html_theme = "sphinx_rtd_theme"
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 
-
 # -- Options for HTMLHelp output ---------------------------------------
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = "bolsterdoc"
-
 
 # -- Options for LaTeX output ------------------------------------------
 
@@ -154,13 +150,11 @@ latex_documents = [
     (master_doc, "bolster.tex", "Bolster Documentation", "Andrew Bolster", "manual")
 ]
 
-
 # -- Options for manual page output ------------------------------------
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [(master_doc, "bolster", "Bolster Documentation", [author], 1)]
-
 
 # -- Options for Texinfo output ----------------------------------------
 
