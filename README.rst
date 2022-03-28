@@ -37,6 +37,11 @@ Features
 * `pandas`-esque `aggregate`/`transform_r` functions
 * "Best Practice" AWS service handling
 
+Data Sources
+------------
+* UK Companies House Listings
+* NI House Price Index Data Wrangling
+
 Credits
 -------
 
