@@ -24,5 +24,7 @@ submodules:
 python:
     version: 3.7
     install:
-        - requirements: requirements_doc.txt
-        - requirements: requirements_dev.txt
+        -   method: pip
+            path: .
+            extra_requirements:
+                - docs
