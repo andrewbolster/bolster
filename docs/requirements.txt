@@ -7,3 +7,4 @@ sphinx-autodoc-typehints
 sphinx-autoapi
 autoapi
 sphinxcontrib-apidoc
+sphinx-github-changelog
