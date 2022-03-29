@@ -15,6 +15,7 @@ Generic problems fixed;
 
 """
 import re
+from functools import partial
 from typing import Dict
 from typing import Text
 
@@ -216,11 +217,13 @@ TABLE_TRANSFORMATION_MAP[re.compile("Table 2[a-z]")] = cleanup_price_by_property
 # NI HPI & Standardised Price Statistics by New/Existing Resold Dwelling Type
 TABLE_TRANSFORMATION_MAP["Table 3"] = cleanup_price_by_property_type_agg
 TABLE_TRANSFORMATION_MAP[
-    re.compile("Table 3[a-z]")
+    re.compile("Table 3[a-z]")  # Table 3c Overridden below
 ] = cleanup_price_by_property_type_agg
 
 
-def cleanup_with_munged_quarters_and_total_rows(df: pd.DataFrame) -> pd.DataFrame:
+def cleanup_with_munged_quarters_and_total_rows(
+    df: pd.DataFrame, offset=3
+) -> pd.DataFrame:
     """
     Number of Verified Residential Property Sales
 
@@ -245,9 +248,13 @@ def cleanup_with_munged_quarters_and_total_rows(df: pd.DataFrame) -> pd.DataFram
     with pd.option_context("mode.chained_assignment", None):
         df.iloc[:, 0] = df.iloc[:, 0].astype(str).str.replace("\n", "")
 
-    df = basic_cleanup(df, offset=3)
+    df = basic_cleanup(df, offset=offset)
     return df
 
+
+TABLE_TRANSFORMATION_MAP["Table 3c"] = partial(
+    cleanup_with_munged_quarters_and_total_rows, offset=4
+)
 
 # Table 4: Number of Verified Residential Property Sales
 TABLE_TRANSFORMATION_MAP["Table 4"] = cleanup_with_munged_quarters_and_total_rows

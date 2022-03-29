@@ -50,6 +50,7 @@ extensions = [
     "sphinx_click.ext",
     "sphinx_issues",
     "sphinxcontrib.apidoc",
+    "sphinx_github_changelog",
 ]
 
 # Add any paths that contain templates here, relative to this directory.

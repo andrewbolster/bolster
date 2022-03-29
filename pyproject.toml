@@ -40,6 +40,7 @@ sphinx-autodoc-typehints = { version = "1.17.0", optional = true }
 autoapi = { version = "2.0.1", optional = true }
 sphinx-autoapi = { version = "1.8.4", optional = true }
 sphinxcontrib-apidoc = { version = "0.3.0", optional = true }
+sphinx-github-changelog = { version = "^1.2.0", optional = true }
 
 [tool.poetry.scripts]
 bolster = "bolster.cli:main"
@@ -64,7 +65,9 @@ flake8-annotations = "^2.7.0"
 
 [tool.poetry.extras]
 docs = ["Sphinx", "sphinx-click", "sphinx-issues", "nbsphinx", "sphinx-rtd-theme",
-    "sphinx-autodoc-typehints", "sphinx-autoapi", "autoapi", "sphinxcontrib-apidoc"]
+    "sphinx-autodoc-typehints", "sphinx-autoapi", "autoapi", "sphinxcontrib-apidoc",
+    "sphinx-github-changelog"
+]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

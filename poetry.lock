@@ -1161,6 +1161,19 @@ docutils = "*"
 sphinx = ">=2.0"
 
 [[package]]
+name = "sphinx-github-changelog"
+version = "1.2.0"
+description = "Build a sphinx changelog from GitHub Releases"
+category = "main"
+optional = true
+python-versions = ">=3.7,<4.0"
+
+[package.dependencies]
+docutils = "*"
+requests = "*"
+Sphinx = "*"
+
+[[package]]
 name = "sphinx-issues"
 version = "3.0.1"
 description = "A Sphinx extension for linking to your project's issue tracker"
@@ -1489,7 +1502,7 @@ docs = ["Sphinx", "sphinx-click", "sphinx-issues", "nbsphinx", "sphinx-rtd-theme
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8.0,<3.10"
-content-hash = "c8dff61e0e4bfb637e51f0239d144644264b1f961ac628223a22de3683468a8a"
+content-hash = "1a31d8a88c1a0e447236e3ca0c366ed29ed3a42d1aade10dca6d25c16eb7f151"
 
 [metadata.files]
 alabaster = [
@@ -2268,6 +2281,10 @@ sphinx-autodoc-typehints = [
 sphinx-click = [
     {file = "sphinx-click-3.1.0.tar.gz", hash = "sha256:36dbf271b1d2600fb05bd598ddeed0b6b6acf35beaf8bc9d507ba7716b232b0e"},
     {file = "sphinx_click-3.1.0-py3-none-any.whl", hash = "sha256:8fb0b048a577d346d741782e44d041d7e908922858273d99746f305870116121"},
+]
+sphinx-github-changelog = [
+    {file = "sphinx-github-changelog-1.2.0.tar.gz", hash = "sha256:1104d66fcb1849e46637e9b2e9385ed4323e3576b99f89890affbf569e16afde"},
+    {file = "sphinx_github_changelog-1.2.0-py3-none-any.whl", hash = "sha256:07befeceab0b60047bd9aab09df8893d1feb5bd9c5f611541feb71dd5b98672c"},
 ]
 sphinx-issues = [
     {file = "sphinx-issues-3.0.1.tar.gz", hash = "sha256:b7c1dc1f4808563c454d11c1112796f8c176cdecfee95f0fd2302ef98e21e3d6"},
