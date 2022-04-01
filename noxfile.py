@@ -30,7 +30,7 @@ nox.options.sessions = (
     "xdoctest",
     "docs-build",
 )
-docs_requirements = Path('./docs/requirements.txt').read_text().split()
+docs_requirements = Path("./docs/requirements.txt").read_text().split()
 
 
 def activate_virtualenv_in_precommit_hooks(session: Session) -> None:
@@ -193,9 +193,7 @@ def docs_build(session: Session) -> None:
     """Build the documentation."""
     args = session.posargs or ["docs", "docs/_build"]
     session.install(".")
-    session.install(
-        docs_requirements
-    )
+    session.install(docs_requirements)
 
     build_dir = Path("docs", "_build")
     if build_dir.exists():
@@ -209,9 +207,7 @@ def docs(session: Session) -> None:
     """Build and serve the documentation with live reloading on file changes."""
     args = session.posargs or ["--open-browser", "docs", "docs/_build"]
     session.install(".")
-    session.install(
-        docs_requirements
-    )
+    session.install(docs_requirements)
     build_dir = Path("docs", "_build")
     if build_dir.exists():
         shutil.rmtree(build_dir)
