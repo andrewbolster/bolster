@@ -18,7 +18,6 @@ except ImportError:
     {sys.executable} -m pip install nox-poetry"""
     raise SystemExit(dedent(message))
 
-
 package = "bolster"
 python_versions = ["3.10", "3.9", "3.8"]
 nox.needs_version = ">= 2021.6.6"
@@ -31,6 +30,7 @@ nox.options.sessions = (
     "xdoctest",
     "docs-build",
 )
+docs_requirements = Path('./docs/requirements.txt').read_text().split()
 
 
 def activate_virtualenv_in_precommit_hooks(session: Session) -> None:
@@ -194,15 +194,7 @@ def docs_build(session: Session) -> None:
     args = session.posargs or ["docs", "docs/_build"]
     session.install(".")
     session.install(
-        "sphinx",
-        "sphinx-click",
-        "sphinx-issues",
-        "sphinx-rtd-theme",
-        "sphinx-autoapi",
-        "sphinx-autodoc-typehints",
-        "sphinxcontrib-apidoc",
-        "nbsphinx",
-        "autoapi",
+        docs_requirements
     )
 
     build_dir = Path("docs", "_build")
@@ -217,8 +209,9 @@ def docs(session: Session) -> None:
     """Build and serve the documentation with live reloading on file changes."""
     args = session.posargs or ["--open-browser", "docs", "docs/_build"]
     session.install(".")
-    session.install("sphinx", "sphinx-autobuild", "sphinx-click", "sphinx-rtd-theme")
-
+    session.install(
+        docs_requirements
+    )
     build_dir = Path("docs", "_build")
     if build_dir.exists():
         shutil.rmtree(build_dir)
