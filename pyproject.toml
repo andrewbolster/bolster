@@ -61,7 +61,7 @@ pytest = "7.1.1"
 pytest-cov = "3.0.0"
 nox-poetry = "^0.9.0"
 nox = "^2022.1.7"
-flake8-annotations = "^2.8.0"
+flake8-annotations = "^2.9.0"
 
 [tool.poetry.extras]
 docs = ["Sphinx", "sphinx-click", "sphinx-issues", "nbsphinx", "sphinx-rtd-theme",
