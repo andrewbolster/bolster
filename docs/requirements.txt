@@ -8,3 +8,4 @@ sphinx-autoapi
 autoapi
 sphinxcontrib-apidoc
 sphinx-github-changelog
+ipython_genutils
