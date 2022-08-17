@@ -20,9 +20,8 @@ class MyTestCase(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        path = requests_cache.get_cache().db_path
+        requests_cache.clear()
         requests_cache.uninstall_cache()
-        path.unlink()
 
 
 if __name__ == "__main__":
