@@ -532,7 +532,7 @@ name = "mistune"
 version = "2.0.3"
 description = "A sane Markdown parser with useful plugins and renderers"
 category = "main"
-optional = false
+optional = true
 python-versions = "*"
 
 [[package]]
@@ -1087,7 +1087,7 @@ go = ["sphinxcontrib-golangdomain"]
 
 [[package]]
 name = "sphinx-autodoc-typehints"
-version = "1.18.1"
+version = "1.19.1"
 description = "Type hints (PEP 484) support for the Sphinx autodoc extension"
 category = "main"
 optional = true
@@ -1097,7 +1097,7 @@ python-versions = ">=3.7"
 Sphinx = ">=4.5"
 
 [package.extras]
-testing = ["covdefaults (>=2.2)", "coverage (>=6.3)", "diff-cover (>=6.4)", "nptyping (>=2)", "pytest (>=7.1)", "pytest-cov (>=3)", "sphobjinv (>=2)", "typing-extensions (>=4.1)"]
+testing = ["covdefaults (>=2.2)", "coverage (>=6.3)", "diff-cover (>=6.4)", "nptyping (>=2.1.2)", "pytest (>=7.1)", "pytest-cov (>=3)", "sphobjinv (>=2)", "typing-extensions (>=4.1)"]
 type_comments = ["typed-ast (>=1.5.2)"]
 
 [[package]]
@@ -1447,7 +1447,7 @@ docs = ["Sphinx", "sphinx-click", "sphinx-issues", "nbsphinx", "sphinx-rtd-theme
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8.0,<3.10"
-content-hash = "f08dae2ea5328209f73d001f9fc50bb089bf48c87ba500d0af18c55876250d91"
+content-hash = "d860151ecfda19e1474e69764f42e13d2672118094677c90d860f0cee14fba5c"
 
 [metadata.files]
 alabaster = [
@@ -2172,8 +2172,8 @@ sphinx-autoapi = [
     {file = "sphinx_autoapi-1.8.4-py2.py3-none-any.whl", hash = "sha256:007bf9e24cd2aa0ac0561f67e8bcd6a6e2e8911ef4b4fd54aaba799d8832c8d0"},
 ]
 sphinx-autodoc-typehints = [
-    {file = "sphinx_autodoc_typehints-1.18.1-py3-none-any.whl", hash = "sha256:f8f5bb7c13a9a71537dc2be2eb3b9e28a9711e2454df63587005eacf6fbac453"},
-    {file = "sphinx_autodoc_typehints-1.18.1.tar.gz", hash = "sha256:07631c5f0c6641e5ba27143494aefc657e029bed3982138d659250e617f6f929"},
+    {file = "sphinx_autodoc_typehints-1.19.1-py3-none-any.whl", hash = "sha256:9be46aeeb1b315eb5df1f3a7cb262149895d16c7d7dcd77b92513c3c3a1e85e6"},
+    {file = "sphinx_autodoc_typehints-1.19.1.tar.gz", hash = "sha256:6c841db55e0e9be0483ff3962a2152b60e79306f4288d8c4e7e86ac84486a5ea"},
 ]
 sphinx-click = [
     {file = "sphinx-click-4.0.3.tar.gz", hash = "sha256:a1aacf00cfe11550a2211014617c426a94af8638f1ce735b5d9998cccf1a1edb"},
