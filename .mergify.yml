@@ -20,11 +20,10 @@ pull_request_rules:
           - check-success=tests 3.9 / macos-latest
           - check-success=codecov/project
           - check-success=CodeQL
-          - check-success=docs-build 3.9 / ubuntu-latest 
-          - check-success=xdoctest 3.9 / ubuntu-latest 
-          - check-success=typeguard 3.9 / ubuntu-latest 
+          - check-success=docs-build 3.9 / ubuntu-latest
+          - check-success=xdoctest 3.9 / ubuntu-latest
+          - check-success=typeguard 3.9 / ubuntu-latest
           - check-success=coverage
       actions:
           merge:
               method: squash
-
