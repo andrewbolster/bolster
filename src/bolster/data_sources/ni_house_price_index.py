@@ -113,6 +113,7 @@ def basic_cleanup(df: pd.DataFrame, offset=1) -> pd.DataFrame:
     # in Q2/4, so fill it downwards
     if set(df.keys()).issuperset({"Year", "Quarter"}):
         df["Year"] = df["Year"].astype(float).fillna(method="ffill").astype(int)
+        df = df.dropna(how="any", subset=["Year", "Quarter"])
 
         # In Pandas we can represent Y/Q combinations as proper datetimes
         # https://stackoverflow.com/questions/53898482/clean-way-to-convert-quarterly-periods-to-datetime-in-pandas
