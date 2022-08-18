@@ -295,7 +295,7 @@ name = "defusedxml"
 version = "0.7.1"
 description = "XML bomb protection for Python stdlib modules"
 category = "main"
-optional = false
+optional = true
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
 [[package]]
@@ -319,7 +319,7 @@ name = "entrypoints"
 version = "0.4"
 description = "Discover and load entry points from installed packages."
 category = "main"
-optional = false
+optional = true
 python-versions = ">=3.6"
 
 [[package]]
@@ -404,7 +404,7 @@ name = "importlib-resources"
 version = "5.6.0"
 description = "Read resources from Python packages"
 category = "main"
-optional = false
+optional = true
 python-versions = ">=3.7"
 
 [package.dependencies]
@@ -439,7 +439,7 @@ name = "jinja2"
 version = "3.1.1"
 description = "A very fast and expressive template engine."
 category = "main"
-optional = false
+optional = true
 python-versions = ">=3.7"
 
 [package.dependencies]
@@ -461,7 +461,7 @@ name = "jsonschema"
 version = "4.4.0"
 description = "An implementation of JSON Schema validation for Python"
 category = "main"
-optional = false
+optional = true
 python-versions = ">=3.7"
 
 [package.dependencies]
@@ -478,7 +478,7 @@ name = "jupyter-client"
 version = "7.3.4"
 description = "Jupyter protocol implementation and client libraries"
 category = "main"
-optional = false
+optional = true
 python-versions = ">=3.7"
 
 [package.dependencies]
@@ -499,7 +499,7 @@ name = "jupyter-core"
 version = "4.9.2"
 description = "Jupyter core package. A base package on which Jupyter projects rely."
 category = "main"
-optional = false
+optional = true
 python-versions = ">=3.6"
 
 [package.dependencies]
@@ -511,7 +511,7 @@ name = "jupyterlab-pygments"
 version = "0.2.2"
 description = "Pygments theme using JupyterLab CSS variables"
 category = "main"
-optional = false
+optional = true
 python-versions = ">=3.7"
 
 [[package]]
@@ -545,7 +545,7 @@ name = "markupsafe"
 version = "2.1.1"
 description = "Safely add untrusted strings to HTML/XML markup."
 category = "main"
-optional = false
+optional = true
 python-versions = ">=3.7"
 
 [[package]]
@@ -569,7 +569,7 @@ name = "nbclient"
 version = "0.5.13"
 description = "A client library for executing notebooks. Formerly nbconvert's ExecutePreprocessor."
 category = "main"
-optional = false
+optional = true
 python-versions = ">=3.7.0"
 
 [package.dependencies]
@@ -587,7 +587,7 @@ name = "nbconvert"
 version = "6.3.0"
 description = "Converting Jupyter Notebooks"
 category = "main"
-optional = false
+optional = true
 python-versions = ">=3.7"
 
 [package.dependencies]
@@ -617,7 +617,7 @@ name = "nbformat"
 version = "5.2.0"
 description = "The Jupyter Notebook format"
 category = "main"
-optional = false
+optional = true
 python-versions = ">=3.7"
 
 [package.dependencies]
@@ -650,7 +650,7 @@ name = "nest-asyncio"
 version = "1.5.5"
 description = "Patch asyncio to allow nested event loops"
 category = "main"
-optional = false
+optional = true
 python-versions = ">=3.5"
 
 [[package]]
@@ -739,7 +739,7 @@ name = "pandocfilters"
 version = "1.5.0"
 description = "Utilities for writing pandoc filters in python"
 category = "main"
-optional = false
+optional = true
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 
 [[package]]
@@ -849,7 +849,7 @@ name = "pyrsistent"
 version = "0.18.1"
 description = "Persistent/Functional/Immutable data structures"
 category = "main"
-optional = false
+optional = true
 python-versions = ">=3.7"
 
 [[package]]
@@ -912,7 +912,7 @@ name = "pywin32"
 version = "303"
 description = "Python for Window Extensions"
 category = "main"
-optional = false
+optional = true
 python-versions = "*"
 
 [[package]]
@@ -936,7 +936,7 @@ name = "pyzmq"
 version = "23.2.1"
 description = "Python bindings for 0MQ"
 category = "main"
-optional = false
+optional = true
 python-versions = ">=3.6"
 
 [package.dependencies]
@@ -979,7 +979,7 @@ use_chardet_on_py3 = ["chardet (>=3.0.2,<6)"]
 
 [[package]]
 name = "requests-cache"
-version = "0.9.3"
+version = "0.9.5"
 description = "A transparent persistent cache for the requests library"
 category = "main"
 optional = false
@@ -988,16 +988,16 @@ python-versions = ">=3.7,<4.0"
 [package.dependencies]
 appdirs = ">=1.4.4,<2.0.0"
 attrs = ">=21.2,<22.0"
-cattrs = ">=1.8,<2.0"
+cattrs = ">=1.8,<=22.2"
 requests = ">=2.22,<3.0"
 url-normalize = ">=1.4,<2.0"
 urllib3 = ">=1.25.5,<2.0.0"
 
 [package.extras]
 dynamodb = ["boto3 (>=1.15,<2.0)", "botocore (>=1.18,<2.0)"]
-all = ["boto3 (>=1.15,<2.0)", "botocore (>=1.18,<2.0)", "pymongo (>=3,<5)", "redis (>=3,<5)", "itsdangerous (>=2.0,<3.0)", "pyyaml (>=5.4)", "ujson (>=4.0)"]
-mongodb = ["pymongo (>=3,<5)"]
-redis = ["redis (>=3,<5)"]
+all = ["boto3 (>=1.15,<2.0)", "botocore (>=1.18,<2.0)", "pymongo (>=3)", "redis (>=3)", "itsdangerous (>=2.0,<3.0)", "pyyaml (>=5.4)", "ujson (>=4.0)"]
+mongodb = ["pymongo (>=3)"]
+redis = ["redis (>=3)"]
 bson = ["bson (>=0.5)"]
 security = ["itsdangerous (>=2.0,<3.0)"]
 yaml = ["pyyaml (>=5.4)"]
@@ -1314,7 +1314,7 @@ name = "testpath"
 version = "0.6.0"
 description = "Test utilities for code working with files and commands"
 category = "main"
-optional = false
+optional = true
 python-versions = ">= 3.5"
 
 [package.extras]
@@ -1349,7 +1349,7 @@ name = "tornado"
 version = "6.2"
 description = "Tornado is a Python web framework and asynchronous networking library, originally developed at FriendFeed."
 category = "main"
-optional = false
+optional = true
 python-versions = ">= 3.7"
 
 [[package]]
@@ -1396,7 +1396,7 @@ name = "traitlets"
 version = "5.1.1"
 description = "Traitlets Python configuration system"
 category = "main"
-optional = false
+optional = true
 python-versions = ">=3.7"
 
 [package.extras]
@@ -2271,8 +2271,8 @@ requests = [
     {file = "requests-2.28.1.tar.gz", hash = "sha256:7c5599b102feddaa661c826c56ab4fee28bfd17f5abca1ebbe3e7f19d7c97983"},
 ]
 requests-cache = [
-    {file = "requests-cache-0.9.3.tar.gz", hash = "sha256:b32f8afba2439e1b3e12cba511c8f579271eff827f063210d62f9efa5bed6564"},
-    {file = "requests_cache-0.9.3-py3-none-any.whl", hash = "sha256:d8b32405b2725906aa09810f4796e54cc03029de269381b404c426bae927bada"},
+    {file = "requests-cache-0.9.5.tar.gz", hash = "sha256:bd67575f541f9c10f44f8b49d8d449fb55db8af2e27d93c56349f227b78e4b70"},
+    {file = "requests_cache-0.9.5-py3-none-any.whl", hash = "sha256:5343132acc8ca4d7810305aa1e8e46367e9c7c8379f7aea4e8c05f401499fc43"},
 ]
 requests-toolbelt = [
     {file = "requests-toolbelt-0.9.1.tar.gz", hash = "sha256:968089d4584ad4ad7c171454f0a5c6dac23971e9472521ea3b6d49d610aa6fc0"},
