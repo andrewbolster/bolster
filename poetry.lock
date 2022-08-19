@@ -598,18 +598,18 @@ traitlets = "*"
 
 [[package]]
 name = "nox"
-version = "2022.1.7"
+version = "2022.8.7"
 description = "Flexible test automation."
 category = "dev"
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.7"
 
 [package.dependencies]
-argcomplete = ">=1.9.4,<2.0"
+argcomplete = ">=1.9.4,<3.0"
 colorlog = ">=2.6.1,<7.0.0"
 packaging = ">=20.9"
-py = ">=1.4.0,<2.0.0"
-virtualenv = ">=14.0.0"
+py = ">=1.4,<2.0.0"
+virtualenv = ">=14"
 
 [package.extras]
 tox_to_nox = ["tox", "jinja2"]
@@ -1447,7 +1447,7 @@ docs = ["Sphinx", "sphinx-click", "sphinx-issues", "nbsphinx", "sphinx-rtd-theme
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8.0,<3.10"
-content-hash = "38f46b79f6d8ee536e4fb3ca69c1bd155506c21fd301731edded9b02ae00a3ed"
+content-hash = "5b5c62756abc8a910d7f9af6fc04056f04b9415a296c24594172d8e4e55c87aa"
 
 [metadata.files]
 alabaster = [
@@ -1840,8 +1840,8 @@ nbsphinx = [
     {file = "nbsphinx-0.8.8.tar.gz", hash = "sha256:b5090c824b330b36c2715065a1a179ad36526bff208485a9865453d1ddfc34ec"},
 ]
 nox = [
-    {file = "nox-2022.1.7-py3-none-any.whl", hash = "sha256:efee12f02d39405b16d68f60e7a06fe1fc450ae58669d6cdda8c7f48e3bae9e3"},
-    {file = "nox-2022.1.7.tar.gz", hash = "sha256:b375238cebb0b9df2fab74b8d0ce1a50cd80df60ca2e13f38f539454fcd97d7e"},
+    {file = "nox-2022.8.7-py3-none-any.whl", hash = "sha256:96cca88779e08282a699d672258ec01eb7c792d35bbbf538c723172bce23212c"},
+    {file = "nox-2022.8.7.tar.gz", hash = "sha256:1b894940551dc5c389f9271d197ca5d655d40bdc6ccf93ed6880e4042760a34b"},
 ]
 nox-poetry = [
     {file = "nox-poetry-0.9.0.tar.gz", hash = "sha256:ea48fa535cd048854da35af7c6c3e92046fbed9b9023bb81193fb4d2d3a47c92"},
