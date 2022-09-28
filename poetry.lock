@@ -1166,7 +1166,7 @@ test = ["cython", "html5lib", "pytest (>=4.6)", "typed_ast"]
 
 [[package]]
 name = "sphinx-autoapi"
-version = "1.9.0"
+version = "2.0.0"
 description = "Sphinx API documentation generator"
 category = "main"
 optional = true
@@ -1176,7 +1176,7 @@ python-versions = ">=3.7"
 astroid = ">=2.7"
 Jinja2 = "*"
 PyYAML = "*"
-sphinx = ">=3.0"
+sphinx = ">=4.0"
 unidecode = "*"
 
 [package.extras]
@@ -1562,7 +1562,7 @@ docs = ["Sphinx", "sphinx-click", "sphinx-issues", "nbsphinx", "sphinx-rtd-theme
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8.0,<3.10"
-content-hash = "5505c15ae2dec441e43682dc171764ab96159cd21196370a6b9762c1d70db31b"
+content-hash = "85f1deab74457576df1e7ac016ea6155380aa5b15ee719ad8121e3c860c4f4a1"
 
 [metadata.files]
 alabaster = [
@@ -2475,8 +2475,8 @@ Sphinx = [
     {file = "sphinx-5.2.2-py3-none-any.whl", hash = "sha256:9150a8ed2e98d70e778624373f183c5498bf429dd605cf7b63e80e2a166c35a5"},
 ]
 sphinx-autoapi = [
-    {file = "sphinx-autoapi-1.9.0.tar.gz", hash = "sha256:c897ea337df16ad0cde307cbdfe2bece207788dde1587fa4fc8b857d1fc5dcba"},
-    {file = "sphinx_autoapi-1.9.0-py2.py3-none-any.whl", hash = "sha256:d217953273b359b699d8cb81a5a72985a3e6e15cfe3f703d9a3c201ffc30849b"},
+    {file = "sphinx-autoapi-2.0.0.tar.gz", hash = "sha256:97dcf1b5b54cd0d8efef867594e4a4f3e2d3a2c0ec1e5a891e0a61bc77046006"},
+    {file = "sphinx_autoapi-2.0.0-py2.py3-none-any.whl", hash = "sha256:dab2753a38cad907bf4e61473c0da365a26bfbe69fbf5aa6e4f7d48e1cf8a148"},
 ]
 sphinx-autodoc-typehints = [
     {file = "sphinx_autodoc_typehints-1.19.4-py3-none-any.whl", hash = "sha256:e190d8ee8204c3de05a64f41cf10e592e987e4063c8ec0de7e4b11f6e036b2e2"},
