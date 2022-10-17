@@ -759,7 +759,7 @@ python-versions = ">=2.6"
 
 [[package]]
 name = "pip"
-version = "22.2.2"
+version = "22.3"
 description = "The PyPA recommended tool for installing Python packages."
 category = "dev"
 optional = false
@@ -1567,7 +1567,7 @@ docs = ["Sphinx", "sphinx-click", "sphinx-issues", "nbsphinx", "sphinx-rtd-theme
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8.0,<3.10"
-content-hash = "fcb8c9ad0e495c9f2655fe7dc89a40c4451c46b3edd8194ab5239bbb35278814"
+content-hash = "af86d3bdaae052e0fa75b417ff50c1c7586fb342cff42d33e02f262433f36191"
 
 [metadata.files]
 alabaster = [
@@ -2127,8 +2127,8 @@ pbr = [
     {file = "pbr-5.8.1.tar.gz", hash = "sha256:66bc5a34912f408bb3925bf21231cb6f59206267b7f63f3503ef865c1a292e25"},
 ]
 pip = [
-    {file = "pip-22.2.2-py3-none-any.whl", hash = "sha256:b61a374b5bc40a6e982426aede40c9b5a08ff20e640f5b56977f4f91fed1e39a"},
-    {file = "pip-22.2.2.tar.gz", hash = "sha256:3fd1929db052f056d7a998439176d3333fa1b3f6c1ad881de1885c0717608a4b"},
+    {file = "pip-22.3-py3-none-any.whl", hash = "sha256:1daab4b8d3b97d1d763caeb01a4640a2250a0ea899e257b1e44b9eded91e15ab"},
+    {file = "pip-22.3.tar.gz", hash = "sha256:8182aec21dad6c0a49a2a3d121a87cd524b950e0b6092b181625f07ebdde7530"},
 ]
 pkginfo = [
     {file = "pkginfo-1.8.2-py2.py3-none-any.whl", hash = "sha256:c24c487c6a7f72c66e816ab1796b96ac6c3d14d49338293d2141664330b55ffc"},
