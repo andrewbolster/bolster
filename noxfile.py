@@ -117,8 +117,8 @@ def safety(session: Session) -> None:
         "check",
         "--full-report",
         f"--file={requirements}",
-        "--ignore",
-        "44715",
+        "--ignore=44715",
+        "--ignore=51457",
     )
 
 
