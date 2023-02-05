@@ -121,7 +121,6 @@ def best_fit_distribution(
 
     # Estimate distribution parameters from data
     for distribution in tqdm(DISTRIBUTIONS):
-
         # Try to fit the distribution
         try:
             # Ignore warnings from data that can't be fit

@@ -211,7 +211,6 @@ def get_matching_s3_objects(
         kwargs["Prefix"] = prefix
 
     while True:
-
         # The S3 API response is a large blob of metadata.
         # 'Contents' contains information about the listed objects.
         resp = client.list_objects_v2(**kwargs)
@@ -663,7 +662,9 @@ def query(
             ) as cur:
                 cur.execute(q, vars=kwargs if kwargs is not None else {})
                 yield from cur
-    except BaseException:  # todo workout what the likely exceptions being thrown by postgreql are likely to be
+    except (
+        BaseException
+    ):  # todo workout what the likely exceptions being thrown by postgreql are likely to be
         logger.exception(f"Failed with connection: {redshift_conn_dict}")
         raise
 
