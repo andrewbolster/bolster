@@ -489,7 +489,6 @@ def get_recursively(search_dict: Dict, field: str) -> List:
     fields_found = []
 
     for key, value in search_dict.items():
-
         if key == field:
             fields_found.append(value)
 
