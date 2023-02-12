@@ -2234,14 +2234,14 @@ test = ["cython", "html5lib", "pytest (>=4.6)", "typed_ast"]
 
 [[package]]
 name = "sphinx-autoapi"
-version = "2.0.0"
+version = "2.0.1"
 description = "Sphinx API documentation generator"
 category = "main"
 optional = true
 python-versions = ">=3.7"
 files = [
-    {file = "sphinx-autoapi-2.0.0.tar.gz", hash = "sha256:97dcf1b5b54cd0d8efef867594e4a4f3e2d3a2c0ec1e5a891e0a61bc77046006"},
-    {file = "sphinx_autoapi-2.0.0-py2.py3-none-any.whl", hash = "sha256:dab2753a38cad907bf4e61473c0da365a26bfbe69fbf5aa6e4f7d48e1cf8a148"},
+    {file = "sphinx-autoapi-2.0.1.tar.gz", hash = "sha256:cdf47968c20852f4feb0ccefd09e414bb820af8af8f82fab15a24b09a3d1baba"},
+    {file = "sphinx_autoapi-2.0.1-py2.py3-none-any.whl", hash = "sha256:8ed197a0c9108770aa442a5445744c1405b356ea64df848e8553411b9b9e129b"},
 ]
 
 [package.dependencies]
@@ -2869,4 +2869,4 @@ docs = ["Sphinx", "sphinx-click", "sphinx-issues", "nbsphinx", "sphinx-rtd-theme
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8.0,<=3.11"
-content-hash = "226e3ef4676cfaa31c7d32d2fd50a2d0ac271be6e9060a5cb183192e1fa181dd"
+content-hash = "bdbc662ce98cf4ea71003e8f1788b19d0702f900bd0644bd40f07ff66c21a5cf"
