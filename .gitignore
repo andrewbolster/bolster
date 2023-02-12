@@ -111,3 +111,6 @@ ENV/
 
 # IDE settings
 .vscode/
+
+# http_cache
+http_cache.sqlite
