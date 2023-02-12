@@ -38,7 +38,7 @@ nbsphinx = { version = "^0.8.8", optional = true }
 sphinx-rtd-theme = { version = "1.2.0", optional = true }
 sphinx-autodoc-typehints = { version = "1.19.4", optional = true }
 autoapi = { version = "2.0.1", optional = true }
-sphinx-autoapi = { version = "2.0.0", optional = true }
+sphinx-autoapi = { version = "2.0.1", optional = true }
 sphinxcontrib-apidoc = { version = "0.3.0", optional = true }
 sphinx-github-changelog = { version = "^1.2.0", optional = true }
 setuptools = "^67.1.0"
