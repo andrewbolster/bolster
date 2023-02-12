@@ -71,6 +71,10 @@ docs = ["Sphinx", "sphinx-click", "sphinx-issues", "nbsphinx", "sphinx-rtd-theme
     "sphinx-github-changelog"
 ]
 
+[tool.poetry.group.dev.dependencies]
+coverage = "^7.1.0"
+nox = "^2022.11.21"
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
