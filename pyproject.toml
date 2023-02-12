@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bolster"
-version = "0.1.2"
+version = "0.2.0"
 description = "Bolster's Brain, you've been warned"
 authors = ["Andrew Bolster <me@andrewbolster.info>"]
 readme = "README.rst"
