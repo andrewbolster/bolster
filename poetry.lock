@@ -2256,22 +2256,22 @@ go = ["sphinxcontrib-golangdomain"]
 
 [[package]]
 name = "sphinx-autodoc-typehints"
-version = "1.19.4"
+version = "1.22"
 description = "Type hints (PEP 484) support for the Sphinx autodoc extension"
 category = "main"
 optional = true
 python-versions = ">=3.7"
 files = [
-    {file = "sphinx_autodoc_typehints-1.19.4-py3-none-any.whl", hash = "sha256:e190d8ee8204c3de05a64f41cf10e592e987e4063c8ec0de7e4b11f6e036b2e2"},
-    {file = "sphinx_autodoc_typehints-1.19.4.tar.gz", hash = "sha256:ffd8e710f6757471b5c831c7ece88f52a9ff15f27836f4ef1c8695a64f8dcca8"},
+    {file = "sphinx_autodoc_typehints-1.22-py3-none-any.whl", hash = "sha256:ef4a8b9d52de66065aa7d3adfabf5a436feb8a2eff07c2ddc31625d8807f2b69"},
+    {file = "sphinx_autodoc_typehints-1.22.tar.gz", hash = "sha256:71fca2d5eee9b034204e4c686ab20b4d8f5eb9409396216bcae6c87c38e18ea6"},
 ]
 
 [package.dependencies]
-sphinx = ">=5.2.1"
+sphinx = ">=5.3"
 
 [package.extras]
-docs = ["furo (>=2022.9.15)", "sphinx (>=5.2.1)", "sphinx-autodoc-typehints (>=1.19.3)"]
-testing = ["covdefaults (>=2.2)", "coverage (>=6.4.4)", "diff-cover (>=7.0.1)", "nptyping (>=2.3.1)", "pytest (>=7.1.3)", "pytest-cov (>=3)", "sphobjinv (>=2.2.2)", "typing-extensions (>=4.3)"]
+docs = ["furo (>=2022.12.7)", "sphinx (>=6.1.3)", "sphinx-autodoc-typehints (>=1.21)"]
+testing = ["covdefaults (>=2.2.2)", "coverage (>=7.0.5)", "diff-cover (>=7.3)", "nptyping (>=2.4.1)", "pytest (>=7.2.1)", "pytest-cov (>=4)", "sphobjinv (>=2.3.1)", "typing-extensions (>=4.4)"]
 type-comment = ["typed-ast (>=1.5.4)"]
 
 [[package]]
@@ -2884,4 +2884,4 @@ docs = ["Sphinx", "sphinx-click", "sphinx-issues", "nbsphinx", "sphinx-rtd-theme
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8.0,<=3.11"
-content-hash = "277149fab9062f30944f81119d3dd4892adfe0d9829ad0dd33c7ee0859480768"
+content-hash = "96fbb5cc9b73dfe98ffce251beda9f11f0baea7a40014398e9e64869a168d9cb"
