@@ -41,6 +41,7 @@ Data Sources
 ------------
 * UK Companies House Listings
 * NI House Price Index Data Wrangling
+* Electoral Office for Northern Ireland (2016-2022 Assembly Election Results)
 
 Credits
 -------
