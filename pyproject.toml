@@ -49,7 +49,7 @@ bolster = "bolster.cli:main"
 Changelog = "https://github.com/andrewbolster/bolster/releases"
 
 [tool.poetry.dev-dependencies]
-pip = "22.3.1"
+pip = "23.0.1"
 bump2version = "1.0.1"
 wheel = "0.38.4"
 watchdog = "2.2.0"
