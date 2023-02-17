@@ -1443,14 +1443,14 @@ files = [
 
 [[package]]
 name = "pip"
-version = "22.3.1"
+version = "23.0.1"
 description = "The PyPA recommended tool for installing Python packages."
 category = "dev"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "pip-22.3.1-py3-none-any.whl", hash = "sha256:908c78e6bc29b676ede1c4d57981d490cb892eb45cd8c214ab6298125119e077"},
-    {file = "pip-22.3.1.tar.gz", hash = "sha256:65fd48317359f3af8e593943e6ae1506b66325085ea64b706a998c6e83eeaf38"},
+    {file = "pip-23.0.1-py3-none-any.whl", hash = "sha256:236bcb61156d76c4b8a05821b988c7b8c35bf0da28a4b614e8d6ab5212c25c6f"},
+    {file = "pip-23.0.1.tar.gz", hash = "sha256:cd015ea1bfb0fcef59d8a286c1f8bebcb983f6317719d415dc5351efb7cd7024"},
 ]
 
 [[package]]
@@ -2869,4 +2869,4 @@ docs = ["Sphinx", "sphinx-click", "sphinx-issues", "nbsphinx", "sphinx-rtd-theme
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8.0,<=3.11"
-content-hash = "57a24f4433fafb9251e4d0349990766e31de36a2b5beaa973148c06b143e0784"
+content-hash = "5f27b2a6dff4d6c91f25f86c96d98e2d34f1b1257cb82c453e3c1ad6be8003fb"
