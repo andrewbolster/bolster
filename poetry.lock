@@ -2884,8 +2884,4 @@ docs = ["Sphinx", "sphinx-click", "sphinx-issues", "nbsphinx", "sphinx-rtd-theme
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8.0,<=3.11"
-<<<<<<< HEAD
-content-hash = "9d0f7a7d86aaa2b3473bfa9f94aa47fa5293833b2f0a07871e09ce522c7b7c83"
-=======
 content-hash = "bdbc662ce98cf4ea71003e8f1788b19d0702f900bd0644bd40f07ff66c21a5cf"
->>>>>>> daec375 (build(deps): bump sphinx-autoapi from 2.0.0 to 2.0.1 (#629))
