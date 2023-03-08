@@ -121,6 +121,7 @@ jobs:
                       ${{ steps.pre-commit-cache.outputs.result }}-
 
             - name: Run Nox
+              uses: wntrblm/nox
               run: |
                   nox --force-color --python=${{ matrix.python-version }}
 
@@ -171,10 +172,12 @@ jobs:
                   name: coverage-data
 
             - name: Combine coverage data and display human readable report
+              uses: wntrblm/nox
               run: |
                   nox --force-color --session=coverage
 
             - name: Create coverage report
+              uses: wntrblm/nox
               run: |
                   nox --force-color --session=coverage -- xml
 

@@ -1,3 +1,4 @@
+nox
 sphinx
 sphinx-click
 sphinx-issues
