@@ -1,6 +1,9 @@
+import datetime
 import logging
 
 import tqdm
+
+version_no = f"{(datetime.date.today() - datetime.date(1988, 5, 17)).total_seconds() / 31557600:.2f}"
 
 
 class TqdmLoggingHandler(logging.Handler):

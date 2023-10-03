@@ -1,8 +1,9 @@
 language: python
 python:
+    - 3.10
+    - 3.9
     - 3.8
     - 3.7
-    - 3.6
 before_install:
     - python -m pip install --upgrade virtualenv
 install: pip install -U tox-travis
@@ -16,6 +17,6 @@ deploy:
     on:
         tags: true
         repo: andrewbolster/bolster
-        python: 3.8
+        python: 3.9
     password:
         secure: mS1gicG0LfQXU5PjygB0/TifGJnEgfmczcdBNTukoJIBQ9V5J78BwcXOKswovKEJbXaVW7/71usVKJvCbOAyLJRRzisGTbvS3GhF3+xZWWpqUAlN6gkwN9tcZc6eOIkL7hMJIk3WEuE7TLKoubVMkpmDKAIlIAZRN0DIVPk56AfpcUqZqbY9oCUS2rYKf9Ig2Df/HykFlEH+JwVzgoyruVgFqWs1Qt70T28QAcdTklkRssIUuMk+oTi+tqdVceq7ib+b2RPAT9SHNT4IwuF2OPNQq1zajLqXi0d0Cbs6Kiy6c29Ic/uTO2g76mpV2dTfEosn2ygFWr314ANql3rRE3vslYCjWWN8e7wsSa3Dy+dOwQQ7eH0h+jmfRkzvbrS+Ynd3yw1NDn+Nkp7Q/ygwVVRiOVl3o10aWixIl/VF2xku5zlqm5v+gq76WY7u6m0K+VdXEwS96JEWoaxk6FB+QijAEmq/SPATdQOBJaDfP3qbKWL/7zeAkrMWYd91Bo1LiDwftTIpplDV1di8XGA8Uyh/H9XeEndrfRik6gP6Y5TnYFYr6tmxmnGbPWdN7z+xb6Wu+RoWEcipXvQjsFCAOFDu3cE0t/G9HRK9cSHLNC7yvuUvDO5TLUDaR+GNpqLtlcoNaD8/rVdRe0tWwRPzg34nB7rbvYnWElfWPzoAXYw=
