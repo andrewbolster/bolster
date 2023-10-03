@@ -43,7 +43,7 @@ def pull_source(base_url=DEFAULT_URL) -> Dict[Text, pd.DataFrame]:
     base_soup = bs4.BeautifulSoup(base_content, features="html.parser")
     source_url = None
     for a in base_soup.find_all("a"):
-        if a.attrs.get("href", "").endswith("xlsx"):
+        if a.attrs.get("href", "").lower().endswith("xlsx"):
             source_url = a.attrs["href"]
 
     if source_url is not None:
