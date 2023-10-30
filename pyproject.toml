@@ -53,7 +53,7 @@ Changelog = "https://github.com/andrewbolster/bolster/releases"
 [tool.poetry.dev-dependencies]
 pip = "23.3.1"
 bump2version = "1.0.1"
-wheel = "0.41.2"
+wheel = "0.41.3"
 watchdog = "3.0.0"
 flake8 = "5.0.4"
 tox = "4.11.3"
