@@ -65,6 +65,10 @@ def activate_virtualenv_in_precommit_hooks(session: Session) -> None:
         ):
             continue
 
+        if 'Auto merge is not allowed' in text:
+            print('Auto-merging is disabled')
+            return
+
         lines = text.splitlines()
         if not (lines[0].startswith("#!") and "python" in lines[0].lower()):
             continue
