@@ -1401,13 +1401,13 @@ files = [
 
 [[package]]
 name = "pip"
-version = "23.3.2"
+version = "24.0"
 description = "The PyPA recommended tool for installing Python packages."
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "pip-23.3.2-py3-none-any.whl", hash = "sha256:5052d7889c1f9d05224cd41741acb7c5d6fa735ab34e339624a614eaaa7e7d76"},
-    {file = "pip-23.3.2.tar.gz", hash = "sha256:7fd9972f96db22c8077a1ee2691b172c8089b17a5652a44494a9ecb0d78f9149"},
+    {file = "pip-24.0-py3-none-any.whl", hash = "sha256:ba0d021a166865d2265246961bec0152ff124de910c5cc39f1156ce3fa7c69dc"},
+    {file = "pip-24.0.tar.gz", hash = "sha256:ea9bd1a847e8c5774a5777bb398c19e80bcd4e2aa16a4b301b718fe6f593aba2"},
 ]
 
 [[package]]
@@ -2783,4 +2783,4 @@ docs = ["Sphinx", "autoapi", "nbsphinx", "sphinx-autoapi", "sphinx-autodoc-typeh
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8.0,<=3.11"
-content-hash = "50ea14d2ff5fc29b962d91c33f6ab40cc21092bf2a7d471ef4608faf4c5af6ea"
+content-hash = "560c224ac8f59d88d4580e7a1687444b90508ffe5f15b34b99e97c3e4947706b"
