@@ -77,7 +77,7 @@ def get_water_quality_by_zone(zone_code: str) -> pd.Series:
         raise ValueError(f"Potentially invalid Water Supply Zone {zone_code}") from err
 
     data = d.dropna().set_index(0)[1]
-    data.drop("Zone water quality report (2022 dataset)", inplace=True)
+    data.drop("Zone water quality report (2023 dataset)", inplace=True)
     data.name = zone_code
     return data
 
