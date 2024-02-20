@@ -88,7 +88,7 @@ jobs:
 
             - name: Install Poetry
               run: |
-                  pip install --constraint=.github/workflows/constraints.txt poetry
+                  pip install --constraint=.github/workflows/constraints.txt poetry poetry-plugin-export
                   poetry --version
 
             - name: Install Nox
@@ -157,7 +157,7 @@ jobs:
 
             - name: Install Poetry
               run: |
-                  pip install --constraint=.github/workflows/constraints.txt poetry
+                  pip install --constraint=.github/workflows/constraints.txt poetry poetry-plugin-export
                   poetry --version
 
             - name: Install Nox
