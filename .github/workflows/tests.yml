@@ -145,6 +145,9 @@ jobs:
             - name: Check out the repository
               uses: actions/checkout@v4
 
+            - name: Check out nox
+              uses: wntrblm/nox
+
             - name: Set up Python 3.9
               uses: actions/setup-python@v5
               with:
@@ -171,12 +174,10 @@ jobs:
                   name: coverage-data
 
             - name: Combine coverage data and display human readable report
-              uses: wntrblm/nox
               run: |
                   nox --force-color --session=coverage
 
             - name: Create coverage report
-              uses: wntrblm/nox
               run: |
                   nox --force-color --session=coverage -- xml
 
