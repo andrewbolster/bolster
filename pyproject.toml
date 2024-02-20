@@ -83,5 +83,6 @@ build-backend = "poetry.core.masonry.api"
 pythonpath = "src"
 addopts = [
     "--import-mode=importlib",
-    "--doctest-modules"
+    "--doctest-modules",
+    "--ignore=noxfile.py"
 ]
