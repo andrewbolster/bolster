@@ -1,4 +1,4 @@
-.. highlight:: shell
+te. highlight:: shell
 
 ============
 Contributing
@@ -69,6 +69,7 @@ Ready to contribute? Here's how to set up `bolster` for local development.
     $ mkvirtualenv bolster
     $ cd bolster/
     $ python setup.py develop
+    $ pre-commit install # Optional, but recommended
 
 4. Create a branch for local development::
 
