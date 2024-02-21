@@ -7,10 +7,13 @@ Very basic at the moment. Mostly just to put numbers to how 'hard' people think 
 import csv
 import logging
 from typing import Dict
+from urllib.error import HTTPError
 
 import pandas as pd
 import requests
 from lxml.etree import XMLSyntaxError
+
+from bolster.utils import backoff
 
 
 POSTCODE_DATASET_URL = "https://admin.opendatani.gov.uk/dataset/38a9a8f1-9346-41a2-8e5f-944d87d9caf2/resource/f2bc12c1-4277-4db5-8bd3-b7bb027cc401/download/postcode-v-zone-lookup-by-year.csv"
@@ -51,6 +54,8 @@ def get_postcode_to_water_supply_zone() -> Dict[str, str]:
     return zones
 
 
+# This may throw 503's on occasion which annoyingly makes it stocastic
+@backoff((HTTPError, ConnectionError))
 def get_water_quality_by_zone(zone_code: str, strict=False) -> pd.Series:
     """
     Get the latest Water Quality for a given Water Supply Zone
