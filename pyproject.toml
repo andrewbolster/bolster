@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bolster"
-version = "0.2.0"
+version = "0.3.0"
 description = "Bolster's Brain, you've been warned"
 authors = ["Andrew Bolster <me@andrewbolster.info>"]
 readme = "README.rst"
@@ -15,6 +15,8 @@ classifiers = [
     'Programming Language :: Python :: 3',
     'Programming Language :: Python :: 3.8',
     'Programming Language :: Python :: 3.9',
+    'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11',
 ]
 
 [tool.poetry.dependencies]

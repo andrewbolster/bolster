@@ -9,4 +9,4 @@ per-file-ignores =
     __init__.py: F401
 rst-roles = class,const,func,meth,mod,ref
 rst-directives = deprecated
-exclude = tests/*, docs/*
+exclude = tests/*, docs/*, notebooks/*
