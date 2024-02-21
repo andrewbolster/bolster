@@ -174,7 +174,6 @@ jobs:
                   merge-multiple: true
                   path: ".coverage.*"
 
-
             - name: Combine coverage data and display human readable report
               run: |
                   nox --force-color --session=coverage
