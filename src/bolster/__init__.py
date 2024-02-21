@@ -21,6 +21,7 @@ from functools import wraps, partial
 from itertools import chain, islice, groupby
 from operator import itemgetter
 from pathlib import Path
+from urllib.error import HTTPError, URLError
 from typing import (
     Sequence,
     Generator,
@@ -38,6 +39,7 @@ from typing import (
     Set,
     Hashable,
     Any,
+    TypeAlias,
 )
 
 logger = logging.getLogger(__name__)
@@ -172,7 +174,7 @@ def arg_exception_logger(func: Callable) -> Callable:
 
 # noinspection PyShadowingNames
 def backoff(
-    exception_to_check: Union[BaseException, Sequence[BaseException]],
+    exception_to_check: Union[Any, Sequence[Any]] = BaseException,
     tries: SupportsInt = 5,
     delay: SupportsFloat = 0.2,
     backoff: SupportsFloat = 2,
@@ -182,6 +184,9 @@ def backoff(
 
     http://www.saltycrane.com/blog/2009/11/trying-out-retry-decorator-python/
     original from: http://wiki.python.org/moin/PythonDecoratorLibrary#Retry
+
+    Can't Type-Annotate Exceptions because
+    [it's verboten](https://peps.python.org/pep-0484/#exceptions)
 
     Args:
       exception_to_check: the exception to check. may be a tuple of

@@ -55,7 +55,7 @@ def get_postcode_to_water_supply_zone() -> Dict[str, str]:
 
 
 # This may throw 503's on occasion which annoyingly makes it stocastic
-@backoff((HTTPError, ConnectionError))
+@backoff(HTTPError)
 def get_water_quality_by_zone(zone_code: str, strict=False) -> pd.Series:
     """
     Get the latest Water Quality for a given Water Supply Zone
