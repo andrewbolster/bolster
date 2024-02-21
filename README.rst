@@ -39,9 +39,11 @@ Features
 
 Data Sources
 ------------
-* UK Companies House Listings
-* NI House Price Index Data Wrangling
-* Electoral Office for Northern Ireland (2016-2022 Assembly Election Results)
+* `UK Companies House Listings: <http://download.companieshouse.gov.uk/>`_
+* `NI House Price Index Data Wrangling: <https://www.nisra.gov.uk/statistics/housing-community-and-regeneration/northern-ireland-house-price-index>`_
+* `Electoral Office for Northern Ireland (2016-2022 Assembly Election Results): <https://www.eoni.org.uk/>`_
+* `NI Water Quality Data: <https://www.niwater.com/>`_
+
 
 Credits
 -------
