@@ -39,7 +39,6 @@ from typing import (
     Set,
     Hashable,
     Any,
-    TypeAlias,
 )
 
 logger = logging.getLogger(__name__)
