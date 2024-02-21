@@ -13,7 +13,7 @@ import pandas as pd
 import requests
 from lxml.etree import XMLSyntaxError
 
-from bolster.utils import backoff
+from bolster import backoff
 
 
 POSTCODE_DATASET_URL = "https://admin.opendatani.gov.uk/dataset/38a9a8f1-9346-41a2-8e5f-944d87d9caf2/resource/f2bc12c1-4277-4db5-8bd3-b7bb027cc401/download/postcode-v-zone-lookup-by-year.csv"
