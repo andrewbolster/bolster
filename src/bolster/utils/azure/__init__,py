@@ -1,6 +1,8 @@
 """
 Azure Utils
 """
+from urllib.parse import urlparse
+
 def az_file_url_to_query_components(url:str):
     """
     Helper function to parse an Azure file URL into its components to then be used by `pandas`/`dask`/`fsspec` etc.
