@@ -3,7 +3,7 @@
 
 __author__ = """Andrew Bolster"""
 __email__ = "me@andrewbolster.info"
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 import base64
 import contextlib
