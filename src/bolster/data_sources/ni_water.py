@@ -5,8 +5,8 @@ Very basic at the moment. Mostly just to put numbers to how 'hard' people think 
 
 """
 import csv
-from typing import Dict
 import logging
+from typing import Dict
 
 import pandas as pd
 import requests
@@ -76,7 +76,9 @@ def get_water_quality_by_zone(zone_code: str, strict=False) -> pd.Series:
         )
     except XMLSyntaxError as err:
         if strict:
-            raise ValueError(f"Potentially invalid Water Supply Zone {zone_code}") from err
+            raise ValueError(
+                f"Potentially invalid Water Supply Zone {zone_code}"
+            ) from err
         else:
             logging.warning(f"Potentially invalid Water Supply Zone {zone_code}")
             return pd.Series(name=zone_code)
