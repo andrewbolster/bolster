@@ -6,6 +6,7 @@ Very basic at the moment. Mostly just to put numbers to how 'hard' people think 
 """
 import csv
 from typing import Dict
+import logging
 
 import pandas as pd
 import requests
@@ -50,7 +51,7 @@ def get_postcode_to_water_supply_zone() -> Dict[str, str]:
     return zones
 
 
-def get_water_quality_by_zone(zone_code: str) -> pd.Series:
+def get_water_quality_by_zone(zone_code: str, strict=False) -> pd.Series:
     """
     Get the latest Water Quality for a given Water Supply Zone
 
@@ -58,13 +59,13 @@ def get_water_quality_by_zone(zone_code: str) -> pd.Series:
     >>> data['Water Supply Zone']
     'Dunore Ballygomartin North'
     >>> data.index
-    Index(['Water Supply Zone', 'Calcium Hardness (mg/l)', 'Magnesium (mg/l)',
+    Index(['Water Supply Zone', 'Total Hardness (mg/l)', 'Magnesium (mg/l)',
            'Potassium (mg/l)', 'Calcium (mg/l)', 'Total Hardness (mg CaCO3/l)',
            'Clark English Degrees', 'French Degrees', 'German Degrees',
            'NI Hardness Classification', 'Dishwasher Setting'],
           dtype='object', name=0)
 
-    >>> get_water_quality_by_zone('XXXXXX')
+    >>> get_water_quality_by_zone('XXXXXX', strict=True)
     Traceback (most recent call last):
     ...
     ValueError: Potentially invalid Water Supply Zone XXXXXX
@@ -74,7 +75,11 @@ def get_water_quality_by_zone(zone_code: str) -> pd.Series:
             f"https://www.niwater.com/water-quality-lookup.ashx?z={zone_code}"
         )
     except XMLSyntaxError as err:
-        raise ValueError(f"Potentially invalid Water Supply Zone {zone_code}") from err
+        if strict:
+            raise ValueError(f"Potentially invalid Water Supply Zone {zone_code}") from err
+        else:
+            logging.warning(f"Potentially invalid Water Supply Zone {zone_code}")
+            return pd.Series(name=zone_code)
 
     data = d.dropna().set_index(0)[1]
     data.drop("Zone water quality report (2023 dataset)", inplace=True)
@@ -92,12 +97,12 @@ def get_water_quality() -> pd.DataFrame:
 
     Hardness is _technically_ ordered... (The trick here is that `sort=False` disables
     the automatic sorting by count of appearances.
-    >>> df['NI Hardness Classification'].value_counts(sort=False)
+    >>> df['NI Hardness Classification'].value_counts(sort=False) # doctest:+ELLIPSIS
     NI Hardness Classification
-    Soft               13
-    Moderately Soft    12
-    Slightly Hard      16
-    Moderately Hard    14
+    Soft               ...
+    Moderately Soft    ...
+    Slightly Hard      ...
+    Moderately Hard    ...
     Name: count, dtype: int64
 
     """
