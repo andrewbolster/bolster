@@ -1554,23 +1554,24 @@ files = [
 
 [[package]]
 name = "nox"
-version = "2023.4.22"
+version = "2024.3.2"
 description = "Flexible test automation."
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "nox-2023.4.22-py3-none-any.whl", hash = "sha256:0b1adc619c58ab4fa57d6ab2e7823fe47a32e70202f287d78474adcc7bda1891"},
-    {file = "nox-2023.4.22.tar.gz", hash = "sha256:46c0560b0dc609d7d967dc99e22cb463d3c4caf54a5fda735d6c11b5177e3a9f"},
+    {file = "nox-2024.3.2-py3-none-any.whl", hash = "sha256:e53514173ac0b98dd47585096a55572fe504fecede58ced708979184d05440be"},
+    {file = "nox-2024.3.2.tar.gz", hash = "sha256:f521ae08a15adbf5e11f16cb34e8d0e6ea521e0b92868f684e91677deb974553"},
 ]
 
 [package.dependencies]
 argcomplete = ">=1.9.4,<4.0"
 colorlog = ">=2.6.1,<7.0.0"
 packaging = ">=20.9"
-virtualenv = ">=14"
+virtualenv = ">=20.14.1"
 
 [package.extras]
-tox-to-nox = ["jinja2", "tox (<4)"]
+tox-to-nox = ["jinja2", "tox"]
+uv = ["uv"]
 
 [[package]]
 name = "nox-poetry"
@@ -3294,4 +3295,4 @@ docs = ["Sphinx", "autoapi", "nbsphinx", "sphinx-autoapi", "sphinx-autodoc-typeh
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8.0,<=3.11"
-content-hash = "d21c05a7fdeef24e3826ba7877ab93c4e43135e69a8b400435ed60ae154dacc4"
+content-hash = "7fe418c33cfc127ae6495ca9d4a23016995aa9ed537351b6f56fa3e405c53b50"
