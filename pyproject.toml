@@ -79,6 +79,7 @@ docs = ["Sphinx", "sphinx-click", "sphinx-issues", "nbsphinx", "sphinx-rtd-theme
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.29.2"
+nbmake = "^1.5.3"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

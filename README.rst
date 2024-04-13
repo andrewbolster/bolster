@@ -45,6 +45,12 @@ Data Sources
 * `NI Water Quality Data: <https://www.niwater.com/>`_
 
 
+Notes
+-----
+
+* Update Notebooks: `poetry run pytest --nbmake --overwrite notebooks/*.ipynb`
+
+
 Credits
 -------
 
