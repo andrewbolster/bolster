@@ -20,7 +20,7 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.8.0,<=3.11"
+python = ">=3.8.0,<3.12"
 click = "^8.0.1"
 click-log = ">=0.3.2,<0.5.0"
 psycopg2-binary = "^2.9.1"
@@ -79,6 +79,7 @@ docs = ["Sphinx", "sphinx-click", "sphinx-issues", "nbsphinx", "sphinx-rtd-theme
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.29.2"
+nbmake = "^1.5.3"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

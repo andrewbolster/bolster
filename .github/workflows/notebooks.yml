@@ -1,0 +1,38 @@
+name: Release
+
+on:
+    - push
+    - pull_request
+
+jobs:
+    notebooks:
+        name: Notebooks
+        runs-on: ubuntu-latest
+        steps:
+            - name: Check out the repository
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 2
+
+            - name: Set up Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "3.9"
+
+            - name: Upgrade pip
+              run: |
+                  pip install --constraint=.github/workflows/constraints.txt pip
+                  pip --version
+
+            - name: Install Poetry
+              run: |
+                  pip install --constraint=.github/workflows/constraints.txt poetry
+                  poetry --version
+
+            - name: Install dependencies for notebooks
+              run: |
+                  poetry install --with dev
+
+            - name: Run notebooks tests
+              run: |
+                  poetry run pytest --nbmake notebooks/*.ipynb
