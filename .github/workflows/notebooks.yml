@@ -32,7 +32,7 @@ jobs:
             - name: Install dependencies for notebooks
               run: |
                   poetry install --with dev
-              
+
             - name: Run notebooks tests
               run: |
                   poetry run pytest --nbmake notebooks/*.ipynb
