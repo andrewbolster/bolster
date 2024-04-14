@@ -23,6 +23,7 @@ T_HARDNESS = pd.CategoricalDtype(
 )
 
 
+@backoff((HTTPError, RuntimeError))
 def get_postcode_to_water_supply_zone() -> Dict[str, str]:
     """
     Using data from OpenDataNI to generate a map from NI Postcodes to Water Supply Zone
@@ -50,6 +51,8 @@ def get_postcode_to_water_supply_zone() -> Dict[str, str]:
         reader = csv.DictReader(lines)
         keys = reader.fieldnames[:2]  # Take POSTCODE and first year
         zones = dict(([row[k] for k in keys] for row in reader))
+        if not zones:
+            raise RuntimeError("No data found")
 
     return zones
 
