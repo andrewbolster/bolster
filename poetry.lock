@@ -3372,6 +3372,25 @@ files = [
 watchmedo = ["PyYAML (>=3.10)"]
 
 [[package]]
+name = "waybackpy"
+version = "3.0.6"
+description = "Python package that interfaces with the Internet Archive's Wayback Machine APIs. Archive pages and retrieve archived pages easily."
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "waybackpy-3.0.6-py3-none-any.whl", hash = "sha256:c568b0db9056fbe42a1a7e56b4f1d1919bd3f76bd62da58d9ee2e577297be284"},
+    {file = "waybackpy-3.0.6.tar.gz", hash = "sha256:497a371756aba7644eb7ada0ebd4edb15cb8c53bc134cc973bf023a12caff83f"},
+]
+
+[package.dependencies]
+click = "*"
+requests = "*"
+urllib3 = "*"
+
+[package.extras]
+dev = ["black", "codecov", "flake8", "mypy", "pytest", "pytest-cov", "setuptools (>=46.4.0)", "types-requests"]
+
+[[package]]
 name = "wcwidth"
 version = "0.2.13"
 description = "Measures the displayed width of unicode strings in a terminal"
@@ -3444,4 +3463,4 @@ docs = ["Sphinx", "autoapi", "nbsphinx", "sphinx-autoapi", "sphinx-autodoc-typeh
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8.0,<3.12"
-content-hash = "07f2ace43e0593fa956a60823a9de181325222d4195b897b320fed252de2491a"
+content-hash = "255b1c5841ae87d2a68e51ab50ff7bb69f48643e3ff57a7d787f12a943fc7c54"
