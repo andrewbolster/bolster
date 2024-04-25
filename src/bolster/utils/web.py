@@ -42,9 +42,7 @@ def resilient_get(url, **kwargs):
     return res
 
 
-def get_excel_dataframe(
-    file_url, requests_kwargs=None, read_kwargs=None, resilient=False
-):
+def get_excel_dataframe(file_url, requests_kwargs=None, read_kwargs=None):
     if requests_kwargs is None:
         requests_kwargs = {}
     if read_kwargs is None:
