@@ -114,3 +114,8 @@ ENV/
 
 # http_cache
 http_cache.sqlite
+
+# JupyterNotebooks
+.ipynb_checkpoints/
+.virtual_documents/
+.juypter

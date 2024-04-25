@@ -54,10 +54,16 @@ class MyTestCase(unittest.TestCase):
         data = get_results(2022)
         self.assertSetEqual(set(data.keys()), constituencies_post_2003)
 
+    @unittest.skip(
+        reason="Not currently possible as 2017 results were nuked by EONI https://twitter.com/Bolster/status/1783446858859241775"
+    )
     def test_2017_constituency_parsing(self):
         data = get_results(2017)
         self.assertSetEqual(set(data.keys()), constituencies_post_2003)
 
+    @unittest.skip(
+        reason="Not currently possible as 2016 results were nuked by EONI https://twitter.com/Bolster/status/1783446858859241775"
+    )
     def test_2016_constituency_parsing(self):
         data = get_results(2016)
         self.assertSetEqual(set(data.keys()), constituencies_post_2003)
