@@ -2893,19 +2893,19 @@ testing = ["covdefaults (>=2.3)", "coverage (>=7.4.2)", "diff-cover (>=8.0.3)", 
 
 [[package]]
 name = "sphinx-click"
-version = "5.2.2"
+version = "6.0.0"
 description = "Sphinx extension that automatically documents click applications"
 optional = true
 python-versions = ">=3.8"
 files = [
-    {file = "sphinx_click-5.2.2-py3-none-any.whl", hash = "sha256:52be92a53e04de98b7228617a35008a4949910a70a597256c62ea4276c6a066d"},
-    {file = "sphinx_click-5.2.2.tar.gz", hash = "sha256:191a36dd5b61f2036592a0b36a6ba037ae97b3dd7e8ce9a056588c5605ac7833"},
+    {file = "sphinx_click-6.0.0-py3-none-any.whl", hash = "sha256:1e0a3c83bcb7c55497751b19d07ebe56b5d7b85eb76dd399cf9061b497adc317"},
+    {file = "sphinx_click-6.0.0.tar.gz", hash = "sha256:f5d664321dc0c6622ff019f1e1c84e58ce0cecfddeb510e004cf60c2a3ab465b"},
 ]
 
 [package.dependencies]
-click = ">=7.0"
+click = ">=8.0"
 docutils = "*"
-sphinx = ">=2.0"
+sphinx = ">=4.0"
 
 [[package]]
 name = "sphinx-github-changelog"
@@ -3446,4 +3446,4 @@ docs = ["Sphinx", "autoapi", "nbsphinx", "sphinx-autoapi", "sphinx-autodoc-typeh
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8.0,<3.12"
-content-hash = "04fb349f6fc3ca0d03540798df641cee0a6f3684ab2cdfee949fb1399ef7e07e"
+content-hash = "391533915b1758adeb0fd8d6399f0d92bb28746dc7deedd0e4ca003e6963362d"
