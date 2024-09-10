@@ -40,10 +40,10 @@ nbsphinx = { version = ">=0.8.8,<0.10.0", optional = true }
 sphinx-rtd-theme = { version = "2.0.0", optional = true }
 sphinx-autodoc-typehints = { version = "2.0.1", optional = true }
 autoapi = { version = "2.0.1", optional = true }
-sphinx-autoapi = { version = "3.1.1", optional = true }
+sphinx-autoapi = { version = "3.3.1", optional = true }
 sphinxcontrib-apidoc = { version = "0.5.0", optional = true }
 sphinx-github-changelog = { version = "^1.2.0", optional = true }
-setuptools = ">=67.1,<71.0"
+setuptools = ">=67.1,<75.0"
 xlrd = "^2.0.1"
 lxml = "^5.0.0"
 urllib3 = ">=1.26,<2"
@@ -57,15 +57,15 @@ bolster = "bolster.cli:main"
 Changelog = "https://github.com/andrewbolster/bolster/releases"
 
 [tool.poetry.dev-dependencies]
-pip = "24.0"
+pip = "24.2"
 bump2version = "1.0.1"
-wheel = "0.43.0"
-watchdog = "4.0.1"
+wheel = "0.44.0"
+watchdog = "4.0.2"
 flake8 = "5.0.4"
-tox = "4.15.1"
-coverage = "7.5.3"
-twine = "5.1.0"
-pytest = "8.2.2"
+tox = "4.18.1"
+coverage = "7.6.1"
+twine = "5.1.1"
+pytest = "8.3.2"
 pytest-cov = "5.0.0"
 nox-poetry = "^1.0.3"
 nox = "^2024.4.15"
