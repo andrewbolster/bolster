@@ -119,3 +119,4 @@ http_cache.sqlite
 .ipynb_checkpoints/
 .virtual_documents/
 .juypter
+notebooks/cache
