@@ -60,7 +60,7 @@ Changelog = "https://github.com/andrewbolster/bolster/releases"
 [tool.poetry.dev-dependencies]
 pip = "24.3.1"
 bump2version = "1.0.1"
-wheel = "0.44.0"
+wheel = "0.45.0"
 watchdog = "4.0.2"
 flake8 = "5.0.4"
 tox = "4.23.2"
