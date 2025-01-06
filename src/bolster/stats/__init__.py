@@ -149,5 +149,8 @@ def top_n(df: pd.DataFrame,
 
     top_df = df.iloc[:n]
     others_df = df.iloc[n:].sum(numeric_only=True)
-    others_df.name = others
+    if isinstance(others_df, (pd.Series, pd.DataFrame)):
+        others_df.name = others
+    else: 
+        others_df = pd.Series(others_df,name=others)
     return pd.concat([top_df, others_df.to_frame().T])
