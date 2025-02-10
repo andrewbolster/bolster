@@ -40,7 +40,7 @@ nbsphinx = { version = ">=0.8.8,<0.10.0", optional = true }
 sphinx-rtd-theme = { version = "3.0.2", optional = true }
 sphinx-autodoc-typehints = { version = "2.0.1", optional = true }
 autoapi = { version = "2.0.1", optional = true }
-sphinx-autoapi = { version = "3.4.0", optional = true }
+sphinx-autoapi = { version = "3.5.0", optional = true }
 sphinxcontrib-apidoc = { version = "0.5.0", optional = true }
 sphinx-github-changelog = { version = "^1.2.0", optional = true }
 setuptools = ">=67.1,<76.0"
