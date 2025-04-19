@@ -3,7 +3,7 @@ sphinx
 sphinx-click
 sphinx-issues
 nbsphinx
-sphinx-rtd-theme
+sphinx-rtd-theme==3.0.2
 sphinx-autodoc-typehints
 sphinx-autoapi
 autoapi
