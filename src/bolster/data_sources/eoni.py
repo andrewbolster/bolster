@@ -41,7 +41,7 @@ def get_page(path: AnyStr) -> BeautifulSoup:
 
     >>> page = get_page("/Elections/")
     >>> page.find('title').contents[0].strip()
-    'The Electoral Office of Northern Ireland - EONI'
+    'Elections | The Electoral Office for Northern Ireland'
 
     """
     res = requests.get(_base_url + path, headers=_headers)
@@ -63,7 +63,7 @@ def find_xls_links_in_page(page: BeautifulSoup) -> Iterable[AnyStr]:
     >>> len(list(find_xls_links_in_page(page)))
     18
     >>> next(find_xls_links_in_page(page))
-    'https://www.eoni.org.uk//media/omtlpqow/ni-assembly-election-2022-result-sheet-belfast-east-xls.xlsx'
+    'https://www.eoni.org.uk/media/omtlpqow/ni-assembly-election-2022-result-sheet-belfast-east-xls.xlsx'
 
     """
     for _p in page.select_one(".c-article--main").find_all("a", href=True):

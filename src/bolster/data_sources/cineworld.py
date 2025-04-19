@@ -34,8 +34,10 @@ def get_cinema_listings(site_code: int = 117, screening_date: date = date.today(
         requests.exceptions.RequestException: If there was an error making the API request.
 
     >>> cinema_listings = get_cinema_listings(117)
-    >>> list(cinema_listings[0].keys())
-    ['id', 'name', 'length', 'posterLink', 'videoLink', 'link', 'weight', 'releaseYear', 'attributeIds', 'date', 'site_code']
+    >>> set(cinema_listings[0].keys()).issuperset({'id', 'name','link','weight','releaseYear','releaseDate','attributeIds','date','site_code'})
+    True
+    >>> list(cinema_listings[0].keys()) # This is likely to break from upstream changes
+    ['id', 'name', 'length', 'posterLink', 'videoLink', 'link', 'weight', 'releaseYear', 'releaseDate', 'attributeIds', 'date', 'site_code']
 
     """
     if screening_date is None:

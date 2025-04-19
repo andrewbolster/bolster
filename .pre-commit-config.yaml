@@ -23,6 +23,7 @@ repos:
           - id: check-toml
           - id: end-of-file-fixer
           - id: check-merge-conflict
+            exclude: ^.*\.rst$
           - id: check-byte-order-marker # Forbid UTF-8 byte-order markers
           # Check for files with names that would conflict on a case-insensitive
           # filesystem like MacOS HFS+ or Windows FAT.

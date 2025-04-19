@@ -62,14 +62,12 @@ Ready to contribute? Here's how to set up `bolster` for local development.
 1. Fork the `bolster` repo on GitHub.
 2. Clone your fork locally::
 
-    $ git clone git@github.com:your_name_here/bolster.git
+    $ git clone git@github.com:andrewbolster/bolster.git
 
 3. Install your local copy into a virtualenv. Assuming you have virtualenvwrapper installed, this is how you set up your fork for local development::
 
-    $ mkvirtualenv bolster
-    $ cd bolster/
-    $ python setup.py develop
-    $ pre-commit install # Optional, but recommended
+    $ cd bolster
+    $ uv sync
 
 4. Create a branch for local development::
 
@@ -77,13 +75,10 @@ Ready to contribute? Here's how to set up `bolster` for local development.
 
    Now you can make your changes locally.
 
-5. When you're done making changes, check that your changes pass flake8 and the
-   tests, including testing other Python versions with tox::
+5. When you're done making changes, check that your changes pass testing and linting::
 
-    $ pre-commit run --all-files
-    $ poetry run pytest
-    $ nox
-
+    $ make pre-commit
+    $ make test
 
 6. Commit your changes and push your branch to GitHub::
 
@@ -102,16 +97,20 @@ Before you submit a pull request, check that it meets these guidelines:
 2. If the pull request adds functionality, the docs should be updated. Put
    your new functionality into a function with a docstring, and add the
    feature to the list in README.rst.
-3. The pull request should work for Python 3.6, 3.7, 3.8, 3.9 and 3.10 and for PyPy. Check
-   https://travis-ci.com/andrewbolster/bolster/pull_requests
+3. The pull request should work for Python 3.10+. Check
+   https://github.com/andrewbolster/bolster/pull_requests
    and make sure that the tests pass for all supported Python versions.
 
 Tips
 ----
 
-To run a subset of tests::
+To bump a version, just do it manually in pyproject.toml, and then (assuming tests run
+successfully) run::
 
-$ pytest tests.test_bolster
+    $ git commit -m "Bump version to x.y.z"
+    $ git tag x.y.z
+    $ git push origin x.y.z
+    $ git push origin main
 
 
 Deploying

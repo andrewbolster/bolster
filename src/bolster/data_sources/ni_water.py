@@ -30,7 +30,7 @@ def get_postcode_to_water_supply_zone() -> Dict[str, str]:
 
     >>> zones = get_postcode_to_water_supply_zone()
     >>> len(zones)
-    48805
+    49006
 
     Zones is keyed off postcode to a Water Supply Zone
     >>> zones['BT1 1AA']
@@ -38,11 +38,11 @@ def get_postcode_to_water_supply_zone() -> Dict[str, str]:
 
     There are much fewer zones than postcodes
     >>> len(set(zones.values()))
-    56
+    65
 
     And many postcodes that aren't associated with any zone
-    >>> len([k for k,v in zones.items() if v == '#N/A'])
-    36
+    >>> len([k for k,v in zones.items() if v == INVALID_ZONE_IDENTIFIER])
+    97
 
     """
 
@@ -88,8 +88,10 @@ def get_water_quality_by_zone(zone_code: str, strict=False) -> pd.Series:
             return pd.Series(name=zone_code)
 
     data = d.dropna().set_index(0)[1]
-    if "Zone water quality report (2023 dataset)" in data.index:
-        data.drop("Zone water quality report (2023 dataset)", inplace=True)
+    for c in data.index:
+        if c.startswith("Zone water quality report"):
+            logging.warning(f"Dropping {c}")
+            data = data.drop(c)
     data.name = zone_code
     return data
 
@@ -99,8 +101,8 @@ def get_water_quality() -> pd.DataFrame:
     Get a DataFrame of Water Quality Data from https://www.niwater.com/
 
     >>> df = get_water_quality()
-    >>> df.shape
-    (55, 11)
+    >>> df.shape[1]
+    11
 
     Hardness is _technically_ ordered... (The trick here is that `sort=False` disables
     the automatic sorting by count of appearances.
