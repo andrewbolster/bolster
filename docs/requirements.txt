@@ -1,7 +1,7 @@
 nox
 sphinx
 sphinx-click
-sphinx-issues
+sphinx-issues==5.0.1
 nbsphinx
 sphinx-rtd-theme
 sphinx-autodoc-typehints
