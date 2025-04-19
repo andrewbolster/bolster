@@ -1,4 +1,5 @@
 """Nox sessions."""
+
 import shutil
 import sys
 from pathlib import Path
@@ -7,8 +8,7 @@ from textwrap import dedent
 import nox  # type: ignore
 
 try:
-    from nox_poetry import Session
-    from nox_poetry import session
+    from nox_poetry import Session, session
 except ImportError:
     message = f"""\
     Nox failed to import the 'nox-poetry' package.
@@ -60,9 +60,7 @@ def activate_virtualenv_in_precommit_hooks(session: Session) -> None:
 
         text = hook.read_text()
         bindir = repr(session.bin)[1:-1]  # strip quotes
-        if not (
-            Path("A") == Path("a") and bindir.lower() in text.lower() or bindir in text
-        ):
+        if not (Path("A") == Path("a") and bindir.lower() in text.lower() or bindir in text):
             continue
 
         lines = text.splitlines()

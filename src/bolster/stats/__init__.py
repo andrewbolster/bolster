@@ -45,6 +45,7 @@ def add_totals(
 
     return df
 
+
 def drop_totals(
     df: pd.DataFrame,
     column_total: AnyStr = "total",
@@ -69,7 +70,7 @@ def drop_totals(
     -------
     pd.DataFrame
         The DataFrame with totals removed.
-    
+
     Examples
     --------
     >>> df = pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6], 'total': [5, 7, 9]})
@@ -82,13 +83,13 @@ def drop_totals(
     """
     if not inplace:
         df = df.copy(deep=True)
-    
+
     if column_total in df.columns:
         df = df.drop(columns=[column_total])
-    
+
     if row_total in df.index:
         df = df.drop(index=[row_total])
-    
+
     return df
 
 
@@ -109,16 +110,13 @@ def fix_datetime_tz_columns(df: pd.DataFrame, inplace=True) -> pd.DataFrame:
     """
     if not inplace:
         df = df.copy(deep=True)
-    date_columns = df.select_dtypes(
-        include=["datetime64[ns, UTC]", "datetimetz"]
-    ).columns
+    date_columns = df.select_dtypes(include=["datetime64[ns, UTC]", "datetimetz"]).columns
     for date_column in date_columns:
         df[date_column] = df[date_column].dt.tz_localize(None)
     return df
 
-def top_n(df: pd.DataFrame, 
-          n: int,
-          others:AnyStr="others") -> pd.DataFrame:
+
+def top_n(df: pd.DataFrame, n: int, others: AnyStr = "others") -> pd.DataFrame:
     """
     Truncate the DataFrame to the top 'n' rows, summing all subsequent rows into an 'others' row.
 
@@ -133,7 +131,7 @@ def top_n(df: pd.DataFrame,
     -------
     pd.DataFrame
         The truncated DataFrame with an 'others' row.
-    
+
     Examples
     --------
     >>> df = pd.DataFrame({'A': [1, 2, 3, 4, 5], 'B': [5, 4, 3, 2, 1]})
@@ -151,6 +149,6 @@ def top_n(df: pd.DataFrame,
     others_df = df.iloc[n:].sum(numeric_only=True)
     if isinstance(others_df, (pd.Series, pd.DataFrame)):
         others_df.name = others
-    else: 
-        others_df = pd.Series(others_df,name=others)
+    else:
+        others_df = pd.Series(others_df, name=others)
     return pd.concat([top_df, others_df.to_frame().T])

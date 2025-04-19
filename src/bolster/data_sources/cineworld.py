@@ -11,7 +11,10 @@ Example usage:
     # Output: ['id', 'name', 'length', 'posterLink', 'videoLink', 'link', 'weight', 'releaseYear', 'attributeIds', 'date', 'site_code']
 
 """
+
 from datetime import date
+
+import requests
 
 from ..utils.web import session
 
@@ -42,9 +45,7 @@ def get_cinema_listings(site_code: int = 117, screening_date: date = date.today(
         try:
             screening_date = date.fromisoformat(screening_date)
         except ValueError as e:
-            raise ValueError(
-                "screening_date must be a date object or a string in the format 'YYYY-MM-DD'"
-            ) from e
+            raise ValueError("screening_date must be a date object or a string in the format 'YYYY-MM-DD'") from e
 
     url = f"https://www.cineworld.co.uk/uk/data-api-service/v1/quickbook/10108/film-events/in-cinema/{site_code}/at-date/{screening_date}"
 

@@ -1,7 +1,4 @@
-from typing import AnyStr
-from typing import BinaryIO
-from typing import Dict
-from typing import Union
+from typing import AnyStr, BinaryIO, Dict, Union
 
 import pandas as pd
 

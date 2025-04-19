@@ -1,7 +1,4 @@
-from datetime import date
-from datetime import datetime
-from datetime import timedelta
-from datetime import timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Union
 
 
@@ -19,9 +16,7 @@ def round_to_week(dt: Union[datetime, date]) -> date:
     >>> round_to_week(date(2018,8,9))
     datetime.date(2018, 8, 6)
     """
-    return (dt.date() if isinstance(dt, datetime) else dt) - timedelta(
-        days=dt.weekday()
-    )
+    return (dt.date() if isinstance(dt, datetime) else dt) - timedelta(days=dt.weekday())
 
 
 def round_to_month(dt: Union[datetime, date]) -> date:

@@ -1,6 +1,6 @@
--   Bolster version:
--   Python version:
--   Operating System:
+- Bolster version:
+- Python version:
+- Operating System:
 
 ### Description
 
