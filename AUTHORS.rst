@@ -5,7 +5,7 @@ Credits
 Development Lead
 ----------------
 
-* Andrew Bolster <me@andrewbolster.info>
+* Andrew Bolster <andrew.bolster@gmail.com>
 
 Contributors
 ------------

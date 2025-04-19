@@ -2,8 +2,8 @@
 """Top-level package for Bolster."""
 
 __author__ = """Andrew Bolster"""
-__email__ = "me@andrewbolster.info"
-__version__ = "0.3.0"
+__email__ = "andrew.bolster@gmail.com"
+__version__ = "0.3.1"
 
 import base64
 import contextlib

@@ -104,7 +104,7 @@ Before you submit a pull request, check that it meets these guidelines:
 Tips
 ----
 
-To bump a version, just do it manually in pyproject.toml, and then (assuming tests run
+To bump a version, just do it manually in `bolster/__init__.py`, and then (assuming tests run
 successfully) run::
 
     $ git commit -m "Bump version to x.y.z"
@@ -123,4 +123,4 @@ Then run::
 $ bump2version patch # possible: major / minor / patch
 $ git push
 
-GitHub Actions `release.yml` will then tag, release and deploy to PyPI if tests pass.
+GitHub Actions `publish.yml` will then tag, release and deploy to PyPI if tests pass.
