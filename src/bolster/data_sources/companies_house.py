@@ -1,15 +1,11 @@
 import csv
-from typing import Callable
-from typing import Dict
-from typing import Iterator
-from typing import Text
+from typing import Callable, Dict, Iterator, Text
 
 import bs4
 import requests
 from tqdm.auto import tqdm
 
-from .. import always
-from .. import dict_concat_safe
+from .. import always, dict_concat_safe
 from ..utils.web import download_extract_zip
 
 
@@ -29,9 +25,7 @@ def get_basic_company_data_url() -> Text:
     return url
 
 
-def query_basic_company_data(
-    query_func: Callable[..., bool] = always
-) -> Iterator[Dict]:
+def query_basic_company_data(query_func: Callable[..., bool] = always) -> Iterator[Dict]:
     """
     Grab the url for the basic company data, and walk through the CSV files within, and
     for each row in each CSV file, parse the row data through the given `query_func`

@@ -4,6 +4,7 @@ Working with Northern Ireland Water Quality Data
 Very basic at the moment. Mostly just to put numbers to how 'hard' people think they are for comedy.
 
 """
+
 import csv
 import logging
 from typing import Dict
@@ -15,12 +16,11 @@ from lxml.etree import XMLSyntaxError
 
 from bolster import backoff
 
-
 POSTCODE_DATASET_URL = "https://admin.opendatani.gov.uk/dataset/38a9a8f1-9346-41a2-8e5f-944d87d9caf2/resource/f2bc12c1-4277-4db5-8bd3-b7bb027cc401/download/postcode-v-zone-lookup-by-year.csv"
 
-T_HARDNESS = pd.CategoricalDtype(
-    ["Soft", "Moderately Soft", "Slightly Hard", "Moderately Hard"], ordered=True
-)
+T_HARDNESS = pd.CategoricalDtype(["Soft", "Moderately Soft", "Slightly Hard", "Moderately Hard"], ordered=True)
+
+INVALID_ZONE_IDENTIFIER = "No Zone Identified"
 
 
 @backoff((HTTPError, RuntimeError))
@@ -79,20 +79,17 @@ def get_water_quality_by_zone(zone_code: str, strict=False) -> pd.Series:
     ValueError: Potentially invalid Water Supply Zone XXXXXX
     """
     try:
-        d, _, _ = pd.read_html(
-            f"https://www.niwater.com/water-quality-lookup.ashx?z={zone_code}"
-        )
+        d, _, _ = pd.read_html(f"https://www.niwater.com/water-quality-lookup.ashx?z={zone_code}")
     except XMLSyntaxError as err:
         if strict:
-            raise ValueError(
-                f"Potentially invalid Water Supply Zone {zone_code}"
-            ) from err
+            raise ValueError(f"Potentially invalid Water Supply Zone {zone_code}") from err
         else:
             logging.warning(f"Potentially invalid Water Supply Zone {zone_code}")
             return pd.Series(name=zone_code)
 
     data = d.dropna().set_index(0)[1]
-    data.drop("Zone water quality report (2023 dataset)", inplace=True)
+    if "Zone water quality report (2023 dataset)" in data.index:
+        data.drop("Zone water quality report (2023 dataset)", inplace=True)
     data.name = zone_code
     return data
 
@@ -119,11 +116,7 @@ def get_water_quality() -> pd.DataFrame:
     supply_zones = set(get_postcode_to_water_supply_zone().values())
 
     df = pd.DataFrame(
-        [
-            get_water_quality_by_zone(zone_code)
-            for zone_code in supply_zones
-            if zone_code != "#N/A"
-        ]
+        [get_water_quality_by_zone(zone_code) for zone_code in supply_zones if zone_code != INVALID_ZONE_IDENTIFIER]
     )
     df = df.astype({"NI Hardness Classification": T_HARDNESS})
     return df
