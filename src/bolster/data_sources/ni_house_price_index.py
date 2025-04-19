@@ -11,13 +11,13 @@ Generic problems fixed;
 * Inconsistent offset
 * Inconsistent treatment of quarterly periods (Q1 2020/Quarter 1 2020/ (2020,Q1) etc)
 * Inconsistent header alignment (i.e. leaving sub-category annotations on what is actually the period index header)
-
-
 """
 
+import logging
 import re
 from functools import partial
 from typing import Dict, Text
+from urllib.parse import urlparse
 
 import bs4
 import pandas as pd
@@ -27,7 +27,21 @@ DEFAULT_URL = "https://www.finance-ni.gov.uk/publications/ni-house-price-index-s
 TABLE_TRANSFORMATION_MAP = {}
 
 
-def pull_source(base_url=DEFAULT_URL) -> Dict[Text, pd.DataFrame]:
+def get_source_url(base_url=DEFAULT_URL) -> Text:
+    base_content = requests.get(base_url).content
+    base_soup = bs4.BeautifulSoup(base_content, features="html.parser")
+    source_url = None
+    for a in base_soup.find_all("a"):
+        if a.attrs.get("href", "").lower().endswith("xlsx"):
+            source_url = a.attrs["href"]
+            if source_url.startswith("/"):  # Relative URL
+                source_url = urlparse(base_url)._replace(path=source_url).geturl()
+            return source_url
+    if source_url is None:
+        raise RuntimeError(f"Could not find valid/relevant Excel source file on {base_url}")
+
+
+def pull_sources(base_url=DEFAULT_URL) -> Dict[Text, pd.DataFrame]:
     """
     Pull raw NI House Price Index Excel from finance-ni.gov.uk listing
 
@@ -39,19 +53,13 @@ def pull_source(base_url=DEFAULT_URL) -> Dict[Text, pd.DataFrame]:
     -------
 
     """
-    base_content = requests.get(base_url).content
-    base_soup = bs4.BeautifulSoup(base_content, features="html.parser")
-    source_url = None
-    for a in base_soup.find_all("a"):
-        if a.attrs.get("href", "").lower().endswith("xlsx"):
-            source_url = a.attrs["href"]
-
+    source_url = get_source_url(base_url)
     if source_url is not None:
-        source_df = pd.read_excel(source_url, sheet_name=None)  # Load all worksheets in
+        ni_house_price_index = pd.read_excel(source_url, sheet_name=None)  # Load all worksheets in
     else:
         raise RuntimeError(f"Could not find valid/relevant Excel source file on {base_url}")
 
-    return source_df
+    return ni_house_price_index
 
 
 def basic_cleanup(df: pd.DataFrame, offset=1) -> pd.DataFrame:
@@ -282,29 +290,17 @@ TABLE_TRANSFORMATION_MAP["Table 5"] = cleanup_with_LGDs
 def cleanup_merged_year_quarters_and_totals(df):
     """
     Table 5a: Number of Verified Residential Property Sales by Local Government District
-    * Parse the 'Sale Year/Quarter' to two separate cols
-    * Insert future-headers for Quarter and Year cols
-    * Remove rows with 'total' in the first column
-    * Disregard the 'Sale Year/Quarter' column
-    * perform `basic_cleanup` with offset=2
+    * Remove 'Total' rows (i.e. Yearly totals)
+    * Replace 'Quarter N' with 'QN' in the Sale Quarter column
     """
     # Safety first
     df = df.copy()
 
-    # Extract 'Quarter' and 'Year' columns from the future 'Sale Year/Quarter' column
-    dates = df.iloc[:, 0].str.extract("(Q[1-4]) ([0-9]{4})").rename(columns={0: "Quarter", 1: "Year"})
-    for c in [
-        "Quarter",
-        "Year",
-    ]:  # insert the dates in order, so they come out in reverse in the insert
-        df.insert(1, c, dates[c])
-        df.iloc[2, 1] = c  # Need to have the right colname for when `basic_cleanup` is called.
+    # remove rows containing 'Total' in the column 1:
+    df = df[~df.iloc[:, 1].str.contains("Total", na=False)]
 
-    # Remove 'total' rows from the future 'Sale Year/Quarter' column
-    df = df[~df.iloc[:, 0].str.contains("Total").fillna(False)]
-
-    # Remove the 'Sale Year/Quarter' column all together
-    df = df.iloc[:, 1:]
+    # refactor 'Quarter N' to 'QN'
+    df.iloc[:, 1] = df.iloc[:, 1].str.replace("Quarter ", "Q", regex=False)
 
     # Standard cleanup
     df = basic_cleanup(df, offset=2)
@@ -346,7 +342,7 @@ TABLE_TRANSFORMATION_MAP[re.compile("Table 9[a-z]")] = cleanup_missing_year_quar
 TABLE_TRANSFORMATION_MAP[re.compile("Table 10[a-z]")] = cleanup_merged_year_quarters_and_totals
 
 
-def cleanup_source(source_df: Dict[Text, pd.DataFrame]) -> Dict[Text, pd.DataFrame]:
+def transform_sources(source_df: Dict[Text, pd.DataFrame]) -> Dict[Text, pd.DataFrame]:
     """
     Cleanup all the tables from the NI Housing Price Index, conforming to the best attempt at a 'standard'
 
@@ -360,12 +356,17 @@ def cleanup_source(source_df: Dict[Text, pd.DataFrame]) -> Dict[Text, pd.DataFra
     """
     dest_df = {}
     for table_key, table_transformer in TABLE_TRANSFORMATION_MAP.items():
-        if isinstance(table_key, re.Pattern):
-            for table in source_df:
-                if table_key.match(table):
-                    dest_df[table] = table_transformer(source_df[table])
-        else:
-            dest_df[table_key] = table_transformer(source_df[table_key])
+        try:
+            table = None  # Catch looping variables in debug
+            if isinstance(table_key, re.Pattern):
+                for table in source_df:
+                    if table_key.match(table):
+                        dest_df[table] = table_transformer(source_df[table])
+            else:
+                dest_df[table_key] = table_transformer(source_df[table_key])
+            logging.info(f"Transformed {table_key} with {table_transformer}")
+        except Exception as e:
+            raise RuntimeError(f"Error transforming {table_key} / {table_transformer}") from e
 
     return dest_df
 
@@ -378,6 +379,6 @@ def build():
     -------
 
     """
-    source_dfs = pull_source()
-    dest_dfs = cleanup_source(source_dfs)
+    source_dfs = pull_sources()
+    dest_dfs = transform_sources(source_dfs)
     return dest_dfs

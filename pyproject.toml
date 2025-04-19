@@ -141,3 +141,8 @@ commit_args = ""
 setup_hooks = []
 pre_commit_hooks = []
 post_commit_hooks = []
+
+[dependency-groups]
+dev = [
+    "ipykernel>=6.29.5",
+]

@@ -59,15 +59,15 @@ def find_xls_links_in_page(page: BeautifulSoup) -> Iterable[AnyStr]:
     #WTF Was starting to do some consistency checks between elections to make sure all is kosher, and was wondering why I had a Strangford listing in 2017 but not 2022;
     # As a cross-check on the result page, I walk the links in the right colum of the page, looking for links that have text that ends (XLS). Pretty simple you might think. Except the Strangford link ends in (XLS  and then a random closing ) text string is added to the end.
 
-    >>> page = get_page("/Elections/Election-results-and-statistics/Election-results-and-statistics-2003-onwards/Elections-2022/NI-Assembly-Election-2022-Result-Sheets")
+    >>> page = get_page("/results-data/ni-assembly-election-2022-results/")
     >>> len(list(find_xls_links_in_page(page)))
     18
     >>> next(find_xls_links_in_page(page))
-    'https://www.eoni.org.uk/getmedia/c537e56f-c319-47d1-a2b0-44c90f9aa170/NI-Assembly-Election-2022-Result-Sheet-Belfast-East-XLS'
+    'https://www.eoni.org.uk//media/omtlpqow/ni-assembly-election-2022-result-sheet-belfast-east-xls.xlsx'
 
     """
-    for _p in page.select(".right-column a"):
-        if "XLS" in _p.contents[0]:
+    for _p in page.select_one(".c-article--main").find_all("a", href=True):
+        if "xls" in _p.contents[0].lower():
             yield _base_url + _p.attrs["href"]
 
 
@@ -211,11 +211,9 @@ def get_results_from_sheet(sheet_url: AnyStr) -> Dict[str, Union[pd.DataFrame, d
 
 
 def get_results(year: int) -> Dict[str, Union[pd.DataFrame, dict]]:
-    results_listing_dir = "/Elections/Election-results-and-statistics/Election-results-and-statistics-2003-onwards/"
+    results_listing_dir = "/results-data/"
     results_listing_path = {
-        2022: "Elections-2022/NI-Assembly-Election-2022-Result-Sheets",
-        2017: "Elections-2017/NI-Assembly-Election-2017-Result-Sheets",
-        2016: "Elections-2016/NI-Assembly-Election-2016-Candidates-Elected-(1)",
+        2022: "ni-assembly-election-2022-results/",
     }
 
     results = {}
