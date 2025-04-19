@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bolster"
-version = "0.3.0"
+version = "0.3.1"
 description = "Bolster's Brain, you've been warned"
 authors = ["Andrew Bolster <me@andrewbolster.info>"]
 readme = "README.rst"
@@ -13,14 +13,14 @@ classifiers = [
     'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
     'Natural Language :: English',
     'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.8',
     'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10',
     'Programming Language :: Python :: 3.11',
+    'Programming Language :: Python :: 3.12',
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.8.0,<3.12"
+python = ">=3.9.0,<3.13"
 click = "^8.0.1"
 click-log = ">=0.3.2,<0.5.0"
 psycopg2-binary = "^2.9.1"
@@ -50,14 +50,24 @@ lxml = "^5.0.0"
 # https://github.com/python-poetry/poetry-plugin-export/issues/239
 urllib3 = ">=1.26,<2"
 waybackpy = "^3.0.6"
+pillow = "^11.2.1"
 
 [tool.poetry.scripts]
-bolster = "bolster.cli:main"
+bolster = "bolster.cli:cli"
 
 [tool.poetry.urls]
 Changelog = "https://github.com/andrewbolster/bolster/releases"
 
-[tool.poetry.dev-dependencies]
+
+[tool.poetry.extras]
+docs = ["Sphinx", "sphinx-click", "sphinx-issues", "nbsphinx", "sphinx-rtd-theme",
+    "sphinx-autodoc-typehints", "sphinx-autoapi", "autoapi", "sphinxcontrib-apidoc",
+    "sphinx-github-changelog"
+]
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^6.29.2"
+nbmake = "^1.5.3"
 pip = "25.0.1"
 bump2version = "1.0.1"
 wheel = "0.45.1"
@@ -71,16 +81,6 @@ pytest-cov = "5.0.0"
 nox-poetry = "^1.1.0"
 nox = "^2025.2.9"
 flake8-annotations = "^2.9.1"
-
-[tool.poetry.extras]
-docs = ["Sphinx", "sphinx-click", "sphinx-issues", "nbsphinx", "sphinx-rtd-theme",
-    "sphinx-autodoc-typehints", "sphinx-autoapi", "autoapi", "sphinxcontrib-apidoc",
-    "sphinx-github-changelog"
-]
-
-[tool.poetry.group.dev.dependencies]
-ipykernel = "^6.29.2"
-nbmake = "^1.5.3"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
