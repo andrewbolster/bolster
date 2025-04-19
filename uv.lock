@@ -249,7 +249,6 @@ css = [
 
 [[package]]
 name = "bolster"
-version = "0.3.0"
 source = { editable = "." }
 dependencies = [
     { name = "boto3" },
@@ -316,11 +315,6 @@ docs = [
     { name = "sphinxcontrib-plantuml" },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "ipykernel" },
-]
-
 [package.metadata]
 requires-dist = [
     { name = "autoapi", marker = "extra == 'docs'" },
@@ -364,9 +358,6 @@ requires-dist = [
     { name = "waybackpy", specifier = ">=3.0.6" },
     { name = "xlrd", specifier = ">=2.0.1" },
 ]
-
-[package.metadata.requires-dev]
-dev = [{ name = "ipykernel", specifier = ">=6.29.5" }]
 
 [[package]]
 name = "boto3"

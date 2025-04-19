@@ -85,13 +85,13 @@ requires = ["pdm-backend"]
 build-backend = "pdm.backend"
 
 [tool.pdm]
-version = { source = "file", path = "bolster/__init__.py" }
+version = { source = "file", path = "src/bolster/__init__.py" }
 
 [tool.pdm.build]
 includes = ["bolster"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests","src"]
 pythonpath = "src"
 addopts = [
     "--cov=bolster",
@@ -144,8 +144,3 @@ commit_args = ""
 setup_hooks = []
 pre_commit_hooks = []
 post_commit_hooks = []
-
-[dependency-groups]
-dev = [
-    "ipykernel>=6.29.5",
-]

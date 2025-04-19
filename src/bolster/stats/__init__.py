@@ -135,7 +135,7 @@ def top_n(df: pd.DataFrame, n: int, others: AnyStr = "others") -> pd.DataFrame:
     Examples
     --------
     >>> df = pd.DataFrame({'A': [1, 2, 3, 4, 5], 'B': [5, 4, 3, 2, 1]})
-    >>> top_n(df, 3)
+    >>> top_n(df, 3) # doctest: +NORMALIZE_WHITESPACE
            A  B
     0      1  5
     1      2  4
