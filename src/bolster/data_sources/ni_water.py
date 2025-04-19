@@ -20,6 +20,8 @@ POSTCODE_DATASET_URL = "https://admin.opendatani.gov.uk/dataset/38a9a8f1-9346-41
 
 T_HARDNESS = pd.CategoricalDtype(["Soft", "Moderately Soft", "Slightly Hard", "Moderately Hard"], ordered=True)
 
+INVALID_ZONE_IDENTIFIER = "No Zone Identified"
+
 
 @backoff((HTTPError, RuntimeError))
 def get_postcode_to_water_supply_zone() -> Dict[str, str]:
@@ -86,7 +88,8 @@ def get_water_quality_by_zone(zone_code: str, strict=False) -> pd.Series:
             return pd.Series(name=zone_code)
 
     data = d.dropna().set_index(0)[1]
-    data.drop("Zone water quality report (2023 dataset)", inplace=True)
+    if "Zone water quality report (2023 dataset)" in data.index:
+        data.drop("Zone water quality report (2023 dataset)", inplace=True)
     data.name = zone_code
     return data
 
@@ -112,6 +115,8 @@ def get_water_quality() -> pd.DataFrame:
     """
     supply_zones = set(get_postcode_to_water_supply_zone().values())
 
-    df = pd.DataFrame([get_water_quality_by_zone(zone_code) for zone_code in supply_zones if zone_code != "#N/A"])
+    df = pd.DataFrame(
+        [get_water_quality_by_zone(zone_code) for zone_code in supply_zones if zone_code != INVALID_ZONE_IDENTIFIER]
+    )
     df = df.astype({"NI Hardness Classification": T_HARDNESS})
     return df

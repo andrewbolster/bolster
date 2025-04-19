@@ -28,4 +28,4 @@ jobs:
 
           - name: Run notebooks tests
             run: |
-              uv run pytest --nbmake notebooks/*.ipynb
+              uv run pytest --nbmake --no-cov notebooks/*.ipynb
