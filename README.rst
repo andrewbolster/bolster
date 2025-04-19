@@ -6,8 +6,8 @@ Bolster
 .. image:: https://img.shields.io/pypi/v/bolster.svg
     :target: https://pypi.python.org/pypi/bolster
 
-.. image:: https://travis-ci.com/andrewbolster/bolster.svg?branch=main
-    :target: https://travis-ci.com/andrewbolster/bolster
+.. image:: https://github.com/andrewbolster/bolster/actions/workflows/pytest.yml/badge.svg
+    :target: https://github.com/andrewbolster/bolster/actions/workflows/pytest.yml
 
 .. image:: https://readthedocs.org/projects/bolster/badge/?version=latest
     :target: https://bolster.readthedocs.io/en/latest/?version=latest
@@ -17,8 +17,8 @@ Bolster
     :target: https://pyup.io/repos/github/andrewbolster/bolster/
     :alt: Updates
 
-.. image:: https://requires.io/github/andrewbolster/bolster/requirements.svg?branch=main
-    :target: https://requires.io/github/andrewbolster/bolster/requirements/?branch=main
+.. image:: https://codecov.io/gh/andrewbolster/bolster/branch/main/graphs/badge.svg
+    :target: https://codecov.io/github/andrewbolster/bolster
     :alt: Requirements Status
 
 Bolster's Brain, you've been warned
@@ -49,7 +49,7 @@ Data Sources
 Notes
 -----
 
-* Update Notebooks: `poetry run pytest --nbmake --overwrite notebooks/*.ipynb`
+* Update Notebooks: `uv run pytest --nbmake --overwrite notebooks/*.ipynb`
 
 
 Credits

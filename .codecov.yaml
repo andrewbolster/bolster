@@ -2,6 +2,10 @@
 # https://github.com/codecov/support/wiki/Codecov-Yaml
 coverage:
   status:
+    project:
+      default:
+        # coverage may fall by <1% and still be considered "passing"
+        threshold: 1%
     # pull-requests only
     patch:
       default:
