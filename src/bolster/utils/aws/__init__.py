@@ -4,6 +4,7 @@ AWS based Asset handling
 
 Includes S3, Kinesis, SSM, SQS, Lambda self-invocation and Redshift querying helpers
 """
+
 import base64
 import csv
 import io
@@ -13,17 +14,7 @@ import random
 import time
 from collections import Counter
 from gzip import GzipFile
-from typing import Any
-from typing import AnyStr
-from typing import Callable
-from typing import Dict
-from typing import Generator
-from typing import Iterator
-from typing import List
-from typing import Optional
-from typing import Sequence
-from typing import SupportsInt
-from typing import Union
+from typing import Any, AnyStr, Callable, Dict, Generator, Iterator, List, Optional, Sequence, SupportsInt, Union
 
 import boto3
 import botocore.config
@@ -131,9 +122,7 @@ def put_s3(
         return client.put_object(Bucket=bucket, Key=key, Body=buffer.read())
 
 
-def get_s3(
-    key: str, bucket: str, gzip: bool = True, log_exception=True, client=None
-) -> io.StringIO:
+def get_s3(key: str, bucket: str, gzip: bool = True, log_exception=True, client=None) -> io.StringIO:
     """Get Object from S3, generally with gzip decompression included.
 
     Args:
@@ -186,9 +175,7 @@ def check_s3(key: str, bucket: str, client=None) -> bool:
         return False
 
 
-def get_matching_s3_objects(
-    bucket: AnyStr, prefix="", suffix="", client=None
-) -> Iterator:
+def get_matching_s3_objects(bucket: AnyStr, prefix="", suffix="", client=None) -> Iterator:
     """
     Generate objects in an S3 bucket.
 
@@ -275,9 +262,7 @@ def select_from_csv(bucket, key, fields, client=None) -> List:
     return json.loads("[" + results + "]")
 
 
-def get_latest_key(
-    prefix: str, bucket: str, key: Optional[Callable] = None, client=None
-) -> str:
+def get_latest_key(prefix: str, bucket: str, key: Optional[Callable] = None, client=None) -> str:
     """Walk a given S3 bucket for the lexicographically highest item in the given bucket (defaults to the analysis store
     defined in utils.env)
 
@@ -299,10 +284,7 @@ def get_latest_key(
         client = get_s3_client()
 
     versions = sorted(
-        [
-            v["Key"]
-            for v in client.list_objects_v2(Bucket=bucket, Prefix=prefix)["Contents"]
-        ],
+        [v["Key"] for v in client.list_objects_v2(Bucket=bucket, Prefix=prefix)["Contents"]],
         key=key,
         reverse=True,
     )
@@ -318,9 +300,7 @@ def get_sqs_client():
     sqs = session.client(
         "sqs",
         endpoint_url=f"https://sqs.{session.region_name}.amazonaws.com",
-        config=botocore.config.Config(
-            connect_timeout=2, read_timeout=5, retries={"max_attempts": 2}
-        ),
+        config=botocore.config.Config(connect_timeout=2, read_timeout=5, retries={"max_attempts": 2}),
     )
     return sqs
 
@@ -464,9 +444,7 @@ def iterate_kinesis_payloads(event: Dict) -> Generator[Dict, None, None]:
 class KinesisLoader(object):
     """Kinesis batchwise insertion handler with chunking and retry"""
 
-    def __init__(
-        self, batch_size: int = 500, maximum_records: int = None, stream: str = None
-    ):
+    def __init__(self, batch_size: int = 500, maximum_records: int = None, stream: str = None):
         """
         The default batch_size here is to match the maximum allowed by Kinesis in a PutRecords request
         """
@@ -486,9 +464,7 @@ class KinesisLoader(object):
             stream = stream.split("/")[-1]
         self.stream = stream
 
-    def generate_and_submit(
-        self, items: Iterator, partition_key: str = None
-    ) -> SupportsInt:
+    def generate_and_submit(self, items: Iterator, partition_key: str = None) -> SupportsInt:
         """Submit batches of items to the configured stream
 
         Args:
@@ -505,9 +481,7 @@ class KinesisLoader(object):
             records_batch = [
                 {
                     "Data": json.dumps(item).encode("utf-8"),
-                    "PartitionKey": str(random.random())
-                    if partition_key is None
-                    else partition_key,
+                    "PartitionKey": str(random.random()) if partition_key is None else partition_key,
                 }
                 for item in batched_items
             ]
@@ -539,16 +513,10 @@ class KinesisLoader(object):
             time.sleep(retry_interval)
 
             # Failed records don't contain the original contents - we have to correlate with the input by position
-            failed_records = [
-                this_batch[i]
-                for i, record in enumerate(response["Records"])
-                if "ErrorCode" in record
-            ]
+            failed_records = [this_batch[i] for i, record in enumerate(response["Records"]) if "ErrorCode" in record]
 
             logger.info(
-                "Incrementing exponential back off and retrying {} failed records".format(
-                    str(len(failed_records))
-                )
+                "Incrementing exponential back off and retrying {} failed records".format(str(len(failed_records)))
             )
             retry_interval = min(retry_interval * 2, 4)
             request = {"Records": failed_records, "StreamName": self.stream}
@@ -556,9 +524,7 @@ class KinesisLoader(object):
             failed_record_count = result["FailedRecordCount"]
 
 
-def send_to_kinesis(
-    records: Iterator[Sequence], stream: str, partition_key: str = None
-) -> int:
+def send_to_kinesis(records: Iterator[Sequence], stream: str, partition_key: str = None) -> int:
     """Accessory function for the KinesisLoader class
 
     Args:
@@ -570,9 +536,7 @@ def send_to_kinesis(
 
     """
     loader = KinesisLoader(stream=stream)
-    return loader.generate_and_submit(
-        (record for record in records), partition_key=partition_key
-    )
+    return loader.generate_and_submit((record for record in records), partition_key=partition_key)
 
 
 def get_sns_client():
@@ -580,9 +544,7 @@ def get_sns_client():
     sns = session.client(
         "sns",
         session.region_name,
-        config=botocore.config.Config(
-            connect_timeout=5, retries={"max_attempts": 2}, max_pool_connections=100
-        ),
+        config=botocore.config.Config(connect_timeout=5, retries={"max_attempts": 2}, max_pool_connections=100),
     )
     return sns
 
@@ -610,9 +572,7 @@ def invoke_self_async(event: Dict, context: Any):
     )
 
 
-def query(
-    q: str, redshift_conn_dict: dict, named_cursor="bolster_query_cursor", **kwargs
-) -> Iterator[Dict]:
+def query(q: str, redshift_conn_dict: dict, named_cursor="bolster_query_cursor", **kwargs) -> Iterator[Dict]:
     """Helper for making queries to redshift (or any postgres compatible backend)
 
     .. code-block:: json
@@ -657,14 +617,10 @@ def query(
     """
     try:
         with psycopg2.connect(**redshift_conn_dict) as conn:
-            with conn.cursor(
-                cursor_factory=psycopg2.extras.RealDictCursor, name=named_cursor
-            ) as cur:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor, name=named_cursor) as cur:
                 cur.execute(q, vars=kwargs if kwargs is not None else {})
                 yield from cur
-    except (
-        BaseException
-    ):  # todo workout what the likely exceptions being thrown by postgreql are likely to be
+    except BaseException:  # todo workout what the likely exceptions being thrown by postgreql are likely to be
         logger.exception(f"Failed with connection: {redshift_conn_dict}")
         raise
 
@@ -694,9 +650,7 @@ def SQSWrapper(  # noqa: C901
             raise
         n = 0
         while context.get_remaining_time_in_millis() > timeout:
-            sqs_item = client.receive_message(
-                QueueUrl=sqs_url, MaxNumberOfMessages=maxmessages, WaitTimeSeconds=3
-            )
+            sqs_item = client.receive_message(QueueUrl=sqs_url, MaxNumberOfMessages=maxmessages, WaitTimeSeconds=3)
             if not len(sqs_item.get("Messages", [])):
                 if n == 0:
                     logger.debug(f"No messages in {sqs_item}")
@@ -720,9 +674,7 @@ def SQSWrapper(  # noqa: C901
                     elif results is None:
                         pass  # Assume 'None' means function 'failed'
                     else:
-                        logger.info(
-                            f"Not sure what to do with type {type(results)}:{results}, ignoring"
-                        )
+                        logger.info(f"Not sure what to do with type {type(results)}:{results}, ignoring")
                 else:
                     logger.info(
                         f"Skipping duplicate message: {message['Body']} seen {md5_map[message['MD5OfBody']]} "
@@ -736,17 +688,13 @@ def SQSWrapper(  # noqa: C901
                 n += 1
         logger.info(f"Processed {n} items before wrapping up")
         approx = (
-            client.get_queue_attributes(
-                QueueUrl=sqs_url, AttributeNames=["ApproximateNumberOfMessages"]
-            )
+            client.get_queue_attributes(QueueUrl=sqs_url, AttributeNames=["ApproximateNumberOfMessages"])
             .get("Attributes", {})
             .get("ApproximateNumberOfMessages", -1)
         )
         approx = int(approx)
         if approx > reinvokelimit:
-            logger.info(
-                f"There are {approx} messages left on the queue; reinvoking asynchronously"
-            )
+            logger.info(f"There are {approx} messages left on the queue; reinvoking asynchronously")
             invoke_self_async(event, context)
 
         return meta_counter

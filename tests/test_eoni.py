@@ -1,9 +1,7 @@
 import datetime
 import unittest
 
-from bolster.data_sources.eoni import _headers
-from bolster.data_sources.eoni import get_results
-from bolster.data_sources.eoni import get_results_from_sheet
+from bolster.data_sources.eoni import _headers, get_results, get_results_from_sheet
 from bolster.utils.web import get_excel_dataframe
 
 constituencies_post_2003 = {
@@ -27,15 +25,18 @@ constituencies_post_2003 = {
     "west tyrone",
 }
 
+# Fixture for the URL to test
+test_assembly_result_xls_url = (
+    "https://www.eoni.org.uk/media/omtlpqow/ni-assembly-election-2022-result-sheet-belfast-east-xls.xlsx"
+)
+
 
 class MyTestCase(unittest.TestCase):
     def test_sheet_read(self):
-        test_url = "https://www.eoni.org.uk/getmedia/c537e56f-c319-47d1-a2b0-44c90f9aa170/NI-Assembly-Election-2022-Result-Sheet-Belfast-East-XLS"
-        df = get_excel_dataframe(test_url, requests_kwargs={"headers": _headers})
+        df = get_excel_dataframe(test_assembly_result_xls_url, requests_kwargs={"headers": _headers})
         self.assertEqual(df.shape, (231, 110))
 
     def test_sheet_metadata(self):
-        test_url = "https://www.eoni.org.uk/getmedia/c537e56f-c319-47d1-a2b0-44c90f9aa170/NI-Assembly-Election-2022-Result-Sheet-Belfast-East-XLS"
         test_metadata = {
             "stage": 12,
             "date": datetime.datetime(2022, 5, 5, 0, 0),
@@ -47,7 +48,7 @@ class MyTestCase(unittest.TestCase):
             "invalid_votes": 592,
             "electoral_quota": 7209,
         }
-        data = get_results_from_sheet(test_url)
+        data = get_results_from_sheet(test_assembly_result_xls_url)
         self.assertDictEqual(data["metadata"], test_metadata)
 
     def test_2022_constituency_parsing(self):
@@ -68,9 +69,7 @@ class MyTestCase(unittest.TestCase):
         data = get_results(2016)
         self.assertSetEqual(set(data.keys()), constituencies_post_2003)
 
-    @unittest.skip(
-        reason="Not currently possible as 2011 results are presented as PDFs"
-    )
+    @unittest.skip(reason="Not currently possible as 2011 results are presented as PDFs")
     def test_2011_constituency_parsing(self):
         data = get_results(2011)
         self.assertSetEqual(set(data.keys()), constituencies_post_2003)

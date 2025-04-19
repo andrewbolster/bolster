@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 """Tests for `bolster` package."""
+
 import pytest
 from click.testing import CliRunner
 

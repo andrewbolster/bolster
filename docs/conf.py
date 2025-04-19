@@ -147,9 +147,7 @@ latex_elements = {
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass
 # [howto, manual, or own class]).
-latex_documents = [
-    (master_doc, "bolster.tex", "Bolster Documentation", "Andrew Bolster", "manual")
-]
+latex_documents = [(master_doc, "bolster.tex", "Bolster Documentation", "Andrew Bolster", "manual")]
 
 # -- Options for manual page output ------------------------------------
 
@@ -179,7 +177,7 @@ autoapi_modules = {github_project: None}
 # -- Options for intersphinx extension ---------------------------------------
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {"https://docs.python.org/": None}
+intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}
 
 # -- Options for todo extension ----------------------------------------------
 

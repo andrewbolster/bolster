@@ -5,8 +5,7 @@ from io import BytesIO
 
 import pandas as pd
 import requests
-from waybackpy import exceptions
-from waybackpy import WaybackMachineCDXServerAPI
+from waybackpy import WaybackMachineCDXServerAPI, exceptions
 
 from . import version_no
 
@@ -36,9 +35,7 @@ def resilient_get(url, **kwargs):
             raise outer_err from inner_err
         res = requests.get(last_valid, **kwargs)
         res.raise_for_status()
-        logging.warning(
-            f"Failed to get {url} directly, successfully used waybackmachine to get {last_valid}"
-        )
+        logging.warning(f"Failed to get {url} directly, successfully used waybackmachine to get {last_valid}")
     return res
 
 
