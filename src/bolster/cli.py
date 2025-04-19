@@ -1,4 +1,5 @@
 """Console script for bolster."""
+
 import os
 import sys
 
