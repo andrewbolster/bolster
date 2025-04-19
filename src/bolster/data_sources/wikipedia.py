@@ -47,27 +47,18 @@ def get_ni_executive_basic_table():
     executive_events = executive_events[:-1]
 
     # Clean up the 'Executive' as for some reason wikipedians count the caretakers differently.
-    executive_events["Executive"] = executive_events["Executive"].map(
-        lambda x: x.split("(")[0]
-    )
+    executive_events["Executive"] = executive_events["Executive"].map(lambda x: x.split("(")[0])
 
     # Use the OFMDFM posts as a proxy for 'active' to flatten out the range of reasons for failure.
     executive_events["Active"] = (
-        executive_events[["vFM", "FM", "vDFM", "DFM"]]
-        .replace("Vacant", None)
-        .replace(np.nan, None)
-        .any(axis=1)
+        executive_events[["vFM", "FM", "vDFM", "DFM"]].replace("Vacant", None).replace(np.nan, None).any(axis=1)
     )
 
-    executive_durations = (
-        executive_events.groupby(["Executive", "Active"])["Date"].first().unstack()
-    )
+    executive_durations = executive_events.groupby(["Executive", "Active"])["Date"].first().unstack()
     executive_durations.columns = ["Dissolved", "Established"]
     executive_durations = executive_durations[reversed(executive_durations.columns)]
     # map in pandas 2.10; applymap in other versions
-    executive_durations = executive_durations.applymap(
-        lambda s: dateparser.parse(s) if isinstance(s, str) else s
-    )
+    executive_durations = executive_durations.applymap(lambda s: dateparser.parse(s) if isinstance(s, str) else s)
     executive_durations["Duration"] = executive_durations.diff(axis=1).iloc[:, -1:]
 
     executive_dissolutions = pd.concat(
@@ -80,10 +71,7 @@ def get_ni_executive_basic_table():
     executive_dissolutions = executive_dissolutions.apply(
         lambda r: r.Established - r.Dissolved
         if not pd.isnull(r.Established)
-        else datetime.datetime.today().replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
-        - r.Dissolved,
+        else datetime.datetime.today().replace(hour=0, minute=0, second=0, microsecond=0) - r.Dissolved,
         axis=1,
     )
 
