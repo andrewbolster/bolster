@@ -5,7 +5,7 @@ sphinx-issues
 nbsphinx
 sphinx-rtd-theme
 sphinx-autodoc-typehints
-sphinx-autoapi
+sphinx-autoapi==3.6.0
 autoapi
 sphinxcontrib-apidoc
 sphinx-github-changelog
