@@ -8,9 +8,7 @@ from tqdm.auto import tqdm
 
 
 # Create models from data https://stackoverflow.com/questions/6620471/fitting-empirical-distribution-to-theoretical-ones-with-scipy-python
-def best_fit_distribution(
-    data, bins=200, ax=None, include_slow=False, discriminator="sse"
-):
+def best_fit_distribution(data, bins=200, ax=None, include_slow=False, discriminator="sse"):
     """Model data by finding best fit distribution to data"""
     # Get histogram of original data
     y, x = np.histogram(data, bins=bins, density=True)
@@ -144,9 +142,7 @@ def best_fit_distribution(
                     pdf = distribution.pdf(x, loc=loc, scale=scale, *arg)
                     discriminator_value = np.sum(np.power(y - pdf, 2.0))
                 else:
-                    raise RuntimeError(
-                        "You didn't finish this and you were planning on doing KS discrimination next"
-                    )
+                    raise RuntimeError("You didn't finish this and you were planning on doing KS discrimination next")
 
                 # if axis pass in add to plot
                 try:
@@ -160,9 +156,7 @@ def best_fit_distribution(
                     best_distribution = distribution
                     best_params = params
                     best_discriminator_value = discriminator_value
-                    print(
-                        f"New best, {distribution.name} and got an sse of {discriminator_value}"
-                    )
+                    print(f"New best, {distribution.name} and got an sse of {discriminator_value}")
 
         except Exception:
             pass

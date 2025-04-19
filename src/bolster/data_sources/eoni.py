@@ -13,20 +13,16 @@ Hitlist:
 [ ] 2003
 
 """
+
 import datetime
 import re
-from typing import AnyStr
-from typing import Dict
-from typing import Iterable
-from typing import Optional
-from typing import Union
+from typing import AnyStr, Dict, Iterable, Optional, Union
 
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
-from bolster.utils.web import get_excel_dataframe
-from bolster.utils.web import ua
+from bolster.utils.web import get_excel_dataframe, ua
 
 #
 _headers = {

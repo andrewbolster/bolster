@@ -14,10 +14,10 @@ Generic problems fixed;
 
 
 """
+
 import re
 from functools import partial
-from typing import Dict
-from typing import Text
+from typing import Dict, Text
 
 import bs4
 import pandas as pd
@@ -49,9 +49,7 @@ def pull_source(base_url=DEFAULT_URL) -> Dict[Text, pd.DataFrame]:
     if source_url is not None:
         source_df = pd.read_excel(source_url, sheet_name=None)  # Load all worksheets in
     else:
-        raise RuntimeError(
-            f"Could not find valid/relevant Excel source file on {base_url}"
-        )
+        raise RuntimeError(f"Could not find valid/relevant Excel source file on {base_url}")
 
     return source_df
 
@@ -93,9 +91,7 @@ def basic_cleanup(df: pd.DataFrame, offset=1) -> pd.DataFrame:
     # (Note, need to change this 'if' logic to just 'if there's a
     # column with all 100's, but cross that bridge later)
     if "NI" in df:
-        assert (
-            df["NI"].all() and df["NI"].mean() == 100
-        ), "Not all values in df['NI'] == 100"
+        assert df["NI"].all() and df["NI"].mean() == 100, "Not all values in df['NI'] == 100"
         df = df.drop("NI", axis=1)
 
     # Strip rows below the first all-nan row, if there is one
@@ -120,9 +116,7 @@ def basic_cleanup(df: pd.DataFrame, offset=1) -> pd.DataFrame:
         df.insert(
             loc=0,
             column="Period",
-            value=pd.PeriodIndex(
-                df.apply(lambda r: f"{r.Year}-{r.Quarter}", axis=1), freq="Q"
-            ),
+            value=pd.PeriodIndex(df.apply(lambda r: f"{r.Year}-{r.Quarter}", axis=1), freq="Q"),
         )
 
     # reset index, try to fix dtypes, etc, (this should be the last
@@ -222,9 +216,7 @@ TABLE_TRANSFORMATION_MAP[
 ] = cleanup_price_by_property_type_agg
 
 
-def cleanup_with_munged_quarters_and_total_rows(
-    df: pd.DataFrame, offset=3
-) -> pd.DataFrame:
+def cleanup_with_munged_quarters_and_total_rows(df: pd.DataFrame, offset=3) -> pd.DataFrame:
     """
     Number of Verified Residential Property Sales
 
@@ -253,9 +245,7 @@ def cleanup_with_munged_quarters_and_total_rows(
     return df
 
 
-TABLE_TRANSFORMATION_MAP["Table 3c"] = partial(
-    cleanup_with_munged_quarters_and_total_rows, offset=4
-)
+TABLE_TRANSFORMATION_MAP["Table 3c"] = partial(cleanup_with_munged_quarters_and_total_rows, offset=4)
 
 # Table 4: Number of Verified Residential Property Sales
 TABLE_TRANSFORMATION_MAP["Table 4"] = cleanup_with_munged_quarters_and_total_rows
@@ -280,9 +270,7 @@ def cleanup_with_LGDs(df):
     )
     df.columns = [
         *df.columns[:3],
-        *pd.MultiIndex.from_product(
-            [lgds, ["Index", "Price"]], names=["LGD", "Metric"]
-        ),
+        *pd.MultiIndex.from_product([lgds, ["Index", "Price"]], names=["LGD", "Metric"]),
     ]
     return df
 
@@ -304,19 +292,13 @@ def cleanup_merged_year_quarters_and_totals(df):
     df = df.copy()
 
     # Extract 'Quarter' and 'Year' columns from the future 'Sale Year/Quarter' column
-    dates = (
-        df.iloc[:, 0]
-        .str.extract("(Q[1-4]) ([0-9]{4})")
-        .rename(columns={0: "Quarter", 1: "Year"})
-    )
+    dates = df.iloc[:, 0].str.extract("(Q[1-4]) ([0-9]{4})").rename(columns={0: "Quarter", 1: "Year"})
     for c in [
         "Quarter",
         "Year",
     ]:  # insert the dates in order, so they come out in reverse in the insert
         df.insert(1, c, dates[c])
-        df.iloc[
-            2, 1
-        ] = c  # Need to have the right colname for when `basic_cleanup` is called.
+        df.iloc[2, 1] = c  # Need to have the right colname for when `basic_cleanup` is called.
 
     # Remove 'total' rows from the future 'Sale Year/Quarter' column
     df = df[~df.iloc[:, 0].str.contains("Total").fillna(False)]
@@ -361,9 +343,7 @@ TABLE_TRANSFORMATION_MAP["Table 9"] = basic_cleanup
 TABLE_TRANSFORMATION_MAP[re.compile("Table 9[a-z]")] = cleanup_missing_year_quarter
 
 # Table 10x: Number of Verified Residential Property Sales by Type in {LDG}
-TABLE_TRANSFORMATION_MAP[
-    re.compile("Table 10[a-z]")
-] = cleanup_merged_year_quarters_and_totals
+TABLE_TRANSFORMATION_MAP[re.compile("Table 10[a-z]")] = cleanup_merged_year_quarters_and_totals
 
 
 def cleanup_source(source_df: Dict[Text, pd.DataFrame]) -> Dict[Text, pd.DataFrame]:

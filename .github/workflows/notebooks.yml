@@ -9,30 +9,23 @@ jobs:
         name: Notebooks
         runs-on: ubuntu-latest
         steps:
-            - name: Check out the repository
-              uses: actions/checkout@v4
-              with:
-                  fetch-depth: 2
+          - uses: actions/checkout@v4
+            with:
+                fetch-depth: 0
+          - name: Set up Python ${{ env.python-version }}
+            uses: actions/setup-python@v5
+            with:
+                python-version: ${{ env.python-version }}
+          - name: Install uv and set the python version
+            uses: astral-sh/setup-uv@v5
+            with:
+                python-version: ${{ env.python-version }}
+                enable-cache: true
+                cache-dependency-glob: "uv.lock"
 
-            - name: Set up Python
-              uses: actions/setup-python@v5
-              with:
-                  python-version: "3.9"
+          - name: Install the project
+            run: uv sync --all-extras --dev
 
-            - name: Upgrade pip
-              run: |
-                  pip install --constraint=.github/workflows/constraints.txt pip
-                  pip --version
-
-            - name: Install Poetry
-              run: |
-                  pip install --constraint=.github/workflows/constraints.txt poetry
-                  poetry --version
-
-            - name: Install dependencies for notebooks
-              run: |
-                  poetry install --with dev
-
-            - name: Run notebooks tests
-              run: |
-                  poetry run pytest --nbmake notebooks/*.ipynb
+          - name: Run notebooks tests
+            run: |
+              uv run pytest --nbmake notebooks/*.ipynb

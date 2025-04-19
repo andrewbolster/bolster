@@ -16,30 +16,30 @@ import sys
 import time
 import traceback
 from collections import Counter, defaultdict
-from concurrent.futures import ThreadPoolExecutor, as_completed, Future
-from functools import wraps, partial
-from itertools import chain, islice, groupby
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from functools import partial, wraps
+from itertools import chain, groupby, islice
 from operator import itemgetter
 from pathlib import Path
-from urllib.error import HTTPError, URLError
 from typing import (
-    Sequence,
-    Generator,
-    Iterable,
-    List,
-    Dict,
-    Iterator,
-    Union,
-    AnyStr,
-    Optional,
-    Callable,
-    SupportsInt,
-    SupportsFloat,
-    Tuple,
-    Set,
-    Hashable,
     Any,
+    AnyStr,
+    Callable,
+    Dict,
+    Generator,
+    Hashable,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Set,
+    SupportsFloat,
+    SupportsInt,
+    Tuple,
+    Union,
 )
+from urllib.error import HTTPError, URLError
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -268,9 +268,7 @@ class MultipleErrors(BaseException):
         return "".join(traceback.format_exception(*exc_info))
 
     def __str__(self):
-        tracebacks = "\n\n".join(
-            self._traceback_for(exc_info) for exc_info in self.errors
-        )
+        tracebacks = "\n\n".join(self._traceback_for(exc_info) for exc_info in self.errors)
         parts = ("See the following exception tracebacks:", "=" * 78, tracebacks)
         msg = "\n".join(parts)
         return msg
@@ -307,9 +305,7 @@ def tag_gen(seq: Iterator[Dict], **kwargs) -> Iterator[Dict]:
         yield new_item
 
 
-def exceptional_executor(
-    futures: Sequence[Future], exception_handler=None, timeout=None
-) -> Iterator:
+def exceptional_executor(futures: Sequence[Future], exception_handler=None, timeout=None) -> Iterator:
     """Generator for concurrent.Futures handling
 
     When an exception is raised in an executing Future, f.result() called on it's own will raise that
@@ -444,9 +440,7 @@ class memoize(object):
         return res
 
 
-def pretty_print_request(
-    req, expose_auth=False, authentication_header_blacklist: Optional[Sequence] = None
-) -> None:
+def pretty_print_request(req, expose_auth=False, authentication_header_blacklist: Optional[Sequence] = None) -> None:
     """At this point it is completely built and ready
     to be fired; it is "prepared".
 
@@ -467,7 +461,7 @@ def pretty_print_request(
             if header in printable_headers.keys():
                 printable_headers[header] = "<<REDACTED>>"
     print(
-        f"-----------START-----------\n" f"{req.method} {req.url}\n",
+        f"-----------START-----------\n{req.method} {req.url}\n",
         "\n".join("{}: {}".format(k, v) for k, v in printable_headers.items()),
     )
     if req.body is not None:
@@ -727,9 +721,7 @@ def uncollect_object(d: Dict) -> Dict:
     return new_d
 
 
-def dict_concat_safe(
-    d: Dict, keys: List[Hashable], default: Optional[Any] = None
-) -> Iterator:
+def dict_concat_safe(d: Dict, keys: List[Hashable], default: Optional[Any] = None) -> Iterator:
     """
     Really Lazy Func because `dict.get('key',default)` is a pain in the ass for lists
     """

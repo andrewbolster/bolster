@@ -1,9 +1,7 @@
 import datetime
 import unittest
 
-from bolster.data_sources.eoni import _headers
-from bolster.data_sources.eoni import get_results
-from bolster.data_sources.eoni import get_results_from_sheet
+from bolster.data_sources.eoni import _headers, get_results, get_results_from_sheet
 from bolster.utils.web import get_excel_dataframe
 
 constituencies_post_2003 = {
@@ -68,9 +66,7 @@ class MyTestCase(unittest.TestCase):
         data = get_results(2016)
         self.assertSetEqual(set(data.keys()), constituencies_post_2003)
 
-    @unittest.skip(
-        reason="Not currently possible as 2011 results are presented as PDFs"
-    )
+    @unittest.skip(reason="Not currently possible as 2011 results are presented as PDFs")
     def test_2011_constituency_parsing(self):
         data = get_results(2011)
         self.assertSetEqual(set(data.keys()), constituencies_post_2003)

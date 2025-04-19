@@ -1,6 +1,7 @@
 """
 Azure Utils
 """
+
 from urllib.parse import urlparse
 
 
@@ -30,11 +31,7 @@ def az_file_url_to_query_components(url: str):
     ], f"Invalid netlocs: {p.netloc} should be one of blob/dfs"
 
     storage_account = netlocs[0]
-    _, container, *paths = p.path.split(
-        "/"
-    )  # path starts with a / so p.path.split('/')[0] == ''
+    _, container, *paths = p.path.split("/")  # path starts with a / so p.path.split('/')[0] == ''
     file_path = "/".join(paths)
 
-    return dict(
-        storage_account=storage_account, container=container, file_path=file_path
-    )
+    return dict(storage_account=storage_account, container=container, file_path=file_path)
