@@ -5,18 +5,16 @@ applications as well. It uses the Pillow library for image processing and the re
 See [here](https://datahub.metoffice.gov.uk/docs/f/category/map-images/type/map-images/api-documentation) for more information on the API.
 
 """
+
 import os
 import re
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 from functools import lru_cache
 from io import BytesIO
 from itertools import groupby
 
 import requests
-from PIL import Image
-from PIL import ImageDraw
-from PIL import ImageFilter
+from PIL import Image, ImageDraw, ImageFilter
 
 # assert os.getenv('MET_OFFICE_API_KEY') is not None, "MET_OFFICE_API_KEY not set in .env file"
 # assert os.getenv('MAP_IMAGES_ORDER_NAME') is not None, "MAP_IMAGES_ORDER_NAME not set in .env file"
@@ -26,9 +24,7 @@ BASE_URL = "https://data.hub.api.metoffice.gov.uk/map-images/1.0.0"
 ### API Client Functions
 
 session = requests.Session()
-session.headers.update(
-    {"Accept": "application/json", "apikey": f"{os.getenv('MET_OFFICE_API_KEY')}"}
-)
+session.headers.update({"Accept": "application/json", "apikey": f"{os.getenv('MET_OFFICE_API_KEY')}"})
 
 
 def get_order_latest(order_name):
@@ -37,9 +33,7 @@ def get_order_latest(order_name):
     if response.status_code == 200:
         return response.json()
     else:
-        raise Exception(
-            f"Failed to fetch order status: {response.status_code} {response.text}"
-        )
+        raise Exception(f"Failed to fetch order status: {response.status_code} {response.text}")
 
 
 def get_file_meta(order_name, file_id):
@@ -48,23 +42,17 @@ def get_file_meta(order_name, file_id):
     if response.status_code == 200:
         return response.json()
     else:
-        raise Exception(
-            f"Failed to fetch order status: {response.status_code} {response.text}"
-        )
+        raise Exception(f"Failed to fetch order status: {response.status_code} {response.text}")
 
 
 @lru_cache
 def get_file(order_name, file_id):
     url = f"{BASE_URL}/orders/{order_name.lower()}/latest/{requests.utils.quote(file_id)}/data"  # To handle + in the file_id
-    response = session.get(
-        url, headers={**session.headers, **{"Accept": "application/octet-stream"}}
-    )
+    response = session.get(url, headers={**session.headers, **{"Accept": "application/octet-stream"}})
     if response.status_code == 200:
         return response.content
     else:
-        raise Exception(
-            f"Failed to fetch order status: {response.status_code} {response.text}"
-        )
+        raise Exception(f"Failed to fetch order status: {response.status_code} {response.text}")
 
 
 ### Data Filtering
@@ -150,18 +138,12 @@ def make_precipitation(data):
 def generate_image(order_name, block, bounding_box=(100, 250, 500, 550)):
     border = make_borders(get_file(order_name, block["land_cover"]))
     isoline = make_isolines(get_file(order_name, block["mean_sea_level_pressure"]))
-    precipitation = make_precipitation(
-        get_file(order_name, block["total_precipitation_rate"])
-    )
+    precipitation = make_precipitation(get_file(order_name, block["total_precipitation_rate"]))
 
-    background = Image.blend(
-        isoline.convert("RGBA"), border.convert("RGBA"), alpha=0.5
-    ).convert("L")
+    background = Image.blend(isoline.convert("RGBA"), border.convert("RGBA"), alpha=0.5).convert("L")
     background.info["transparency"] = 0
 
-    img = Image.blend(
-        background.convert("RGBA"), precipitation.convert("RGBA"), alpha=0.5
-    )
+    img = Image.blend(background.convert("RGBA"), precipitation.convert("RGBA"), alpha=0.5)
 
     if bounding_box:
         img = img.crop(bounding_box)

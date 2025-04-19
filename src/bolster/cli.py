@@ -28,25 +28,19 @@ def cli(args=None):
 )
 def get_precipitation(bounding_box, order_name):
     """Get UK precipitation data. Requires MET_OFFICE_API_KEY to be set in the environment."""
-    assert (
-        os.getenv("MET_OFFICE_API_KEY") is not None
-    ), "MET_OFFICE_API_KEY not set in environment"
+    assert os.getenv("MET_OFFICE_API_KEY") is not None, "MET_OFFICE_API_KEY not set in environment"
     if bounding_box is not None:
         try:
             min_lon, min_lat, max_lon, max_lat = map(float, bounding_box.split(","))
             bounding_box = (min_lon, min_lat, max_lon, max_lat)
             click.echo(f"Bounding box: {bounding_box}")
         except ValueError:
-            click.echo(
-                "Invalid bounding box format. Use min_lon,min_lat,max_lon,max_lat."
-            )
+            click.echo("Invalid bounding box format. Use min_lon,min_lat,max_lon,max_lat.")
 
     if order_name is None:
         order_name = os.getenv("MAP_IMAGES_ORDER_NAME")
         if order_name is None:
-            click.echo(
-                "Order name not provided and MAP_IMAGES_ORDER_NAME not set in environment."
-            )
+            click.echo("Order name not provided and MAP_IMAGES_ORDER_NAME not set in environment.")
             return
 
     img = get_uk_precipitation(order_name=order_name, bounding_box=bounding_box)
