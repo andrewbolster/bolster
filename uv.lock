@@ -249,6 +249,7 @@ css = [
 
 [[package]]
 name = "bolster"
+version = "0.3.1"
 source = { editable = "." }
 dependencies = [
     { name = "boto3" },
@@ -278,7 +279,7 @@ dependencies = [
     { name = "xlrd" },
 ]
 
-[package.optional-dependencies]
+[package.dev-dependencies]
 dev = [
     { name = "httpx" },
     { name = "ipykernel" },
@@ -317,46 +318,52 @@ docs = [
 
 [package.metadata]
 requires-dist = [
-    { name = "autoapi", marker = "extra == 'docs'" },
     { name = "boto3", specifier = ">=1.37.37" },
     { name = "bs4", specifier = ">=0.0.2" },
     { name = "click", specifier = ">=8.1.8" },
     { name = "click-log", specifier = ">=0.4.0" },
     { name = "dateparser", specifier = ">=1.2.1" },
-    { name = "httpx", marker = "extra == 'dev'" },
-    { name = "ipykernel", marker = "extra == 'dev'" },
     { name = "lxml", specifier = ">=5.3.2" },
-    { name = "myst-parser", marker = "extra == 'docs'" },
-    { name = "nbmake", marker = "extra == 'dev'" },
-    { name = "nbsphinx", marker = "extra == 'docs'" },
     { name = "numpy", specifier = ">=1.24.4" },
     { name = "openpyxl", specifier = ">=3.1.5" },
     { name = "pandas", specifier = ">=2.0.3" },
     { name = "pillow", specifier = ">=10.4.0" },
-    { name = "pre-commit", marker = "extra == 'dev'" },
     { name = "psycopg2-binary", specifier = ">=2.9.10" },
-    { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-cov", specifier = ">=5.0.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'" },
-    { name = "pytest-mock", marker = "extra == 'dev'" },
     { name = "requests", specifier = ">=2.32.3" },
     { name = "requests-cache", specifier = ">=1.2.1" },
-    { name = "ruff", marker = "extra == 'dev'" },
     { name = "scipy", specifier = ">=1.10.1" },
-    { name = "sphinx", marker = "extra == 'docs'" },
-    { name = "sphinx-autoapi", marker = "extra == 'docs'" },
-    { name = "sphinx-autodoc-typehints", marker = "extra == 'docs'" },
-    { name = "sphinx-click", marker = "extra == 'docs'" },
-    { name = "sphinx-copybutton", marker = "extra == 'docs'" },
-    { name = "sphinx-github-changelog", marker = "extra == 'docs'" },
-    { name = "sphinx-issues", marker = "extra == 'docs'" },
-    { name = "sphinx-rtd-theme", marker = "extra == 'docs'" },
-    { name = "sphinxcontrib-apidoc", marker = "extra == 'docs'" },
-    { name = "sphinxcontrib-mermaid", marker = "extra == 'docs'" },
-    { name = "sphinxcontrib-plantuml", marker = "extra == 'docs'" },
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "waybackpy", specifier = ">=3.0.6" },
     { name = "xlrd", specifier = ">=2.0.1" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "httpx" },
+    { name = "ipykernel" },
+    { name = "nbmake" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-mock" },
+    { name = "ruff" },
+]
+docs = [
+    { name = "autoapi" },
+    { name = "myst-parser" },
+    { name = "nbsphinx" },
+    { name = "sphinx" },
+    { name = "sphinx-autoapi" },
+    { name = "sphinx-autodoc-typehints" },
+    { name = "sphinx-click" },
+    { name = "sphinx-copybutton" },
+    { name = "sphinx-github-changelog" },
+    { name = "sphinx-issues" },
+    { name = "sphinx-rtd-theme" },
+    { name = "sphinxcontrib-apidoc" },
+    { name = "sphinxcontrib-mermaid" },
+    { name = "sphinxcontrib-plantuml" },
 ]
 
 [[package]]

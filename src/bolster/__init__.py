@@ -3,7 +3,9 @@
 
 __author__ = """Andrew Bolster"""
 __email__ = "andrew.bolster@gmail.com"
-__version__ = "0.3.1"
+import importlib.metadata
+
+__version__ = importlib.metadata.version("bolster")
 
 import base64
 import contextlib
