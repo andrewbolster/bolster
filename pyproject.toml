@@ -62,7 +62,7 @@ Repository = "https://github.com/andrewbolster/bolster.git"
 "Bug Tracker" = "https://github.com/andrewbolster/bolster/issues"
 
 [project.scripts]
-bolster = "bolster.cli:main"
+bolster = "bolster.cli:cli"
 
 [build-system]
 requires = ["pdm-backend"]
