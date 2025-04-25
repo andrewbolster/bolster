@@ -4,7 +4,7 @@ sphinx-click
 sphinx-issues
 nbsphinx
 sphinx-rtd-theme
-sphinx-autodoc-typehints
+sphinx-autodoc-typehints==3.2.0
 sphinx-autoapi
 autoapi
 sphinxcontrib-apidoc
