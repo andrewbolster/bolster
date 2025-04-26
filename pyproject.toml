@@ -71,6 +71,9 @@ build-backend = "pdm.backend"
 [tool.pdm]
 version = { source = "file", path = "src/bolster/__init__.py" }
 
+[tool.pdm.build]
+excludes = ["tests", "docs", "notebooks"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests","src"]
 pythonpath = "src"
