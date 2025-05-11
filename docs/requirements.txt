@@ -8,5 +8,5 @@ sphinx-autodoc-typehints
 sphinx-autoapi
 autoapi
 sphinxcontrib-apidoc
-sphinx-github-changelog
+sphinx-github-changelog==1.6.2
 ipython_genutils
