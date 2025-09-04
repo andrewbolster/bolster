@@ -2,7 +2,7 @@ nox
 sphinx
 sphinx-click
 sphinx-issues
-nbsphinx
+nbsphinx==0.9.7
 sphinx-rtd-theme
 sphinx-autodoc-typehints
 sphinx-autoapi
