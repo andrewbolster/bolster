@@ -7,6 +7,6 @@ sphinx-rtd-theme
 sphinx-autodoc-typehints
 sphinx-autoapi
 autoapi
-sphinxcontrib-apidoc
+sphinxcontrib-apidoc==0.6.0
 sphinx-github-changelog
 ipython_genutils
