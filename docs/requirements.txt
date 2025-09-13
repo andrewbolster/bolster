@@ -1,6 +1,6 @@
 nox
 sphinx
-sphinx-click
+sphinx-click==6.1.0
 sphinx-issues
 nbsphinx
 sphinx-rtd-theme
