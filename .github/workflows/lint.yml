@@ -10,6 +10,5 @@ jobs:
     lint:
         runs-on: ubuntu-latest
         steps:
+          - uses: actions/checkout@v5
           - uses: astral-sh/ruff-action@v3
-          - run: ruff check --fix
-          - run: ruff format

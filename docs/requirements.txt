@@ -1,12 +1,12 @@
-nox
+nox==2025.5.1
 sphinx
 sphinx-click==6.1.0
 sphinx-issues
-nbsphinx
+nbsphinx==0.9.7
 sphinx-rtd-theme
 sphinx-autodoc-typehints
-sphinx-autoapi
+sphinx-autoapi==3.6.1
 autoapi
 sphinxcontrib-apidoc
-sphinx-github-changelog
+sphinx-github-changelog==1.7.1
 ipython_genutils
