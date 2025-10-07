@@ -33,6 +33,7 @@ jobs:
             - name: Update bot PR branches
               if: github.event_name == 'push' && github.ref == 'refs/heads/main'
               run: |
+                  set +e  # Don't exit on errors - we want to process all PRs
                   echo "Updating bot PRs with latest main..."
 
                   # Get all open bot PRs that need updating
