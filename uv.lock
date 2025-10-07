@@ -310,7 +310,8 @@ docs = [
     { name = "sphinx-autodoc-typehints", version = "3.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "sphinx-click" },
     { name = "sphinx-copybutton" },
-    { name = "sphinx-github-changelog" },
+    { name = "sphinx-github-changelog", version = "1.6.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+    { name = "sphinx-github-changelog", version = "1.7.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "sphinx-issues", version = "4.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "sphinx-issues", version = "5.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "sphinx-rtd-theme" },
@@ -3920,19 +3921,40 @@ wheels = [
 
 [[package]]
 name = "sphinx-github-changelog"
-version = "1.4.0"
+version = "1.6.2"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version < '3.9'",
+]
 dependencies = [
     { name = "docutils", version = "0.20.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
-    { name = "docutils", version = "0.21.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
-    { name = "requests" },
+    { name = "requests", marker = "python_full_version < '3.9'" },
     { name = "sphinx", version = "7.1.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/50/cf/6b2ad1e0de11f2313fb3ee08c4073ec8458c3bcbdee959b40cd15fbcc8a2/sphinx_github_changelog-1.6.2.tar.gz", hash = "sha256:1081393f977c13a329ca08c19801a891199e9855fcce1b75c29f40fe92e1f046", size = 75139, upload-time = "2025-05-11T09:13:01.185Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3f/d3/a27d25d65a954032b8846aeb871c6787f2c3eedcc58753d79324c1328c04/sphinx_github_changelog-1.6.2-py3-none-any.whl", hash = "sha256:018c1de36960f121677801119191830824aef25b531ab62fcd77faa82e6af27d", size = 11401, upload-time = "2025-05-11T09:12:59.672Z" },
+]
+
+[[package]]
+name = "sphinx-github-changelog"
+version = "1.7.1"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.12'",
+    "python_full_version == '3.11.*'",
+    "python_full_version == '3.10.*'",
+    "python_full_version == '3.9.*'",
+]
+dependencies = [
+    { name = "docutils", version = "0.21.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
+    { name = "requests", marker = "python_full_version >= '3.9'" },
     { name = "sphinx", version = "7.4.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.9.*'" },
     { name = "sphinx", version = "8.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8f/21/90bc47a6cdfff2e37bc233754f6662808975528a73dab0bf6a5215eeb2a5/sphinx_github_changelog-1.4.0.tar.gz", hash = "sha256:204745e93a1f280e4664977b5fee526b0a011c92ca19c304bd01fd641ddb6393", size = 7583, upload-time = "2024-08-09T16:08:36.116Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/71/3c/11707a3da2fe3a2aed9575a76b2ee5dc8b943981a6a51f55a2a743b629fb/sphinx_github_changelog-1.7.1.tar.gz", hash = "sha256:2ec5a716fbd21edcb4f549f8e4503a7ab08a285585aaf291a7e97d79cd6467ab", size = 55142, upload-time = "2025-05-11T14:07:34.973Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/03/07/a669a23f47803ad12e620b68b761bf7bf32fd9f293c5846fda8f3893d706/sphinx_github_changelog-1.4.0-py3-none-any.whl", hash = "sha256:cdf2099ea3e4587ae8637be7ba609738bfdeca4bd80c5df6fc45046735ae5c2f", size = 8513, upload-time = "2024-08-09T16:08:34.374Z" },
+    { url = "https://files.pythonhosted.org/packages/78/42/c556bdbf673f730c8518cdb95f479a2a7c97e9c461746b1878d15fa639f8/sphinx_github_changelog-1.7.1-py3-none-any.whl", hash = "sha256:5accdbdbd900287c2d6a737c322381e3f2b02053b67029006f335519a8025314", size = 11117, upload-time = "2025-05-11T14:07:33.553Z" },
 ]
 
 [[package]]
