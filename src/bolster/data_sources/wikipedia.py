@@ -28,7 +28,15 @@ def get_ni_executive_basic_table():
     dtype: object
 
     """
-    tables = pd.read_html("https://en.wikipedia.org/wiki/Northern_Ireland_Executive")
+    # Use a custom user agent to avoid Wikipedia 403 errors
+    # Wikipedia blocks default pandas/urllib user agents
+    headers = {
+        "User-Agent": "Bolster Data Science Library/0.3.4 (https://github.com/andrewbolster/bolster; andrew.bolster@gmail.com)"
+    }
+    tables = pd.read_html(
+        "https://en.wikipedia.org/wiki/Northern_Ireland_Executive",
+        storage_options=headers
+    )
     tables[4].columns = range(len(tables[4].columns))
 
     # Get rid of the nasty multi index
