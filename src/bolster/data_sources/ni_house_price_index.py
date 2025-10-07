@@ -243,7 +243,6 @@ def cleanup_with_munged_quarters_and_total_rows(df: pd.DataFrame, offset=3) -> p
     """
     df = df.copy()
     df.iloc[:, 1] = df.iloc[:, 1].str.replace("Quarter ([1-4])", r"Q\1", regex=True)
-    # Use na=False parameter to avoid fillna and downcasting warning
     df = df[~df.iloc[:, 1].str.contains("Total", na=False)]
     # Lose the year new-lines (needs astype because non str lines are
     # correctly inferred to be ints, so .str methods nan-out

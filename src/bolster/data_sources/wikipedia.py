@@ -65,7 +65,6 @@ def get_ni_executive_basic_table():
     executive_durations = executive_events.groupby(["Executive", "Active"])["Date"].first().unstack()
     executive_durations.columns = ["Dissolved", "Established"]
     executive_durations = executive_durations[reversed(executive_durations.columns)]
-    # Use map instead of deprecated applymap
     executive_durations = executive_durations.map(lambda s: dateparser.parse(s) if isinstance(s, str) else s)
     executive_durations["Duration"] = executive_durations.diff(axis=1).iloc[:, -1:]
 
@@ -85,7 +84,7 @@ def get_ni_executive_basic_table():
 
     executive_durations["Interregnum"] = executive_dissolutions
 
-    # Fix last / most recent - use .loc to avoid chained assignment warning
+    # Fix last / most recent
     executive_durations.loc[executive_durations.index[-1], "Duration"] = (
         datetime.datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
         - executive_durations["Established"].iloc[-1]
