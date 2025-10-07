@@ -1,18 +1,23 @@
 version: 2
 updates:
+    # GitHub Actions updates
     - package-ecosystem: github-actions
       directory: "/"
       schedule:
-          interval: daily
-    - package-ecosystem: pip
-      directory: "/.github/workflows"
+          interval: weekly
+      groups:
+          github-actions:
+              patterns:
+                  - "*"
+
+    # UV Python project dependencies (pyproject.toml + uv.lock)
+    - package-ecosystem: uv
+      directory: "/"
       schedule:
-          interval: daily
+          interval: weekly
+
+    # Documentation dependencies (separate from main project)
     - package-ecosystem: pip
       directory: "/docs"
       schedule:
-          interval: daily
-    - package-ecosystem: pip
-      directory: "/"
-      schedule:
-          interval: daily
+          interval: weekly
