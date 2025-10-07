@@ -1,16 +1,69 @@
-name: Rebase pull requests
+name: Rebase Bot Pull Requests
 on:
     push:
-    release:
-        types: [published]
+        branches: [main]
+    workflow_dispatch:
+        inputs:
+            pr_number:
+                description: 'PR number to rebase (leave empty for all bot PRs)'
+                required: false
+                type: string
+
+permissions:
+    contents: write
+    pull-requests: write
+
 jobs:
     auto-rebase:
-        name: rebase dependabot PRs
+        name: Rebase bot PRs
         runs-on: ubuntu-latest
-        if: github.ref == 'refs/heads/main' || github.event == 'release'
-        timeout-minutes: 5
+        timeout-minutes: 15
         steps:
-            - name: rebase
-              uses: "bbeesley/gha-auto-dependabot-rebase@main"
+            - name: Checkout main
+              uses: actions/checkout@v5
+              with:
+                  ref: main
+                  fetch-depth: 0
+
+            - name: Configure Git
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+
+            - name: Update bot PR branches
+              if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+              run: |
+                  echo "Updating bot PRs with latest main..."
+
+                  # Get all open bot PRs that need updating
+                  gh pr list --state open --json number,author,mergeStateStatus \
+                    --jq '.[] | select(.author.login | test("bot|pyup|renovate|github-actions")) | select(.mergeStateStatus == "DIRTY") | .number' | \
+                  while read -r pr; do
+                    echo "----------------------------------------"
+                    echo "Updating PR #$pr with latest main..."
+
+                    # Use GitHub API to update the branch with main
+                    if gh api -X PUT "repos/${{ github.repository }}/pulls/$pr/update-branch" \
+                        -H "Accept: application/vnd.github+json" \
+                        -f expected_head_sha="$(gh pr view $pr --json headRefOid -q '.headRefOid')" 2>&1; then
+                      echo "✓ Successfully updated PR #$pr"
+                    else
+                      echo "✗ Failed to update PR #$pr (may have conflicts or be from a fork)"
+                    fi
+                  done
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Update specific PR branch
+              if: github.event_name == 'workflow_dispatch' && inputs.pr_number != ''
+              run: |
+                  echo "Updating PR #${{ inputs.pr_number }} with latest main..."
+
+                  # Use GitHub API to update the branch
+                  gh api -X PUT "repos/${{ github.repository }}/pulls/${{ inputs.pr_number }}/update-branch" \
+                      -H "Accept: application/vnd.github+json" \
+                      -f expected_head_sha="$(gh pr view ${{ inputs.pr_number }} --json headRefOid -q '.headRefOid')"
+
+                  echo "✓ Successfully updated PR #${{ inputs.pr_number }}"
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
