@@ -116,7 +116,7 @@ def basic_cleanup(df: pd.DataFrame, offset=1) -> pd.DataFrame:
     # For 'Year','Quarter' indexed pages, there is an implied Year
     # in Q2/4, so fill it downwards
     if set(df.keys()).issuperset({"Year", "Quarter"}):
-        df["Year"] = df["Year"].astype(float).fillna(method="ffill").astype(int)
+        df["Year"] = df["Year"].astype(float).ffill().astype(int)
         df = df.dropna(how="any", subset=["Year", "Quarter"])
 
         # In Pandas we can represent Y/Q combinations as proper datetimes
@@ -243,7 +243,8 @@ def cleanup_with_munged_quarters_and_total_rows(df: pd.DataFrame, offset=3) -> p
     """
     df = df.copy()
     df.iloc[:, 1] = df.iloc[:, 1].str.replace("Quarter ([1-4])", r"Q\1", regex=True)
-    df = df[~df.iloc[:, 1].str.contains("Total").fillna(False)]
+    # Use na=False parameter to avoid fillna and downcasting warning
+    df = df[~df.iloc[:, 1].str.contains("Total", na=False)]
     # Lose the year new-lines (needs astype because non str lines are
     # correctly inferred to be ints, so .str methods nan-out
     with pd.option_context("mode.chained_assignment", None):
