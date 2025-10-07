@@ -1,5 +1,5 @@
 name: Bot Pull Request Approve and Merge
-# Supports: Dependabot, Pyup.io, Renovate, and other trusted bots
+# Supports: Dependabot, Renovate, and other trusted bots
 # src: https://blog.somewhatabstract.com/2021/10/11/setting-up-dependabot-with-github-actions-to-approve-and-merge/
 
 on: pull_request_target
@@ -14,7 +14,6 @@ jobs:
         # Support multiple trusted bots
         if: |
             github.actor == 'dependabot[bot]' ||
-            github.actor == 'pyup-bot' ||
             github.actor == 'renovate[bot]' ||
             github.actor == 'github-actions[bot]'
         steps:

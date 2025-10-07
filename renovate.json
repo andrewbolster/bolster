@@ -1,0 +1,41 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "enabledManagers": ["pip_requirements", "github-actions"],
+  "pip_requirements": {
+    "fileMatch": ["(^|/)([\\w-]*)requirements(-\\w+)?\\.(txt|pip)$"]
+  },
+  "labels": ["dependencies", "renovate"],
+  "automerge": false,
+  "rangeStrategy": "pin",
+  "separateMajorMinor": true,
+  "semanticCommits": "enabled",
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps",
+  "schedule": ["before 4am on Monday"],
+  "timezone": "Europe/London",
+  "prConcurrentLimit": 5,
+  "prCreation": "immediate",
+  "rebaseWhen": "behind-base-branch",
+  "packageRules": [
+    {
+      "description": "Group Python development dependencies",
+      "matchManagers": ["pip_requirements"],
+      "matchDepTypes": ["devDependencies"],
+      "groupName": "Python dev dependencies"
+    },
+    {
+      "description": "Group GitHub Actions updates",
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "automerge": true
+    },
+    {
+      "description": "Pin specific packages that need exact versions",
+      "matchPackageNames": ["sphinx", "sphinx-*"],
+      "rangeStrategy": "pin"
+    }
+  ]
+}

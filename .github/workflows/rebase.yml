@@ -38,7 +38,7 @@ jobs:
 
                   # Get all open bot PRs that need updating
                   gh pr list --state open --json number,author,mergeStateStatus \
-                    --jq '.[] | select(.author.login | test("bot|pyup|renovate|github-actions")) | select(.mergeStateStatus == "DIRTY") | .number' | \
+                    --jq '.[] | select(.author.login | test("bot|renovate|github-actions")) | select(.mergeStateStatus == "DIRTY") | .number' | \
                   while read -r pr; do
                     echo "----------------------------------------"
                     echo "Updating PR #$pr with latest main..."
