@@ -93,6 +93,7 @@ line-length = 120
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
+"*.ipynb" = ["E402", "F401", "F811", "I001", "F403", "F405", "E741"]
 
 [tool.coverage.run]
 source = ["bolster"]
