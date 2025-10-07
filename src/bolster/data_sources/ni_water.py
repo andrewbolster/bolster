@@ -57,41 +57,113 @@ def get_postcode_to_water_supply_zone() -> Dict[str, str]:
     return zones
 
 
+@backoff(HTTPError)
+def get_water_quality_by_postcode(postcode: str, zone_code: str = None, strict=False) -> pd.Series:
+    """
+    Get the latest Water Quality for a given NI Postcode
+
+    >>> data = get_water_quality_by_postcode('BT14 7EJ')
+    >>> data['Water Supply Zone']
+    'Dunore Ballygomartin North'
+    >>> data.index.tolist()  # doctest: +NORMALIZE_WHITESPACE
+    ['Water Supply Zone', 'Raw Water Source', 'Zone water quality report (2024 dataset)',
+     'Total Hardness (mg/l)', 'Magnesium (mg/l)', 'Potassium (mg/l)', 'Calcium (mg/l)',
+     'Total Hardness (mg CaCO3/l)', 'Clark English Degrees', 'French Degrees',
+     'German Degrees', 'NI Hardness Classification', 'Dishwasher Setting']
+
+    >>> get_water_quality_by_postcode('XXXXXX', strict=True)
+    Traceback (most recent call last):
+    ...
+    ValueError: Potentially invalid Postcode XXXXXX
+    """
+    # Remove spaces from postcode for API call
+    postcode_clean = postcode.replace(" ", "")
+
+    try:
+        # Check if this postcode has multiple addresses (need zone code)
+        response = requests.get(f"https://www.niwater.com/api/water-quality/getitem?p={postcode_clean}")
+        response.raise_for_status()
+
+        # If response contains '|', it means multiple addresses
+        if '|' in response.text:
+            if zone_code:
+                # Query with zone code and postcode
+                tables = pd.read_html(
+                    f"https://www.niwater.com/api/water-quality/getitem?z={zone_code}&p={postcode_clean}",
+                    match="Water Supply Zone"
+                )
+            else:
+                # Extract first zone code from the select options
+                import re
+                zone_match = re.search(r'value="(ZS\d+)"', response.text)
+                if zone_match:
+                    first_zone = zone_match.group(1)
+                    tables = pd.read_html(
+                        f"https://www.niwater.com/api/water-quality/getitem?z={first_zone}&p={postcode_clean}",
+                        match="Water Supply Zone"
+                    )
+                else:
+                    raise ValueError(f"Could not extract zone code for postcode {postcode}")
+        else:
+            # Single address, can use just postcode
+            tables = pd.read_html(
+                f"https://www.niwater.com/api/water-quality/getitem?p={postcode_clean}",
+                match="Water Supply Zone"
+            )
+
+        if not tables:
+            raise ValueError(f"No water quality data found for postcode {postcode}")
+
+        data = tables[0].set_index(0)[1]
+        # Filter out the postcode header row (e.g., "BT147EJ")
+        data = data[~data.index.str.contains(postcode_clean, case=False, na=False)]
+        data.name = postcode
+        return data
+    except (HTTPError, ValueError, XMLSyntaxError) as err:
+        if strict:
+            raise ValueError(f"Potentially invalid Postcode {postcode}") from err
+        else:
+            logging.warning(f"Potentially invalid Postcode {postcode}")
+            return pd.Series(name=postcode)
+
+
 # This may throw 503's on occasion which annoyingly makes it stocastic
 @backoff(HTTPError)
 def get_water_quality_by_zone(zone_code: str, strict=False) -> pd.Series:
     """
     Get the latest Water Quality for a given Water Supply Zone
 
+    Note: This function now uses a postcode lookup. It finds a postcode associated
+    with the zone and returns the water quality data for that postcode.
+
     >>> data = get_water_quality_by_zone('ZS0101')
     >>> data['Water Supply Zone']
     'Dunore Ballygomartin North'
-    >>> data.index
-    Index(['Water Supply Zone', 'Total Hardness (mg/l)', 'Magnesium (mg/l)',
-           'Potassium (mg/l)', 'Calcium (mg/l)', 'Total Hardness (mg CaCO3/l)',
-           'Clark English Degrees', 'French Degrees', 'German Degrees',
-           'NI Hardness Classification', 'Dishwasher Setting'],
-          dtype='object', name=0)
 
     >>> get_water_quality_by_zone('XXXXXX', strict=True)
     Traceback (most recent call last):
     ...
     ValueError: Potentially invalid Water Supply Zone XXXXXX
     """
-    try:
-        d, _, _ = pd.read_html(f"https://www.niwater.com/water-quality-lookup.ashx?z={zone_code}")
-    except XMLSyntaxError as err:
+    # Get postcode-to-zone mapping
+    zones = get_postcode_to_water_supply_zone()
+
+    # Find a postcode for this zone
+    postcode = None
+    for pc, z in zones.items():
+        if z == zone_code:
+            postcode = pc
+            break
+
+    if postcode is None:
         if strict:
-            raise ValueError(f"Potentially invalid Water Supply Zone {zone_code}") from err
+            raise ValueError(f"Potentially invalid Water Supply Zone {zone_code}")
         else:
-            logging.warning(f"Potentially invalid Water Supply Zone {zone_code}")
+            logging.warning(f"No postcode found for Water Supply Zone {zone_code}")
             return pd.Series(name=zone_code)
 
-    data = d.dropna().set_index(0)[1]
-    for c in data.index:
-        if c.startswith("Zone water quality report"):
-            logging.warning(f"Dropping {c}")
-            data = data.drop(c)
+    # Get water quality data using the postcode and zone code
+    data = get_water_quality_by_postcode(postcode, zone_code=zone_code, strict=strict)
     data.name = zone_code
     return data
 
