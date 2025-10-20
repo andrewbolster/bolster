@@ -1,4 +1,4 @@
-nox==2025.5.1
+nox==2025.10.16
 sphinx
 sphinx-click==6.1.0
 sphinx-issues
