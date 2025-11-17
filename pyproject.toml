@@ -142,6 +142,6 @@ dev = [
     "nbmake"
 ]
 docs = ["Sphinx", "sphinx-click", "sphinx-issues", "nbsphinx", "sphinx-rtd-theme",
-    "sphinx-autodoc-typehints", "sphinx-autoapi", "autoapi", "sphinxcontrib-apidoc",
+    "sphinx-autodoc-typehints", "sphinx-autoapi",
     "sphinxcontrib-plantuml", "sphinxcontrib-mermaid",
     "sphinx-github-changelog", "myst-parser", "sphinx-copybutton",]
