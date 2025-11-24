@@ -49,7 +49,6 @@ extensions = [
     "sphinx.ext.autodoc.typehints",
     "sphinx_click.ext",
     "sphinx_issues",
-    "sphinxcontrib.apidoc",
     "sphinx_github_changelog",
 ]
 
@@ -173,7 +172,7 @@ texinfo_documents = [
 ]
 
 # -- Extension configuration -------------------------------------------------
-autoapi_modules = {github_project: None}
+
 # -- Options for intersphinx extension ---------------------------------------
 
 # Example configuration for intersphinx: refer to the Python standard library.
@@ -183,10 +182,6 @@ intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
-
-# apidoc_module_dir = f"../{github_project}"
-# apidoc_excluded_paths = ['tests', 'setup.py']
-# apidoc_output_dir = 'src'
 
 # -- Options for Napoleon
 

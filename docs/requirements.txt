@@ -6,7 +6,5 @@ nbsphinx==0.9.7
 sphinx-rtd-theme
 sphinx-autodoc-typehints
 sphinx-autoapi==3.6.1
-autoapi
-sphinxcontrib-apidoc
 sphinx-github-changelog==1.7.1
 ipython_genutils
