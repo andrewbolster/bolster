@@ -5,7 +5,7 @@ description = "Bolster's Brain, you've been warned"
 authors = [
     {name = "Andrew Bolster", email = "andrew.bolster@gmail.com"},
 ]
-readme = "README.rst"
+readme = "README.md"
 classifiers = [
     'Development Status :: 2 - Pre-Alpha',
     'Intended Audience :: Developers',
