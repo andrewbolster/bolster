@@ -4,6 +4,9 @@ on:
     - push
     - pull_request
 
+env:
+    python-version: "3.11"
+
 jobs:
     notebooks:
         name: Notebooks

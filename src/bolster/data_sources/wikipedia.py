@@ -3,6 +3,7 @@ import datetime
 import dateparser
 import numpy as np
 import pandas as pd
+import requests
 
 
 def get_ni_executive_basic_table():
@@ -33,10 +34,10 @@ def get_ni_executive_basic_table():
     headers = {
         "User-Agent": "Bolster Data Science Library/0.3.4 (https://github.com/andrewbolster/bolster; andrew.bolster@gmail.com)"
     }
-    tables = pd.read_html(
-        "https://en.wikipedia.org/wiki/Northern_Ireland_Executive",
-        storage_options=headers
-    )
+    url = "https://en.wikipedia.org/wiki/Northern_Ireland_Executive"
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    tables = pd.read_html(response.text)
     tables[4].columns = range(len(tables[4].columns))
 
     # Get rid of the nasty multi index
@@ -65,7 +66,7 @@ def get_ni_executive_basic_table():
     executive_durations = executive_events.groupby(["Executive", "Active"])["Date"].first().unstack()
     executive_durations.columns = ["Dissolved", "Established"]
     executive_durations = executive_durations[reversed(executive_durations.columns)]
-    executive_durations = executive_durations.map(lambda s: dateparser.parse(s) if isinstance(s, str) else s)
+    executive_durations = executive_durations.applymap(lambda s: dateparser.parse(s) if isinstance(s, str) else s)
     executive_durations["Duration"] = executive_durations.diff(axis=1).iloc[:, -1:]
 
     executive_dissolutions = pd.concat(
