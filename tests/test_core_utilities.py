@@ -1,15 +1,10 @@
 #!/usr/bin/env python
 """Comprehensive tests for core bolster utilities in __init__.py"""
 
-import json
-import os
 import tempfile
-import time
-from collections import Counter
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from threading import Lock
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -240,12 +235,12 @@ class TestMultipleErrors:
 
         try:
             raise ValueError("first error")
-        except:
+        except Exception:
             errors.capture_current_exception()
 
         try:
             raise TypeError("second error")
-        except:
+        except Exception:
             errors.capture_current_exception()
 
         assert len(errors.errors) == 2
@@ -259,7 +254,7 @@ class TestMultipleErrors:
 
         try:
             raise ValueError("test error")
-        except:
+        except Exception:
             errors.capture_current_exception()
 
         error_str = str(errors)
@@ -418,7 +413,6 @@ class TestTreeUtilities:
     def test_items_at_depth(self):
         """Test items at specific depth."""
         items_0 = list(items_at(self.nested_dict, 0))
-        expected_items = [('a', 1), ('b', self.nested_dict['b']), ('g', self.nested_dict['g'])]
         assert len(items_0) == 3
 
     def test_leaves(self):

@@ -17,7 +17,6 @@ from urllib.error import HTTPError
 
 import pandas as pd
 import requests
-from lxml.etree import XMLSyntaxError
 
 from bolster import backoff
 

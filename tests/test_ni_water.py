@@ -1,20 +1,19 @@
 #!/usr/bin/env python
 """Tests for ni_water module with proper mocking of external APIs."""
 
-import csv
-import io
-import pandas as pd
-import pytest
-from unittest.mock import Mock, patch, mock_open
+from unittest.mock import Mock, patch
 from urllib.error import HTTPError
 
+import pandas as pd
+import pytest
+
 from bolster.data_sources.ni_water import (
-    get_postcode_to_water_supply_zone,
-    get_water_quality_by_zone,
-    get_water_quality,
-    POSTCODE_DATASET_URL,
     INVALID_ZONE_IDENTIFIER,
+    POSTCODE_DATASET_URL,
     T_HARDNESS,
+    get_postcode_to_water_supply_zone,
+    get_water_quality,
+    get_water_quality_by_zone,
 )
 
 
