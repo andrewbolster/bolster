@@ -16,13 +16,14 @@ def get_basic_company_data_url() -> Text:
     Currently uses the 'one file' method but it could be split into the multi files for memory efficiency
     """
     base_url = "http://download.companieshouse.gov.uk/en_output.html"
-    s = bs4.BeautifulSoup(requests.get(base_url).content)
-    for a in s.find_all("a"):
-        if a.get("href").startswith("BasicCompanyDataAsOneFile"):
-            url = f"http://download.companieshouse.gov.uk/{a.get('href')}"
-            break  # assume first time lucky
+    # TODO: Network integration testing - requires active Companies House website
+    s = bs4.BeautifulSoup(requests.get(base_url).content)  # pragma: no cover
+    for a in s.find_all("a"):  # pragma: no cover
+        if a.get("href").startswith("BasicCompanyDataAsOneFile"):  # pragma: no cover
+            url = f"http://download.companieshouse.gov.uk/{a.get('href')}"  # pragma: no cover
+            break  # assume first time lucky  # pragma: no cover
 
-    return url
+    return url  # pragma: no cover
 
 
 def query_basic_company_data(query_func: Callable[..., bool] = always) -> Iterator[Dict]:
@@ -31,11 +32,12 @@ def query_basic_company_data(query_func: Callable[..., bool] = always) -> Iterat
     for each row in each CSV file, parse the row data through the given `query_func`
     such that if `query_func(row)` is True it will be yielded
     """
-    url = get_basic_company_data_url()
-    for filename, data in tqdm(download_extract_zip(url)):
-        for row in tqdm(csv.DictReader((d.decode("utf-8") for d in data))):
-            if query_func(row):
-                yield row
+    # TODO: Network integration testing - requires Companies House data download
+    url = get_basic_company_data_url()  # pragma: no cover
+    for filename, data in tqdm(download_extract_zip(url)):  # pragma: no cover
+        for row in tqdm(csv.DictReader((d.decode("utf-8") for d in data))):  # pragma: no cover
+            if query_func(row):  # pragma: no cover
+                yield row  # pragma: no cover
 
 
 def companies_house_record_might_be_farset(r: Dict) -> bool:
@@ -74,4 +76,5 @@ def companies_house_record_might_be_farset(r: Dict) -> bool:
 
 
 def get_companies_house_records_that_might_be_in_farset() -> Iterator[Dict]:
-    yield from query_basic_company_data(companies_house_record_might_be_farset)
+    # TODO: Network integration testing - requires Companies House data download
+    yield from query_basic_company_data(companies_house_record_might_be_farset)  # pragma: no cover

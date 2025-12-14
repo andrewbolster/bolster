@@ -7,6 +7,41 @@ import scipy.stats as st
 from tqdm.auto import tqdm
 
 
+def _get_available_distributions(include_slow=False):
+    """Get list of available scipy.stats distributions, filtering out incompatible ones."""
+    # Define distributions that should be available in most scipy versions
+    distribution_names = [
+        'alpha', 'anglit', 'arcsine', 'beta', 'betaprime', 'bradford', 'burr', 'cauchy',
+        'chi', 'chi2', 'cosine', 'dgamma', 'dweibull', 'erlang', 'expon', 'exponnorm',
+        'exponweib', 'exponpow', 'f', 'fatiguelife', 'fisk', 'foldcauchy', 'foldnorm',
+        'genlogistic', 'genpareto', 'gennorm', 'genexpon', 'genextreme', 'gausshyper',
+        'gamma', 'gengamma', 'genhalflogistic', 'gilbrat', 'gompertz', 'gumbel_r',
+        'gumbel_l', 'halfcauchy', 'halflogistic', 'halfnorm', 'halfgennorm', 'hypsecant',
+        'invgamma', 'invgauss', 'invweibull', 'johnsonsb', 'johnsonsu', 'ksone',
+        'kstwobign', 'laplace', 'levy', 'levy_l', 'logistic', 'loggamma', 'loglaplace',
+        'lognorm', 'lomax', 'maxwell', 'mielke', 'nakagami', 'ncx2', 'ncf', 'nct',
+        'norm', 'pareto', 'pearson3', 'powerlaw', 'powerlognorm', 'powernorm', 'rdist',
+        'reciprocal', 'rayleigh', 'rice', 'recipinvgauss', 'semicircular', 't', 'triang',
+        'truncexpon', 'truncnorm', 'tukeylambda', 'uniform', 'vonmises', 'vonmises_line',
+        'wald', 'weibull_min', 'weibull_max', 'wrapcauchy'
+    ]
+
+    # Filter to only include distributions that actually exist in current scipy version
+    available_distributions = []
+    for name in distribution_names:
+        if hasattr(st, name):
+            available_distributions.append(getattr(st, name))
+
+    slow_distributions = []
+    if hasattr(st, 'levy_stable'):
+        slow_distributions.append(st.levy_stable)
+
+    if include_slow:
+        available_distributions.extend(slow_distributions)
+
+    return available_distributions
+
+
 # Create models from data https://stackoverflow.com/questions/6620471/fitting-empirical-distribution-to-theoretical-ones-with-scipy-python
 def best_fit_distribution(data, bins=200, ax=None, include_slow=False, discriminator="sse"):
     """Model data by finding best fit distribution to data"""
@@ -14,101 +49,8 @@ def best_fit_distribution(data, bins=200, ax=None, include_slow=False, discrimin
     y, x = np.histogram(data, bins=bins, density=True)
     x = (x + np.roll(x, -1))[:-1] / 2.0
 
-    # Distributions to check
-    DISTRIBUTIONS = [
-        st.alpha,
-        st.anglit,
-        st.arcsine,
-        st.beta,
-        st.betaprime,
-        st.bradford,
-        st.burr,
-        st.cauchy,
-        st.chi,
-        st.chi2,
-        st.cosine,
-        st.dgamma,
-        st.dweibull,
-        st.erlang,
-        st.expon,
-        st.exponnorm,
-        st.exponweib,
-        st.exponpow,
-        st.f,
-        st.fatiguelife,
-        st.fisk,
-        st.foldcauchy,
-        st.foldnorm,
-        st.frechet_r,
-        st.frechet_l,
-        st.genlogistic,
-        st.genpareto,
-        st.gennorm,
-        st.genexpon,
-        st.genextreme,
-        st.gausshyper,
-        st.gamma,
-        st.gengamma,
-        st.genhalflogistic,
-        st.gilbrat,
-        st.gompertz,
-        st.gumbel_r,
-        st.gumbel_l,
-        st.halfcauchy,
-        st.halflogistic,
-        st.halfnorm,
-        st.halfgennorm,
-        st.hypsecant,
-        st.invgamma,
-        st.invgauss,
-        st.invweibull,
-        st.johnsonsb,
-        st.johnsonsu,
-        st.ksone,
-        st.kstwobign,
-        st.laplace,
-        st.levy,
-        st.levy_l,
-        st.logistic,
-        st.loggamma,
-        st.loglaplace,
-        st.lognorm,
-        st.lomax,
-        st.maxwell,
-        st.mielke,
-        st.nakagami,
-        st.ncx2,
-        st.ncf,
-        st.nct,
-        st.norm,
-        st.pareto,
-        st.pearson3,
-        st.powerlaw,
-        st.powerlognorm,
-        st.powernorm,
-        st.rdist,
-        st.reciprocal,
-        st.rayleigh,
-        st.rice,
-        st.recipinvgauss,
-        st.semicircular,
-        st.t,
-        st.triang,
-        st.truncexpon,
-        st.truncnorm,
-        st.tukeylambda,
-        st.uniform,
-        st.vonmises,
-        st.vonmises_line,
-        st.wald,
-        st.weibull_min,
-        st.weibull_max,
-        st.wrapcauchy,
-    ]
-    SLOW_DISTRIBUTIONS = [st.levy_stable]
-
-    if include_slow:
-        DISTRIBUTIONS += SLOW_DISTRIBUTIONS
+    # Get available distributions for current scipy version
+    DISTRIBUTIONS = _get_available_distributions(include_slow)
 
     # Best holders
     best_distribution = st.norm

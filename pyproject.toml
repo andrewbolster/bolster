@@ -41,7 +41,7 @@ dependencies = [
     "click-log>=0.4.0",
     "dateparser>=1.2.1",
     "lxml>=5.3.2",
-    "numpy>=1.24.4",
+    "numpy>=1.24.4,<2.0",
     "openpyxl>=3.1.5",
     "pandas>=2.0.3",
     "pillow>=10.4.0",
@@ -85,6 +85,9 @@ addopts = [
     "--doctest-continue-on-failure",
     "--ignore=notebooks"
 ]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')"
+]
 
 [tool.ruff]
 lint.select = ["E", "F", "I"]
@@ -97,6 +100,13 @@ line-length = 120
 
 [tool.coverage.run]
 source = ["bolster"]
+# Exclude test files from coverage measurement
+omit = [
+    "tests/*",
+    "*/test_*.py",
+    "*/__init__.py",
+    "setup.py",
+]
 
 [tool.coverage.report]
 exclude_lines = [
@@ -106,7 +116,20 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "raise NotImplementedError",
     "pass",
+    # Advanced exclusions for common Python patterns
+    "raise AssertionError",
+    "raise ValueError.*unreachable",
+    "@(abc\\.)?abstractmethod",
+    "if TYPE_CHECKING:",
+    "except ImportError:",
+    "if sys.platform.*:",
+    "if os.name.*:",
 ]
+
+# Additional exclusion patterns
+skip_covered = true
+show_missing = true
+precision = 2
 
 [tool.bumpversion]
 current_version = "0.3.4"

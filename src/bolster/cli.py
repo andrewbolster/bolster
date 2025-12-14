@@ -77,8 +77,9 @@ def get_precipitation(bounding_box, order_name, output):
             click.echo("Order name not provided and MAP_IMAGES_ORDER_NAME not set in environment.")
             return
 
-    img = get_uk_precipitation(order_name=order_name, bounding_box=bounding_box)
-    img.save(output)
+    # TODO: API integration testing - requires valid Met Office credentials
+    img = get_uk_precipitation(order_name=order_name, bounding_box=bounding_box)  # pragma: no cover
+    img.save(output)  # pragma: no cover
     click.echo(f"Precipitation image saved as '{output}'")
 
 
