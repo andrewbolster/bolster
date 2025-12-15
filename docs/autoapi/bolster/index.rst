@@ -518,5 +518,3 @@ Package Contents
 
    >>> build_default_mapping_dict_from_keys(['a_b','b_c','c_d'])
    {'a_b': 'A B', 'b_c': 'B C', 'c_d': 'C D'}
-
-

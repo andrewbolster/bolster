@@ -18,8 +18,8 @@ from .data_sources.wikipedia import get_ni_executive_basic_table
 
 
 @click.group()
-@click.version_option(version=__version__, prog_name='bolster')
-@click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
+@click.version_option(version=__version__, prog_name="bolster")
+@click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 def cli(verbose, args=None):
     """
     Bolster - A comprehensive Python utility library for Northern Ireland and UK data sources.
@@ -142,15 +142,13 @@ def get_precipitation(bounding_box, order_name, output):
 
 @cli.command()
 @click.argument("postcode", required=False)
+@click.option("--zone-code", help="Water supply zone code (alternative to postcode lookup)")
 @click.option(
-    "--zone-code",
-    help="Water supply zone code (alternative to postcode lookup)"
-)
-@click.option(
-    "--format", "output_format",
+    "--format",
+    "output_format",
     type=click.Choice(["json", "csv", "table"], case_sensitive=False),
     default="table",
-    help="Output format (default: table)"
+    help="Output format (default: table)",
 )
 def water_quality(postcode, zone_code, output_format):
     """
@@ -226,15 +224,13 @@ def water_quality(postcode, zone_code, output_format):
 
 @cli.command()
 @click.option(
-    "--format", "output_format",
+    "--format",
+    "output_format",
     type=click.Choice(["json", "csv", "table"], case_sensitive=False),
     default="table",
-    help="Output format (default: table)"
+    help="Output format (default: table)",
 )
-@click.option(
-    "--save",
-    help="Save data to file (specify filename)"
-)
+@click.option("--save", help="Save data to file (specify filename)")
 def ni_executive(output_format, save):
     """
     Get Northern Ireland Executive composition and dissolution data.
@@ -251,9 +247,9 @@ def ni_executive(output_format, save):
         executive_data = get_ni_executive_basic_table()
 
         if save:
-            if save.endswith('.json'):
-                executive_data.to_json(save, indent=2, date_format='iso')
-            elif save.endswith('.csv'):
+            if save.endswith(".json"):
+                executive_data.to_json(save, indent=2, date_format="iso")
+            elif save.endswith(".csv"):
                 executive_data.to_csv(save)
             else:
                 # Default to CSV if no extension specified
@@ -263,7 +259,7 @@ def ni_executive(output_format, save):
 
         # Output in requested format
         if output_format == "json":
-            click.echo(executive_data.to_json(indent=2, date_format='iso'))
+            click.echo(executive_data.to_json(indent=2, date_format="iso"))
         elif output_format == "csv":
             click.echo(executive_data.to_csv())
         else:  # table format
@@ -276,21 +272,14 @@ def ni_executive(output_format, save):
 
 
 @cli.command()
+@click.option("--site-code", type=int, default=117, help="Cineworld site code (default: 117 for Belfast)")
+@click.option("--date", "screening_date", help="Screening date in YYYY-MM-DD format (default: today)")
 @click.option(
-    "--site-code",
-    type=int,
-    default=117,
-    help="Cineworld site code (default: 117 for Belfast)"
-)
-@click.option(
-    "--date", "screening_date",
-    help="Screening date in YYYY-MM-DD format (default: today)"
-)
-@click.option(
-    "--format", "output_format",
+    "--format",
+    "output_format",
     type=click.Choice(["json", "table"], case_sensitive=False),
     default="table",
-    help="Output format (default: table)"
+    help="Output format (default: table)",
 )
 def cinema_listings(site_code, screening_date, output_format):
     """
@@ -340,19 +329,20 @@ def cinema_listings(site_code, screening_date, output_format):
         # Output in requested format
         if output_format == "json":
             import json
+
             click.echo(json.dumps(listings, indent=2, default=str))
         else:  # table format
             click.echo(f"\n🎬 Cineworld Listings - Site {site_code} - {screening_date}")
             click.echo("=" * 60)
             for i, movie in enumerate(listings, 1):
                 click.echo(f"[{i}] {movie.get('title', 'Unknown Title')}")
-                if 'showtimes' in movie and movie['showtimes']:
-                    showtimes = ', '.join(movie['showtimes'])
+                if "showtimes" in movie and movie["showtimes"]:
+                    showtimes = ", ".join(movie["showtimes"])
                     click.echo(f"    🕐 Showtimes: {showtimes}")
                 else:
                     click.echo("    🕐 No showtimes available")
 
-                if 'genre' in movie:
+                if "genre" in movie:
                     click.echo(f"    🎭 Genre: {movie['genre']}")
 
                 click.echo("-" * 40)
@@ -372,15 +362,13 @@ def cinema_listings(site_code, screening_date, output_format):
 
 @cli.command()
 @click.option(
-    "--format", "output_format",
+    "--format",
+    "output_format",
     type=click.Choice(["json", "csv"], case_sensitive=False),
     default="csv",
-    help="Output format (default: csv)"
+    help="Output format (default: csv)",
 )
-@click.option(
-    "--save",
-    help="Save data to file (specify filename)"
-)
+@click.option("--save", help="Save data to file (specify filename)")
 def ni_house_prices(output_format, save):
     """
     Get Northern Ireland house price index data.
@@ -402,9 +390,10 @@ def ni_house_prices(output_format, save):
             return
 
         if save:
-            if output_format == "json" or save.endswith('.json'):
+            if output_format == "json" or save.endswith(".json"):
                 import json
-                with open(save, 'w') as f:
+
+                with open(save, "w") as f:
                     json.dump({k: v.to_dict() for k, v in house_data.items()}, f, indent=2, default=str)
             else:
                 # Save all tables as separate CSV files
@@ -431,15 +420,13 @@ def ni_house_prices(output_format, save):
 @cli.command()
 @click.argument("query", required=False)
 @click.option(
-    "--format", "output_format",
+    "--format",
+    "output_format",
     type=click.Choice(["json", "csv", "table"], case_sensitive=False),
     default="table",
-    help="Output format (default: table)"
+    help="Output format (default: table)",
 )
-@click.option(
-    "--save",
-    help="Save data to file (specify filename)"
-)
+@click.option("--save", help="Save data to file (specify filename)")
 def companies_house(query, output_format, save):
     """
     Query UK Companies House data for company information.
@@ -473,7 +460,7 @@ def companies_house(query, output_format, save):
             query_description = f"Companies matching '{query}'"
 
         if companies_data is None or companies_data.empty:
-            search_term = query or 'Farset Labs'
+            search_term = query or "Farset Labs"
             click.echo(f"❌ No companies found for query: {search_term}")
             click.echo("💡 Suggestions:")
             click.echo("   - Try different search terms")
@@ -484,9 +471,9 @@ def companies_house(query, output_format, save):
         click.echo(f"✅ Found {len(companies_data)} companies")
 
         if save:
-            if output_format == "json" or save.endswith('.json'):
-                companies_data.to_json(save, indent=2, date_format='iso')
-            elif output_format == "csv" or save.endswith('.csv'):
+            if output_format == "json" or save.endswith(".json"):
+                companies_data.to_json(save, indent=2, date_format="iso")
+            elif output_format == "csv" or save.endswith(".csv"):
                 companies_data.to_csv(save, index=False)
             else:
                 # Default to CSV if no extension specified
@@ -496,7 +483,7 @@ def companies_house(query, output_format, save):
 
         # Output in requested format
         if output_format == "json":
-            click.echo(companies_data.to_json(indent=2, date_format='iso'))
+            click.echo(companies_data.to_json(indent=2, date_format="iso"))
         elif output_format == "csv":
             click.echo(companies_data.to_csv(index=False))
         else:  # table format
@@ -517,10 +504,10 @@ def companies_house(query, output_format, save):
         click.echo("💡 Companies House API may be temporarily unavailable. Please try again later")
     except Exception as e:
         error_msg = str(e).lower()
-        if 'api key' in error_msg or 'authentication' in error_msg:
+        if "api key" in error_msg or "authentication" in error_msg:
             click.echo("❌ Error: Companies House API authentication failed")
             click.echo("💡 Please check your API credentials or try again later")
-        elif 'rate limit' in error_msg:
+        elif "rate limit" in error_msg:
             click.echo("❌ Error: API rate limit exceeded")
             click.echo("💡 Please wait a few minutes before making another request")
         else:
@@ -533,18 +520,16 @@ def companies_house(query, output_format, save):
     "--election-year",
     type=click.Choice(["2016", "2017", "2022", "all"], case_sensitive=False),
     default="all",
-    help="Filter by election year (default: all)"
+    help="Filter by election year (default: all)",
 )
 @click.option(
-    "--format", "output_format",
+    "--format",
+    "output_format",
     type=click.Choice(["json", "csv", "table"], case_sensitive=False),
     default="table",
-    help="Output format (default: table)"
+    help="Output format (default: table)",
 )
-@click.option(
-    "--save",
-    help="Save data to file (specify filename)"
-)
+@click.option("--save", help="Save data to file (specify filename)")
 def ni_elections(election_year, output_format, save):
     """
     Get Northern Ireland Assembly election results (2016-2022).
@@ -580,25 +565,26 @@ def ni_elections(election_year, output_format, save):
         # Handle file saving
         if save:
             try:
-                if output_format == "json" or save.endswith('.json'):
+                if output_format == "json" or save.endswith(".json"):
                     if isinstance(election_data, dict):
                         import json
-                        with open(save, 'w') as f:
+
+                        with open(save, "w") as f:
                             json.dump(election_data, f, indent=2, default=str)
-                    elif hasattr(election_data, 'to_json'):
-                        election_data.to_json(save, indent=2, date_format='iso')
+                    elif hasattr(election_data, "to_json"):
+                        election_data.to_json(save, indent=2, date_format="iso")
                     else:
                         click.echo("❌ Error: Cannot convert election data to JSON format")
                         click.echo("💡 Try using CSV format instead")
                         return
                 else:
-                    if hasattr(election_data, 'to_csv'):
+                    if hasattr(election_data, "to_csv"):
                         election_data.to_csv(save, index=False)
                     else:
                         # If it's a dict of DataFrames, save each separately
                         if isinstance(election_data, dict):
                             for key, df in election_data.items():
-                                if hasattr(df, 'to_csv'):
+                                if hasattr(df, "to_csv"):
                                     filename = f"{save.rsplit('.', 1)[0]}_{key}.csv"
                                     df.to_csv(filename, index=False)
                                     click.echo(f"💾 Saved {key} to: {filename}")
@@ -617,14 +603,15 @@ def ni_elections(election_year, output_format, save):
         # Output in requested format
         if output_format == "json":
             import json
+
             if isinstance(election_data, dict):
                 click.echo(json.dumps(election_data, indent=2, default=str))
-            elif hasattr(election_data, 'to_json'):
-                click.echo(election_data.to_json(indent=2, date_format='iso'))
+            elif hasattr(election_data, "to_json"):
+                click.echo(election_data.to_json(indent=2, date_format="iso"))
             else:
                 click.echo("Warning: Cannot display election data in JSON format")
         elif output_format == "csv":
-            if hasattr(election_data, 'to_csv'):
+            if hasattr(election_data, "to_csv"):
                 click.echo(election_data.to_csv(index=False))
             else:
                 click.echo("Warning: Cannot display election data in CSV format")
@@ -634,7 +621,7 @@ def ni_elections(election_year, output_format, save):
                 click.echo(f"Year: {election_year}")
             click.echo("=" * 60)
 
-            if hasattr(election_data, 'to_string'):
+            if hasattr(election_data, "to_string"):
                 # If it's a DataFrame
                 if len(election_data) > 20:
                     click.echo(f"Showing first 20 of {len(election_data)} records:")
@@ -647,7 +634,7 @@ def ni_elections(election_year, output_format, save):
                 for key, value in election_data.items():
                     click.echo(f"\n{key}:")
                     click.echo("-" * 40)
-                    if hasattr(value, 'to_string'):
+                    if hasattr(value, "to_string"):
                         if len(value) > 10:
                             click.echo(f"First 10 of {len(value)} records:")
                             click.echo(value.head(10).to_string(index=False))

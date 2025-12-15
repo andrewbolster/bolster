@@ -168,5 +168,3 @@ Module Contents
        # Get hardness data
        hardness_summary = df.groupby('NI Hardness Classification').size()
        print(hardness_summary)
-
-

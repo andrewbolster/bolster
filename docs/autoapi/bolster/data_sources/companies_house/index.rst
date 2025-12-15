@@ -39,4 +39,3 @@ Module Contents
 
 
 .. py:function:: get_companies_house_records_that_might_be_in_farset()
-

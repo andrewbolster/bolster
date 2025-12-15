@@ -124,5 +124,3 @@ Module Contents
    bolster ni-house-prices                     # Display as CSV
    bolster ni-house-prices --format json      # JSON output
    bolster ni-house-prices --save prices.csv  # Save to file
-
-

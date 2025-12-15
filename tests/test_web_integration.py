@@ -5,7 +5,6 @@ These tests make real network requests to external services to test
 the actual functionality without mocking.
 """
 
-
 import pandas as pd
 import pytest
 
@@ -23,7 +22,7 @@ class TestWebIntegrationBasic:
 
         try:
             # Test with CSV that can be read as Excel
-            df = get_excel_dataframe(test_url, read_kwargs={'engine': 'python'})
+            df = get_excel_dataframe(test_url, read_kwargs={"engine": "python"})
             assert isinstance(df, pd.DataFrame)
             assert len(df) > 0  # Should have some data
         except Exception as e:
@@ -39,9 +38,7 @@ class TestWebIntegrationBasic:
             # Pass custom headers to test requests_kwargs handling
             custom_headers = {"User-Agent": "Test-Agent/1.0"}
             _ = get_excel_dataframe(
-                test_url,
-                requests_kwargs={"headers": custom_headers},
-                read_kwargs={'engine': 'python'}
+                test_url, requests_kwargs={"headers": custom_headers}, read_kwargs={"engine": "python"}
             )
             # This might fail as httpbin returns JSON, not Excel, but it tests the kwargs path
         except Exception:

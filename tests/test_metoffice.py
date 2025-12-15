@@ -32,7 +32,7 @@ class TestConstants:
     def test_regex_pattern_exists(self):
         """Test that the date regex pattern is defined."""
         assert is_my_date is not None
-        assert hasattr(is_my_date, 'match')
+        assert hasattr(is_my_date, "match")
 
 
 class TestDateRegexPattern:
@@ -68,13 +68,7 @@ class TestFilterRelevantFiles:
 
     def create_mock_order_status(self, files_data):
         """Create a mock order status with given files data."""
-        return {
-            "orderDetails": {
-                "files": [
-                    {"fileId": file_data["fileId"]} for file_data in files_data
-                ]
-            }
-        }
+        return {"orderDetails": {"files": [{"fileId": file_data["fileId"]} for file_data in files_data]}}
 
     def test_filter_empty_file_list(self):
         """Test filtering with empty file list."""
@@ -97,9 +91,7 @@ class TestFilterRelevantFiles:
         """Test that valid files are correctly parsed."""
         # Test file: pressure_t+24_2023120812
         # Should parse as: parameter=pressure, time_step=t+24, forecast=2023120812
-        files_data = [
-            {"fileId": "pressure_t+24_2023120812"}
-        ]
+        files_data = [{"fileId": "pressure_t+24_2023120812"}]
         order_status = self.create_mock_order_status(files_data)
         result = filter_relevant_files(order_status)
 
@@ -116,9 +108,7 @@ class TestFilterRelevantFiles:
 
     def test_filter_complex_parameter_name(self):
         """Test parsing files with complex parameter names containing underscores."""
-        files_data = [
-            {"fileId": "mean_sea_level_pressure_t+00_2023120900"}
-        ]
+        files_data = [{"fileId": "mean_sea_level_pressure_t+00_2023120900"}]
         order_status = self.create_mock_order_status(files_data)
         result = filter_relevant_files(order_status)
 
@@ -194,7 +184,7 @@ class TestFilterRelevantFiles:
 class TestImageProcessingFunctions:
     """Test the image processing functions that don't require network calls."""
 
-    def create_test_image_data(self, width=100, height=100, mode='L'):
+    def create_test_image_data(self, width=100, height=100, mode="L"):
         """Create test image data in bytes format."""
         # Create a test image with some pattern
         img = Image.new(mode, (width, height), color=128)
@@ -206,7 +196,7 @@ class TestImageProcessingFunctions:
 
         # Convert to bytes
         buffer = BytesIO()
-        img.save(buffer, format='PNG')
+        img.save(buffer, format="PNG")
         return buffer.getvalue()
 
     def test_make_borders_processing(self):
@@ -215,8 +205,8 @@ class TestImageProcessingFunctions:
         result = make_borders(test_data)
 
         assert isinstance(result, Image.Image)
-        assert result.mode == '1'  # Should be binary image
-        assert 'transparency' in result.info
+        assert result.mode == "1"  # Should be binary image
+        assert "transparency" in result.info
 
     def test_make_isolines_processing(self):
         """Test isoline detection image processing."""
@@ -224,8 +214,8 @@ class TestImageProcessingFunctions:
         result = make_isolines(test_data)
 
         assert isinstance(result, Image.Image)
-        assert result.mode == '1'  # Should be binary image
-        assert 'transparency' in result.info
+        assert result.mode == "1"  # Should be binary image
+        assert "transparency" in result.info
 
     def test_make_precipitation_processing(self):
         """Test precipitation image processing."""
@@ -233,8 +223,8 @@ class TestImageProcessingFunctions:
         result = make_precipitation(test_data)
 
         assert isinstance(result, Image.Image)
-        assert result.mode == 'L'  # Should be grayscale
-        assert 'transparency' in result.info
+        assert result.mode == "L"  # Should be grayscale
+        assert "transparency" in result.info
 
     def test_image_processing_with_different_sizes(self):
         """Test image processing with different image sizes."""
@@ -255,7 +245,7 @@ class TestImageProcessingFunctions:
     def test_image_processing_with_color_image(self):
         """Test image processing functions with color input."""
         # Test with color image (RGB mode)
-        test_data = self.create_test_image_data(mode='RGB')
+        test_data = self.create_test_image_data(mode="RGB")
 
         # All functions should handle color input gracefully
         border_result = make_borders(test_data)
@@ -291,10 +281,11 @@ class TestModuleImports:
     def test_filter_relevant_files_signature(self):
         """Test filter_relevant_files function signature."""
         import inspect
+
         sig = inspect.signature(filter_relevant_files)
         params = list(sig.parameters.keys())
         assert len(params) == 1
-        assert params[0] == 'order_status'
+        assert params[0] == "order_status"
 
     def test_image_processing_function_signatures(self):
         """Test image processing function signatures."""
@@ -305,20 +296,21 @@ class TestModuleImports:
             sig = inspect.signature(func)
             assert len(sig.parameters) == 1
             param_name = list(sig.parameters.keys())[0]
-            assert param_name == 'data'
+            assert param_name == "data"
 
     def test_generate_image_signature(self):
         """Test generate_image function signature."""
         import inspect
+
         sig = inspect.signature(generate_image)
         params = list(sig.parameters.keys())
 
-        assert 'order_name' in params
-        assert 'block' in params
-        assert 'bounding_box' in params
+        assert "order_name" in params
+        assert "block" in params
+        assert "bounding_box" in params
 
         # bounding_box should have a default value
-        assert sig.parameters['bounding_box'].default == (100, 250, 500, 550)
+        assert sig.parameters["bounding_box"].default == (100, 250, 500, 550)
 
 
 class TestNetworkFunctionDefinitions:
@@ -341,39 +333,43 @@ class TestNetworkFunctionDefinitions:
     def test_get_order_latest_signature(self):
         """Test get_order_latest function signature without calling it."""
         import inspect
+
         sig = inspect.signature(get_order_latest)
         params = list(sig.parameters.keys())
         assert len(params) == 1
-        assert params[0] == 'order_name'
+        assert params[0] == "order_name"
 
     def test_get_file_meta_signature(self):
         """Test get_file_meta function signature without calling it."""
         import inspect
+
         sig = inspect.signature(get_file_meta)
         params = list(sig.parameters.keys())
         assert len(params) == 2
-        assert 'order_name' in params
-        assert 'file_id' in params
+        assert "order_name" in params
+        assert "file_id" in params
 
     def test_get_file_signature(self):
         """Test get_file function signature without calling it."""
         import inspect
+
         sig = inspect.signature(get_file)
         params = list(sig.parameters.keys())
         assert len(params) == 2
-        assert 'order_name' in params
-        assert 'file_id' in params
+        assert "order_name" in params
+        assert "file_id" in params
 
     def test_get_uk_precipitation_signature(self):
         """Test get_uk_precipitation function signature without calling it."""
         import inspect
+
         sig = inspect.signature(get_uk_precipitation)
         params = list(sig.parameters.keys())
-        assert 'order_name' in params
-        assert 'bounding_box' in params
+        assert "order_name" in params
+        assert "bounding_box" in params
 
         # bounding_box should have default None
-        assert sig.parameters['bounding_box'].default is None
+        assert sig.parameters["bounding_box"].default is None
 
 
 class TestBusinessLogicEdgeCases:
@@ -396,7 +392,7 @@ class TestBusinessLogicEdgeCases:
                 "files": [
                     {},  # Empty file object
                     {"fileId": ""},  # Empty fileId
-                    {"fileId": "valid_t+00_1234567890"}  # Valid file
+                    {"fileId": "valid_t+00_1234567890"},  # Valid file
                 ]
             }
         }
@@ -412,11 +408,7 @@ class TestBusinessLogicEdgeCases:
             {"fileId": "param_t+00_20231332xx"},  # Invalid day
             {"fileId": "param_t+00_2023123025"},  # Invalid hour
         ]
-        order_status = {
-            "orderDetails": {
-                "files": files_data
-            }
-        }
+        order_status = {"orderDetails": {"files": files_data}}
 
         # Should raise ValueError when trying to create invalid datetime
         with pytest.raises(ValueError):

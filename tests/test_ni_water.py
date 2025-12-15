@@ -30,15 +30,15 @@ class TestWaterQualityCSVData:
         assert len(df) > 0
 
         # Check expected columns exist
-        expected_cols = ['Site Code', 'Site Name', 'Parameter', 'Report Value']
+        expected_cols = ["Site Code", "Site Name", "Parameter", "Report Value"]
         for col in expected_cols:
             assert col in df.columns, f"Missing expected column: {col}"
 
         # Check we have site codes
-        assert not df['Site Code'].isna().all(), "No valid site codes found"
+        assert not df["Site Code"].isna().all(), "No valid site codes found"
 
         # Check we have parameters
-        assert not df['Parameter'].isna().all(), "No valid parameters found"
+        assert not df["Parameter"].isna().all(), "No valid parameters found"
 
 
 class TestPostcodeToWaterSupplyZone:
@@ -53,7 +53,7 @@ class TestPostcodeToWaterSupplyZone:
         assert len(zones) > 40000  # Should have tens of thousands of postcodes
 
         # Test some known patterns
-        bt_postcodes = [k for k in zones.keys() if k.startswith('BT')]
+        bt_postcodes = [k for k in zones.keys() if k.startswith("BT")]
         assert len(bt_postcodes) > 1000, "Should have many Belfast postcodes"
 
         # Test that we have valid zone codes and invalid zone identifiers
@@ -73,7 +73,7 @@ class TestWaterQualityByZone:
         """Test retrieval with a real site code."""
         # First, get some actual site codes from the CSV data
         csv_data = get_water_quality_csv_data()
-        available_sites = csv_data['Site Code'].dropna().unique()
+        available_sites = csv_data["Site Code"].dropna().unique()
 
         # Test with the first available site
         if len(available_sites) > 0:
@@ -86,25 +86,25 @@ class TestWaterQualityByZone:
             assert len(data) > 0
 
             # Check for key legacy format fields
-            assert 'Water Supply Zone' in data.index
-            assert isinstance(data['Water Supply Zone'], str)
+            assert "Water Supply Zone" in data.index
+            assert isinstance(data["Water Supply Zone"], str)
 
     def test_get_water_quality_by_zone_invalid_site(self):
         """Test retrieval with invalid site code."""
         # Test non-strict mode (default)
-        data = get_water_quality_by_zone('INVALID_SITE_CODE', strict=False)
+        data = get_water_quality_by_zone("INVALID_SITE_CODE", strict=False)
         assert isinstance(data, pd.Series)
-        assert data.name == 'INVALID_SITE_CODE'
+        assert data.name == "INVALID_SITE_CODE"
         assert len(data) == 0  # Should return empty series
 
         # Test strict mode
         with pytest.raises(ValueError, match="Potentially invalid Water Supply Zone"):
-            get_water_quality_by_zone('INVALID_SITE_CODE', strict=True)
+            get_water_quality_by_zone("INVALID_SITE_CODE", strict=True)
 
     def test_get_water_quality_by_zone_logging_warning(self):
         """Test that invalid zones log warnings in non-strict mode."""
-        with patch('bolster.data_sources.ni_water.logging.warning') as mock_warning:
-            _ = get_water_quality_by_zone('INVALID_SITE', strict=False)
+        with patch("bolster.data_sources.ni_water.logging.warning") as mock_warning:
+            _ = get_water_quality_by_zone("INVALID_SITE", strict=False)
 
             # Should log a warning for invalid site
             mock_warning.assert_called_once()
@@ -130,16 +130,16 @@ class TestWaterQuality:
         assert len(df.columns) >= 3, f"Expected multiple columns, got {len(df.columns)}"
 
         # Check for key columns
-        assert 'Water Supply Zone' in df.columns, "Missing Water Supply Zone column"
+        assert "Water Supply Zone" in df.columns, "Missing Water Supply Zone column"
 
     def test_get_water_quality_hardness_classification(self):
         """Test hardness classification is properly typed."""
         df = get_water_quality()
 
         # Check if we have hardness classification data
-        if 'NI Hardness Classification' in df.columns:
+        if "NI Hardness Classification" in df.columns:
             # Should be categorical with proper ordering
-            hardness_series = df['NI Hardness Classification']
+            hardness_series = df["NI Hardness Classification"]
 
             # Filter out missing values for testing
             non_null_hardness = hardness_series.dropna()
@@ -160,14 +160,14 @@ class TestWaterQuality:
         df = get_water_quality()
 
         # All rows should have a Water Supply Zone name
-        assert df['Water Supply Zone'].notna().all(), "All sites should have a zone name"
+        assert df["Water Supply Zone"].notna().all(), "All sites should have a zone name"
 
         # Zone names should be non-empty strings
-        zone_names = df['Water Supply Zone'].dropna()
+        zone_names = df["Water Supply Zone"].dropna()
         assert all(isinstance(name, str) and len(name.strip()) > 0 for name in zone_names)
 
         # If hardness data exists, it should be consistent
-        hardness_cols = [col for col in df.columns if 'Hardness' in col]
+        hardness_cols = [col for col in df.columns if "Hardness" in col]
         if hardness_cols:
             for col in hardness_cols:
                 # Hardness values should be numeric strings or actual numbers
@@ -214,7 +214,7 @@ class TestDataSourceIntegration:
 
         # Get CSV data to understand available sites
         csv_data = get_water_quality_csv_data()
-        available_sites = set(csv_data['Site Code'].dropna().unique())
+        available_sites = set(csv_data["Site Code"].dropna().unique())
 
         # The old zone codes from postcode mapping might not directly match
         # the new site codes, but this test verifies the data sources are accessible
@@ -223,7 +223,7 @@ class TestDataSourceIntegration:
         assert len(available_sites) > 0, "CSV data should have site codes"
 
         # Basic consistency check - both should represent NI water infrastructure
-        zone_codes = set(v for v in zones.values() if v and v != '')
+        zone_codes = set(v for v in zones.values() if v and v != "")
 
         # We expect many more postcode entries than water quality sites
         assert len(zones) > len(wq_df), "Should be more postcodes than water quality sites"
@@ -236,15 +236,15 @@ class TestErrorHandling:
     def test_empty_site_code_handling(self):
         """Test handling of empty or None site codes."""
         # Empty string - may or may not match data depending on CSV content
-        data = get_water_quality_by_zone('', strict=False)
+        data = get_water_quality_by_zone("", strict=False)
         assert isinstance(data, pd.Series)
-        assert data.name == ''
+        assert data.name == ""
         # Note: Empty string might match data due to CSV search logic
 
         # Test with clearly invalid site code
-        data_invalid = get_water_quality_by_zone('DEFINITELY_INVALID_SITE_CODE', strict=False)
+        data_invalid = get_water_quality_by_zone("DEFINITELY_INVALID_SITE_CODE", strict=False)
         assert isinstance(data_invalid, pd.Series)
-        assert data_invalid.name == 'DEFINITELY_INVALID_SITE_CODE'
+        assert data_invalid.name == "DEFINITELY_INVALID_SITE_CODE"
         assert len(data_invalid) == 0
 
         # Test that it doesn't crash with None (though this would be a programming error)
@@ -255,7 +255,7 @@ class TestErrorHandling:
     def test_logging_configuration(self):
         """Test that logging is properly configured for the module."""
         # This is more of a smoke test to ensure logging calls don't crash
-        logger = logging.getLogger('bolster.data_sources.ni_water')
+        logger = logging.getLogger("bolster.data_sources.ni_water")
 
         # Should be able to log without errors
         logger.info("Test log message")

@@ -40,7 +40,9 @@ def resilient_get(url: str, **kwargs) -> requests.Response:
     return res
 
 
-def get_excel_dataframe(file_url: str, requests_kwargs: Optional[Dict] = None, read_kwargs: Optional[Dict] = None) -> pd.DataFrame:
+def get_excel_dataframe(
+    file_url: str, requests_kwargs: Optional[Dict] = None, read_kwargs: Optional[Dict] = None
+) -> pd.DataFrame:
     if requests_kwargs is None:
         requests_kwargs = {}
     if read_kwargs is None:

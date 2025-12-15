@@ -48,6 +48,3 @@ Module Contents
    True
    >>> list(cinema_listings[0].keys()) # This is likely to break from upstream changes
    ['id', 'name', 'length', 'posterLink', 'videoLink', 'link', 'weight', 'releaseYear', 'releaseDate', 'attributeIds', 'date', 'site_code']
-
-
-

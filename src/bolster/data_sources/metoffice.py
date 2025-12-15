@@ -52,7 +52,9 @@ def get_file_meta(order_name: str, file_id: str) -> Dict:
 def get_file(order_name: str, file_id: str) -> bytes:
     url = f"{BASE_URL}/orders/{order_name.lower()}/latest/{requests.utils.quote(file_id)}/data"  # To handle + in the file_id  # pragma: no cover
     # TODO: Network integration testing - requires valid Met Office API key and order
-    response = session.get(url, headers={**session.headers, **{"Accept": "application/octet-stream"}})  # pragma: no cover
+    response = session.get(
+        url, headers={**session.headers, **{"Accept": "application/octet-stream"}}
+    )  # pragma: no cover
     if response.status_code == 200:  # pragma: no cover
         return response.content  # pragma: no cover
     else:  # pragma: no cover
@@ -139,13 +141,17 @@ def make_precipitation(data: bytes) -> Image.Image:
     return img
 
 
-def generate_image(order_name: str, block: Dict, bounding_box: Optional[Tuple[int, int, int, int]] = (100, 250, 500, 550)) -> Image.Image:
+def generate_image(
+    order_name: str, block: Dict, bounding_box: Optional[Tuple[int, int, int, int]] = (100, 250, 500, 550)
+) -> Image.Image:
     # TODO: Network integration testing - requires valid Met Office API key and order
     border = make_borders(get_file(order_name, block["land_cover"]))  # pragma: no cover
     isoline = make_isolines(get_file(order_name, block["mean_sea_level_pressure"]))  # pragma: no cover
     precipitation = make_precipitation(get_file(order_name, block["total_precipitation_rate"]))  # pragma: no cover
 
-    background = Image.blend(isoline.convert("RGBA"), border.convert("RGBA"), alpha=0.5).convert("L")  # pragma: no cover
+    background = Image.blend(isoline.convert("RGBA"), border.convert("RGBA"), alpha=0.5).convert(
+        "L"
+    )  # pragma: no cover
     background.info["transparency"] = 0  # pragma: no cover
 
     img = Image.blend(background.convert("RGBA"), precipitation.convert("RGBA"), alpha=0.5)  # pragma: no cover

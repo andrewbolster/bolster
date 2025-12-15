@@ -87,5 +87,3 @@ Package Contents
 .. py:function:: timed(func)
 
    This decorator prints the execution time for the decorated function.
-
-

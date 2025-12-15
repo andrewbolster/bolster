@@ -33,5 +33,3 @@ Submodules
    /autoapi/bolster/data_sources/ni_house_price_index/index
    /autoapi/bolster/data_sources/ni_water/index
    /autoapi/bolster/data_sources/wikipedia/index
-
-

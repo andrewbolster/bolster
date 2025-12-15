@@ -65,5 +65,3 @@ Module Contents
 
    >>> utc_midnight_on(datetime(2018,9,1,12,12, tzinfo=timezone(timedelta(hours=-13))))
    datetime.datetime(2018, 9, 1, 0, 0, tzinfo=datetime.timezone.utc)
-
-

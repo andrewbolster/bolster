@@ -118,38 +118,38 @@ def _create_legacy_format_series(site_data: pd.DataFrame, zone_code: str) -> pd.
     # Get the first row for site information
     if not site_data.empty:
         first_row = site_data.iloc[0]
-        result_data['Water Supply Zone'] = first_row.get('Site Name', f'Site {zone_code}')
+        result_data["Water Supply Zone"] = first_row.get("Site Name", f"Site {zone_code}")
 
     # Map CSV parameters to legacy format
     parameter_mapping = {
-        'Total hardness': 'Total Hardness (mg/l)',  # Note: CSV uses "Total hardness", legacy used "Total Hardness (mg/l)"
-        'Magnesium': 'Magnesium (mg/l)',
-        'Potassium': 'Potassium (mg/l)',
-        'Calcium': 'Calcium (mg/l)',
+        "Total hardness": "Total Hardness (mg/l)",  # Note: CSV uses "Total hardness", legacy used "Total Hardness (mg/l)"
+        "Magnesium": "Magnesium (mg/l)",
+        "Potassium": "Potassium (mg/l)",
+        "Calcium": "Calcium (mg/l)",
     }
 
     # Extract parameter values
     for _, row in site_data.iterrows():
-        parameter = row.get('Parameter', '')
+        parameter = row.get("Parameter", "")
         if parameter in parameter_mapping:
             legacy_key = parameter_mapping[parameter]
-            result_data[legacy_key] = row.get('Report Value', row.get('Result', ''))
+            result_data[legacy_key] = row.get("Report Value", row.get("Result", ""))
 
     # Calculate derived values if we have the basic measurements
     try:
-        if 'Total Hardness (mg/l)' in result_data:
+        if "Total Hardness (mg/l)" in result_data:
             # The CSV data appears to be in mg/l format, which we need to interpret
             # Assuming this is already CaCO3 equivalent (which is standard for water hardness)
-            hardness_mg_l = float(result_data['Total Hardness (mg/l)'])
+            hardness_mg_l = float(result_data["Total Hardness (mg/l)"])
             hardness_caco3 = hardness_mg_l  # Assume it's already in CaCO3 equivalent
 
             # Add the CaCO3 format that legacy API provided
-            result_data['Total Hardness (mg CaCO3/l)'] = str(hardness_caco3)
+            result_data["Total Hardness (mg CaCO3/l)"] = str(hardness_caco3)
 
             # Calculate degrees of hardness
-            result_data['Clark English Degrees'] = f"{hardness_caco3 / 14.3:.1f}"
-            result_data['French Degrees'] = f"{hardness_caco3 / 10.0:.1f}"
-            result_data['German Degrees'] = f"{hardness_caco3 / 17.8:.1f}"
+            result_data["Clark English Degrees"] = f"{hardness_caco3 / 14.3:.1f}"
+            result_data["French Degrees"] = f"{hardness_caco3 / 10.0:.1f}"
+            result_data["German Degrees"] = f"{hardness_caco3 / 17.8:.1f}"
 
             # Classify hardness based on standard UK classifications
             if hardness_caco3 <= 60:
@@ -165,8 +165,8 @@ def _create_legacy_format_series(site_data: pd.DataFrame, zone_code: str) -> pd.
                 hardness_class = "Moderately Hard"
                 dishwasher_setting = "4"
 
-            result_data['NI Hardness Classification'] = hardness_class
-            result_data['Dishwasher Setting'] = dishwasher_setting
+            result_data["NI Hardness Classification"] = hardness_class
+            result_data["Dishwasher Setting"] = dishwasher_setting
 
     except (ValueError, KeyError) as e:
         # If we can't calculate derived values, just skip them
@@ -249,11 +249,11 @@ def get_water_quality_by_zone(zone_code: str, strict=False) -> pd.Series:
 
         # Try to find data for this zone/site code
         # First try as site code, then try as a potential zone mapping
-        site_data = water_quality_df[water_quality_df['Site Code'] == zone_code]
+        site_data = water_quality_df[water_quality_df["Site Code"] == zone_code]
 
         if site_data.empty:
             # Try to find by site name containing the zone code
-            site_data = water_quality_df[water_quality_df['Site Name'].str.contains(zone_code, case=False, na=False)]
+            site_data = water_quality_df[water_quality_df["Site Name"].str.contains(zone_code, case=False, na=False)]
 
         if site_data.empty:
             # No data found for this zone
@@ -309,17 +309,17 @@ def get_water_quality() -> pd.DataFrame:
         water_quality_df = get_water_quality_csv_data()
 
         # Get unique site codes (equivalent to the old zone concept)
-        unique_sites = water_quality_df['Site Code'].unique()
+        unique_sites = water_quality_df["Site Code"].unique()
 
         logging.info(f"Processing water quality data for {len(unique_sites)} sites")
 
         # Process each site to create legacy-format series
         site_series_list = []
         for site_code in unique_sites:
-            if pd.isna(site_code) or site_code == '':
+            if pd.isna(site_code) or site_code == "":
                 continue
 
-            site_data = water_quality_df[water_quality_df['Site Code'] == site_code]
+            site_data = water_quality_df[water_quality_df["Site Code"] == site_code]
             if not site_data.empty:
                 try:
                     series = _create_legacy_format_series(site_data, site_code)
@@ -336,7 +336,7 @@ def get_water_quality() -> pd.DataFrame:
         df = pd.DataFrame(site_series_list)
 
         # Ensure NI Hardness Classification uses proper categorical type
-        if 'NI Hardness Classification' in df.columns:
+        if "NI Hardness Classification" in df.columns:
             df = df.astype({"NI Hardness Classification": T_HARDNESS})
 
         logging.info(f"Created water quality DataFrame with {len(df)} sites and {len(df.columns)} parameters")

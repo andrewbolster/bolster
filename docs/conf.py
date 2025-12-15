@@ -6,6 +6,7 @@ This configuration file sets up comprehensive documentation generation
 with modern Sphinx extensions and best practices for API documentation,
 examples, and cross-references.
 """
+
 import os
 import sys
 from datetime import datetime
@@ -18,48 +19,40 @@ import bolster  # noqa: E402
 # -- General configuration ---------------------------------------------
 
 # Minimum Sphinx version required
-needs_sphinx = '4.0'
+needs_sphinx = "4.0"
 
 # Sphinx extensions for comprehensive documentation generation
 extensions = [
     # Core autodoc extensions
-    "sphinx.ext.autodoc",          # Automatic documentation from docstrings
-    "sphinx.ext.autosummary",      # Generate summaries of modules/classes
-    "sphinx.ext.viewcode",         # Add source code links
-    "sphinx.ext.napoleon",         # Support for Google/NumPy style docstrings
-    "sphinx.ext.autodoc.typehints", # Automatic type hints documentation
-
+    "sphinx.ext.autodoc",  # Automatic documentation from docstrings
+    "sphinx.ext.autosummary",  # Generate summaries of modules/classes
+    "sphinx.ext.viewcode",  # Add source code links
+    "sphinx.ext.napoleon",  # Support for Google/NumPy style docstrings
+    "sphinx.ext.autodoc.typehints",  # Automatic type hints documentation
     # API documentation
-    "autoapi.extension",           # Automatic API documentation generation
-
+    "autoapi.extension",  # Automatic API documentation generation
     # Cross-referencing and linking
-    "sphinx.ext.intersphinx",      # Link to other project's documentation
-    "sphinx.ext.extlinks",         # Markup for external links
-
+    "sphinx.ext.intersphinx",  # Link to other project's documentation
+    "sphinx.ext.extlinks",  # Markup for external links
     # Code and testing
-    "sphinx.ext.doctest",          # Test code snippets in documentation
-    "sphinx.ext.coverage",         # Documentation coverage reports
-
+    "sphinx.ext.doctest",  # Test code snippets in documentation
+    "sphinx.ext.coverage",  # Documentation coverage reports
     # Mathematical content
-    "sphinx.ext.mathjax",          # Render math via JavaScript
-
+    "sphinx.ext.mathjax",  # Render math via JavaScript
     # Development and debugging
-    "sphinx.ext.todo",             # Support for todo items
-    "sphinx.ext.ifconfig",         # Include content based on configuration
-
+    "sphinx.ext.todo",  # Support for todo items
+    "sphinx.ext.ifconfig",  # Include content based on configuration
     # Visualization and inheritance
-    "sphinx.ext.inheritance_diagram", # Create inheritance diagrams
-    "sphinx.ext.graphviz",         # Support for Graphviz diagrams
-
+    "sphinx.ext.inheritance_diagram",  # Create inheritance diagrams
+    "sphinx.ext.graphviz",  # Support for Graphviz diagrams
     # External tool integration
-    "sphinx_click.ext",            # Document Click CLI applications
-    "sphinx_issues",               # Link to GitHub issues/PRs
-    "nbsphinx",                    # Jupyter notebook integration
-    "sphinx_github_changelog",    # Generate changelog from GitHub
-    "sphinxcontrib.apidoc",        # Enhanced API documentation
-
+    "sphinx_click.ext",  # Document Click CLI applications
+    "sphinx_issues",  # Link to GitHub issues/PRs
+    "nbsphinx",  # Jupyter notebook integration
+    "sphinx_github_changelog",  # Generate changelog from GitHub
+    "sphinxcontrib.apidoc",  # Enhanced API documentation
     # Output formats and publishing
-    "sphinx.ext.githubpages",      # Publish to GitHub Pages
+    "sphinx.ext.githubpages",  # Publish to GitHub Pages
 ]
 
 # Add any paths that contain templates here, relative to this directory.

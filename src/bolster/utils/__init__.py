@@ -18,7 +18,7 @@ from typing import Any, Callable, TypeVar
 
 import tqdm
 
-F = TypeVar('F', bound=Callable[..., Any])
+F = TypeVar("F", bound=Callable[..., Any])
 
 version_no = f"{(datetime.date.today() - datetime.date(1988, 5, 17)).total_seconds() / 31557600:.2f}"
 

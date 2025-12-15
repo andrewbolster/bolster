@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """Tests for stats/distributions module."""
 
-
 from bolster.stats.distributions import _get_available_distributions, best_fit_distribution
 
 
@@ -26,9 +25,9 @@ class TestGetAvailableDistributions:
 
         # All returned items should have expected attributes
         for dist in distributions:
-            assert hasattr(dist, 'name')
-            assert hasattr(dist, 'fit')
-            assert hasattr(dist, 'pdf')
+            assert hasattr(dist, "name")
+            assert hasattr(dist, "fit")
+            assert hasattr(dist, "pdf")
 
     def test_get_available_distributions_include_slow(self):
         """Test that include_slow parameter affects the result."""
@@ -44,7 +43,7 @@ class TestGetAvailableDistributions:
         distribution_names = [d.name for d in distributions]
 
         # These should be available in most scipy versions
-        common_distributions = ['norm', 'uniform', 'expon', 'gamma', 'beta']
+        common_distributions = ["norm", "uniform", "expon", "gamma", "beta"]
 
         for dist_name in common_distributions:
             assert dist_name in distribution_names, f"{dist_name} should be available"
@@ -60,15 +59,15 @@ class TestBestFitDistributionBasic:
         sig = inspect.signature(best_fit_distribution)
         params = list(sig.parameters.keys())
 
-        expected_params = ['data', 'bins', 'ax', 'include_slow', 'discriminator']
+        expected_params = ["data", "bins", "ax", "include_slow", "discriminator"]
         for param in expected_params:
             assert param in params
 
         # Check default values
-        assert sig.parameters['bins'].default == 200
-        assert sig.parameters['ax'].default is None
-        assert sig.parameters['include_slow'].default is False
-        assert sig.parameters['discriminator'].default == "sse"
+        assert sig.parameters["bins"].default == 200
+        assert sig.parameters["ax"].default is None
+        assert sig.parameters["include_slow"].default is False
+        assert sig.parameters["discriminator"].default == "sse"
 
     def test_function_docstring(self):
         """Test that the function has a docstring."""

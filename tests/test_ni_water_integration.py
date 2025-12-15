@@ -29,7 +29,7 @@ class TestNIWaterIntegrationBasic:
             assert len(df) > 0  # Should have some water quality records
 
             # Check for expected columns
-            expected_columns = ['Year', 'Sample Location', 'Site Code', 'Parameter', 'Result']
+            expected_columns = ["Year", "Sample Location", "Site Code", "Parameter", "Result"]
             for col in expected_columns:
                 assert col in df.columns, f"Missing expected column: {col}"
 
@@ -93,7 +93,7 @@ class TestNIWaterIntegrationZoneProcessing:
                 pytest.skip("No water quality data available")
 
             # Get a sample site code from actual data
-            valid_sites = df['Site Code'].dropna().unique()
+            valid_sites = df["Site Code"].dropna().unique()
             if len(valid_sites) == 0:
                 pytest.skip("No valid site codes found in data")
 
@@ -160,9 +160,9 @@ class TestNIWaterIntegrationFullDataset:
             assert len(df.columns) > 0
 
             # Check for hardness classification if present
-            if 'NI Hardness Classification' in df.columns:
+            if "NI Hardness Classification" in df.columns:
                 # Should be categorical
-                assert pd.api.types.is_categorical_dtype(df['NI Hardness Classification'])
+                assert pd.api.types.is_categorical_dtype(df["NI Hardness Classification"])
 
         except Exception as e:
             pytest.skip(f"OpenDataNI service unavailable: {e}")
@@ -198,12 +198,12 @@ class TestNIWaterIntegrationErrorHandling:
                 pytest.skip("No data available")
 
             # Look for hardness data
-            hardness_data = df[df['Parameter'].str.contains('hardness', case=False, na=False)]
+            hardness_data = df[df["Parameter"].str.contains("hardness", case=False, na=False)]
             if hardness_data.empty:
                 pytest.skip("No hardness data available")
 
             # Get a site with hardness data
-            hardness_sites = hardness_data['Site Code'].dropna().unique()
+            hardness_sites = hardness_data["Site Code"].dropna().unique()
             if len(hardness_sites) == 0:
                 pytest.skip("No sites with hardness data")
 
@@ -248,7 +248,7 @@ class TestNIWaterIntegrationDataValidation:
             assert len(zones) > 0
 
             # Check for standard NI postcode format in keys
-            bt_postcodes = [k for k in zones.keys() if k.startswith('BT')]
+            bt_postcodes = [k for k in zones.keys() if k.startswith("BT")]
             assert len(bt_postcodes) > 0, "Should have Belfast (BT) postcodes"
 
         except RuntimeError as e:

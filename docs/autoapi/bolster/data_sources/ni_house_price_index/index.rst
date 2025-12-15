@@ -155,5 +155,3 @@ Module Contents
 .. py:function:: build()
 
    Pulls and Cleans up the latest Northern Ireland House Price Index Data
-
-

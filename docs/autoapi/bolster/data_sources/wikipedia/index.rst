@@ -36,6 +36,3 @@ Module Contents
    Duration       timedelta64[ns]
    Interregnum    timedelta64[ns]
    dtype: object
-
-
-

@@ -26,5 +26,3 @@ Package Contents
 
    >>> az_file_url_to_query_components("https://storageaccount.blob.core.windows.net/container/file_path.parquet")
    {'storage_account': 'storageaccount', 'container': 'container', 'file_path': 'file_path.parquet'}
-
-

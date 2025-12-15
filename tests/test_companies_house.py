@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """Tests for companies_house module."""
 
-
 import pytest
 
 from bolster.data_sources.companies_house import (
@@ -220,6 +219,7 @@ class TestModuleImports:
 
         # Test that the function is properly defined
         import inspect
+
         assert callable(get_basic_company_data_url)
         sig = inspect.signature(get_basic_company_data_url)
         assert len(sig.parameters) == 0
@@ -227,26 +227,29 @@ class TestModuleImports:
     def test_farset_heuristic_function_signature(self):
         """Test that the Farset heuristic function has expected signature."""
         import inspect
+
         sig = inspect.signature(companies_house_record_might_be_farset)
         params = list(sig.parameters.keys())
         assert len(params) == 1
-        assert params[0] == 'r'
+        assert params[0] == "r"
         assert sig.return_annotation is bool
 
     def test_get_basic_company_data_url_signature(self):
         """Test that URL function has expected signature."""
         import inspect
+
         sig = inspect.signature(get_basic_company_data_url)
         assert len(sig.parameters) == 0  # No parameters
 
     def test_query_basic_company_data_signature(self):
         """Test that query function has expected signature."""
         import inspect
+
         sig = inspect.signature(query_basic_company_data)
         params = list(sig.parameters.keys())
-        assert 'query_func' in params
+        assert "query_func" in params
         # Should have a default value
-        assert sig.parameters['query_func'].default is not inspect.Parameter.empty
+        assert sig.parameters["query_func"].default is not inspect.Parameter.empty
 
 
 class TestBusinessLogicEdgeCases:
@@ -377,11 +380,11 @@ class TestHeuristicLogic:
         """Test that postcode normalization works correctly."""
         # The function should normalize by lowercasing and removing spaces
         test_postcodes = [
-            "BT12 5GH",    # Standard format
-            "bt12 5gh",    # Lowercase
-            "BT125GH",     # No space
-            "bt125gh",     # Lowercase, no space
-            " BT12  5GH ", # Extra spaces
+            "BT12 5GH",  # Standard format
+            "bt12 5gh",  # Lowercase
+            "BT125GH",  # No space
+            "bt125gh",  # Lowercase, no space
+            " BT12  5GH ",  # Extra spaces
         ]
 
         for postcode in test_postcodes:
@@ -419,7 +422,7 @@ class TestHeuristicLogic:
         test_addresses = [
             "Unit 1 and Unit 10 building",  # Should return False due to Unit 10
             "Unit 1 and Unit 17 complex",  # Should return False due to Unit 17
-            "Unit 1 and Unit 18 center",   # Should return False due to Unit 18
+            "Unit 1 and Unit 18 center",  # Should return False due to Unit 18
         ]
 
         for address in test_addresses:

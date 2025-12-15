@@ -68,5 +68,3 @@ Module Contents
 .. py:function:: get_uk_precipitation(order_name, bounding_box = None)
 
    Get the latest UK precipitation forecast from the Met Office API and generate an image suitable for epaper display.
-
-

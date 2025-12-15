@@ -94,6 +94,7 @@ class TestConcurrencyUtilities:
 
     def test_poolmap_basic(self):
         """Test basic poolmap functionality."""
+
         def square(x):
             return x * x
 
@@ -109,6 +110,7 @@ class TestConcurrencyUtilities:
 
     def test_poolmap_with_kwargs(self):
         """Test poolmap with keyword arguments."""
+
         def multiply(x, factor=2):
             return x * factor
 
@@ -137,6 +139,7 @@ class TestConcurrencyUtilities:
 
     def test_exceptional_executor(self):
         """Test exceptional_executor function."""
+
         def good_task():
             return "success"
 
@@ -210,6 +213,7 @@ class TestBackoffDecorator:
 
     def test_backoff_wrong_exception(self):
         """Test backoff decorator with wrong exception type."""
+
         @backoff(ValueError, tries=3, delay=0.01)
         def raises_wrong_exception():
             raise TypeError("wrong exception")
@@ -295,6 +299,7 @@ class TestMemoizeDecorator:
 
     def test_memoize_cache_counters(self):
         """Test memoize hit/miss counters."""
+
         class TestClass:
             @memoize
             def cached_method(self, x):
@@ -304,17 +309,17 @@ class TestMemoizeDecorator:
 
         # First call (miss)
         obj.cached_method(2)
-        assert hasattr(obj, '_memoize__cache')
-        assert hasattr(obj, '_memoize__hits')
-        assert hasattr(obj, '_memoize__misses')
+        assert hasattr(obj, "_memoize__cache")
+        assert hasattr(obj, "_memoize__hits")
+        assert hasattr(obj, "_memoize__misses")
 
         # Second call with same arg (hit)
         obj.cached_method(2)
 
         # Check counters have expected types and contain data
-        cache = getattr(obj, '_memoize__cache')
-        hits = getattr(obj, '_memoize__hits')
-        misses = getattr(obj, '_memoize__misses')
+        cache = getattr(obj, "_memoize__cache")
+        hits = getattr(obj, "_memoize__hits")
+        misses = getattr(obj, "_memoize__misses")
 
         assert isinstance(cache, dict)
         assert len(cache) == 1  # One cached result
@@ -327,6 +332,7 @@ class TestArgumentExceptionLogger:
 
     def test_arg_exception_logger_success(self):
         """Test decorator with successful function."""
+
         @arg_exception_logger
         def working_function(x, y=None):
             return x + (y or 0)
@@ -336,6 +342,7 @@ class TestArgumentExceptionLogger:
 
     def test_arg_exception_logger_failure(self):
         """Test decorator with failing function."""
+
         @arg_exception_logger
         def failing_function(x, y):
             return x / y  # Will fail with y=0
@@ -353,62 +360,52 @@ class TestTreeUtilities:
 
     def setup_method(self):
         """Set up test data."""
-        self.nested_dict = {
-            'a': 1,
-            'b': {
-                'c': 2,
-                'd': {
-                    'e': 3,
-                    'f': 4
-                }
-            },
-            'g': [{'h': 5}, {'i': 6}]
-        }
+        self.nested_dict = {"a": 1, "b": {"c": 2, "d": {"e": 3, "f": 4}}, "g": [{"h": 5}, {"i": 6}]}
 
     def test_get_recursively(self):
         """Test recursive key extraction."""
         # Find single key
-        values = get_recursively(self.nested_dict, 'e')
+        values = get_recursively(self.nested_dict, "e")
         assert values == [3]
 
         # Find non-existent key
-        values = get_recursively(self.nested_dict, 'z')
+        values = get_recursively(self.nested_dict, "z")
         assert values == []
 
         # Find key that appears in lists
-        values = get_recursively(self.nested_dict, 'h')
+        values = get_recursively(self.nested_dict, "h")
         assert values == [5]
 
     def test_breadth(self):
         """Test tree breadth calculation."""
-        simple_dict = {'a': 1, 'b': 2, 'c': {'d': 3}}
+        simple_dict = {"a": 1, "b": 2, "c": {"d": 3}}
         assert breadth(simple_dict) == 3
 
-        assert breadth({'single': 42}) == 1
+        assert breadth({"single": 42}) == 1
         assert breadth(42) == 1  # Non-dict returns 1
 
     def test_depth(self):
         """Test tree depth calculation."""
-        simple_dict = {'a': 1, 'b': {'c': {'d': 4}}}
+        simple_dict = {"a": 1, "b": {"c": {"d": 4}}}
         assert depth(simple_dict) == 3
 
-        assert depth({'single': 42}) == 1
+        assert depth({"single": 42}) == 1
         assert depth(42) == 0  # Non-dict returns 0
 
     def test_set_keys(self):
         """Test set of all keys extraction."""
         keys = set_keys(self.nested_dict)
         # set_keys only returns leaf keys (keys with non-dict values)
-        expected_keys = {'a', 'c', 'e', 'f', 'g'}  # Only leaf keys, not 'b' or 'd'
+        expected_keys = {"a", "c", "e", "f", "g"}  # Only leaf keys, not 'b' or 'd'
         assert keys == expected_keys
 
     def test_keys_at_depth(self):
         """Test keys at specific depth."""
         keys_0 = list(keys_at(self.nested_dict, 0))
-        assert set(keys_0) == {'a', 'b', 'g'}
+        assert set(keys_0) == {"a", "b", "g"}
 
         keys_1 = list(keys_at(self.nested_dict, 1))
-        assert set(keys_1) == {'c', 'd'}
+        assert set(keys_1) == {"c", "d"}
 
     def test_items_at_depth(self):
         """Test items at specific depth."""
@@ -420,23 +417,23 @@ class TestTreeUtilities:
         leaf_values = list(leaves(self.nested_dict))
         # Should contain all non-dict values including the list
         assert 1 in leaf_values
-        assert self.nested_dict['g'] in leaf_values
+        assert self.nested_dict["g"] in leaf_values
 
     def test_leaf_paths(self):
         """Test leaf paths extraction."""
-        paths = list(leaf_paths({'a': {'b': 2, 'c': 3}}))
-        assert (['a', 'b'], 2) in paths
-        assert (['a', 'c'], 3) in paths
+        paths = list(leaf_paths({"a": {"b": 2, "c": 3}}))
+        assert (["a", "b"], 2) in paths
+        assert (["a", "c"], 3) in paths
 
     def test_flatten_dict(self):
         """Test dictionary flattening."""
-        nested = {'a': {'b': 1, 'c': 2}, 'd': 3}
+        nested = {"a": {"b": 1, "c": 2}, "d": 3}
         flat = flatten_dict(nested)
 
-        assert 'a:b' in flat
-        assert 'a:c' in flat
-        assert flat['a:b'] == 1
-        assert flat['a:c'] == 2
+        assert "a:b" in flat
+        assert "a:c" in flat
+        assert flat["a:b"] == 1
+        assert flat["a:c"] == 2
 
 
 class TestDataTransformation:
@@ -444,65 +441,65 @@ class TestDataTransformation:
 
     def test_transform_basic(self):
         """Test basic transformation."""
-        record = {'a': '1', 'b': '2', 'c': '3'}
+        record = {"a": "1", "b": "2", "c": "3"}
 
         # Simple selection
-        result = transform_(record, {'a': None})
-        assert result == {'a': '1'}
+        result = transform_(record, {"a": None})
+        assert result == {"a": "1"}
 
     def test_transform_with_function(self):
         """Test transformation with function application."""
-        record = {'a': '1', 'b': '2'}
-        rules = {'a': ('a', int), 'b': None}
+        record = {"a": "1", "b": "2"}
+        rules = {"a": ("a", int), "b": None}
 
         result = transform_(record, rules)
-        assert result == {'a': 1, 'b': '2'}
+        assert result == {"a": 1, "b": "2"}
 
     def test_transform_with_renaming(self):
         """Test transformation with key renaming."""
-        record = {'old_key': 'value'}
-        rules = {'old_key': ('new_key', None)}
+        record = {"old_key": "value"}
+        rules = {"old_key": ("new_key", None)}
 
         result = transform_(record, rules)
-        assert result == {'new_key': 'value'}
+        assert result == {"new_key": "value"}
 
     def test_aggregate_function(self):
         """Test the aggregate function."""
         data = [
-            {'category': 'A', 'value': 10},
-            {'category': 'B', 'value': 5},
-            {'category': 'A', 'value': 15},
+            {"category": "A", "value": 10},
+            {"category": "B", "value": 5},
+            {"category": "A", "value": 15},
         ]
 
-        result = aggregate(data, 'category', 'value')
-        assert result['A'] == 25
-        assert result['B'] == 5
+        result = aggregate(data, "category", "value")
+        assert result["A"] == 25
+        assert result["B"] == 5
 
     def test_diff_function(self):
         """Test the diff function."""
-        old = {'a': 1, 'b': 2, 'c': 3}
-        new = {'a': 1, 'b': 20, 'd': 4}
+        old = {"a": 1, "b": 2, "c": 3}
+        new = {"a": 1, "b": 20, "d": 4}
 
         differences = diff(new, old)
 
-        assert 'a' not in differences  # Same value
-        assert differences['b']['old'] == 2
-        assert differences['b']['new'] == 20
-        assert differences['c']['old'] == 3
-        assert differences['c']['new'] is None
-        assert differences['d']['old'] is None
-        assert differences['d']['new'] == 4
+        assert "a" not in differences  # Same value
+        assert differences["b"]["old"] == 2
+        assert differences["b"]["new"] == 20
+        assert differences["c"]["old"] == 3
+        assert differences["c"]["new"] is None
+        assert differences["d"]["old"] is None
+        assert differences["d"]["new"] == 4
 
     def test_tag_gen(self):
         """Test tag generator function."""
-        data = [{'existing': 1}, {'existing': 2}]
-        tagged = list(tag_gen(iter(data), new_tag='added'))
+        data = [{"existing": 1}, {"existing": 2}]
+        tagged = list(tag_gen(iter(data), new_tag="added"))
 
         assert len(tagged) == 2
-        assert tagged[0]['existing'] == 1
-        assert tagged[0]['new_tag'] == 'added'
-        assert tagged[1]['existing'] == 2
-        assert tagged[1]['new_tag'] == 'added'
+        assert tagged[0]["existing"] == 1
+        assert tagged[0]["new_tag"] == "added"
+        assert tagged[1]["existing"] == 2
+        assert tagged[1]["new_tag"] == "added"
 
 
 class TestUtilityHelpers:
@@ -521,12 +518,12 @@ class TestUtilityHelpers:
 
     def test_build_default_mapping_dict(self):
         """Test default mapping dictionary builder."""
-        keys = ['snake_case', 'another_key', 'final_item']
+        keys = ["snake_case", "another_key", "final_item"]
         mapping = build_default_mapping_dict_from_keys(keys)
 
-        assert mapping['snake_case'] == 'Snake Case'
-        assert mapping['another_key'] == 'Another Key'
-        assert mapping['final_item'] == 'Final Item'
+        assert mapping["snake_case"] == "Snake Case"
+        assert mapping["another_key"] == "Another Key"
+        assert mapping["final_item"] == "Final Item"
 
 
 class TestPrettyPrintRequest:
@@ -536,29 +533,29 @@ class TestPrettyPrintRequest:
         """Test pretty printing of requests."""
         # Create a mock request object
         mock_request = Mock()
-        mock_request.method = 'GET'
-        mock_request.url = 'https://example.com/api'
-        mock_request.headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer token'}
+        mock_request.method = "GET"
+        mock_request.url = "https://example.com/api"
+        mock_request.headers = {"Content-Type": "application/json", "Authorization": "Bearer token"}
         mock_request.body = '{"key": "value"}'
 
         # Test with auth exposure disabled (default)
-        bolster.pretty_print_request(mock_request, authentication_header_blacklist=['Authorization'])
+        bolster.pretty_print_request(mock_request, authentication_header_blacklist=["Authorization"])
 
         captured = capsys.readouterr()
-        assert 'GET https://example.com/api' in captured.out
-        assert '<<REDACTED>>' in captured.out
+        assert "GET https://example.com/api" in captured.out
+        assert "<<REDACTED>>" in captured.out
         assert '{"key": "value"}' in captured.out
 
     def test_pretty_print_request_expose_auth(self, capsys):
         """Test pretty printing with auth exposed."""
         mock_request = Mock()
-        mock_request.method = 'POST'
-        mock_request.url = 'https://api.example.com'
-        mock_request.headers = {'Authorization': 'Bearer secret-token'}
+        mock_request.method = "POST"
+        mock_request.url = "https://api.example.com"
+        mock_request.headers = {"Authorization": "Bearer secret-token"}
         mock_request.body = None
 
         bolster.pretty_print_request(mock_request, expose_auth=True, authentication_header_blacklist=[])
 
         captured = capsys.readouterr()
-        assert 'Bearer secret-token' in captured.out
-        assert '<<REDACTED>>' not in captured.out
+        assert "Bearer secret-token" in captured.out
+        assert "<<REDACTED>>" not in captured.out

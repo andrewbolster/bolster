@@ -133,4 +133,3 @@ Module Contents
 .. py:function:: get_results_from_sheet(sheet_url)
 
 .. py:function:: get_results(year)
-

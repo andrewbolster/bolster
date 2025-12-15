@@ -45,5 +45,3 @@ Module Contents
 
    Download a ZIP file and extract its contents in memory
    yields (filename, file-like object) pairs
-
-

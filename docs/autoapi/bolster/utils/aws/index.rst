@@ -363,4 +363,3 @@ Package Contents
 
 
 .. py:function:: SQSWrapper(event, context, queuename, function, timeout=60000, reinvokelimit=10, maxmessages=1, raise_exceptions=True, deduplicate=False, fkwargs={}, client=None)
-
