@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """Tests for `bolster` package."""
 
+import sys
 import pytest
 from click.testing import CliRunner
 
@@ -23,14 +24,27 @@ def test_content(response):
     # assert 'GitHub' in BeautifulSoup(response.content).title.string
 
 
-def test_command_line_interface():
-    """Test the CLI."""
+@pytest.mark.skipif(sys.version_info < (3, 10), reason="Click exit code behavior differs on Python 3.9")
+def test_command_line_interface_exit_code():
+    """Test the CLI exit code for newer Python versions."""
     runner = CliRunner()
-    # CLI without arguments shows help and exits with code 2 (this is expected Click behavior)
     result = runner.invoke(cli)
     assert result.exit_code == 2
 
-    # Help should work properly
+
+@pytest.mark.skipif(sys.version_info >= (3, 10), reason="Click exit code behavior differs on Python 3.10+")
+def test_command_line_interface_exit_code_python39():
+    """Test the CLI exit code for Python 3.9."""
+    runner = CliRunner()
+    result = runner.invoke(cli)
+    assert result.exit_code == 0
+
+
+def test_command_line_interface():
+    """Test the CLI help functionality."""
+    runner = CliRunner()
+
+    # Help should work properly regardless of Python version
     help_result = runner.invoke(cli, ["--help"])
     assert help_result.exit_code == 0
     assert "--help" in help_result.output and "Show this message and exit" in help_result.output
