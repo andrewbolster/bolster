@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 """Tests for stats/distributions module."""
 
-import numpy as np
-import pytest
 
-from bolster.stats.distributions import best_fit_distribution, _get_available_distributions
+from bolster.stats.distributions import _get_available_distributions, best_fit_distribution
 
 
 class TestModuleImports:

@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 """Tests for ni_water module."""
 
-import pytest
-import pandas as pd
 import logging
 from unittest.mock import patch
+
+import pandas as pd
+import pytest
 
 from bolster.data_sources.ni_water import (
     INVALID_ZONE_IDENTIFIER,
@@ -60,8 +61,8 @@ class TestPostcodeToWaterSupplyZone:
         assert len(zone_values) > 50, "Should have many unique zones"
 
         # Check for invalid zone identifiers (postcodes with no zone)
-        invalid_zones = [k for k, v in zones.items() if v == '' or pd.isna(v)]
         # Note: Real data might not have invalid zones, so this is optional
+        # invalid_zones = [k for k, v in zones.items() if v == '' or pd.isna(v)]
         # assert len(invalid_zones) > 0, "Should have some postcodes with no zone"
 
 
@@ -103,7 +104,7 @@ class TestWaterQualityByZone:
     def test_get_water_quality_by_zone_logging_warning(self):
         """Test that invalid zones log warnings in non-strict mode."""
         with patch('bolster.data_sources.ni_water.logging.warning') as mock_warning:
-            data = get_water_quality_by_zone('INVALID_SITE', strict=False)
+            _ = get_water_quality_by_zone('INVALID_SITE', strict=False)
 
             # Should log a warning for invalid site
             mock_warning.assert_called_once()

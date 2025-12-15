@@ -1,25 +1,24 @@
 #!/usr/bin/env python
 """Tests for Met Office module."""
 
-import pytest
 from datetime import datetime, timedelta
 from io import BytesIO
-import re
-from unittest.mock import patch, MagicMock
+
+import pytest
 from PIL import Image
 
 from bolster.data_sources.metoffice import (
+    BASE_URL,
     filter_relevant_files,
+    generate_image,
+    get_file,
+    get_file_meta,
+    get_order_latest,
+    get_uk_precipitation,
+    is_my_date,
     make_borders,
     make_isolines,
     make_precipitation,
-    is_my_date,
-    BASE_URL,
-    get_order_latest,
-    get_file_meta,
-    get_file,
-    get_uk_precipitation,
-    generate_image,
 )
 
 

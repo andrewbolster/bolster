@@ -4,10 +4,9 @@
 import os
 from unittest.mock import patch
 
-import pytest
 from click.testing import CliRunner
 
-from bolster.cli import cli, get_precipitation
+from bolster.cli import cli
 
 
 class TestCLIGroup:

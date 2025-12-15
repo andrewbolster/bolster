@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 """Tests for companies_house module."""
 
+
 import pytest
-from typing import Dict
 
 from bolster.data_sources.companies_house import (
     companies_house_record_might_be_farset,
     get_basic_company_data_url,
-    query_basic_company_data,
     get_companies_house_records_that_might_be_in_farset,
+    query_basic_company_data,
 )
 
 
@@ -231,7 +231,7 @@ class TestModuleImports:
         params = list(sig.parameters.keys())
         assert len(params) == 1
         assert params[0] == 'r'
-        assert sig.return_annotation == bool
+        assert sig.return_annotation is bool
 
     def test_get_basic_company_data_url_signature(self):
         """Test that URL function has expected signature."""

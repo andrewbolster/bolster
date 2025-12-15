@@ -5,15 +5,11 @@ These tests make real network requests to external services to test
 the actual functionality without mocking.
 """
 
-import pytest
+
 import pandas as pd
-from io import BytesIO
-from bolster.utils.web import (
-    get_excel_dataframe,
-    download_extract_zip,
-    resilient_get,
-    get_last_valid
-)
+import pytest
+
+from bolster.utils.web import download_extract_zip, get_excel_dataframe, get_last_valid, resilient_get
 
 
 class TestWebIntegrationBasic:
@@ -42,7 +38,7 @@ class TestWebIntegrationBasic:
         try:
             # Pass custom headers to test requests_kwargs handling
             custom_headers = {"User-Agent": "Test-Agent/1.0"}
-            df = get_excel_dataframe(
+            _ = get_excel_dataframe(
                 test_url,
                 requests_kwargs={"headers": custom_headers},
                 read_kwargs={'engine': 'python'}
@@ -128,7 +124,7 @@ class TestWebIntegrationEdgeCases:
         test_url = "https://this-domain-should-never-exist-12345.invalid/"
 
         try:
-            response = resilient_get(test_url)
+            _ = resilient_get(test_url)
             # Should either work via wayback or raise an exception
         except Exception:
             # Expected - this should fail and exercise the error paths

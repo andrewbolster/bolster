@@ -5,15 +5,16 @@ These tests make real network requests to the OpenDataNI service to test
 actual functionality without mocking.
 """
 
-import pytest
 import pandas as pd
+import pytest
+
 from bolster.data_sources.ni_water import (
-    get_water_quality_csv_data,
-    get_postcode_to_water_supply_zone,
-    get_water_quality_by_zone,
-    get_water_quality,
+    INVALID_ZONE_IDENTIFIER,
     _site_code_to_zone_code,
-    INVALID_ZONE_IDENTIFIER
+    get_postcode_to_water_supply_zone,
+    get_water_quality,
+    get_water_quality_by_zone,
+    get_water_quality_csv_data,
 )
 
 

@@ -8,16 +8,13 @@ import click
 import pandas as pd
 
 from . import __version__
-from .data_sources.metoffice import get_uk_precipitation
-from .data_sources.ni_water import get_water_quality_by_zone, get_postcode_to_water_supply_zone
-from .data_sources.wikipedia import get_ni_executive_basic_table
-from .data_sources.ni_house_price_index import build as get_ni_house_prices
 from .data_sources.cineworld import get_cinema_listings
+from .data_sources.companies_house import get_companies_house_records_that_might_be_in_farset, query_basic_company_data
 from .data_sources.eoni import get_results as get_ni_election_results
-from .data_sources.companies_house import (
-    query_basic_company_data,
-    get_companies_house_records_that_might_be_in_farset
-)
+from .data_sources.metoffice import get_uk_precipitation
+from .data_sources.ni_house_price_index import build as get_ni_house_prices
+from .data_sources.ni_water import get_postcode_to_water_supply_zone, get_water_quality_by_zone
+from .data_sources.wikipedia import get_ni_executive_basic_table
 
 
 @click.group()
@@ -360,7 +357,7 @@ def cinema_listings(site_code, screening_date, output_format):
 
                 click.echo("-" * 40)
 
-            click.echo(f"\n💡 Use --format json for machine-readable output")
+            click.echo("\n💡 Use --format json for machine-readable output")
 
     except ConnectionError:
         click.echo("❌ Error: Could not connect to Cineworld services")
@@ -632,7 +629,7 @@ def ni_elections(election_year, output_format, save):
             else:
                 click.echo("Warning: Cannot display election data in CSV format")
         else:  # table format
-            click.echo(f"\nNI Assembly Election Results")
+            click.echo("\nNI Assembly Election Results")
             if election_year != "all":
                 click.echo(f"Year: {election_year}")
             click.echo("=" * 60)

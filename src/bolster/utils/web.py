@@ -2,7 +2,7 @@ import io
 import logging
 import zipfile
 from io import BytesIO
-from typing import Dict, Generator, Optional, Tuple, Union
+from typing import Dict, Generator, Optional, Tuple
 
 import pandas as pd
 import requests
