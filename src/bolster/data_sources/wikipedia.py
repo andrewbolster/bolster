@@ -6,7 +6,7 @@ import pandas as pd
 import requests
 
 
-def get_ni_executive_basic_table():
+def get_ni_executive_basic_table() -> pd.DataFrame:
     """
     Takes Data from https://en.wikipedia.org/wiki/Northern_Ireland_Executive#Composition_since_devolution
     Table should be called "Historical composition of the Northern Ireland Executive "

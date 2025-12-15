@@ -1,3 +1,14 @@
+"""
+Basic statistics and data frame helpers.
+
+Simple functions for common data manipulation tasks:
+- add_totals/drop_totals: manage row/column totals in DataFrames
+- top_n: truncate DataFrames to top N rows with 'others' aggregation
+- fix_datetime_tz_columns: strip timezone info from datetime columns
+
+Plus distribution fitting in the distributions submodule.
+"""
+
 from typing import AnyStr
 
 import pandas as pd

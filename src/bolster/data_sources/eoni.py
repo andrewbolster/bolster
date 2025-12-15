@@ -144,7 +144,7 @@ def get_stage_votes_from_df(df: pd.DataFrame) -> pd.DataFrame:
     return stage_df
 
 
-def get_stage_transfers_from_df(df):
+def get_stage_transfers_from_df(df: pd.DataFrame) -> pd.DataFrame:
     """
     Extract the transfers from each stage as a mapped column for each stage, i.e. stages 2...N
     """

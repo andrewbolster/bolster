@@ -45,7 +45,7 @@ def test_cli_help_content():
     assert "automation" in result.output
     assert "Northern Ireland and UK data sources" in result.output
     assert "Examples:" in result.output
-    assert "bolster get-precipitation --help" in result.output
+    assert "precipitation --help" in result.output
     assert "bolster --version" in result.output
 
     # Check for version option

@@ -13,13 +13,14 @@ Example usage:
 """
 
 from datetime import date
+from typing import Dict, List, Any
 
 import requests
 
 from ..utils.web import session
 
 
-def get_cinema_listings(site_code: int = 117, screening_date: date = date.today()):
+def get_cinema_listings(site_code: int = 117, screening_date: date = date.today()) -> List[Dict[str, Any]]:
     """
     Get cinema listings from the Cineworld API.
 

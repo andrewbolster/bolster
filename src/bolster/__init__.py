@@ -1,5 +1,27 @@
 # coding=utf-8
-"""Top-level package for Bolster."""
+"""
+Bolster - A personal collection of Python utilities and data sources.
+
+A grab bag of handy functions for working with Northern Ireland data,
+basic stats operations, and general data science tasks. Built for personal
+projects and exploration.
+
+What's in here:
+    - data_sources: NI water quality, house prices, cinema listings, etc.
+    - stats: Basic data frame operations and distribution fitting
+    - utils: Web scraping helpers, decorators, AWS/Azure bits
+    - cli: Command line tools for the data sources
+
+Quick examples:
+
+    >>> from bolster.data_sources import ni_water
+    >>> quality_data = ni_water.get_water_quality_by_zone('BALM')
+
+    >>> from bolster.stats import add_totals
+    >>> add_totals(my_dataframe)  # adds row/column totals
+
+Author: Andrew Bolster
+"""
 
 __author__ = """Andrew Bolster"""
 __email__ = "andrew.bolster@gmail.com"
@@ -47,7 +69,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-def _dumb_passthrough(x, **kwargs):
+def _dumb_passthrough(x, **kwargs) -> Any:
     """Pointless passthrough replacement for tqdm (and similar) fallback
 
     Args:
@@ -579,7 +601,7 @@ def aggregate(
     group_key: Union[AnyStr, Tuple[AnyStr], List[AnyStr]],
     item_key: AnyStr,
     condition: Optional[Callable] = None,
-):
+) -> Dict[Any, Any]:
     """
     Abstracted groupby-sum for lists of dicts
     operationally equivalent to
@@ -614,7 +636,7 @@ def aggregate(
     return agg_d
 
 
-def breadth(d):
+def breadth(d: Dict) -> int:
     """
     Get the total 'width' of a tree
 
@@ -628,7 +650,7 @@ def breadth(d):
     return width
 
 
-def depth(d: Dict[Any, int]) -> int:
+def depth(d: Dict) -> int:
     """
     Get the maximum depth of a tree
     """
@@ -639,7 +661,7 @@ def depth(d: Dict[Any, int]) -> int:
     return height
 
 
-def set_keys(d: Dict) -> Set:
+def set_keys(d: Dict) -> Set[Hashable]:
     """
     Extract the set of all keys of a nested dict/tree
     """
@@ -652,7 +674,7 @@ def set_keys(d: Dict) -> Set:
     return keys
 
 
-def keys_at(d: Dict, n: SupportsInt, i: SupportsInt = 0) -> Iterator:
+def keys_at(d: Dict, n: SupportsInt, i: SupportsInt = 0) -> Iterator[Hashable]:
     """
     Extract the keys of a tree at a given depth
     """
@@ -664,7 +686,7 @@ def keys_at(d: Dict, n: SupportsInt, i: SupportsInt = 0) -> Iterator:
                 yield from keys_at(v, n, i + 1)
 
 
-def items_at(d: Dict, n: SupportsInt, i: SupportsInt = 0) -> Iterator[Tuple]:
+def items_at(d: Dict, n: SupportsInt, i: SupportsInt = 0) -> Iterator[Tuple[Hashable, Any]]:
     """
     Extract the elements from a tree at a given depth
     """
@@ -676,7 +698,7 @@ def items_at(d: Dict, n: SupportsInt, i: SupportsInt = 0) -> Iterator[Tuple]:
                 yield from items_at(v, n, i + 1)
 
 
-def leaves(d: Dict) -> Iterator:
+def leaves(d: Dict) -> Iterator[Any]:
     """
     Iterate on the leaves of a tree
     """
@@ -687,7 +709,7 @@ def leaves(d: Dict) -> Iterator:
         yield (d)
 
 
-def leaf_paths(d: Dict, path: Optional[List] = None) -> Iterator[Tuple[List, Dict]]:
+def leaf_paths(d: Dict, path: Optional[List[Hashable]] = None) -> Iterator[Tuple[List[Hashable], Any]]:
     if path is None:
         path = []
     if isinstance(d, dict):
@@ -697,7 +719,7 @@ def leaf_paths(d: Dict, path: Optional[List] = None) -> Iterator[Tuple[List, Dic
         yield (path, d)
 
 
-def flatten_dict(d: Dict, head: str = "", sep: str = ":") -> Dict:
+def flatten_dict(d: Dict, head: str = "", sep: str = ":") -> Dict[str, Any]:
     new_d = {}
     for k, v in d.items():
         if isinstance(v, dict):
@@ -713,7 +735,7 @@ def flatten_dict(d: Dict, head: str = "", sep: str = ":") -> Dict:
     return new_d
 
 
-def uncollect_object(d: Dict) -> Dict:
+def uncollect_object(d: Dict) -> Dict[Hashable, Any]:
     new_d = {}
     for k, v in d.items():
         if isinstance(v, (defaultdict, Counter)):
@@ -723,7 +745,7 @@ def uncollect_object(d: Dict) -> Dict:
     return new_d
 
 
-def dict_concat_safe(d: Dict, keys: List[Hashable], default: Optional[Any] = None) -> Iterator:
+def dict_concat_safe(d: Dict, keys: List[Hashable], default: Optional[Any] = None) -> Iterator[Any]:
     """
     Really Lazy Func because `dict.get('key',default)` is a pain in the ass for lists
     """

@@ -259,7 +259,7 @@ TABLE_TRANSFORMATION_MAP["Table 3c"] = partial(cleanup_with_munged_quarters_and_
 TABLE_TRANSFORMATION_MAP["Table 4"] = cleanup_with_munged_quarters_and_total_rows
 
 
-def cleanup_with_LGDs(df):
+def cleanup_with_LGDs(df: pd.DataFrame) -> pd.DataFrame:
     """
     Standardised House Price & Index for each Local Government District Northern Ireland
     * Build multi-index of LGD / Metric [Index,Price]
@@ -287,7 +287,7 @@ def cleanup_with_LGDs(df):
 TABLE_TRANSFORMATION_MAP["Table 5"] = cleanup_with_LGDs
 
 
-def cleanup_merged_year_quarters_and_totals(df):
+def cleanup_merged_year_quarters_and_totals(df: pd.DataFrame) -> pd.DataFrame:
     """
     Table 5a: Number of Verified Residential Property Sales by Local Government District
     * Remove 'Total' rows (i.e. Yearly totals)
@@ -314,7 +314,7 @@ TABLE_TRANSFORMATION_MAP["Table 5a"] = cleanup_merged_year_quarters_and_totals
 TABLE_TRANSFORMATION_MAP["Table 6"] = basic_cleanup
 
 
-def cleanup_missing_year_quarter(df):
+def cleanup_missing_year_quarter(df: pd.DataFrame) -> pd.DataFrame:
     """
     Table 7: Standardised House Price & Index for Rural Areas of Northern Ireland by drive times
     * Insert Year/Quarter future-headers
@@ -371,7 +371,7 @@ def transform_sources(source_df: Dict[Text, pd.DataFrame]) -> Dict[Text, pd.Data
     return dest_df
 
 
-def build():
+def build() -> Dict[Text, pd.DataFrame]:
     """
     Pulls and Cleans up the latest Northern Ireland House Price Index Data
 

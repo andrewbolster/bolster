@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from functools import lru_cache
 from io import BytesIO
 from itertools import groupby
+from typing import Dict, List, Optional, Tuple, Union
 
 import requests
 from PIL import Image, ImageDraw, ImageFilter
@@ -27,7 +28,7 @@ session = requests.Session()
 session.headers.update({"Accept": "application/json", "apikey": f"{os.getenv('MET_OFFICE_API_KEY')}"})
 
 
-def get_order_latest(order_name):
+def get_order_latest(order_name: str) -> Dict:
     url = f"{BASE_URL}/orders/{order_name.lower()}/latest"  # pragma: no cover
     # TODO: Network integration testing - requires valid Met Office API key and order
     response = session.get(url)  # pragma: no cover
@@ -37,7 +38,7 @@ def get_order_latest(order_name):
         raise Exception(f"Failed to fetch order status: {response.status_code} {response.text}")  # pragma: no cover
 
 
-def get_file_meta(order_name, file_id):
+def get_file_meta(order_name: str, file_id: str) -> Dict:
     url = f"{BASE_URL}/orders/{order_name.lower()}/latest/{requests.utils.quote(file_id)}"  # To handle + in the file_id  # pragma: no cover
     # TODO: Network integration testing - requires valid Met Office API key and order
     response = session.get(url)  # pragma: no cover
@@ -48,7 +49,7 @@ def get_file_meta(order_name, file_id):
 
 
 @lru_cache
-def get_file(order_name, file_id):
+def get_file(order_name: str, file_id: str) -> bytes:
     url = f"{BASE_URL}/orders/{order_name.lower()}/latest/{requests.utils.quote(file_id)}/data"  # To handle + in the file_id  # pragma: no cover
     # TODO: Network integration testing - requires valid Met Office API key and order
     response = session.get(url, headers={**session.headers, **{"Accept": "application/octet-stream"}})  # pragma: no cover
@@ -63,7 +64,7 @@ def get_file(order_name, file_id):
 is_my_date = re.compile(r".*_\d{10}$")  # Ends with 10 digits
 
 
-def filter_relevant_files(order_status):
+def filter_relevant_files(order_status: Dict) -> List[Dict]:
     relevant_files = []
 
     for file in order_status["orderDetails"]["files"]:
@@ -104,7 +105,7 @@ def filter_relevant_files(order_status):
 ### Image Generation
 
 
-def make_borders(data):
+def make_borders(data: bytes) -> Image.Image:
     # Convert to grayscale
     img = Image.open(BytesIO(data))
     img = img.point(lambda i: 255 if i else 0)
@@ -117,7 +118,7 @@ def make_borders(data):
     return img
 
 
-def make_isolines(data):
+def make_isolines(data: bytes) -> Image.Image:
     # Convert to grayscale
     img = Image.open(BytesIO(data)).convert("L")
     # Apply edge detection filter
@@ -129,7 +130,7 @@ def make_isolines(data):
     return img
 
 
-def make_precipitation(data):
+def make_precipitation(data: bytes) -> Image.Image:
     # Convert to grayscale
     img = Image.open(BytesIO(data)).convert("L")
     img = img.point(lambda i: 255 - i)
@@ -138,7 +139,7 @@ def make_precipitation(data):
     return img
 
 
-def generate_image(order_name, block, bounding_box=(100, 250, 500, 550)):
+def generate_image(order_name: str, block: Dict, bounding_box: Optional[Tuple[int, int, int, int]] = (100, 250, 500, 550)) -> Image.Image:
     # TODO: Network integration testing - requires valid Met Office API key and order
     border = make_borders(get_file(order_name, block["land_cover"]))  # pragma: no cover
     isoline = make_isolines(get_file(order_name, block["mean_sea_level_pressure"]))  # pragma: no cover
@@ -160,7 +161,7 @@ def generate_image(order_name, block, bounding_box=(100, 250, 500, 550)):
     return img  # pragma: no cover
 
 
-def get_uk_precipitation(order_name, bounding_box=None):
+def get_uk_precipitation(order_name: str, bounding_box: Optional[Tuple[int, int, int, int]] = None) -> Image.Image:
     """
     Get the latest UK precipitation forecast from the Met Office API and generate an image suitable for epaper display.
     """
