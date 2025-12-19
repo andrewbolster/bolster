@@ -182,22 +182,23 @@ This project uses [Semantic Versioning](https://semver.org/):
    uv run pytest
    ```
 
-1. **Bump version** (using bump2version):
+1. **Bump version** (using bump-my-version):
 
    ```bash
    # For a minor version (0.3.4 → 0.4.0)
-   bump2version minor
+   uvx bump-my-version bump minor
 
    # For a patch version (0.3.4 → 0.3.5)
-   bump2version patch
+   uvx bump-my-version bump patch
 
    # For a major version (0.3.4 → 1.0.0)
-   bump2version major
+   uvx bump-my-version bump major
    ```
 
    This automatically:
 
-   - Updates `pyproject.toml`
+   - Updates `pyproject.toml` version
+   - Updates `[tool.bumpversion] current_version`
    - Creates a git commit
    - Creates a signed git tag (`v0.4.0`)
 

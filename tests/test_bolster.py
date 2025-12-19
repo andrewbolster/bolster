@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """Tests for `bolster` package."""
 
+import importlib.metadata
 import sys
 
 import pytest
@@ -80,7 +81,9 @@ def test_cli_version():
     result = runner.invoke(cli, ["--version"])
     assert result.exit_code == 0
     assert "bolster, version" in result.output
-    assert "0.3.4" in result.output
+    # Check version dynamically instead of hard-coding
+    expected_version = importlib.metadata.version("bolster")
+    assert expected_version in result.output
 
 
 def test_precipitation_command_help():
