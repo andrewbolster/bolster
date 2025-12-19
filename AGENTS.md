@@ -1,389 +1,427 @@
-# Bolster Package Refresh Project - Agent Learning & Analysis
+# Bolster Package - Developer's Guide
 
-## Project Context
+**Version**: 0.4.0
+**Updated**: 2024-12-19
+**Status**: Development Status 2 - Pre-Alpha
 
-**Goal**: Systematic refresh of the `src/bolster` package with particular attention to documentation quality and testing.
-**Branch**: `feature/package-refresh`
-**Created**: 2025-12-14
+## Quick Start for Development
 
-## Package Overview
+### Initial Setup
 
-### Current State Analysis
+```bash
+# Clone the repository
+git clone https://github.com/andrewbolster/bolster.git
+cd bolster
 
-- **Package Name**: `bolster` v0.3.4
-- **Description**: "Bolster's Brain, you've been warned"
-- **License**: GNU General Public License v3
-- **Python Support**: 3.8+ (3.9, 3.10, 3.11, 3.12)
-- **Build System**: PDM (Python Dependency Management)
-- **Documentation**: Sphinx-based, hosted on ReadTheDocs
-- **Status**: Development Status 2 - Pre-Alpha
+# Install UV package manager (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-### Architecture & Structure
+# Install dependencies
+uv sync
 
-#### Main Package Structure
+# Install pre-commit hooks
+pre-commit install
+```
 
-- **Source Location**: `src/bolster/`
-- **CLI Entry Point**: `bolster.cli:cli`
-- **Main Module**: `src/bolster/__init__.py` (744 lines - very comprehensive)
+### Running Tests
 
-#### Data Sources Modules
+```bash
+# Run all tests
+uv run pytest
 
-The package includes several specialized data source modules:
+# Run with coverage report
+uv run pytest --cov=bolster --cov-report=html
 
-- `companies_house`: UK Companies House listings
-- `eoni`: Electoral Office for Northern Ireland (2016-2022 Assembly Election Results)
-- `ni_water`: NI Water Quality Data
-- `metoffice`: Met Office Map Data
-- `nihpi`: Northern Ireland House Price Index Data
+# Run specific test file
+uv run pytest tests/test_bolster.py
 
-#### Utility Modules
+# Run tests for specific Python version
+uv run --python 3.9 pytest
+```
 
-- `web`: Web scraping and HTTP utilities
-- `azure`: AWS service handling
-- `aws`: AWS service handling
-- `statistics`: Statistical functions
+### Code Quality Checks
 
-#### CLI Interface
+```bash
+# Run linting
+uv run ruff check .
 
-- **Framework**: Click
-- **Current Commands**:
-  - Basic CLI scaffolding with placeholder message
-  - `get-precipitation`: Met Office precipitation data retrieval command
-- **CLI State**: Very minimal implementation
+# Auto-fix linting issues
+uv run ruff check --fix .
 
-### Core Features (from README.rst)
+# Format code
+uv run ruff format .
 
-- Efficient tree/node traversal and iteration
-- Datetime helpers
-- Concurrency Helpers
-- Web safe Encapsulation/Decapsulation helpers
-- pandas-esque `aggregate`/`transform_r` functions
-- "Best Practice" AWS service handling
+# Run all pre-commit hooks
+pre-commit run --all-files
+```
 
-### Technical Infrastructure
+## Package Architecture
 
-#### Testing Setup
+### Core Structure
 
-- **Framework**: pytest
-- **Coverage**: pytest-cov with codecov.io integration
-- **Test Paths**: `tests/` and `src/` directories
-- **Notebook Testing**: nbmake for Jupyter notebook validation
-- **Config**: Comprehensive pytest configuration in pyproject.toml
-- **Known Tests**: `test_eoni.py`, `test_wikipedia.py`, `test_bolster.py`, `test_nihpi.py`
+```
+src/bolster/
+├── __init__.py          # Core utilities (concurrency, data processing, tree navigation)
+├── cli.py              # Command-line interface
+├── data_sources/       # Northern Ireland and UK data source modules
+│   ├── companies_house.py
+│   ├── eoni.py         # Electoral Office NI
+│   ├── metoffice.py
+│   ├── ni_house_price_index.py
+│   ├── ni_water.py
+│   └── wikipedia.py
+├── aws.py              # AWS service integrations
+├── azure.py            # Azure service integrations
+├── statistics.py       # Statistical functions
+├── utils.py            # General utilities
+└── web.py              # Web scraping and HTTP utilities
+```
 
-#### Code Quality Tools
+### Key Module Purposes
 
-- **Linter**: Ruff (replaces flake8, isort, etc.)
-- **Configuration**: Line length 120, ignores E501
-- **Pre-commit**: Configured in development dependencies
-- **Version Management**: bumpversion with git tagging
+- **`__init__.py`**: Core utility functions for concurrency, data transformation, and tree/dict navigation
+- **`data_sources/`**: Specialized modules for accessing Northern Ireland and UK public data
+- **`cli.py`**: Command-line tools built with Click framework
+- **Cloud integrations**: AWS and Azure service handlers with best practices
+- **`web.py`**: Robust HTTP request handling and web scraping utilities
 
-#### Documentation Setup
+## Development Workflow
 
-- **Generator**: Sphinx
-- **Theme**: sphinx-rtd-theme (ReadTheDocs)
-- **Extensions**:
-  - sphinx-click (CLI documentation)
-  - sphinx-issues (GitHub issue links)
-  - nbsphinx (Jupyter notebooks)
-  - sphinx-autoapi (API documentation)
-  - sphinxcontrib-plantuml (UML diagrams)
-  - sphinxcontrib-mermaid (Mermaid diagrams)
-- **Format Support**: Both reStructuredText and Markdown (myst-parser)
+### Making Changes
 
-#### Dependencies
+1. **Create a feature branch**:
 
-**Core Dependencies** (18 total):
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
 
-- boto3: AWS services
-- bs4: Web scraping
-- click: CLI framework
-- pandas, numpy: Data manipulation
-- requests: HTTP client
-- lxml: XML parsing
-- pillow: Image processing
-- postgresql: Database connectivity
+1. **Make your changes**:
 
-**Development Dependencies**:
+   - Write code following existing patterns
+   - Add/update tests for new functionality
+   - Update docstrings and documentation
 
-- Testing: pytest, pytest-mock, pytest-cov, nbmake
-- Docs: Comprehensive Sphinx ecosystem
-- Quality: pre-commit, ruff
+1. **Test your changes**:
 
-### Core Utilities Analysis (`__init__.py`)
+   ```bash
+   # Run tests
+   uv run pytest
 
-The main module is surprisingly comprehensive with 744 lines of utility functions:
+   # Check code quality
+   uv run ruff check .
+   ```
 
-#### Concurrency & Performance
+1. **Commit with pre-commit hooks**:
 
-- `poolmap()`: ThreadPoolExecutor wrapper with progress monitoring
-- `exceptional_executor()`: Robust Future exception handling
-- `backoff()`: Exponential backoff retry decorator
-- `memoize()`: Instance method caching with hit/miss tracking
+   ```bash
+   git add .
+   git commit -m "Brief description of changes"
+   # Pre-commit hooks will run automatically
+   ```
 
-#### Data Processing
+1. **Push and create PR**:
 
-- `batch()`, `chunks()`: Sequence partitioning utilities
-- `aggregate()`: Pandas-like groupby-sum for dicts
-- `transform_()`: Generic item-wise transformation with flexible key mapping
-- `compress_for_relay()`, `decompress_from_relay()`: Data compression utilities
+   ```bash
+   git push origin feature/your-feature-name
+   # Create PR on GitHub
+   ```
 
-#### Tree/Dict Navigation
+### Pre-commit Hooks
 
-- `get_recursively()`: Recursive dict key extraction
-- `flatten_dict()`: Nested dict flattening
-- `breadth()`, `depth()`: Tree dimension analysis
-- `set_keys()`, `keys_at()`, `items_at()`: Tree traversal utilities
-- `leaves()`, `leaf_paths()`: Tree leaf operations
+The project uses pre-commit hooks for code quality:
 
-#### Development Utilities
+- **mdformat**: Markdown formatting
+- **ruff**: Python linting and formatting
+- **pre-commit-hooks**: Standard checks (trailing whitespace, merge conflicts, etc.)
 
-- `arg_exception_logger()`: Debugging decorator for function arguments
-- `MultipleErrors`: Exception accumulation class
-- `working_directory()`: Context manager for directory changes
-- `pretty_print_request()`: HTTP request debugging with auth redaction
+If pre-commit fails, fix the issues and commit again. Many issues are auto-fixed.
 
-### Key Observations & Issues
+### Testing Strategy
 
-#### Documentation Quality Issues
+#### Unit Tests
 
-1. **README Format**: Using reStructuredText (README.rst) instead of Markdown
-1. **CLI Documentation**: Minimal - placeholder messages still present
-1. **Function Documentation**: Mixed quality - some have comprehensive docstrings, others minimal
-1. **Example Usage**: Limited practical examples beyond doctests
+- Located in `tests/` directory
+- Test individual functions and modules
+- Mock external API calls to avoid network dependencies
+- Use pytest fixtures for common test data
 
-#### Testing Coverage Concerns
+#### Python Version Compatibility
 
-1. **Test Completeness**: Only 4 test files for a package with extensive functionality
-1. **Core Module Testing**: The comprehensive `__init__.py` (744 lines) may be undertested
-1. **Data Source Testing**: Each data source module needs individual test coverage
-1. **Integration Testing**: CLI commands appear minimally tested
+- **Supported versions**: Python 3.9, 3.10, 3.11, 3.12, 3.13
+- **Note**: Click CLI behavior differs between Python 3.9 and 3.10+
+- Use `@pytest.mark.skipif` for version-specific tests
 
-#### Code Quality Observations
+#### Coverage Goals
 
-1. **Modern Tooling**: Good use of modern Python tooling (ruff, pytest, type hints)
-1. **Type Annotations**: Present but could be more comprehensive
-1. **Code Organization**: Very dense `__init__.py` - could benefit from modularization
-1. **Dependency Management**: Well-structured with PDM
+- **Overall target**: 70%+
+- **Core modules**: 80%+
+- Current coverage: Check latest CI run or run `pytest --cov`
 
-#### CLI Interface Issues
+#### Notebook Testing
 
-1. **Minimal Implementation**: CLI has placeholder messages
-1. **Command Coverage**: Only one real command (`get-precipitation`)
-1. **Help Documentation**: Basic click scaffolding without comprehensive help
+- Jupyter notebooks in `notebooks/` are tested with nbmake
+- Ensures examples stay working
 
-### Development Environment Integration
+## Release Process
 
-- **Badges**: GitHub Actions, CodeCov, PyPI, ReadTheDocs, PyUp
-- **CI/CD**: GitHub Actions for pytest
-- **Package Distribution**: PyPI publishing configured
-- **Documentation**: ReadTheDocs integration
+### Version Numbering
 
-## Next Steps Identified
+This project uses [Semantic Versioning](https://semver.org/):
 
-### Immediate Priorities
+- **MAJOR** (X.0.0): Breaking changes
+- **MINOR** (0.X.0): New features, backwards compatible
+- **PATCH** (0.0.X): Bug fixes, backwards compatible
 
-1. **Documentation Refresh**:
+### Creating a Release
 
-   - Convert README.rst to README.md for better GitHub integration
-   - Add comprehensive usage examples
-   - Document all CLI commands properly
+1. **Ensure main is clean and tests pass**:
 
-1. **Testing Enhancement**:
+   ```bash
+   git checkout main
+   git pull origin main
+   uv run pytest
+   ```
 
-   - Expand test coverage for core utilities in `__init__.py`
-   - Add tests for each data source module
-   - Implement CLI command testing
+1. **Bump version** (using bump2version):
 
-1. **Code Organization**:
+   ```bash
+   # For a minor version (0.3.4 → 0.4.0)
+   bump2version minor
 
-   - Consider splitting the large `__init__.py` into logical modules
-   - Ensure consistent code style across modules
-   - Add comprehensive type annotations
+   # For a patch version (0.3.4 → 0.3.5)
+   bump2version patch
 
-1. **CLI Development**:
+   # For a major version (0.3.4 → 1.0.0)
+   bump2version major
+   ```
 
-   - Remove placeholder messages
-   - Add proper command documentation
-   - Implement missing CLI functionality
+   This automatically:
 
-### Long-term Improvements
+   - Updates `pyproject.toml`
+   - Creates a git commit
+   - Creates a signed git tag (`v0.4.0`)
 
-1. **API Documentation**: Generate comprehensive API docs
-1. **Example Gallery**: Create notebooks/examples for each major feature
-1. **Performance Optimization**: Review and optimize core utilities
-1. **Dependency Audit**: Review and update dependencies
+1. **Push the tag to trigger release**:
 
-## Testing Coverage Analysis
+   ```bash
+   git push origin main
+   git push origin v0.4.0  # Replace with your version
+   ```
 
-### Current Test Suite Results
+1. **GitHub Actions will**:
 
-**Test Execution**: 36 tests total (31 passed, 3 skipped, 2 failed)
-**Overall Coverage**: 48% (594/1148 lines missed)
-**Test Runtime**: ~27 seconds
+   - Run full test suite
+   - Check code coverage (must be ≥5%)
+   - Build the package with `uv build`
+   - Publish to PyPI with `uv publish`
+   - Upload coverage to Codecov
 
-### Coverage Breakdown by Module
+### Release Workflow Details
 
-- **Core (`__init__.py`)**: 45% coverage (262 statements, 145 missed) - CRITICAL GAP
-- **CLI (`cli.py`)**: 34% coverage - Very low, needs significant improvement
-- **Data Sources**: Mixed coverage:
-  - `eoni.py`: 100% - Excellent
-  - `wikipedia.py`: 100% - Excellent
-  - `ni_house_price_index.py`: 92% - Very good
-  - `ni_water.py`: 67% - Good but has failing doctests
-  - `companies_house.py`: 29% - Poor
-  - `metoffice.py`: 25% - Poor
-- **Utilities**: Generally poor coverage:
-  - `aws/__init__.py`: 19% (273 statements, 222 missed) - Major gap
-  - `utils/__init__.py`: 38% - Poor
-  - `web.py`: 53% - Moderate
-- **Stats**: 72% base, 16% distributions - Mixed
+**Trigger**: Git tags matching `v*.*.*` pattern
+**Platform**: GitHub Actions (`.github/workflows/publish.yml`)
+**Python Version**: 3.13 (for building)
+**Publishing**: Trusted publishing to PyPI (no token needed)
 
-### Test Quality Issues Identified
+## Code Quality Standards
 
-1. **Failing Tests**: NI Water doctests fail due to 404 errors from external API
-1. **Skipped Tests**: EONI tests skipped due to external data source issues
-1. **Stubbed Tests**: Main test file (`test_bolster.py`) contains commented-out placeholder code
-1. **Missing Test Categories**:
-   - No tests for core utilities in `__init__.py` (724 lines of complex functionality)
-   - No CLI command tests beyond basic interface verification
-   - No integration tests
-   - No performance tests for concurrency utilities
+### Linting Configuration
 
-### External Dependencies & Reliability
+**Tool**: Ruff (replaces flake8, isort, black)
+**Line length**: 120 characters
+**Selected rules**: E (pycodestyle errors), F (pyflakes), I (isort)
+**Ignored**: E501 (line too long - using 120 instead)
 
-- Tests depend heavily on external APIs and data sources
-- Some data sources have been "nuked" by providers (EONI historical data)
-- Network failures cause test failures rather than being properly mocked
+### Type Hints
 
-## Systematic Refresh Plan
+- Use type annotations for all public functions
+- Version is dynamically loaded: `importlib.metadata.version("bolster")`
+- Import types from `typing` module
 
-### Phase 1: Foundation Cleanup (Priority: Critical)
+### Docstring Style
 
-**Estimated Effort**: 1-2 days
+- Use Google or NumPy style docstrings
+- Include usage examples where helpful
+- Doctests are executed during test runs
 
-1. **Fix Broken Tests**
+### Code Organization Principles
 
-   - Mock external API calls in `ni_water.py` doctests
-   - Add proper test fixtures for data source tests
-   - Remove placeholder code from `test_bolster.py`
-   - Implement proper error handling for external API failures
+1. **Core utilities** in `__init__.py` should be broadly useful
+1. **Data sources** should be self-contained modules
+1. **Mock external APIs** in tests - don't rely on network calls
+1. **CLI commands** should have comprehensive help text
+1. **Error handling** should be robust with clear error messages
 
-1. **Core Testing Coverage**
+## Common Tasks
 
-   - Write comprehensive tests for `__init__.py` utilities (45% → 80% target)
-   - Focus on critical functions: `poolmap`, `backoff`, `memoize`, tree navigation
-   - Add tests for `MultipleErrors`, `compress_for_relay`, transform functions
-   - Test edge cases and error conditions
+### Adding a New Data Source
 
-1. **CLI Testing Enhancement**
+1. Create module in `src/bolster/data_sources/your_source.py`
+1. Implement data retrieval functions
+1. Add tests in `tests/test_your_source.py`
+1. Mock external API calls in tests
+1. Document the data source in README.md
+1. Add CLI command if appropriate
 
-   - Test all CLI commands properly (not just interface verification)
-   - Mock external dependencies for CLI tests
-   - Add integration tests for CLI workflows
+### Adding a CLI Command
 
-### Phase 2: Documentation Modernization (Priority: High)
+1. Add command to `src/bolster/cli.py` using Click decorators
+1. Add comprehensive help text
+1. Add tests in `tests/test_cli.py`
+1. Update README.md with usage examples
 
-**Estimated Effort**: 2-3 days
+### Updating Dependencies
 
-1. **README Conversion & Enhancement**
+```bash
+# Add a new dependency
+uv add package-name
 
-   - Convert `README.rst` → `README.md` for better GitHub integration
-   - Add comprehensive usage examples for each major feature
-   - Create quick-start guide with practical examples
-   - Add installation and development setup instructions
+# Add a development dependency
+uv add --dev package-name
 
-1. **API Documentation**
+# Update all dependencies
+uv lock --upgrade
 
-   - Ensure all public functions have comprehensive docstrings
-   - Add type annotations where missing
-   - Generate and review Sphinx documentation
-   - Add usage examples to docstrings beyond just doctests
+# Sync environment
+uv sync
+```
 
-1. **CLI Documentation**
+## CI/CD Workflows
 
-   - Remove placeholder messages from CLI
-   - Add comprehensive help text for all commands
-   - Document required environment variables
-   - Create CLI usage examples
+### Active Workflows
 
-### Phase 3: Code Quality & Organization (Priority: Medium)
+- **pytest.yml**: Run tests on all supported Python versions
+- **notebooks.yml**: Test Jupyter notebooks
+- **publish.yml**: Build and publish to PyPI on version tags
+- **lint.yml**: Code quality checks
+- **codeql-analysis.yml**: Security analysis
 
-**Estimated Effort**: 2-3 days
+### Workflow Triggers
 
-1. **Core Module Refactoring**
+- **Push to main**: Tests, linting, notebooks
+- **Pull requests**: Tests, linting, notebooks
+- **Tags (v\*.\*.\*)**: Full test suite + PyPI publish
 
-   - Consider splitting the 744-line `__init__.py` into logical modules:
-     - `concurrency.py`: `poolmap`, `exceptional_executor`, `backoff`
-     - `data_transform.py`: `transform_`, `aggregate`, compression utilities
-     - `tree_utils.py`: Tree/dict navigation functions
-     - `decorators.py`: `memoize`, `arg_exception_logger`
-   - Maintain backward compatibility through `__init__.py` imports
+## External Dependencies
 
-1. **Type Annotation Enhancement**
+### Data Sources
 
-   - Add comprehensive type hints throughout the package
-   - Use `typing_extensions` for advanced typing features
-   - Ensure mypy compliance
+Many data source modules depend on external APIs:
 
-1. **Code Style Consistency**
+- **NI Water**: Northern Ireland Water quality data
+- **EONI**: Electoral Office for Northern Ireland (some historical data unavailable)
+- **Met Office**: UK weather data
+- **Companies House**: UK company information
+- **NIHPI**: Northern Ireland house price index
 
-   - Run comprehensive ruff formatting across all modules
-   - Ensure consistent docstring style (Google/NumPy format)
-   - Fix any remaining linting issues
+**Important**: Always mock these in tests to avoid:
 
-### Phase 4: Robust Data Source Management (Priority: Medium)
+- Network dependency failures in CI
+- Rate limiting issues
+- Data source availability issues
 
-**Estimated Effort**: 1-2 days
+### Cloud Services
 
-1. **External Dependency Handling**
+- **AWS**: boto3 integration for S3, DynamoDB, etc.
+- **Azure**: Azure SDK integration for Blob Storage
 
-   - Implement proper caching for external API calls
-   - Add retry logic with exponential backoff for data sources
-   - Create mock data fixtures for testing
-   - Document API dependencies and rate limits
+## Documentation
 
-1. **Data Source Reliability**
+### ReadTheDocs Integration
 
-   - Add proper error handling for unavailable data sources
-   - Implement graceful degradation when external APIs fail
-   - Create offline test modes
+Documentation is built and hosted on ReadTheDocs:
 
-### Phase 5: Advanced Features & Examples (Priority: Low)
+- **URL**: https://bolster.readthedocs.io
+- **Builder**: Sphinx
+- **Theme**: sphinx-rtd-theme
+- **Source**: `docs/` directory
 
-**Estimated Effort**: 1-2 days
+### Building Documentation Locally
 
-1. **Example Gallery**
+```bash
+cd docs
+uv run make html
+# Open docs/_build/html/index.html
+```
 
-   - Create Jupyter notebooks demonstrating key features
-   - Real-world usage examples for each data source
-   - Performance comparison examples for concurrency utilities
+### Documentation Structure
 
-1. **Integration Examples**
+- **API Reference**: Auto-generated from docstrings
+- **CLI Documentation**: Generated from Click commands
+- **Examples**: Jupyter notebooks in `notebooks/`
 
-   - AWS/Azure integration examples
-   - Data pipeline examples using the utility functions
-   - Web scraping workflow examples
+## Contributing Guidelines
 
-### Success Metrics
+### Before Submitting a PR
 
-- **Coverage Target**: 70%+ overall, 80%+ for core modules
-- **Test Reliability**: All tests pass consistently (no external API dependencies in CI)
-- **Documentation**: Complete API documentation with examples
-- **CLI**: Fully functional CLI with comprehensive help
-- **Code Quality**: Pass all linting checks, comprehensive type annotations
+1. ✅ All tests pass locally
+1. ✅ Pre-commit hooks pass
+1. ✅ Code is documented (docstrings, type hints)
+1. ✅ New features have tests
+1. ✅ README updated if adding user-facing features
 
-### Risk Mitigation
+### PR Review Process
 
-- **External API Dependencies**: Mock all external calls in tests
-- **Backward Compatibility**: Maintain all existing public APIs
-- **Performance**: Ensure refactoring doesn't degrade performance of critical functions
-- **Data Source Reliability**: Have fallback strategies for failed data sources
+1. CI checks must pass
+1. Code coverage should not decrease significantly
+1. Code should follow existing patterns
+1. Documentation should be clear and complete
 
-## Agent Insights
+## Troubleshooting
 
-This package represents a mature personal utility library with substantial functionality but inconsistent polish. The core utilities are sophisticated and well-designed, particularly the concurrency and data processing functions. However, there's a significant gap between the package's capabilities and its external presentation (documentation, CLI, examples).
+### Pre-commit Hook Failures
 
-The testing analysis reveals that while some modules (EONI, Wikipedia) have excellent coverage, the most critical components (core utilities, CLI, AWS/Azure integrations) are significantly undertested. The 48% overall coverage masks critical gaps in the 744-line core module.
+```bash
+# Install/update hooks
+pre-commit install
+pre-commit autoupdate
 
-The package would benefit from a systematic approach focusing first on testing stability and coverage, followed by documentation modernization, before moving to code organization improvements.
+# Run manually
+pre-commit run --all-files
+```
+
+### Test Failures
+
+```bash
+# Run with verbose output
+uv run pytest -v
+
+# Run specific failing test
+uv run pytest tests/test_file.py::test_function -v
+
+# Skip slow tests
+uv run pytest -m "not slow"
+```
+
+### Python Version Issues
+
+```bash
+# Test with specific Python version
+uv run --python 3.9 pytest
+
+# Check available Python versions
+uv python list
+```
+
+### UV Issues
+
+```bash
+# Clear UV cache
+uv cache clean
+
+# Reinstall dependencies
+rm uv.lock
+uv sync
+```
+
+## Project Contacts
+
+- **Maintainer**: Andrew Bolster
+- **Email**: andrew.bolster@gmail.com
+- **GitHub**: https://github.com/andrewbolster/bolster
+- **Issues**: https://github.com/andrewbolster/bolster/issues
+- **PyPI**: https://pypi.org/project/bolster/
+
+## License
+
+GNU General Public License v3 (GPLv3) - See LICENSE file for details.
