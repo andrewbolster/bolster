@@ -2,6 +2,7 @@ import io
 import logging
 import zipfile
 from io import BytesIO
+from typing import Dict, Generator, Optional, Tuple
 
 import pandas as pd
 import requests
@@ -15,11 +16,11 @@ session = requests.Session()
 session.headers.update({"User-Agent": ua})
 
 
-def get_last_valid(url):
+def get_last_valid(url: str) -> str:
     return WaybackMachineCDXServerAPI(url).oldest().archive_url
 
 
-def resilient_get(url, **kwargs):
+def resilient_get(url: str, **kwargs) -> requests.Response:
     """
     Attempt a get, but if it fails, try using the wayback machine to get the last valid version and get that.
     If all else fails, raise a HTTPError from the inner "NoCDXRecordFound" exception
@@ -39,7 +40,9 @@ def resilient_get(url, **kwargs):
     return res
 
 
-def get_excel_dataframe(file_url, requests_kwargs=None, read_kwargs=None):
+def get_excel_dataframe(
+    file_url: str, requests_kwargs: Optional[Dict] = None, read_kwargs: Optional[Dict] = None
+) -> pd.DataFrame:
     if requests_kwargs is None:
         requests_kwargs = {}
     if read_kwargs is None:
@@ -52,7 +55,7 @@ def get_excel_dataframe(file_url, requests_kwargs=None, read_kwargs=None):
         return df
 
 
-def download_extract_zip(url):
+def download_extract_zip(url: str) -> Generator[Tuple[str, io.BufferedReader], None, None]:
     """
     Download a ZIP file and extract its contents in memory
     yields (filename, file-like object) pairs
