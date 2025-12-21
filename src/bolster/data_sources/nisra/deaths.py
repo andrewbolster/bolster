@@ -8,9 +8,19 @@ Provides access to weekly death registration statistics for Northern Ireland wit
 Data is based on registration date, not death occurrence date. Most deaths are registered
 within 5 days in Northern Ireland.
 
-Update Frequency: Weekly
+Data Source:
+    **Mother Page**: https://www.nisra.gov.uk/statistics/death-statistics/weekly-death-registrations-northern-ireland
+
+    This page lists all weekly death registration publications in reverse chronological order
+    (newest first). The module automatically scrapes this page to find the current year's
+    publication (e.g., "Weekly Death Registrations in Northern Ireland, 2025"), then downloads
+    the latest weekly Excel file from that publication's detail page.
+
+    The weekly files are cumulative, containing all weeks for the year to date. This ensures
+    the module always retrieves the most recent data without hardcoding week numbers or dates.
+
+Update Frequency: Weekly (published Fridays for week ending previous Friday)
 Geographic Coverage: Northern Ireland
-Source: https://www.nisra.gov.uk/statistics/death-statistics/weekly-death-registrations-northern-ireland
 
 Example:
     >>> from bolster.data_sources.nisra import deaths
@@ -52,7 +62,13 @@ DimensionType = Literal["demographics", "geography", "place", "totals", "all"]
 
 
 def get_latest_weekly_deaths_url() -> str:
-    """Scrape NISRA page to find the latest weekly deaths file.
+    """Scrape NISRA mother page to find the latest weekly deaths file.
+
+    Navigates the publication structure:
+    1. Scrapes mother page for current year publication
+    2. Follows link to publication detail page
+    3. Finds latest weekly Excel file
+    4. Extracts and validates week ending date
 
     Returns:
         URL of the latest weekly deaths Excel file
@@ -60,31 +76,113 @@ def get_latest_weekly_deaths_url() -> str:
     Raises:
         NISRADataNotFoundError: If no file found
     """
-    current_year = datetime.now().year
-    page_url = WEEKLY_DEATHS_LANDING_PAGE.format(year=current_year)
+    import re
+
+    import requests
+    from bs4 import BeautifulSoup
+
+    # Start at the mother page
+    mother_page = WEEKLY_DEATHS_BASE_URL
 
     try:
-        links = scrape_download_links(page_url, file_extension=".xlsx")
-    except Exception:
-        # Try the main landing page if current year page doesn't exist
-        links = scrape_download_links(WEEKLY_DEATHS_BASE_URL, file_extension=".xlsx")
+        response = requests.get(mother_page, timeout=30)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.content, "html.parser")
 
-    if not links:
-        raise NISRADataNotFoundError("No weekly deaths Excel files found on NISRA website")
+        # Find the current year's publication
+        # Looking for "Weekly Death Registrations in Northern Ireland, {year}"
+        current_year = datetime.now().year
+        pub_pattern = f"Weekly Death Registrations in Northern Ireland, {current_year}"
 
-    # Filter for weekly deaths files (exclude historical series, etc.)
-    weekly_files = [
-        link for link in links if "weekly_deaths" in link["url"].lower() and "historical" not in link["url"].lower()
-    ]
+        pub_link = None
+        for link in soup.find_all("a", href=True):
+            link_text = link.get_text(strip=True)
+            if pub_pattern in link_text:
+                href = link["href"]
+                if href.startswith("/"):
+                    href = f"https://www.nisra.gov.uk{href}"
+                pub_link = href
+                logger.info(f"Found {current_year} deaths publication: {link_text}")
+                break
 
-    if not weekly_files:
-        # Fall back to any xlsx link if no explicit weekly files found
-        weekly_files = links
+        if not pub_link:
+            # Fall back to trying the year-specific landing page directly
+            pub_link = WEEKLY_DEATHS_LANDING_PAGE.format(year=current_year)
+            logger.info(f"Mother page scrape failed, trying direct URL: {pub_link}")
 
-    # Return the first one (usually the most recent)
-    latest = weekly_files[0]
-    logger.info(f"Found latest weekly deaths file: {latest['text']}")
-    return latest["url"]
+        # Now scrape the publication page for Excel files
+        pub_response = requests.get(pub_link, timeout=30)
+        pub_response.raise_for_status()
+        pub_soup = BeautifulSoup(pub_response.content, "html.parser")
+
+        # Find Excel file links
+        excel_links = []
+        for link in pub_soup.find_all("a", href=True):
+            href = link["href"]
+            if href.endswith(".xlsx") and "weekly" in href.lower() and "historical" not in href.lower():
+                if href.startswith("/"):
+                    href = f"https://www.nisra.gov.uk{href}"
+                excel_links.append({"url": href, "text": link.get_text(strip=True)})
+
+        if not excel_links:
+            raise NISRADataNotFoundError(f"No weekly deaths Excel files found on publication page: {pub_link}")
+
+        # If multiple files, try to find the most recent by parsing dates from filenames
+        if len(excel_links) > 1:
+            files_with_dates = []
+            for link in excel_links:
+                filename = link["url"].split("/")[-1]
+                # Try to extract "w e DD Month YYYY" or "week ending DD Month YYYY"
+                match = re.search(
+                    r"w[_\s.]*e[_\s.]*(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)\s+(\d{4})", filename, re.IGNORECASE
+                )
+                if match:
+                    try:
+                        day = int(match.group(1))
+                        month_str = match.group(2)
+                        year = int(match.group(3))
+                        date_str = f"{day} {month_str} {year}"
+                        date = datetime.strptime(date_str, "%d %B %Y")
+                        files_with_dates.append({"url": link["url"], "date": date, "text": link["text"]})
+                    except ValueError:
+                        continue
+
+            if files_with_dates:
+                # Sort by date descending (most recent first)
+                files_with_dates.sort(key=lambda x: x["date"], reverse=True)
+                latest = files_with_dates[0]
+                logger.info(f"Found latest weekly deaths file: week ending {latest['date'].date()}")
+                return latest["url"]
+
+        # Fallback: Return first Excel link
+        latest = excel_links[0]
+        logger.info(f"Found weekly deaths file: {latest['text']}")
+        return latest["url"]
+
+    except requests.RequestException as e:
+        # Final fallback: Try the old method using scrape_download_links
+        logger.warning(f"Mother page scraping failed ({e}), falling back to simple scraping")
+        current_year = datetime.now().year
+        page_url = WEEKLY_DEATHS_LANDING_PAGE.format(year=current_year)
+
+        try:
+            links = scrape_download_links(page_url, file_extension=".xlsx")
+        except Exception:
+            links = scrape_download_links(WEEKLY_DEATHS_BASE_URL, file_extension=".xlsx")
+
+        if not links:
+            raise NISRADataNotFoundError("No weekly deaths Excel files found on NISRA website")
+
+        weekly_files = [
+            link for link in links if "weekly_deaths" in link["url"].lower() and "historical" not in link["url"].lower()
+        ]
+
+        if not weekly_files:
+            weekly_files = links
+
+        latest = weekly_files[0]
+        logger.info(f"Found latest weekly deaths file: {latest['text']}")
+        return latest["url"]
 
 
 def parse_deaths_totals(file_path: Union[str, Path]) -> pd.DataFrame:
