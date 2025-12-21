@@ -5,6 +5,7 @@ Random helpful functions that don't fit anywhere else:
 - timed: decorator to time function execution
 - TqdmLoggingHandler: logging that plays nice with tqdm progress bars
 - web: resilient web scraping helpers
+- rss: RSS/Atom feed parsing utilities
 - dt: datetime utilities
 - io: file/data helpers
 - aws/azure: cloud platform helpers

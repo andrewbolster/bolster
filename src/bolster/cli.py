@@ -6,6 +6,9 @@ from datetime import date
 
 import click
 import pandas as pd
+from rich.console import Console
+from rich.panel import Panel
+from rich.text import Text
 
 from . import __version__
 from .data_sources.cineworld import get_cinema_listings
@@ -14,7 +17,9 @@ from .data_sources.eoni import get_results as get_ni_election_results
 from .data_sources.metoffice import get_uk_precipitation
 from .data_sources.ni_house_price_index import build as get_ni_house_prices
 from .data_sources.ni_water import get_postcode_to_water_supply_zone, get_water_quality_by_zone
+from .data_sources.nisra import deaths as nisra_deaths
 from .data_sources.wikipedia import get_ni_executive_basic_table
+from .utils.rss import filter_entries, get_nisra_statistics_feed, parse_rss_feed
 
 
 @click.group()
@@ -34,6 +39,7 @@ def cli(verbose, args=None):
     🏛️  Government & Politics:
         ni-executive         NI Executive historical data
         ni-elections         NI Assembly election results (2016-2022)
+        nisra                NISRA statistics (deaths, labour market, crime)
 
     \b
     🏢 Business & Property:
@@ -46,17 +52,20 @@ def cli(verbose, args=None):
 
     \b
     🛠️  Utilities:
+        rss                  RSS/Atom feed reader with NISRA integration
         list-sources         Show all available data sources
         --version           Show version information
         --help              Show this help message
 
     \b
     📋 QUICK EXAMPLES
-        bolster water-quality BT1 5GS       # Water quality for postcode
-        bolster ni-executive                 # NI Executive history
-        bolster companies-house farset       # Companies at Farset Labs
-        bolster list-sources                 # Show all data sources
-        bolster --version                    # Show version information
+        bolster water-quality BT1 5GS         # Water quality for postcode
+        bolster nisra deaths --latest         # Latest NISRA deaths statistics
+        bolster rss nisra-statistics          # Browse NISRA publications
+        bolster ni-executive                  # NI Executive history
+        bolster companies-house farset        # Companies at Farset Labs
+        bolster list-sources                  # Show all data sources
+        bolster --version                     # Show version information
 
     \b
     💡 TIP: Use 'bolster <command> --help' for detailed command options
@@ -649,6 +658,463 @@ def ni_elections(election_year, output_format, save):
         click.echo(f"Error retrieving election data: {e}")
 
 
+@cli.group()
+def rss():
+    """
+    RSS/Atom feed reading commands.
+
+    Tools for reading and parsing RSS/Atom feeds with beautiful terminal formatting.
+    Includes generic feed reader and specialized commands for NISRA statistics.
+    """
+    pass
+
+
+@rss.command(name="read")
+@click.argument("feed_url")
+@click.option("--limit", "-l", default=20, help="Maximum number of entries to display")
+@click.option("--title-filter", "-t", help="Filter entries by title (case-insensitive)")
+@click.option("--after-date", "-a", help="Show entries published after this date (YYYY-MM-DD)")
+@click.option("--before-date", "-b", help="Show entries published before this date (YYYY-MM-DD)")
+@click.option("--format", "-f", type=click.Choice(["rich", "json", "csv"]), default="rich", help="Output format")
+def rss_read(feed_url, limit, title_filter, after_date, before_date, format):
+    """
+    Read and display RSS/Atom feeds with beautiful formatting.
+
+    Fetches and parses RSS or Atom feeds from any URL, displaying entries
+    with rich formatting in the terminal. Supports filtering by title and date range.
+
+    \b
+    EXAMPLES:
+        # Display NISRA statistics feed
+        bolster rss-feed "https://www.gov.uk/search/research-and-statistics.atom"
+
+        # Filter by title keyword
+        bolster rss-feed URL --title-filter "health"
+
+        # Limit to recent entries
+        bolster rss-feed URL --limit 10 --after-date 2024-01-01
+
+    \b
+    ARGUMENTS:
+        feed_url    URL of the RSS or Atom feed to read
+
+    \b
+    OUTPUT FORMATS:
+        rich  - Beautiful terminal output with colors and formatting (default)
+        json  - Machine-readable JSON output
+        csv   - Comma-separated values for spreadsheet import
+    """
+    console = Console()
+
+    try:
+        with console.status(f"[bold green]Fetching feed from {feed_url}..."):
+            feed = parse_rss_feed(feed_url)
+
+        # Apply filters
+        entries = feed.entries
+        if title_filter or after_date or before_date:
+            entries = filter_entries(
+                entries,
+                title_contains=title_filter,
+                after_date=after_date,
+                before_date=before_date,
+            )
+
+        # Limit entries
+        if limit and limit > 0:
+            entries = entries[:limit]
+
+        if format == "rich":
+            # Display feed header
+            console.print(
+                Panel(
+                    f"[bold cyan]{feed.title}[/bold cyan]\n"
+                    f"[dim]{feed.description or 'No description'}[/dim]\n"
+                    f"[yellow]Showing {len(entries)} of {len(feed.entries)} entries[/yellow]",
+                    title="📰 Feed Information",
+                    border_style="cyan",
+                )
+            )
+
+            # Display entries
+            for idx, entry in enumerate(entries, 1):
+                # Create entry panel
+                date_str = entry.published.strftime("%Y-%m-%d %H:%M") if entry.published else "No date"
+
+                # Build content
+                content_lines = [f"[bold]{entry.title}[/bold]"]
+                content_lines.append(f"[dim]{date_str}[/dim]")
+
+                if entry.author:
+                    content_lines.append(f"[green]Author:[/green] {entry.author}")
+
+                if entry.categories:
+                    categories_str = ", ".join(entry.categories[:5])
+                    content_lines.append(f"[blue]Categories:[/blue] {categories_str}")
+
+                if entry.summary:
+                    # Truncate long summaries
+                    summary = entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary
+                    content_lines.append(f"\n{summary}")
+
+                content_lines.append(f"\n[cyan]🔗 {entry.link}[/cyan]")
+
+                console.print(
+                    Panel(
+                        "\n".join(content_lines),
+                        title=f"Entry {idx}/{len(entries)}",
+                        border_style="green" if idx % 2 == 0 else "yellow",
+                    )
+                )
+
+        elif format == "json":
+            import json
+
+            output = {
+                "feed": {
+                    "title": feed.title,
+                    "link": feed.link,
+                    "description": feed.description,
+                    "entry_count": len(entries),
+                },
+                "entries": [entry.to_dict() for entry in entries],
+            }
+            click.echo(json.dumps(output, indent=2, default=str))
+
+        elif format == "csv":
+            df = pd.DataFrame(
+                [
+                    {
+                        "title": entry.title,
+                        "link": entry.link,
+                        "published": entry.published.isoformat() if entry.published else None,
+                        "author": entry.author,
+                        "summary": entry.summary[:100] if entry.summary else None,
+                    }
+                    for entry in entries
+                ]
+            )
+            click.echo(df.to_csv(index=False))
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        raise click.Abort()
+
+
+@rss.command(name="nisra-statistics")
+@click.option("--limit", "-l", default=20, help="Maximum number of entries to display")
+@click.option("--title-filter", "-t", help="Filter entries by title (case-insensitive)")
+@click.option("--after-date", "-a", help="Show entries published after this date (YYYY-MM-DD)")
+@click.option(
+    "--order", "-o", type=click.Choice(["recent", "oldest"]), default="recent", help="Sort order by release date"
+)
+@click.option("--format", "-f", type=click.Choice(["rich", "json", "csv"]), default="rich", help="Output format")
+def rss_nisra_statistics(limit, title_filter, after_date, order, format):
+    """
+    Browse NISRA (Northern Ireland Statistics and Research Agency) publications.
+
+    Fetches and displays recent research and statistics publications from NISRA
+    via the GOV.UK website. Includes reports on demographics, health, economy,
+    labour market, crime, and lifestyle surveys.
+
+    \b
+    EXAMPLES:
+        # Show recent NISRA publications
+        bolster nisra-statistics
+
+        # Find health-related statistics
+        bolster nisra-statistics --title-filter "health"
+
+        # Get oldest publications first
+        bolster nisra-statistics --order oldest --limit 10
+
+        # Export to CSV
+        bolster nisra-statistics --format csv > nisra.csv
+
+    \b
+    PUBLICATION TYPES:
+        • Labour Market Statistics
+        • Population & Demographics
+        • Health & Social Care
+        • Crime & Justice Statistics
+        • Economic Statistics
+        • Lifestyle & Wellbeing Surveys
+
+    \b
+    OUTPUT FORMATS:
+        rich  - Beautiful terminal output with colors (default)
+        json  - Machine-readable JSON format
+        csv   - Spreadsheet-compatible CSV format
+    """
+    console = Console()
+
+    try:
+        with console.status("[bold green]Fetching NISRA statistics feed from GOV.UK..."):
+            feed = get_nisra_statistics_feed(order=order)
+
+        # Apply filters
+        entries = feed.entries
+        if title_filter or after_date:
+            entries = filter_entries(
+                entries,
+                title_contains=title_filter,
+                after_date=after_date,
+            )
+
+        # Limit entries
+        if limit and limit > 0:
+            entries = entries[:limit]
+
+        if format == "rich":
+            # Display header
+            console.print(
+                Panel(
+                    f"[bold cyan]NISRA Research & Statistics[/bold cyan]\n"
+                    f"[dim]Northern Ireland Statistics and Research Agency[/dim]\n"
+                    f"[yellow]Showing {len(entries)} publications[/yellow]",
+                    title="📊 NISRA Publications",
+                    border_style="cyan",
+                )
+            )
+
+            # Group entries by month if we have dates
+            from collections import defaultdict
+
+            by_month = defaultdict(list)
+
+            for entry in entries:
+                if entry.published:
+                    month_key = entry.published.strftime("%Y-%m")
+                    by_month[month_key].append(entry)
+                else:
+                    by_month["unknown"].append(entry)
+
+            # Display by month
+            for month_key in sorted(by_month.keys(), reverse=(order == "recent")):
+                month_entries = by_month[month_key]
+
+                if month_key != "unknown":
+                    console.print(f"\n[bold magenta]📅 {month_key}[/bold magenta]")
+
+                for entry in month_entries:
+                    date_str = entry.published.strftime("%Y-%m-%d") if entry.published else "No date"
+
+                    # Create compact entry display
+                    text = Text()
+                    text.append("  • ", style="dim")
+                    text.append(entry.title, style="bold")
+                    text.append(f" [{date_str}]", style="dim cyan")
+
+                    console.print(text)
+
+                    if entry.summary:
+                        summary = entry.summary[:150] + "..." if len(entry.summary) > 150 else entry.summary
+                        console.print(f"    [dim]{summary}[/dim]")
+
+                    console.print(f"    [cyan]🔗 {entry.link}[/cyan]")
+                    console.print()
+
+        elif format == "json":
+            import json
+
+            output = {
+                "feed": {
+                    "title": "NISRA Research & Statistics",
+                    "organization": "Northern Ireland Statistics and Research Agency",
+                    "source": "GOV.UK",
+                    "entry_count": len(entries),
+                },
+                "entries": [entry.to_dict() for entry in entries],
+            }
+            click.echo(json.dumps(output, indent=2, default=str))
+
+        elif format == "csv":
+            df = pd.DataFrame(
+                [
+                    {
+                        "title": entry.title,
+                        "link": entry.link,
+                        "published": entry.published.isoformat() if entry.published else None,
+                        "summary": entry.summary[:200] if entry.summary else None,
+                    }
+                    for entry in entries
+                ]
+            )
+            click.echo(df.to_csv(index=False))
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        raise click.Abort()
+
+
+@cli.group()
+def nisra():
+    """
+    NISRA (Northern Ireland Statistics and Research Agency) data sources.
+
+    Access official statistics and research publications from NISRA including:
+    - Weekly death registrations with demographic breakdowns
+    - Labour market statistics (coming soon)
+    - Crime statistics (coming soon)
+    - Economic indicators (coming soon)
+
+    All data is sourced directly from NISRA publications and cached locally
+    for performance. Use --force-refresh to bypass cache and download fresh data.
+    """
+    pass
+
+
+@nisra.command(name="deaths")
+@click.option("--latest", is_flag=True, help="Get the most recent deaths data available")
+@click.option(
+    "--dimension",
+    type=click.Choice(["totals", "demographics", "geography", "place", "all"], case_sensitive=False),
+    default="all",
+    help="Which dimension to retrieve (default: all)",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_deaths_cmd(latest, dimension, output_format, force_refresh, save):
+    """
+    NISRA Weekly Deaths Statistics
+
+    Retrieves weekly death registrations in Northern Ireland with breakdowns by:
+    - Totals (COVID-19 deaths, flu/pneumonia deaths, excess deaths)
+    - Demographics (age, sex)
+    - Geography (Local Government Districts)
+    - Place of death (hospital, home, care home, etc.)
+
+    \b
+    EXAMPLES:
+        # Get COVID-19 and flu/pneumonia deaths
+        bolster nisra deaths --latest --dimension totals
+
+        # Get latest demographics breakdown as CSV
+        bolster nisra deaths --latest --dimension demographics
+
+        # Get all dimensions as JSON
+        bolster nisra deaths --latest --dimension all --format json
+
+        # Save totals data to analyze COVID trends
+        bolster nisra deaths --latest --dimension totals --save deaths_totals.csv
+
+        # Force refresh cached data
+        bolster nisra deaths --latest --force-refresh
+
+    \b
+    DATA NOTES:
+        - Based on registration date, not death occurrence date
+        - Most deaths registered within 5 days in Northern Ireland
+        - Weekly files are provisional and subject to revision
+        - Dimensions are NOT cross-tabulated in source data
+        - COVID-19/flu deaths are NOT broken down by age/sex in source
+        - Excess deaths calculated using multiple methodologies
+
+    \b
+    DIMENSIONS:
+        totals       - Weekly totals with COVID-19, flu/pneumonia, excess deaths
+        demographics - Age and sex breakdown (Total/Male/Female × age ranges)
+        geography    - Local Government Districts (11 LGDs)
+        place        - Place of death (Hospital, Home, Care Home, Hospice, Other)
+        all          - All dimensions (returns separate tables)
+
+    \b
+    SOURCE:
+        https://www.nisra.gov.uk/statistics/death-statistics/weekly-death-registrations-northern-ireland
+    """
+    console = Console()
+
+    if not latest:
+        console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
+        console.print("[dim]Future versions will support specific dates/weeks[/dim]")
+        return
+
+    try:
+        with console.status("[bold green]Downloading latest NISRA deaths data..."):
+            data = nisra_deaths.get_latest_deaths(dimension=dimension, force_refresh=force_refresh)
+
+        # Handle the result based on whether it's a single DataFrame or dict of DataFrames
+        if dimension == "all":
+            console.print("[green]✅ Retrieved all dimensions successfully[/green]")
+            total_records = sum(len(df) for df in data.values())
+            console.print(f"[cyan]📊 Total records: {total_records}[/cyan]")
+
+            for dim_name, df in data.items():
+                console.print(f"   • {dim_name}: {len(df)} records")
+                if not df.empty:
+                    week_range = f"{df['week_ending'].min().date()} to {df['week_ending'].max().date()}"
+                    console.print(f"     [dim]Weeks: {week_range}[/dim]")
+        else:
+            console.print(f"[green]✅ Retrieved {dimension} dimension successfully[/green]")
+            console.print(f"[cyan]📊 Total records: {len(data)}[/cyan]")
+            if not data.empty:
+                week_range = f"{data['week_ending'].min().date()} to {data['week_ending'].max().date()}"
+                console.print(f"[dim]Weeks: {week_range}[/dim]")
+
+        # Handle file saving
+        if save:
+            try:
+                if dimension == "all":
+                    # Save each dimension to a separate file
+                    for dim_name, df in data.items():
+                        filename = (
+                            f"{save.rsplit('.', 1)[0]}_{dim_name}.{save.rsplit('.', 1)[-1] if '.' in save else 'csv'}"
+                        )
+                        if output_format == "json" or filename.endswith(".json"):
+                            df.to_json(filename, orient="records", date_format="iso", indent=2)
+                        else:
+                            df.to_csv(filename, index=False)
+                        console.print(f"[green]💾 Saved {dim_name} to: {filename}[/green]")
+                else:
+                    # Save single dimension
+                    if output_format == "json" or save.endswith(".json"):
+                        data.to_json(save, orient="records", date_format="iso", indent=2)
+                    else:
+                        data.to_csv(save, index=False)
+                    console.print(f"[green]💾 Data saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]❌ Error: Permission denied writing to {save}[/red]")
+                console.print("[yellow]💡 Check file permissions or choose a different location[/yellow]")
+                return
+            except Exception as e:
+                console.print(f"[red]❌ Error saving file: {e}[/red]")
+                return
+
+        # Output to console in requested format
+        if output_format == "json":
+            import json
+
+            if dimension == "all":
+                # Convert DataFrames to JSON-serializable format
+                output = {dim_name: df.to_dict(orient="records") for dim_name, df in data.items()}
+                click.echo(json.dumps(output, indent=2, default=str))
+            else:
+                click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:  # csv format
+            if dimension == "all":
+                console.print("\n[yellow]💡 Tip: For 'all' dimensions, use --save to export to files[/yellow]")
+                console.print("[yellow]   Displaying demographics dimension only:[/yellow]\n")
+                click.echo(data["demographics"].to_csv(index=False))
+            else:
+                click.echo(data.to_csv(index=False))
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
+        console.print("   • Visit NISRA website to verify data availability")
+        raise click.Abort()
+
+
 @cli.command()
 def list_sources():
     """
@@ -673,6 +1139,8 @@ def list_sources():
     click.echo("                       Establishment dates, duration, interregnum periods")
     click.echo("  ni-elections         NI Assembly election results (2016-2022)")
     click.echo("                       Candidates, parties, constituencies, vote counts")
+    click.echo("  nisra deaths         NISRA weekly death registrations")
+    click.echo("                       Demographics (age/sex), geography (LGDs), place of death")
 
     click.echo("\n🏢 BUSINESS & PROPERTY")
     click.echo("  companies-house      UK Companies House company data queries")
@@ -684,23 +1152,33 @@ def list_sources():
     click.echo("  cinema-listings      Cineworld movie listings and showtimes")
     click.echo("                       Default: Belfast (site 117), supports other locations")
 
+    click.echo("\n📰 RSS & FEEDS")
+    click.echo("  rss read             Generic RSS/Atom feed reader with filtering")
+    click.echo("                       Beautiful terminal output, JSON/CSV export")
+    click.echo("  rss nisra-statistics Browse NISRA publications feed")
+    click.echo("                       Research and statistics from NISRA via GOV.UK")
+
     click.echo("\n🔧 DATA SOURCE MODULES")
     click.echo("  bolster.data_sources.metoffice         - UK Met Office API integration")
     click.echo("  bolster.data_sources.ni_water          - NI Water quality data")
+    click.echo("  bolster.data_sources.nisra.deaths      - NISRA weekly deaths statistics")
     click.echo("  bolster.data_sources.wikipedia         - NI Executive Wikipedia scraping")
     click.echo("  bolster.data_sources.ni_house_price_index - NI house price statistics")
     click.echo("  bolster.data_sources.cineworld         - Cineworld cinema API")
     click.echo("  bolster.data_sources.eoni              - Electoral Office NI data")
     click.echo("  bolster.data_sources.companies_house   - UK Companies House API")
+    click.echo("  bolster.utils.rss                      - RSS/Atom feed parsing utilities")
 
     click.echo("\n💡 USAGE EXAMPLES")
-    click.echo("  bolster water-quality BT1 5GS          # Water quality by postcode")
-    click.echo("  bolster ni-executive --format json     # Executive data as JSON")
-    click.echo("  bolster companies-house farset          # Search for Farset companies")
+    click.echo("  bolster water-quality BT1 5GS              # Water quality by postcode")
+    click.echo("  bolster nisra deaths --latest              # Latest NISRA deaths data")
+    click.echo("  bolster rss nisra-statistics               # Browse NISRA publications")
+    click.echo("  bolster ni-executive --format json         # Executive data as JSON")
+    click.echo("  bolster companies-house farset             # Search for Farset companies")
     click.echo("  bolster ni-elections --election-year 2022  # 2022 election results")
     click.echo("  bolster cinema-listings --date 2024-03-20  # Movie listings for date")
-    click.echo("  bolster --help                          # General help")
-    click.echo("  bolster <command> --help               # Command-specific help")
+    click.echo("  bolster --help                             # General help")
+    click.echo("  bolster <command> --help                   # Command-specific help")
 
     click.echo(f"\nBolster v{__version__} - Northern Ireland & UK Data Sources")
 
