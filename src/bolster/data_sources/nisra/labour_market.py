@@ -10,8 +10,20 @@ of employment, unemployment, and economic inactivity.
 Data is published quarterly covering 3-month rolling periods (e.g., "July to September 2025").
 Some tables (particularly Local Government District breakdowns) are published annually only.
 
+Data Source:
+    **Mother Page**: https://www.nisra.gov.uk/statistics/labour-market-and-social-welfare
+
+    This page lists all Labour Market and Social Welfare publications in reverse chronological
+    order (newest first). The module automatically scrapes this page to find the latest
+    "Quarterly Labour Force Survey Tables" publication, then downloads the Excel file from
+    that publication's detail page.
+
+    This ensures the module always retrieves the most recent data without hardcoding dates
+    or quarters.
+
 Architecture:
-    - Downloads quarterly Labour Force Survey Excel files from NISRA website
+    - Automatically discovers latest quarterly LFS publication from NISRA mother page
+    - Downloads quarterly Labour Force Survey Excel files
     - Parses multiple tables including:
         * Employment by age band and sex (Table 2.15)
         * Employment by industry sector (Table 2.17)
@@ -451,10 +463,153 @@ def parse_economic_inactivity(file_path: Union[str, Path]) -> pd.DataFrame:
     return result
 
 
+def get_latest_lfs_publication_url() -> tuple[str, str, str]:
+    """Find the latest Labour Force Survey quarterly tables publication.
+
+    Scrapes the NISRA Labour Market statistics mother page to find the most recent
+    "Quarterly Labour Force Survey Tables" publication.
+
+    Returns:
+        Tuple of (excel_file_url, year, quarter)
+        - excel_file_url: Full URL to the Excel file
+        - year: Data year as string (e.g., "2025")
+        - quarter: Quarter string (e.g., "Jul-Sep")
+
+    Raises:
+        NISRADataNotFoundError: If no publication found
+
+    Example:
+        >>> url, year, quarter = get_latest_lfs_publication_url()
+        >>> print(f"Latest data: {quarter} {year}")
+    """
+    import requests
+    from bs4 import BeautifulSoup
+
+    # Mother page listing all labour market publications
+    mother_page = "https://www.nisra.gov.uk/statistics/labour-market-and-social-welfare"
+
+    try:
+        response = requests.get(mother_page, timeout=30)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.content, "html.parser")
+
+        # Find all links with "Quarterly Labour Force Survey Tables" in text
+        lfs_links = []
+        for link in soup.find_all("a", href=True):
+            link_text = link.get_text(strip=True)
+            if "Quarterly Labour Force Survey Tables" in link_text:
+                href = link["href"]
+                # Make absolute URL if needed
+                if href.startswith("/"):
+                    href = f"https://www.nisra.gov.uk{href}"
+                lfs_links.append({"text": link_text, "url": href})
+
+        if not lfs_links:
+            raise NISRADataNotFoundError("No Quarterly Labour Force Survey Tables publications found")
+
+        # First link should be the latest (page shows newest first)
+        latest_pub = lfs_links[0]
+        logger.info(f"Found latest LFS publication: {latest_pub['text']}")
+
+        # Now fetch the publication page to get the Excel file
+        pub_response = requests.get(latest_pub["url"], timeout=30)
+        pub_response.raise_for_status()
+        pub_soup = BeautifulSoup(pub_response.content, "html.parser")
+
+        # Find Excel file link for quarterly tables
+        excel_url = None
+        for link in pub_soup.find_all("a", href=True):
+            href = link["href"]
+            if "lmr-labour-force-survey-quarterly-tables" in href.lower() and href.endswith(".xlsx"):
+                if href.startswith("/"):
+                    excel_url = f"https://www.nisra.gov.uk{href}"
+                else:
+                    excel_url = href
+                break
+
+        if not excel_url:
+            raise NISRADataNotFoundError(f"No Excel file found on publication page: {latest_pub['url']}")
+
+        # Extract quarter and year from filename or page content
+        # Filename pattern: lmr-labour-force-survey-quarterly-tables-July-September-25.xlsx
+        filename = excel_url.split("/")[-1]
+        match = re.search(
+            r"(January|February|March|April|May|June|July|August|September|October|November|December)-"
+            r"(January|February|March|April|May|June|July|August|September|October|November|December)-"
+            r"(\d{2})",
+            filename,
+        )
+
+        if match:
+            first_month = match.group(1)
+            third_month = match.group(2)
+            year_short = match.group(3)
+            year = f"20{year_short}"
+
+            # Map months to quarter format
+            month_to_abbrev = {
+                "January": "Jan",
+                "February": "Feb",
+                "March": "Mar",
+                "April": "Apr",
+                "May": "May",
+                "June": "Jun",
+                "July": "Jul",
+                "August": "Aug",
+                "September": "Sep",
+                "October": "Oct",
+                "November": "Nov",
+                "December": "Dec",
+            }
+
+            quarter = f"{month_to_abbrev[first_month]}-{month_to_abbrev[third_month]}"
+            logger.info(f"Extracted quarter: {quarter} {year}")
+            return (excel_url, year, quarter)
+
+        # Fallback: Try to extract from page content
+        page_text = pub_soup.get_text()
+        match = re.search(
+            r"(January|February|March|April|May|June|July|August|September|October|November|December)\s+to\s+"
+            r"(January|February|March|April|May|June|July|August|September|October|November|December)\s+"
+            r"(\d{4})",
+            page_text,
+        )
+
+        if match:
+            first_month = match.group(1)
+            third_month = match.group(2)
+            year = match.group(3)
+
+            month_to_abbrev = {
+                "January": "Jan",
+                "February": "Feb",
+                "March": "Mar",
+                "April": "Apr",
+                "May": "May",
+                "June": "Jun",
+                "July": "Jul",
+                "August": "Aug",
+                "September": "Sep",
+                "October": "Oct",
+                "November": "Nov",
+                "December": "Dec",
+            }
+
+            quarter = f"{month_to_abbrev[first_month]}-{month_to_abbrev[third_month]}"
+            logger.info(f"Extracted quarter from page content: {quarter} {year}")
+            return (excel_url, year, quarter)
+
+        raise NISRADataNotFoundError("Could not extract quarter and year from publication")
+
+    except requests.RequestException as e:
+        raise NISRADataNotFoundError(f"Failed to fetch LFS publication list: {e}")
+
+
 def get_latest_employment(force_refresh: bool = False) -> pd.DataFrame:
     """Get the latest quarterly employment data by age and sex.
 
-    Downloads and parses the most recent quarterly LFS publication.
+    Automatically discovers and downloads the most recent quarterly LFS publication
+    from the NISRA website.
 
     Args:
         force_refresh: If True, always download fresh data ignoring cache
@@ -468,20 +623,24 @@ def get_latest_employment(force_refresh: bool = False) -> pd.DataFrame:
         >>> young_adults = df[df['age_group'] == '25 to 29']
         >>> print(young_adults)
     """
-    # Determine latest quarter
-    # Current date determines which quarter to fetch
-    # For now, hardcode to latest available (Nov 2025 = Jul-Sep 2025 data)
-    year = 2025
-    quarter = "Jul-Sep"
+    # Discover latest publication from NISRA website
+    excel_url, year, quarter = get_latest_lfs_publication_url()
 
-    file_path = download_quarterly_lfs(year, quarter, force_refresh=force_refresh)
+    # Download directly using the discovered URL
+    logger.info(f"Downloading latest LFS data: {quarter} {year}")
+
+    # Use download_file directly with the discovered URL
+    cache_ttl_hours = 90 * 24  # 90 days for quarterly data
+    file_path = download_file(excel_url, cache_ttl_hours=cache_ttl_hours, force_refresh=force_refresh)
+
     return parse_employment_by_age_sex(file_path)
 
 
 def get_latest_economic_inactivity(force_refresh: bool = False) -> pd.DataFrame:
     """Get the latest quarterly economic inactivity data.
 
-    Downloads and parses the most recent quarterly LFS publication.
+    Automatically discovers and downloads the most recent quarterly LFS publication
+    from the NISRA website.
 
     Args:
         force_refresh: If True, always download fresh data ignoring cache
@@ -493,11 +652,16 @@ def get_latest_economic_inactivity(force_refresh: bool = False) -> pd.DataFrame:
         >>> df = get_latest_economic_inactivity()
         >>> print(df)
     """
-    # Determine latest quarter
-    year = 2025
-    quarter = "Jul-Sep"
+    # Discover latest publication from NISRA website
+    excel_url, year, quarter = get_latest_lfs_publication_url()
 
-    file_path = download_quarterly_lfs(year, quarter, force_refresh=force_refresh)
+    # Download directly using the discovered URL
+    logger.info(f"Downloading latest LFS data: {quarter} {year}")
+
+    # Use download_file directly with the discovered URL
+    cache_ttl_hours = 90 * 24  # 90 days for quarterly data
+    file_path = download_file(excel_url, cache_ttl_hours=cache_ttl_hours, force_refresh=force_refresh)
+
     return parse_economic_inactivity(file_path)
 
 
