@@ -4,7 +4,26 @@ This module provides programmatic access to Northern Ireland Statistics and Rese
 
 ## Available Data Sources
 
-### 1. Weekly Death Registrations (`deaths.py`)
+### 1. Monthly Birth Registrations (`births.py`)
+
+- **Update Frequency**: Monthly (published 12th of following month at 9:30 AM)
+- **Mother Page**: https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/births
+- **Data Dimensions**:
+  - Event type (Registration vs Occurrence)
+  - Sex (Persons, Male, Female)
+  - Monthly time series (2006-present)
+- **Key Functions**:
+  - `get_latest_births()` - Automatically fetches most recent monthly data
+  - `parse_births_file()` - Parse specific Excel file
+  - `validate_births_totals()` - Verify Male + Female = Persons
+- **Data Format**: Monthly time series files with complete history
+- **Notes**:
+  - Registration: When births were officially registered
+  - Occurrence: When births actually occurred
+  - Most births registered within 42 days
+  - COVID-19 anomaly: April-May 2020 registration data disrupted by lockdown (offices closed), but occurrence data remains normal
+
+### 2. Weekly Death Registrations (`deaths.py`)
 
 - **Update Frequency**: Weekly (published Fridays)
 - **Mother Page**: https://www.nisra.gov.uk/statistics/death-statistics/weekly-death-registrations-northern-ireland
@@ -18,7 +37,7 @@ This module provides programmatic access to Northern Ireland Statistics and Rese
   - `parse_deaths_file()` - Parse specific Excel file
 - **Data Format**: Cumulative weekly files (year-to-date)
 
-### 2. Labour Force Survey (`labour_market.py`)
+### 3. Labour Force Survey (`labour_market.py`)
 
 - **Update Frequency**: Quarterly (published ~2 months after quarter end)
 - **Mother Page**: https://www.nisra.gov.uk/statistics/labour-market-and-social-welfare
@@ -182,6 +201,7 @@ class TestDeathsDataIntegrity:
 
 #### Test Coverage
 
+- **Births Statistics**: 15 integrity tests, 85% code coverage
 - **Deaths Statistics**: 15 integrity tests, 87% code coverage
 - **Labour Market Statistics**: 21 integrity tests, 86% code coverage
 
@@ -282,7 +302,12 @@ logging.basicConfig(level=logging.WARNING)  # Quiet mode
 ### Quick Start
 
 ```python
-from bolster.data_sources.nisra import deaths, labour_market
+from bolster.data_sources.nisra import births, deaths, labour_market
+
+# Get latest monthly births by registration date
+births_df = births.get_latest_births(event_type="registration")
+print(f"Latest month: {births_df['month'].max()}")
+print(f"Total births: {births_df[births_df['sex'] == 'Persons']['births'].sum()}")
 
 # Get latest weekly deaths by demographics
 deaths_df = deaths.get_latest_deaths(dimension="demographics")
@@ -319,6 +344,12 @@ print(f"Youth employment: {youth_employment:.1f}k")
 ### CLI Examples
 
 ```bash
+# Get latest births by registration date
+bolster nisra births --latest --event-type registration
+
+# Get both registration and occurrence data
+bolster nisra births --latest --event-type both --save births.csv
+
 # Get latest deaths statistics as CSV
 bolster nisra deaths --latest --dimension all --format csv --save deaths_latest.csv
 

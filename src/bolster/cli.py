@@ -17,6 +17,7 @@ from .data_sources.eoni import get_results as get_ni_election_results
 from .data_sources.metoffice import get_uk_precipitation
 from .data_sources.ni_house_price_index import build as get_ni_house_prices
 from .data_sources.ni_water import get_postcode_to_water_supply_zone, get_water_quality_by_zone
+from .data_sources.nisra import births as nisra_births
 from .data_sources.nisra import deaths as nisra_deaths
 from .data_sources.nisra import labour_market as nisra_labour_market
 from .data_sources.wikipedia import get_ni_executive_basic_table
@@ -1291,6 +1292,183 @@ def nisra_labour_market_cmd(latest, table, output_format, force_refresh, save):
                 click.echo(data["employment"].to_csv(index=False))
             else:
                 click.echo(data.to_csv(index=False))
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
+        console.print("   • Visit NISRA website to verify data availability")
+        raise click.Abort()
+
+
+@nisra.command(name="births")
+@click.option("--latest", is_flag=True, help="Get the most recent births data available")
+@click.option(
+    "--event-type",
+    type=click.Choice(["registration", "occurrence", "both"], case_sensitive=False),
+    default="both",
+    help="Event type: registration (when registered), occurrence (when born), or both (default: both)",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_births_cmd(latest, event_type, output_format, force_refresh, save):
+    """
+    NISRA Monthly Birth Registrations Statistics
+
+    Retrieves monthly birth registration data for Northern Ireland including:
+    - Births by month of registration (when officially registered)
+    - Births by month of occurrence (when actually born)
+    - Breakdown by sex (Persons, Male, Female)
+
+    Birth registration data are based on mother's residence at time of birth.
+    Most births are registered within 42 days in Northern Ireland.
+
+    \b
+    EXAMPLES:
+        # Get latest births by registration date
+        bolster nisra births --latest --event-type registration
+
+        # Get latest births by occurrence (actual birth date)
+        bolster nisra births --latest --event-type occurrence
+
+        # Get both registration and occurrence data
+        bolster nisra births --latest --event-type both
+
+        # Save registration data to file
+        bolster nisra births --latest --event-type registration --save births_reg.csv
+
+        # Get data as JSON
+        bolster nisra births --latest --event-type both --format json
+
+        # Force refresh cached data
+        bolster nisra births --latest --force-refresh
+
+    \b
+    DATA NOTES:
+        - Monthly time series from 2006 to present
+        - Final data for years up to and including 2024
+        - Provisional and subject to change for current year
+        - Registration data lags occurrence data by ~1-2 months
+        - COVID-19 Note: April-May 2020 registration data disrupted by lockdown
+          (registration offices closed), but occurrence data remains normal
+
+    \b
+    EVENT TYPES:
+        registration - Births by month they were officially registered
+                      • Reflects administrative processing dates
+                      • Can be affected by office closures (e.g., COVID-19)
+                      • Latest data may be 1-2 months more recent than occurrence
+
+        occurrence   - Births by month they actually occurred
+                      • Reflects actual birth dates
+                      • More stable measure of birth patterns
+                      • Limited to births already registered
+
+        both         - Returns both registration and occurrence data
+                      • Useful for comparing registration patterns vs birth patterns
+                      • Helps identify registration delays/backlogs
+
+    \b
+    OUTPUT:
+        - month: First day of month (datetime)
+        - sex: Persons (total), Male, or Female
+        - births: Number of births
+
+    \b
+    SOURCE:
+        https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/births
+    """
+    console = Console()
+
+    if not latest:
+        console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
+        console.print("[dim]Future versions will support specific months/years[/dim]")
+        return
+
+    try:
+        with console.status("[bold green]Downloading latest NISRA births data..."):
+            data = nisra_births.get_latest_births(event_type=event_type, force_refresh=force_refresh)
+
+        # Handle the result based on whether it's a single DataFrame or dict of DataFrames
+        if event_type == "both":
+            console.print("[green]✅ Retrieved both event types successfully[/green]")
+            total_records = sum(len(df) for df in data.values())
+            console.print(f"[cyan]📊 Total records: {total_records}[/cyan]")
+
+            for event_name, df in data.items():
+                console.print(f"   • {event_name}: {len(df)} records")
+                if not df.empty:
+                    latest_month = df["month"].max()
+                    earliest_month = df["month"].min()
+                    console.print(
+                        f"     [dim]Period: {earliest_month.strftime('%b %Y')} to {latest_month.strftime('%b %Y')}[/dim]"
+                    )
+        else:
+            console.print(f"[green]✅ Retrieved {event_type} data successfully[/green]")
+            console.print(f"[cyan]📊 Total records: {len(data)}[/cyan]")
+            if not data.empty:
+                latest_month = data["month"].max()
+                earliest_month = data["month"].min()
+                console.print(
+                    f"[dim]Period: {earliest_month.strftime('%b %Y')} to {latest_month.strftime('%b %Y')}[/dim]"
+                )
+
+        # Handle file saving
+        if save:
+            try:
+                if event_type == "both":
+                    # Save each event type to a separate file
+                    for event_name, df in data.items():
+                        filename = (
+                            f"{save.rsplit('.', 1)[0]}_{event_name}.{save.rsplit('.', 1)[-1] if '.' in save else 'csv'}"
+                        )
+                        if output_format == "json" or filename.endswith(".json"):
+                            df.to_json(filename, orient="records", date_format="iso", indent=2)
+                        else:
+                            df.to_csv(filename, index=False)
+                        console.print(f"[green]💾 Saved {event_name} to: {filename}[/green]")
+                else:
+                    # Save single event type
+                    if output_format == "json" or save.endswith(".json"):
+                        data.to_json(save, orient="records", date_format="iso", indent=2)
+                    else:
+                        data.to_csv(save, index=False)
+                    console.print(f"[green]💾 Data saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]❌ Error: Permission denied writing to {save}[/red]")
+                console.print("[yellow]💡 Check file permissions or choose a different location[/yellow]")
+                return
+            except Exception as e:
+                console.print(f"[red]❌ Error saving file: {e}[/red]")
+                return
+
+        # Output to console in requested format
+        if output_format == "json":
+            import json
+
+            if event_type == "both":
+                # Convert DataFrames to JSON-serializable format
+                output = {event_name: df.to_dict(orient="records") for event_name, df in data.items()}
+                click.echo(json.dumps(output, indent=2, default=str))
+            else:
+                click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            # CSV output
+            if event_type == "both":
+                for event_name, df in data.items():
+                    console.print(f"\n[bold]{event_name.upper()}:[/bold]")
+                    console.print(df.to_csv(index=False), end="")
+            else:
+                console.print(data.to_csv(index=False), end="")
 
     except Exception as e:
         console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
