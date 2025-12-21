@@ -76,6 +76,28 @@ This module provides programmatic access to Northern Ireland Statistics and Rese
   - Historical data back to 1971 for NI overall
   - NI population ~1.9M in 2024
 
+### 5. Monthly Marriage Registrations (`marriages.py`)
+
+- **Update Frequency**: Monthly (published around 11th of following month)
+- **Mother Page**: https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/marriages
+- **Data Dimensions**:
+  - Month of registration (2006-present)
+  - Total marriages (all persons)
+- **Key Functions**:
+  - `get_latest_marriages()` - Automatically fetches most recent marriage registrations
+  - `parse_marriages_file()` - Parse specific Excel file
+  - `validate_marriages_temporal_continuity()` - Verify time series has no gaps
+  - `get_marriages_by_year()` - Filter for specific year
+  - `get_marriages_summary_by_year()` - Calculate annual totals and statistics
+- **Data Format**: Long-format with monthly time series (date, year, month, marriages)
+- **Notes**:
+  - Registrations represent when marriage was registered, not ceremony date
+  - Seasonal patterns: Summer months (June-September) are peak wedding season
+  - August typically has highest monthly marriages (~1,000-1,300)
+  - COVID-19 impact highly visible: 2020 total dropped from ~7,000-8,000 to 3,724
+  - Strict lockdown months: April 2020 (14 marriages), May 2020 (4 marriages)
+  - Final data for years up to 2024, provisional data for current year
+
 ## Design Philosophy
 
 ### Mother Page Scraping Approach
@@ -226,6 +248,7 @@ class TestDeathsDataIntegrity:
 - **Births Statistics**: 15 integrity tests, 85% code coverage
 - **Deaths Statistics**: 15 integrity tests, 87% code coverage
 - **Labour Market Statistics**: 21 integrity tests, 86% code coverage
+- **Marriages Statistics**: 18 integrity tests, 83% code coverage
 - **Population Statistics**: 17 integrity tests, 89% code coverage
 
 #### Why This Approach?
@@ -325,7 +348,7 @@ logging.basicConfig(level=logging.WARNING)  # Quiet mode
 ### Quick Start
 
 ```python
-from bolster.data_sources.nisra import births, deaths, labour_market, population
+from bolster.data_sources.nisra import births, deaths, labour_market, marriages, population
 
 # Get latest monthly births by registration date
 births_df = births.get_latest_births(event_type="registration")
@@ -342,6 +365,11 @@ employment_df = labour_market.get_latest_employment()
 print(
     f"Youth (16-24) employment: {employment_df[employment_df['age_range'] == '16-24']['employment_thousands'].sum():.1f}k"
 )
+
+# Get latest marriage registrations
+marriages_df = marriages.get_latest_marriages()
+df_2024 = marriages.get_marriages_by_year(marriages_df, 2024)
+print(f"Total marriages in 2024: {df_2024['marriages'].sum():,.0f}")
 
 # Get latest annual population estimates
 population_df = population.get_latest_population(area="Northern Ireland")
@@ -389,6 +417,12 @@ bolster nisra labour-market --latest --table employment
 
 # Get economic inactivity breakdown
 bolster nisra labour-market --latest --table economic_inactivity --format json
+
+# Get latest marriage registrations
+bolster nisra marriages --latest
+
+# Get marriages for specific year
+bolster nisra marriages --latest --year 2024 --save marriages_2024.csv
 
 # Get latest population estimates for NI
 bolster nisra population --latest

@@ -20,6 +20,7 @@ from .data_sources.ni_water import get_postcode_to_water_supply_zone, get_water_
 from .data_sources.nisra import births as nisra_births
 from .data_sources.nisra import deaths as nisra_deaths
 from .data_sources.nisra import labour_market as nisra_labour_market
+from .data_sources.nisra import marriages as nisra_marriages
 from .data_sources.nisra import population as nisra_population
 from .data_sources.wikipedia import get_ni_executive_basic_table
 from .utils.rss import filter_entries, get_nisra_statistics_feed, parse_rss_feed
@@ -1600,6 +1601,144 @@ def nisra_population_cmd(latest, area, year, output_format, force_refresh, save)
                 latest_year = data["year"].max()
                 total_pop = data[(data["year"] == latest_year) & (data["sex"] == "All persons")]["population"].sum()
                 console.print(f"[dim]{latest_year} NI population: {total_pop:,}[/dim]")
+
+        # Handle file saving
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", date_format="iso", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]💾 Data saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]❌ Error: Permission denied writing to {save}[/red]")
+                console.print("[yellow]💡 Check file permissions or choose a different location[/yellow]")
+                return
+            except Exception as e:
+                console.print(f"[red]❌ Error saving file: {e}[/red]")
+                return
+
+        # Output to console in requested format
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            # CSV output
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
+        console.print("   • Visit NISRA website to verify data availability")
+        raise click.Abort()
+
+
+@nisra.command(name="marriages")
+@click.option("--latest", is_flag=True, help="Get the most recent marriages data available")
+@click.option("--year", type=int, help="Filter data for specific year")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_marriages_cmd(latest, year, output_format, force_refresh, save):
+    """
+    NISRA Monthly Marriage Registrations Statistics
+
+    Retrieves monthly marriage registration data for Northern Ireland.
+
+    Marriage registrations represent when the marriage was registered, not when the
+    ceremony occurred. The data is published monthly with provisional figures for the
+    current year and final figures for previous years.
+
+    \b
+    EXAMPLES:
+        # Get latest marriages data
+        bolster nisra marriages --latest
+
+        # Filter for a specific year
+        bolster nisra marriages --latest --year 2024
+
+        # Save to file
+        bolster nisra marriages --latest --save marriages.csv
+
+        # Get data as JSON
+        bolster nisra marriages --latest --format json
+
+        # Force refresh cached data
+        bolster nisra marriages --latest --force-refresh
+
+    \b
+    DATA NOTES:
+        - Monthly time series from 2006 to present
+        - Final data for years up to and including 2024
+        - Provisional and subject to change for current year
+        - COVID-19 Note: 2020 shows dramatic impact on marriages
+          (April: 14, May: 4 marriages during strict lockdown)
+
+    \b
+    SEASONAL PATTERNS:
+        Summer months (June-September) are peak wedding season:
+        • August typically has the highest number of marriages
+        • June-September account for ~40% of annual marriages
+        • January-February typically have the lowest numbers
+
+    \b
+    OUTPUT:
+        - date: First day of month (datetime)
+        - year: Year of registration
+        - month: Month name
+        - marriages: Number of marriage registrations
+
+    \b
+    SOURCE:
+        https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/marriages
+    """
+    console = Console()
+
+    if not latest:
+        console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
+        console.print("[dim]Future versions will support specific months[/dim]")
+        return
+
+    try:
+        with console.status("[bold green]Downloading latest NISRA marriages data..."):
+            data = nisra_marriages.get_latest_marriages(force_refresh=force_refresh)
+
+        # Filter by year if specified
+        if year:
+            data = nisra_marriages.get_marriages_by_year(data, year)
+            if data.empty:
+                console.print(f"[yellow]⚠️  No data found for year {year}[/yellow]")
+                return
+
+        console.print("[green]✅ Retrieved marriages data successfully[/green]")
+        console.print(f"[cyan]📊 Total records: {len(data)}[/cyan]")
+
+        if not data.empty:
+            earliest_date = data["date"].min()
+            latest_date = data["date"].max()
+            console.print(f"[dim]Period: {earliest_date.strftime('%b %Y')} to {latest_date.strftime('%b %Y')}[/dim]")
+
+            # Show summary statistics
+            total_marriages = data["marriages"].sum()
+            avg_per_month = data["marriages"].mean()
+
+            console.print("\n[bold]Summary:[/bold]")
+            if year:
+                console.print(f"   Total marriages in {year}: {total_marriages:,.0f}")
+                console.print(f"   Average per month: {avg_per_month:,.0f}")
+            else:
+                years_available = data["year"].nunique()
+                console.print(f"   Years available: {years_available}")
+                console.print(f"   Total marriages (all years): {total_marriages:,.0f}")
+                console.print(f"   Average per month: {avg_per_month:,.0f}")
 
         # Handle file saving
         if save:
