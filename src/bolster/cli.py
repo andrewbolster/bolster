@@ -20,6 +20,7 @@ from .data_sources.ni_water import get_postcode_to_water_supply_zone, get_water_
 from .data_sources.nisra import births as nisra_births
 from .data_sources.nisra import deaths as nisra_deaths
 from .data_sources.nisra import labour_market as nisra_labour_market
+from .data_sources.nisra import population as nisra_population
 from .data_sources.wikipedia import get_ni_executive_basic_table
 from .utils.rss import filter_entries, get_nisra_statistics_feed, parse_rss_feed
 
@@ -1469,6 +1470,160 @@ def nisra_births_cmd(latest, event_type, output_format, force_refresh, save):
                     console.print(df.to_csv(index=False), end="")
             else:
                 console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
+        console.print("   • Visit NISRA website to verify data availability")
+        raise click.Abort()
+
+
+@nisra.command(name="population")
+@click.option("--latest", is_flag=True, help="Get the most recent population estimates available")
+@click.option(
+    "--area",
+    type=click.Choice(
+        ["all", "Northern Ireland", "Parliamentary Constituencies (2024)", "Health and Social Care Trusts"],
+        case_sensitive=False,
+    ),
+    default="Northern Ireland",
+    help="Geographic area (default: Northern Ireland)",
+)
+@click.option(
+    "--year",
+    type=int,
+    help="Specific year to retrieve (leave blank for all years)",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_population_cmd(latest, area, year, output_format, force_refresh, save):
+    """
+    NISRA Mid-Year Population Estimates
+
+    Retrieves annual mid-year population estimates for Northern Ireland with breakdowns by:
+    - Geography (NI overall, Parliamentary Constituencies, Health and Social Care Trusts)
+    - Sex (All persons, Males, Females)
+    - Age (5-year age bands: 00-04, 05-09, ..., 90+)
+    - Year (1971-present for NI overall, 2021-present for sub-geographies)
+
+    Mid-year estimates are referenced to June 30th of each year.
+
+    \b
+    EXAMPLES:
+        # Get latest NI overall population
+        bolster nisra population --latest
+
+        # Get all geographic areas
+        bolster nisra population --latest --area all
+
+        # Get specific year
+        bolster nisra population --latest --year 2024
+
+        # Get Parliamentary Constituencies
+        bolster nisra population --latest --area "Parliamentary Constituencies (2024)"
+
+        # Save to file
+        bolster nisra population --latest --save population.csv
+
+        # Get as JSON
+        bolster nisra population --latest --format json
+
+    \b
+    DATA NOTES:
+        - Published annually ~6 months after reference date
+        - Reference date: June 30th of each year
+        - Historical data for NI overall from 1971
+        - Sub-geography data from 2021 onwards
+        - Age bands: 5-year groups (00-04, 05-09, ..., 85-89, 90+)
+        - Also includes custom age bands and broad age groups
+
+    \b
+    GEOGRAPHIC AREAS:
+        Northern Ireland          - NI overall (1971-present)
+        Parliamentary             - 2024 parliamentary constituencies (2021-present)
+        Constituencies (2024)
+
+        Health and Social         - Health & Social Care Trusts (2021-present)
+        Care Trusts
+
+        all                       - All geographic breakdowns
+
+    \b
+    OUTPUT:
+        - area, area_code, area_name: Geographic identifiers
+        - year: Reference year (mid-year estimate as of June 30th)
+        - sex: All persons, Males, or Females
+        - age_5: 5-year age band
+        - age_band, age_broad: Alternative age groupings
+        - population: Mid-year estimate
+
+    \b
+    SOURCE:
+        https://www.nisra.gov.uk/statistics/people-and-communities/population
+    """
+    console = Console()
+
+    if not latest:
+        console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
+        console.print("[dim]Future versions will support historical publications[/dim]")
+        return
+
+    try:
+        with console.status("[bold green]Downloading latest NISRA population estimates..."):
+            data = nisra_population.get_latest_population(area=area, force_refresh=force_refresh)
+
+        # Filter by year if specified
+        if year:
+            data = data[data["year"] == year]
+            if data.empty:
+                console.print(f"[red]❌ No data found for year {year}[/red]")
+                return
+
+        console.print("[green]✅ Retrieved population estimates successfully[/green]")
+        console.print(f"[cyan]📊 Total records: {len(data)}[/cyan]")
+
+        if not data.empty:
+            years = sorted(data["year"].unique())
+            console.print(f"[dim]Years: {years[0]} to {years[-1]} ({len(years)} years)[/dim]")
+
+            # Show total population for latest year if NI overall
+            if area == "Northern Ireland":
+                latest_year = data["year"].max()
+                total_pop = data[(data["year"] == latest_year) & (data["sex"] == "All persons")]["population"].sum()
+                console.print(f"[dim]{latest_year} NI population: {total_pop:,}[/dim]")
+
+        # Handle file saving
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", date_format="iso", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]💾 Data saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]❌ Error: Permission denied writing to {save}[/red]")
+                console.print("[yellow]💡 Check file permissions or choose a different location[/yellow]")
+                return
+            except Exception as e:
+                console.print(f"[red]❌ Error saving file: {e}[/red]")
+                return
+
+        # Output to console in requested format
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            # CSV output
+            console.print(data.to_csv(index=False), end="")
 
     except Exception as e:
         console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
