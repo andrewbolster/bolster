@@ -18,6 +18,7 @@ from .data_sources.metoffice import get_uk_precipitation
 from .data_sources.ni_house_price_index import build as get_ni_house_prices
 from .data_sources.ni_water import get_postcode_to_water_supply_zone, get_water_quality_by_zone
 from .data_sources.nisra import deaths as nisra_deaths
+from .data_sources.nisra import labour_market as nisra_labour_market
 from .data_sources.wikipedia import get_ni_executive_basic_table
 from .utils.rss import filter_entries, get_nisra_statistics_feed, parse_rss_feed
 
@@ -1103,6 +1104,191 @@ def nisra_deaths_cmd(latest, dimension, output_format, force_refresh, save):
                 console.print("\n[yellow]💡 Tip: For 'all' dimensions, use --save to export to files[/yellow]")
                 console.print("[yellow]   Displaying demographics dimension only:[/yellow]\n")
                 click.echo(data["demographics"].to_csv(index=False))
+            else:
+                click.echo(data.to_csv(index=False))
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
+        console.print("   • Visit NISRA website to verify data availability")
+        raise click.Abort()
+
+
+@nisra.command(name="labour-market")
+@click.option("--latest", is_flag=True, help="Get the most recent labour market data available")
+@click.option(
+    "--table",
+    type=click.Choice(["employment", "economic_inactivity", "all"], case_sensitive=False),
+    default="all",
+    help="Which table to retrieve (default: all)",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_labour_market_cmd(latest, table, output_format, force_refresh, save):
+    """
+    NISRA Labour Force Survey Statistics
+
+    Retrieves quarterly Labour Force Survey (LFS) data for Northern Ireland including:
+    - Employment by age band and sex
+    - Economic inactivity rates and numbers (with historical time series)
+
+    The LFS is a sample survey of households providing labour force statistics using
+    internationally agreed concepts and definitions.
+
+    \b
+    EXAMPLES:
+        # Get latest employment data by age and sex
+        bolster nisra labour-market --latest --table employment
+
+        # Get economic inactivity time series (2012-2025)
+        bolster nisra labour-market --latest --table economic_inactivity
+
+        # Get all tables as JSON
+        bolster nisra labour-market --latest --table all --format json
+
+        # Save employment data to analyze age distribution
+        bolster nisra labour-market --latest --table employment --save employment.csv
+
+        # Force refresh cached data
+        bolster nisra labour-market --latest --force-refresh
+
+    \b
+    DATA NOTES:
+        - Survey data with sampling variability (see NISRA notes on confidence intervals)
+        - Quarterly publications covering 3-month rolling periods
+        - Some estimates based on small samples (indicated by shading in source)
+        - Estimates <3 suppressed for disclosure control
+        - Not seasonally adjusted
+        - Working age: 16-64 for both males and females
+
+    \b
+    TABLES:
+        employment          - Employment by age band and sex (Table 2.15)
+                             • Percentage distribution across age groups
+                             • Total employment numbers by sex
+                             • Quarterly snapshot data
+
+        economic_inactivity - Economic inactivity by sex (Table 2.21)
+                             • Numbers economically inactive by sex
+                             • Economic inactivity rates (percentages)
+                             • Historical time series (2012-2025 for same quarter)
+                             • Allows year-over-year comparisons
+
+        all                 - All available tables
+
+    \b
+    DEFINITIONS:
+        Employed           - Did ≥1 hour paid work in reference week, or has job temporarily away from
+        Unemployed         - Not employed, actively seeking work, available to start within 2 weeks
+        Economically       - Not employed and not seeking work (students, retired, caring for
+        Inactive             family, long-term sick/disabled, discouraged workers, etc.)
+
+    \b
+    SOURCE:
+        https://www.nisra.gov.uk/statistics/labour-market-and-social-welfare
+    """
+    console = Console()
+
+    if not latest:
+        console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
+        console.print("[dim]Future versions will support specific quarters/years[/dim]")
+        return
+
+    try:
+        with console.status("[bold green]Downloading latest NISRA labour market data..."):
+            if table == "all":
+                data = nisra_labour_market.get_quarterly_data(
+                    year=2025,
+                    quarter="Jul-Sep",
+                    tables=["employment", "economic_inactivity"],
+                    force_refresh=force_refresh,
+                )
+            elif table == "employment":
+                data = nisra_labour_market.get_latest_employment(force_refresh=force_refresh)
+            elif table == "economic_inactivity":
+                data = nisra_labour_market.get_latest_economic_inactivity(force_refresh=force_refresh)
+
+        # Handle the result based on whether it's a single DataFrame or dict of DataFrames
+        if table == "all":
+            console.print("[green]✅ Retrieved all tables successfully[/green]")
+            total_records = sum(len(df) for df in data.values())
+            console.print(f"[cyan]📊 Total records: {total_records}[/cyan]")
+
+            for table_name, df in data.items():
+                console.print(f"   • {table_name}: {len(df)} records")
+                if not df.empty and "quarter_period" in df.columns:
+                    periods = df["quarter_period"].unique()
+                    console.print(f"     [dim]Period: {periods[0]}[/dim]")
+                elif not df.empty and "time_period" in df.columns:
+                    periods = df["time_period"].unique()
+                    console.print(
+                        f"     [dim]Time series: {len(periods)} periods ({periods[0]} to {periods[-1]})[/dim]"
+                    )
+        else:
+            console.print(f"[green]✅ Retrieved {table} table successfully[/green]")
+            console.print(f"[cyan]📊 Total records: {len(data)}[/cyan]")
+            if not data.empty:
+                if "quarter_period" in data.columns:
+                    periods = data["quarter_period"].unique()
+                    console.print(f"[dim]Period: {periods[0]}[/dim]")
+                elif "time_period" in data.columns:
+                    periods = data["time_period"].unique()
+                    console.print(f"[dim]Time series: {len(periods)} periods ({periods[0]} to {periods[-1]})[/dim]")
+
+        # Handle file saving
+        if save:
+            try:
+                if table == "all":
+                    # Save each table to a separate file
+                    for table_name, df in data.items():
+                        filename = (
+                            f"{save.rsplit('.', 1)[0]}_{table_name}.{save.rsplit('.', 1)[-1] if '.' in save else 'csv'}"
+                        )
+                        if output_format == "json" or filename.endswith(".json"):
+                            df.to_json(filename, orient="records", date_format="iso", indent=2)
+                        else:
+                            df.to_csv(filename, index=False)
+                        console.print(f"[green]💾 Saved {table_name} to: {filename}[/green]")
+                else:
+                    # Save single table
+                    if output_format == "json" or save.endswith(".json"):
+                        data.to_json(save, orient="records", date_format="iso", indent=2)
+                    else:
+                        data.to_csv(save, index=False)
+                    console.print(f"[green]💾 Data saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]❌ Error: Permission denied writing to {save}[/red]")
+                console.print("[yellow]💡 Check file permissions or choose a different location[/yellow]")
+                return
+            except Exception as e:
+                console.print(f"[red]❌ Error saving file: {e}[/red]")
+                return
+
+        # Output to console in requested format
+        if output_format == "json":
+            import json
+
+            if table == "all":
+                # Convert DataFrames to JSON-serializable format
+                output = {table_name: df.to_dict(orient="records") for table_name, df in data.items()}
+                click.echo(json.dumps(output, indent=2, default=str))
+            else:
+                click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:  # csv format
+            if table == "all":
+                console.print("\n[yellow]💡 Tip: For 'all' tables, use --save to export to files[/yellow]")
+                console.print("[yellow]   Displaying employment table only:[/yellow]\n")
+                click.echo(data["employment"].to_csv(index=False))
             else:
                 click.echo(data.to_csv(index=False))
 
