@@ -54,6 +54,28 @@ This module provides programmatic access to Northern Ireland Statistics and Rese
   - `get_quarterly_data()` - Retrieve specific quarter's data
 - **Data Format**: Quarterly rolling 3-month periods (e.g., "Jul-Sep 2025")
 
+### 4. Mid-Year Population Estimates (`population.py`)
+
+- **Update Frequency**: Annual (published ~6 months after reference date)
+- **Mother Page**: https://www.nisra.gov.uk/statistics/people-and-communities/population
+- **Data Dimensions**:
+  - Geography (Northern Ireland, Parliamentary Constituencies, Health and Social Care Trusts)
+  - Sex (All persons, Males, Females)
+  - Age (5-year age bands: 00-04, 05-09, ..., 90+)
+  - Year (1971-present for NI overall, 2021-present for sub-geographies)
+- **Key Functions**:
+  - `get_latest_population()` - Automatically fetches most recent population estimates
+  - `parse_population_file()` - Parse specific Excel file
+  - `validate_population_totals()` - Verify Males + Females = All persons
+  - `get_population_by_year()` - Filter for specific year
+  - `get_population_pyramid_data()` - Prepare data for pyramid visualization
+- **Data Format**: Long-format with complete time series (pre-processed "Flat" sheet)
+- **Notes**:
+  - Reference date: June 30th of each year
+  - One of the most analysis-ready NISRA datasets (pre-formatted)
+  - Historical data back to 1971 for NI overall
+  - NI population ~1.9M in 2024
+
 ## Design Philosophy
 
 ### Mother Page Scraping Approach
@@ -204,6 +226,7 @@ class TestDeathsDataIntegrity:
 - **Births Statistics**: 15 integrity tests, 85% code coverage
 - **Deaths Statistics**: 15 integrity tests, 87% code coverage
 - **Labour Market Statistics**: 21 integrity tests, 86% code coverage
+- **Population Statistics**: 17 integrity tests, 89% code coverage
 
 #### Why This Approach?
 
@@ -302,7 +325,7 @@ logging.basicConfig(level=logging.WARNING)  # Quiet mode
 ### Quick Start
 
 ```python
-from bolster.data_sources.nisra import births, deaths, labour_market
+from bolster.data_sources.nisra import births, deaths, labour_market, population
 
 # Get latest monthly births by registration date
 births_df = births.get_latest_births(event_type="registration")
@@ -319,6 +342,14 @@ employment_df = labour_market.get_latest_employment()
 print(
     f"Youth (16-24) employment: {employment_df[employment_df['age_range'] == '16-24']['employment_thousands'].sum():.1f}k"
 )
+
+# Get latest annual population estimates
+population_df = population.get_latest_population(area="Northern Ireland")
+latest_year = population_df["year"].max()
+total_pop = population_df[(population_df["year"] == latest_year) & (population_df["sex"] == "All persons")][
+    "population"
+].sum()
+print(f"NI population {latest_year}: {total_pop:,}")
 ```
 
 ### Analysis Example
@@ -358,6 +389,15 @@ bolster nisra labour-market --latest --table employment
 
 # Get economic inactivity breakdown
 bolster nisra labour-market --latest --table economic_inactivity --format json
+
+# Get latest population estimates for NI
+bolster nisra population --latest
+
+# Get population for specific year
+bolster nisra population --latest --year 2024
+
+# Get all geographic areas
+bolster nisra population --latest --area all --save population_all.csv
 ```
 
 ## Development Guidelines
