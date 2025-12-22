@@ -2,7 +2,7 @@
 NISRA (Northern Ireland Statistics and Research Agency) Data Sources.
 
 This package provides access to various statistical datasets published by NISRA,
-including births, deaths, labour market, population, crime, economic indices, and more.
+including births, deaths, labour market, population, migration, and economic indicators.
 
 Available modules:
     - births: Monthly birth registrations by registration and occurrence date
@@ -11,7 +11,6 @@ Available modules:
     - marriages: Monthly marriage registrations
     - migration: Derived migration estimates from demographic components
     - population: Annual mid-year population estimates by age, sex, and geography
-    - crime: Monthly police-recorded crime statistics (coming soon)
 
 Examples:
     >>> from bolster.data_sources.nisra import births
