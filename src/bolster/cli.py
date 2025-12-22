@@ -18,6 +18,7 @@ from .data_sources.metoffice import get_uk_precipitation
 from .data_sources.ni_house_price_index import build as get_ni_house_prices
 from .data_sources.ni_water import get_postcode_to_water_supply_zone, get_water_quality_by_zone
 from .data_sources.nisra import births as nisra_births
+from .data_sources.nisra import construction_output as nisra_construction
 from .data_sources.nisra import deaths as nisra_deaths
 from .data_sources.nisra import economic_indicators as nisra_economic
 from .data_sources.nisra import labour_market as nisra_labour_market
@@ -2202,6 +2203,158 @@ def nisra_index_of_production_cmd(
             console.print("\n   UK Production Index:")
             console.print(f"     Mean: {stats['uk_mean']:.1f}")
             console.print(f"     Range: {stats['uk_min']:.1f} - {stats['uk_max']:.1f}")
+
+            if not save:
+                return
+
+        # Handle file saving
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", date_format="iso", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]💾 Data saved to: {save}[/green]")
+                return
+            except Exception as e:
+                console.print(f"[red]❌ Error saving file: {e}[/red]")
+                return
+
+        # Output to console
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
+        raise click.Abort()
+
+
+@nisra.command(name="construction-output")
+@click.option("--latest", is_flag=True, help="Get the most recent Construction Output data")
+@click.option("--year", type=int, help="Filter data for specific year")
+@click.option("--quarter", help="Filter data for specific quarter (e.g., 'Q1', 'Q2')")
+@click.option("--start-year", type=int, help="Start year for summary statistics")
+@click.option("--end-year", type=int, help="End year for summary statistics")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics only")
+@click.option("--growth", is_flag=True, help="Include year-on-year growth rates")
+def nisra_construction_output_cmd(
+    latest, year, quarter, start_year, end_year, output_format, force_refresh, save, summary, growth
+):
+    """
+    NISRA Construction Output Statistics - Quarterly Economic Indicator
+
+    Measures volume and value of construction output in Northern Ireland across
+    all work, new work, and repair & maintenance. Chained volume measure data
+    (base year 2022=100) from Q2 2000 to present.
+
+    \b
+    EXAMPLES:
+        # Get all Construction Output data
+        bolster nisra construction-output --latest
+
+        # Filter for specific year
+        bolster nisra construction-output --latest --year 2024
+
+        # Get specific quarter
+        bolster nisra construction-output --latest --year 2025 --quarter Q2
+
+        # Show summary statistics for 2020-2025
+        bolster nisra construction-output --latest --start-year 2020 --summary
+
+        # Include year-on-year growth rates
+        bolster nisra construction-output --latest --growth
+
+        # Save to file
+        bolster nisra construction-output --latest --save construction.csv
+
+        # Force refresh data
+        bolster nisra construction-output --latest --force-refresh
+
+    \b
+    DATA NOTES:
+        - Coverage: Q2 2000 - Q2 2025 (quarterly)
+        - Base year: 2022 = 100 (chained volume measure)
+        - All Work: Non-seasonally adjusted (NSA)
+        - New Work: Non-seasonally adjusted (NSA)
+        - Repair & Maintenance: Seasonally adjusted (SA)
+        - Published ~3 months after quarter end
+
+    \b
+    OUTPUT:
+        - date: First day of quarter
+        - quarter: Quarter code (Q1, Q2, Q3, Q4)
+        - year: Year
+        - all_work_index: Total construction output index (NSA)
+        - new_work_index: New construction work index (NSA)
+        - repair_maintenance_index: Repair & maintenance index (SA)
+        - *_yoy_growth: YoY % change (if --growth specified)
+
+    \b
+    SOURCE:
+        NISRA Economic & Labour Market Statistics Branch
+        https://www.nisra.gov.uk/statistics/economic-output/construction-output-statistics
+    """
+    console = Console()
+
+    if not latest:
+        console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
+        return
+
+    try:
+        with console.status("[bold green]Fetching Construction Output data..."):
+            data = nisra_construction.get_latest_construction_output(force_refresh=force_refresh)
+
+        # Add growth rates if requested
+        if growth:
+            data = nisra_construction.calculate_growth_rates(data)
+
+        # Filter by year and/or quarter if specified
+        if year:
+            data = nisra_construction.get_construction_by_year(data, year)
+            if quarter:
+                data = nisra_construction.get_construction_by_quarter(data, quarter, year)
+
+        if data.empty:
+            console.print("[yellow]⚠️  No data found for the specified filters[/yellow]")
+            return
+
+        console.print("[green]✅ Construction Output data fetched successfully[/green]")
+        console.print(f"[cyan]📊 Total quarters: {len(data)}[/cyan]")
+
+        if not data.empty:
+            earliest = f"{data.iloc[0]['quarter']} {data.iloc[0]['year']}"
+            latest_q = f"{data.iloc[-1]['quarter']} {data.iloc[-1]['year']}"
+            console.print(f"[dim]Period: {earliest} to {latest_q}[/dim]")
+
+        # Show summary statistics if requested
+        if summary:
+            stats = nisra_construction.get_summary_statistics(data, start_year=start_year, end_year=end_year)
+
+            console.print(f"\n[bold]Summary Statistics ({stats['period']}):[/bold]")
+            console.print(f"   Total quarters: {stats['quarters_count']}")
+            console.print("\n   All Work Index:")
+            console.print(f"     Mean: {stats['all_work_mean']:.1f}")
+            console.print(f"     Range: {stats['all_work_min']:.1f} - {stats['all_work_max']:.1f}")
+            console.print("\n   New Work Index:")
+            console.print(f"     Mean: {stats['new_work_mean']:.1f}")
+            console.print(f"     Range: {stats['new_work_min']:.1f} - {stats['new_work_max']:.1f}")
+            console.print("\n   Repair & Maintenance Index:")
+            console.print(f"     Mean: {stats['repair_maintenance_mean']:.1f}")
+            console.print(f"     Range: {stats['repair_maintenance_min']:.1f} - {stats['repair_maintenance_max']:.1f}")
 
             if not save:
                 return

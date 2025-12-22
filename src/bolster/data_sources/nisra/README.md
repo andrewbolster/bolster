@@ -157,6 +157,33 @@ This module provides programmatic access to Northern Ireland Statistics and Rese
   - NI Services Q3 2025: 107.0
   - NI Production Q3 2025: 103.2
 
+### 8. Construction Output Statistics (`construction_output.py`)
+
+- **Update Frequency**: Quarterly (published ~3 months after quarter end)
+- **Mother Page**: https://www.nisra.gov.uk/statistics/economic-output/construction-output-statistics
+- **Data Dimensions**:
+  - Quarterly time series (Q2 2000 - Q2 2025)
+  - Chained volume measure (base year 2022 = 100)
+  - Three main indices: All Work, New Work, Repair & Maintenance
+- **Key Functions**:
+  - `get_latest_construction_output()` - Fetch latest Construction Output data
+  - `calculate_growth_rates()` - Calculate year-on-year growth rates
+  - `get_construction_by_year()` / `get_construction_by_quarter()` - Filter functions
+  - `get_summary_statistics()` - Calculate summary stats
+- **Data Format**: Long-format quarterly time series with construction indices
+- **Notes**:
+  - **All Work**: Total construction output (NSA - Non-Seasonally Adjusted)
+  - **New Work**: New construction projects (NSA)
+  - **Repair & Maintenance**: Repair and maintenance work (SA - Seasonally Adjusted)
+  - Base year 2022 = 100
+  - Construction sector shows significant volatility
+  - Longer history than IOS/IOP (starts 2000 vs 2005)
+  - COVID-19 impact visible in 2020 data
+  - Most recent data: Q2 2025 (published September 25, 2025)
+  - All Work Q2 2025: 120.6
+  - New Work Q2 2025: 109.7
+  - Repair & Maintenance Q2 2025: 143.4
+
 ## Design Philosophy
 
 ### Mother Page Scraping Approach
@@ -305,12 +332,14 @@ class TestDeathsDataIntegrity:
 #### Test Coverage
 
 - **Births Statistics**: 15 integrity tests, 85% code coverage
+- **Construction Output**: 24 integrity tests, 92% code coverage
 - **Deaths Statistics**: 15 integrity tests, 87% code coverage
 - **Economic Indicators**: 39 integrity tests, 91% code coverage
 - **Labour Market Statistics**: 21 integrity tests, 86% code coverage
 - **Marriages Statistics**: 18 integrity tests, 83% code coverage
 - **Migration Statistics**: 20 integrity tests, 96% code coverage
 - **Population Statistics**: 17 integrity tests, 89% code coverage
+- **Total**: 169 integrity tests across 8 modules
 
 #### Why This Approach?
 
@@ -633,14 +662,15 @@ When adding a new NISRA dataset, follow these patterns:
 
 Potential additional NISRA-produced data sources to add:
 
+- \[ \] **NI Composite Economic Index** - Experimental quarterly economic performance measure
 - \[ \] **NI GDP** - Economic Accounts (GDP and components)
-- \[ \] **Construction Output** - Construction sector statistics
 - \[ \] **Deprivation Indices** - Northern Ireland Multiple Deprivation Measure
 - \[ \] **Census 2021** - Detailed population and household characteristics
 
 Completed:
 
 - \[x\] **Economic Indicators** - Quarterly Index of Services and Index of Production (implemented in `economic_indicators.py`)
+- \[x\] **Construction Output** - Quarterly construction sector statistics (implemented in `construction_output.py`)
 
 Note: Crime statistics are published by PSNI (Police Service of Northern Ireland), not NISRA, and would belong in a separate data source module.
 
