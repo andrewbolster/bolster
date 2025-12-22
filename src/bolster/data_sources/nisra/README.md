@@ -126,6 +126,37 @@ This module provides programmatic access to Northern Ireland Statistics and Rese
   - Average 2011-2024: +2,082 per year
   - 9 years with net immigration, 5 with net emigration
 
+### 7. Economic Indicators - Index of Services and Index of Production (`economic_indicators.py`)
+
+- **Update Frequency**: Quarterly (published ~3 months after quarter end)
+- **Mother Pages**:
+  - Index of Services: https://www.nisra.gov.uk/statistics/economic-output/index-services
+  - Index of Production: https://www.nisra.gov.uk/statistics/economic-output/index-production
+- **Data Dimensions**:
+  - Quarterly time series (Q1 2005 - Q3 2025)
+  - Seasonally adjusted index values
+  - Northern Ireland and UK comparator data
+- **Key Functions**:
+  - `get_latest_index_of_services()` - Fetch latest Index of Services data
+  - `get_latest_index_of_production()` - Fetch latest Index of Production data
+  - `calculate_ios_growth_rate()` - Calculate year-on-year growth rates for IOS
+  - `calculate_iop_growth_rate()` - Calculate year-on-year growth rates for IOP
+  - `get_ios_by_year()` / `get_iop_by_year()` - Filter for specific year
+  - `get_ios_by_quarter()` / `get_iop_by_quarter()` - Get specific quarter data
+  - `get_ios_summary_statistics()` / `get_iop_summary_statistics()` - Calculate summary stats
+- **Data Format**: Long-format quarterly time series with NI and UK indices
+- **Notes**:
+  - **Index of Services**: Covers business services, wholesale/retail, transport, other services
+  - **Index of Production**: Covers manufacturing, mining, utilities
+  - Both indices use base period = 100
+  - Seasonally adjusted for seasonal variations
+  - Services sector much larger than production in NI economy
+  - Production sector has faced long-term structural decline since 2008
+  - COVID-19 impact visible in 2020 data (especially services)
+  - Most recent data: Q3 2025 (published December 18, 2025)
+  - NI Services Q3 2025: 107.0
+  - NI Production Q3 2025: 103.2
+
 ## Design Philosophy
 
 ### Mother Page Scraping Approach
@@ -275,6 +306,7 @@ class TestDeathsDataIntegrity:
 
 - **Births Statistics**: 15 integrity tests, 85% code coverage
 - **Deaths Statistics**: 15 integrity tests, 87% code coverage
+- **Economic Indicators**: 39 integrity tests, 91% code coverage
 - **Labour Market Statistics**: 21 integrity tests, 86% code coverage
 - **Marriages Statistics**: 18 integrity tests, 83% code coverage
 - **Migration Statistics**: 20 integrity tests, 96% code coverage
@@ -601,11 +633,14 @@ When adding a new NISRA dataset, follow these patterns:
 
 Potential additional NISRA-produced data sources to add:
 
-- \[ \] **Economic Indicators** - Quarterly Index of Services and Index of Production
 - \[ \] **NI GDP** - Economic Accounts (GDP and components)
 - \[ \] **Construction Output** - Construction sector statistics
 - \[ \] **Deprivation Indices** - Northern Ireland Multiple Deprivation Measure
 - \[ \] **Census 2021** - Detailed population and household characteristics
+
+Completed:
+
+- \[x\] **Economic Indicators** - Quarterly Index of Services and Index of Production (implemented in `economic_indicators.py`)
 
 Note: Crime statistics are published by PSNI (Police Service of Northern Ireland), not NISRA, and would belong in a separate data source module.
 

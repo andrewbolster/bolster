@@ -19,6 +19,7 @@ from .data_sources.ni_house_price_index import build as get_ni_house_prices
 from .data_sources.ni_water import get_postcode_to_water_supply_zone, get_water_quality_by_zone
 from .data_sources.nisra import births as nisra_births
 from .data_sources.nisra import deaths as nisra_deaths
+from .data_sources.nisra import economic_indicators as nisra_economic
 from .data_sources.nisra import labour_market as nisra_labour_market
 from .data_sources.nisra import marriages as nisra_marriages
 from .data_sources.nisra import migration as nisra_migration
@@ -1937,6 +1938,298 @@ def nisra_migration_cmd(latest, year, start_year, end_year, output_format, force
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
         console.print("   • Ensure births, deaths, and population data are available")
+        raise click.Abort()
+
+
+@nisra.command(name="index-of-services")
+@click.option("--latest", is_flag=True, help="Get the most recent Index of Services data")
+@click.option("--year", type=int, help="Filter data for specific year")
+@click.option("--quarter", help="Filter data for specific quarter (e.g., 'Q1', 'Q2')")
+@click.option("--start-year", type=int, help="Start year for summary statistics")
+@click.option("--end-year", type=int, help="End year for summary statistics")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics only")
+@click.option("--growth", is_flag=True, help="Include year-on-year growth rates")
+def nisra_index_of_services_cmd(
+    latest, year, quarter, start_year, end_year, output_format, force_refresh, save, summary, growth
+):
+    """
+    NISRA Index of Services (IOS) - Quarterly Economic Indicator
+
+    Measures output in Northern Ireland's services sector, including business services,
+    wholesale/retail trade, transport, and other services. Seasonally adjusted quarterly
+    data from Q1 2005 to present.
+
+    \b
+    EXAMPLES:
+        # Get all Index of Services data
+        bolster nisra index-of-services --latest
+
+        # Filter for specific year
+        bolster nisra index-of-services --latest --year 2024
+
+        # Get specific quarter
+        bolster nisra index-of-services --latest --year 2025 --quarter Q3
+
+        # Show summary statistics for 2020-2025
+        bolster nisra index-of-services --latest --start-year 2020 --summary
+
+        # Include year-on-year growth rates
+        bolster nisra index-of-services --latest --growth
+
+        # Save to file
+        bolster nisra index-of-services --latest --save ios.csv
+
+        # Force refresh data
+        bolster nisra index-of-services --latest --force-refresh
+
+    \b
+    DATA NOTES:
+        - Coverage: Q1 2005 - Q3 2025 (quarterly)
+        - Seasonally adjusted values
+        - Index values (100 = base period)
+        - Includes NI and UK comparator data
+        - Published ~3 months after quarter end
+
+    \b
+    OUTPUT:
+        - date: First day of quarter
+        - quarter: Quarter code (Q1, Q2, Q3, Q4)
+        - year: Year
+        - ni_index: Northern Ireland services index value
+        - uk_index: UK services index value
+        - ni_growth_rate: YoY % change (if --growth specified)
+        - uk_growth_rate: YoY % change (if --growth specified)
+
+    \b
+    SOURCE:
+        NISRA Economic & Labour Market Statistics Branch
+        https://www.nisra.gov.uk/statistics/economic-output/index-services
+    """
+    console = Console()
+
+    if not latest:
+        console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
+        return
+
+    try:
+        with console.status("[bold green]Fetching Index of Services data..."):
+            data = nisra_economic.get_latest_index_of_services(force_refresh=force_refresh)
+
+        # Add growth rates if requested
+        if growth:
+            data = nisra_economic.calculate_ios_growth_rate(data)
+
+        # Filter by year and/or quarter if specified
+        if year:
+            data = nisra_economic.get_ios_by_year(data, year)
+            if quarter:
+                data = nisra_economic.get_ios_by_quarter(data, quarter, year)
+
+        if data.empty:
+            console.print("[yellow]⚠️  No data found for the specified filters[/yellow]")
+            return
+
+        console.print("[green]✅ Index of Services data fetched successfully[/green]")
+        console.print(f"[cyan]📊 Total quarters: {len(data)}[/cyan]")
+
+        if not data.empty:
+            earliest = f"{data.iloc[0]['quarter']} {data.iloc[0]['year']}"
+            latest_q = f"{data.iloc[-1]['quarter']} {data.iloc[-1]['year']}"
+            console.print(f"[dim]Period: {earliest} to {latest_q}[/dim]")
+
+        # Show summary statistics if requested
+        if summary:
+            stats = nisra_economic.get_ios_summary_statistics(data, start_year=start_year, end_year=end_year)
+
+            console.print(f"\n[bold]Summary Statistics ({stats['period']}):[/bold]")
+            console.print(f"   Total quarters: {stats['quarters_count']}")
+            console.print("\n   NI Services Index:")
+            console.print(f"     Mean: {stats['ni_mean']:.1f}")
+            console.print(f"     Range: {stats['ni_min']:.1f} - {stats['ni_max']:.1f}")
+            console.print("\n   UK Services Index:")
+            console.print(f"     Mean: {stats['uk_mean']:.1f}")
+            console.print(f"     Range: {stats['uk_min']:.1f} - {stats['uk_max']:.1f}")
+
+            if not save:
+                return
+
+        # Handle file saving
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", date_format="iso", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]💾 Data saved to: {save}[/green]")
+                return
+            except Exception as e:
+                console.print(f"[red]❌ Error saving file: {e}[/red]")
+                return
+
+        # Output to console
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
+        raise click.Abort()
+
+
+@nisra.command(name="index-of-production")
+@click.option("--latest", is_flag=True, help="Get the most recent Index of Production data")
+@click.option("--year", type=int, help="Filter data for specific year")
+@click.option("--quarter", help="Filter data for specific quarter (e.g., 'Q1', 'Q2')")
+@click.option("--start-year", type=int, help="Start year for summary statistics")
+@click.option("--end-year", type=int, help="End year for summary statistics")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics only")
+@click.option("--growth", is_flag=True, help="Include year-on-year growth rates")
+def nisra_index_of_production_cmd(
+    latest, year, quarter, start_year, end_year, output_format, force_refresh, save, summary, growth
+):
+    """
+    NISRA Index of Production (IOP) - Quarterly Economic Indicator
+
+    Measures output in Northern Ireland's production industries, including manufacturing,
+    mining, and utilities. Seasonally adjusted quarterly data from Q1 2005 to present.
+
+    \b
+    EXAMPLES:
+        # Get all Index of Production data
+        bolster nisra index-of-production --latest
+
+        # Filter for specific year
+        bolster nisra index-of-production --latest --year 2024
+
+        # Get specific quarter
+        bolster nisra index-of-production --latest --year 2025 --quarter Q3
+
+        # Show summary statistics
+        bolster nisra index-of-production --latest --start-year 2020 --summary
+
+        # Include growth rates
+        bolster nisra index-of-production --latest --growth
+
+        # Save as JSON
+        bolster nisra index-of-production --latest --format json --save iop.json
+
+    \b
+    DATA NOTES:
+        - Coverage: Q1 2005 - Q3 2025 (quarterly)
+        - Seasonally adjusted values
+        - Index values (100 = base period)
+        - Includes NI and UK comparator data
+        - Production industries have faced long-term challenges
+
+    \b
+    OUTPUT:
+        - date: First day of quarter
+        - quarter: Quarter code (Q1, Q2, Q3, Q4)
+        - year: Year
+        - ni_index: Northern Ireland production index value
+        - uk_index: UK production index value
+        - ni_growth_rate: YoY % change (if --growth specified)
+        - uk_growth_rate: YoY % change (if --growth specified)
+
+    \b
+    SOURCE:
+        NISRA Economic & Labour Market Statistics Branch
+        https://www.nisra.gov.uk/statistics/economic-output/index-production
+    """
+    console = Console()
+
+    if not latest:
+        console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
+        return
+
+    try:
+        with console.status("[bold green]Fetching Index of Production data..."):
+            data = nisra_economic.get_latest_index_of_production(force_refresh=force_refresh)
+
+        # Add growth rates if requested
+        if growth:
+            data = nisra_economic.calculate_iop_growth_rate(data)
+
+        # Filter by year and/or quarter if specified
+        if year:
+            data = nisra_economic.get_iop_by_year(data, year)
+            if quarter:
+                data = nisra_economic.get_iop_by_quarter(data, quarter, year)
+
+        if data.empty:
+            console.print("[yellow]⚠️  No data found for the specified filters[/yellow]")
+            return
+
+        console.print("[green]✅ Index of Production data fetched successfully[/green]")
+        console.print(f"[cyan]📊 Total quarters: {len(data)}[/cyan]")
+
+        if not data.empty:
+            earliest = f"{data.iloc[0]['quarter']} {data.iloc[0]['year']}"
+            latest_q = f"{data.iloc[-1]['quarter']} {data.iloc[-1]['year']}"
+            console.print(f"[dim]Period: {earliest} to {latest_q}[/dim]")
+
+        # Show summary statistics if requested
+        if summary:
+            stats = nisra_economic.get_iop_summary_statistics(data, start_year=start_year, end_year=end_year)
+
+            console.print(f"\n[bold]Summary Statistics ({stats['period']}):[/bold]")
+            console.print(f"   Total quarters: {stats['quarters_count']}")
+            console.print("\n   NI Production Index:")
+            console.print(f"     Mean: {stats['ni_mean']:.1f}")
+            console.print(f"     Range: {stats['ni_min']:.1f} - {stats['ni_max']:.1f}")
+            console.print("\n   UK Production Index:")
+            console.print(f"     Mean: {stats['uk_mean']:.1f}")
+            console.print(f"     Range: {stats['uk_min']:.1f} - {stats['uk_max']:.1f}")
+
+            if not save:
+                return
+
+        # Handle file saving
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", date_format="iso", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]💾 Data saved to: {save}[/green]")
+                return
+            except Exception as e:
+                console.print(f"[red]❌ Error saving file: {e}[/red]")
+                return
+
+        # Output to console
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
         raise click.Abort()
 
 
