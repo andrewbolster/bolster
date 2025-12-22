@@ -6,6 +6,7 @@ including births, deaths, labour market, population, migration, and economic ind
 
 Available modules:
     - births: Monthly birth registrations by registration and occurrence date
+    - construction_output: Quarterly construction output statistics (all work, new work, repair & maintenance)
     - deaths: Weekly death registrations with demographic, geographic, and place breakdowns
     - economic_indicators: Quarterly Index of Services and Index of Production
     - labour_market: Quarterly Labour Force Survey statistics (employment, economic inactivity)
@@ -17,6 +18,10 @@ Examples:
     >>> from bolster.data_sources.nisra import births
     >>> birth_data = births.get_latest_births(event_type='both')
     >>> print(birth_data['registration'].head())
+
+    >>> from bolster.data_sources.nisra import construction_output
+    >>> construction_df = construction_output.get_latest_construction_output()
+    >>> print(f"Latest All Work Index: {construction_df.iloc[-1]['all_work_index']:.1f}")
 
     >>> from bolster.data_sources.nisra import deaths
     >>> df = deaths.get_latest_deaths(dimension='demographics')
@@ -46,6 +51,15 @@ Examples:
     >>> print(f"NI population 2024: {pop_df[pop_df['year'] == 2024]['population'].sum():,}")
 """
 
-from . import births, deaths, economic_indicators, labour_market, marriages, migration, population
+from . import births, construction_output, deaths, economic_indicators, labour_market, marriages, migration, population
 
-__all__ = ["births", "deaths", "economic_indicators", "labour_market", "marriages", "migration", "population"]
+__all__ = [
+    "births",
+    "construction_output",
+    "deaths",
+    "economic_indicators",
+    "labour_market",
+    "marriages",
+    "migration",
+    "population",
+]
