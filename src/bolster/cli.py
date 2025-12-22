@@ -1127,7 +1127,7 @@ def nisra_deaths_cmd(latest, dimension, output_format, force_refresh, save):
 @click.option("--latest", is_flag=True, help="Get the most recent labour market data available")
 @click.option(
     "--table",
-    type=click.Choice(["employment", "economic_inactivity", "all"], case_sensitive=False),
+    type=click.Choice(["employment", "economic_inactivity", "lgd", "all"], case_sensitive=False),
     default="all",
     help="Which table to retrieve (default: all)",
 )
@@ -1144,9 +1144,10 @@ def nisra_labour_market_cmd(latest, table, output_format, force_refresh, save):
     """
     NISRA Labour Force Survey Statistics
 
-    Retrieves quarterly Labour Force Survey (LFS) data for Northern Ireland including:
-    - Employment by age band and sex
-    - Economic inactivity rates and numbers (with historical time series)
+    Retrieves Labour Force Survey (LFS) data for Northern Ireland including:
+    - Employment by age band and sex (quarterly)
+    - Economic inactivity rates and numbers with historical time series (quarterly)
+    - Employment by Local Government District (annual)
 
     The LFS is a sample survey of households providing labour force statistics using
     internationally agreed concepts and definitions.
@@ -1158,6 +1159,9 @@ def nisra_labour_market_cmd(latest, table, output_format, force_refresh, save):
 
         # Get economic inactivity time series (2012-2025)
         bolster nisra labour-market --latest --table economic_inactivity
+
+        # Get employment by Local Government District (annual)
+        bolster nisra labour-market --latest --table lgd
 
         # Get all tables as JSON
         bolster nisra labour-market --latest --table all --format json
@@ -1190,7 +1194,12 @@ def nisra_labour_market_cmd(latest, table, output_format, force_refresh, save):
                              • Historical time series (2012-2025 for same quarter)
                              • Allows year-over-year comparisons
 
-        all                 - All available tables
+        lgd                 - Employment by Local Government District (Table 1.16a)
+                             • Employment statistics for all 11 NI LGDs
+                             • Population 16+, employment rates, economic activity
+                             • Annual data only (published separately)
+
+        all                 - All quarterly tables (excludes LGD annual data)
 
     \b
     DEFINITIONS:
@@ -1223,6 +1232,8 @@ def nisra_labour_market_cmd(latest, table, output_format, force_refresh, save):
                 data = nisra_labour_market.get_latest_employment(force_refresh=force_refresh)
             elif table == "economic_inactivity":
                 data = nisra_labour_market.get_latest_economic_inactivity(force_refresh=force_refresh)
+            elif table == "lgd":
+                data = nisra_labour_market.get_latest_employment_by_lgd(force_refresh=force_refresh)
 
         # Handle the result based on whether it's a single DataFrame or dict of DataFrames
         if table == "all":
