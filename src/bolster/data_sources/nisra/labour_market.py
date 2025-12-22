@@ -28,9 +28,10 @@ Architecture:
         * Employment by age band and sex (Table 2.15)
         * Employment by industry sector (Table 2.17)
         * Employment by occupation (Table 2.18)
-        * Employment by Local Government District (Table 2.19 - annual)
         * Economic inactivity (Table 2.21)
         * Unemployment rates (Table 2.22)
+    - Separately handles annual Local Government District data (Table 1.16a)
+      published in dedicated LGD tables file (not in quarterly publications)
     - Returns long-format DataFrames for flexibility
     - Uses standardized Excel parsing utilities from _base.py
 
@@ -42,6 +43,8 @@ Usage:
     >>> df = labour_market.get_latest_economic_inactivity()
     >>> # Get all tables for a specific quarter
     >>> data = labour_market.get_quarterly_data(year=2025, quarter="Jul-Sep")
+    >>> # Get annual employment by Local Government District
+    >>> lgd_df = labour_market.get_latest_employment_by_lgd()
 
 Example:
     >>> import pandas as pd
@@ -53,6 +56,11 @@ Example:
     ...     (emp_df['sex'] == 'Female') &
     ...     (emp_df['age_group'] == '25 to 29')
     ... ]
+    >>> # Get employment by Local Government District
+    >>> lgd_df = labour_market.get_latest_employment_by_lgd()
+    >>> # Compare Belfast and rural areas
+    >>> belfast = lgd_df[lgd_df['lgd'] == 'Belfast']
+    >>> print(f"Belfast employment rate: {belfast['employment_rate'].values[0]:.1f}%")
 
 Author: Claude Code
 Date: 2025-12-21
@@ -701,3 +709,189 @@ def get_quarterly_data(
         result["economic_inactivity"] = parse_economic_inactivity(file_path)
 
     return result
+
+
+# ============================================================================
+# Local Government District Employment Functions
+# ============================================================================
+
+
+def get_latest_lgd_employment_url() -> tuple[str, int]:
+    """Get the URL of the latest LFS Local Government District tables publication.
+
+    Uses known URL pattern to construct the file URL. The LGD tables are published
+    annually but not listed on the main Labour Market page.
+
+    Returns:
+        Tuple of (excel_url, year)
+
+    Raises:
+        NISRADataNotFoundError: If unable to find the latest publication
+
+    Example:
+        >>> url, year = get_latest_lgd_employment_url()
+        >>> print(f"Latest LGD tables: {year} at {url}")
+    """
+    from datetime import datetime
+
+    import requests
+
+    logger.info("Fetching latest LFS LGD employment publication URL...")
+
+    # The LGD tables follow a predictable URL pattern
+    # We know the publication exists for 2024, try current year first then fall back
+    current_year = datetime.now().year
+    years_to_try = [current_year, current_year - 1, 2024]  # Try current, last year, and known 2024
+
+    for year in years_to_try:
+        # Construct the expected URL
+        # Pattern: https://www.nisra.gov.uk/publications/labour-force-survey-tables-local-government-districts-2009-YYYY
+        pub_url = f"{LFS_BASE_URL}/publications/labour-force-survey-tables-local-government-districts-2009-{year}"
+
+        try:
+            response = requests.get(pub_url, timeout=30)
+            if response.status_code == 200:
+                # Found the publication page, now find the Excel file
+                from bs4 import BeautifulSoup
+
+                soup = BeautifulSoup(response.content, "html.parser")
+
+                # Find Excel file link
+                for link in soup.find_all("a", href=True):
+                    href = link["href"]
+                    if ".xlsx" in href.lower() and "labour" in href.lower():
+                        excel_url = href
+                        if not excel_url.startswith("http"):
+                            excel_url = f"{LFS_BASE_URL}{excel_url}"
+
+                        logger.info(f"Found latest LFS LGD tables: {year} at {excel_url}")
+                        return excel_url, year
+
+        except requests.RequestException:
+            continue
+
+    # If all attempts fail, return the known 2024 file URL as fallback
+    fallback_url = (
+        "https://www.nisra.gov.uk/system/files/statistics/2025-07/"
+        "Labour%20Force%20Survey%20-%20Tables%20for%20Local%20Government%20Districts%202009%20to%202024.xlsx"
+    )
+    logger.warning(f"Could not find latest LGD publication via pattern, using known 2024 file: {fallback_url}")
+    return fallback_url, 2024
+
+
+def parse_employment_by_lgd(file_path: Union[str, Path], year: int = None) -> pd.DataFrame:
+    """Parse Table 1.16a: Employment by Local Government District (ages 16+).
+
+    Extracts employment statistics for all 11 Northern Ireland LGDs from the annual
+    LFS LGD tables file.
+
+    Args:
+        file_path: Path to the LFS LGD tables Excel file
+        year: Year of the data (if not provided, will be extracted from sheet name)
+
+    Returns:
+        DataFrame with columns:
+            - year: int
+            - lgd: str (Local Government District name)
+            - population_16plus: int (thousands)
+            - economically_active: int (thousands)
+            - in_employment: int (thousands)
+            - full_time_employment: int (thousands)
+            - part_time_employment: int (thousands)
+            - economically_inactive: int (thousands)
+            - economic_activity_rate: float (%)
+            - employment_rate: float (%)
+
+    Example:
+        >>> df = parse_employment_by_lgd("lfs-lgd-2024.xlsx", year=2024)
+        >>> belfast = df[df['lgd'] == 'Belfast']
+        >>> print(f"Belfast employment rate: {belfast['employment_rate'].values[0]}%")
+    """
+    logger.info(f"Parsing LFS LGD employment from: {file_path}")
+
+    # If year not provided, try to extract from filename or use the latest sheet
+    if year is None:
+        # Try to extract from filename
+        filename_match = re.search(r"(\d{4})\.xlsx", str(file_path))
+        if filename_match:
+            year = int(filename_match.group(1))
+        else:
+            # Use the latest year sheet
+            wb = load_workbook(file_path, data_only=True)
+            # Find numeric sheet names (years)
+            year_sheets = [int(s) for s in wb.sheetnames if s.isdigit()]
+            if year_sheets:
+                year = max(year_sheets)
+            else:
+                raise ValueError("Cannot determine year from filename or sheet names")
+
+    # Read Table 1.16a (ages 16+)
+    # Header is in row 6 (0-indexed), data starts in row 7
+    # Skip first 6 rows to use row 6 as header
+    df = pd.read_excel(file_path, sheet_name=str(year), skiprows=6, nrows=12)
+
+    # Rename columns to standard names
+    df.columns = [
+        "lgd",
+        "population_16plus",
+        "economically_active",
+        "in_employment",
+        "full_time_employment",
+        "part_time_employment",
+        "economically_inactive",
+        "economic_activity_rate",
+        "employment_rate",
+        "notes",
+    ]
+
+    # Drop notes column and Total row
+    df = df.drop(columns=["notes"])
+    df = df[df["lgd"] != "Total"].reset_index(drop=True)
+
+    # Add year column
+    df["year"] = year
+
+    # Reorder columns
+    df = df[
+        [
+            "year",
+            "lgd",
+            "population_16plus",
+            "economically_active",
+            "in_employment",
+            "full_time_employment",
+            "part_time_employment",
+            "economically_inactive",
+            "economic_activity_rate",
+            "employment_rate",
+        ]
+    ]
+
+    logger.info(f"Parsed {len(df)} LGD employment records for {year}")
+    return df
+
+
+def get_latest_employment_by_lgd(force_refresh: bool = False) -> pd.DataFrame:
+    """Get the latest Employment by Local Government District data.
+
+    Downloads and parses the most recent annual LFS LGD tables publication.
+    Results are cached for 180 days unless force_refresh=True.
+
+    Args:
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with employment statistics for all 11 NI Local Government Districts
+
+    Example:
+        >>> df = get_latest_employment_by_lgd()
+        >>> # Compare Belfast to other LGDs
+        >>> df_sorted = df.sort_values('employment_rate', ascending=False)
+        >>> print(df_sorted[['lgd', 'in_employment', 'employment_rate']])
+    """
+    excel_url, year = get_latest_lgd_employment_url()
+
+    # Cache for 180 days (published annually)
+    file_path = download_file(excel_url, cache_ttl_hours=180 * 24, force_refresh=force_refresh)
+
+    return parse_employment_by_lgd(file_path, year=year)

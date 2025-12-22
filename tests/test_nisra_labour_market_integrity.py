@@ -441,3 +441,168 @@ class TestCombinedLabourMarketIntegrity:
                 f"Employed ({employed:,}) + Inactive ({inactive:,}) = {total:,} "
                 "seems too low for working age population (~1.2M)"
             )
+
+
+class TestLGDEmploymentIntegrity:
+    """Test suite for employment by Local Government District data (Table 1.16a).
+
+    Validates annual LGD employment data for internal consistency and quality.
+    """
+
+    @pytest.fixture(scope="class")
+    def latest_lgd_employment(self):
+        """Fetch latest LGD employment data once for the test class."""
+        return labour_market.get_latest_employment_by_lgd(force_refresh=False)
+
+    def test_data_structure(self, latest_lgd_employment):
+        """Test that LGD employment data has correct structure."""
+        assert len(latest_lgd_employment) > 0
+        required_cols = [
+            "year",
+            "lgd",
+            "population_16plus",
+            "economically_active",
+            "in_employment",
+            "full_time_employment",
+            "part_time_employment",
+            "economically_inactive",
+            "economic_activity_rate",
+            "employment_rate",
+        ]
+        assert all(col in latest_lgd_employment.columns for col in required_cols)
+
+    def test_eleven_lgds(self, latest_lgd_employment):
+        """Test that data includes all 11 Northern Ireland LGDs."""
+        assert len(latest_lgd_employment) == 11
+
+    def test_lgd_names_valid(self, latest_lgd_employment):
+        """Test that LGD names are valid."""
+        expected_lgds = {
+            "Antrim and Newtownabbey",
+            "Ards and North Down",
+            "Armagh City, Banbridge and Craigavon",
+            "Belfast",
+            "Causeway Coast and Glens",
+            "Derry City and Strabane",
+            "Fermanagh and Omagh",
+            "Lisburn and Castlereagh",
+            "Mid and East Antrim",
+            "Mid Ulster",
+            "Newry Mourne and Down",
+        }
+        assert set(latest_lgd_employment["lgd"].unique()) == expected_lgds
+
+    def test_no_missing_values(self, latest_lgd_employment):
+        """Test that there are no missing values in key columns."""
+        numeric_cols = [
+            "population_16plus",
+            "economically_active",
+            "in_employment",
+            "full_time_employment",
+            "part_time_employment",
+            "economically_inactive",
+            "economic_activity_rate",
+            "employment_rate",
+        ]
+        for col in numeric_cols:
+            assert not latest_lgd_employment[col].isna().any(), f"Column {col} has missing values"
+
+    def test_employment_components_sum(self, latest_lgd_employment):
+        """Test that full-time + part-time = total employment for each LGD."""
+        for _, row in latest_lgd_employment.iterrows():
+            ft = row["full_time_employment"]
+            pt = row["part_time_employment"]
+            total = row["in_employment"]
+            lgd = row["lgd"]
+
+            # Allow for rounding differences
+            assert abs((ft + pt) - total) <= 1, (
+                f"{lgd}: Full-time ({ft}) + Part-time ({pt}) = {ft + pt} != Total employment ({total})"
+            )
+
+    def test_active_inactive_sum(self, latest_lgd_employment):
+        """Test that economically active + inactive = population 16+ for each LGD."""
+        for _, row in latest_lgd_employment.iterrows():
+            active = row["economically_active"]
+            inactive = row["economically_inactive"]
+            pop = row["population_16plus"]
+            lgd = row["lgd"]
+
+            # Allow for rounding differences
+            assert abs((active + inactive) - pop) <= 1, (
+                f"{lgd}: Active ({active}) + Inactive ({inactive}) = {active + inactive} != Population 16+ ({pop})"
+            )
+
+    def test_employment_rate_calculation(self, latest_lgd_employment):
+        """Test that employment rate is correctly calculated."""
+        for _, row in latest_lgd_employment.iterrows():
+            employment = row["in_employment"]
+            population = row["population_16plus"]
+            rate = row["employment_rate"]
+            lgd = row["lgd"]
+
+            expected_rate = (employment / population) * 100
+
+            # Allow for rounding differences (within 1%)
+            assert abs(rate - expected_rate) < 1.0, (
+                f"{lgd}: Employment rate {rate}% != expected {expected_rate:.1f}% "
+                f"(Employment {employment} / Population {population})"
+            )
+
+    def test_economic_activity_rate_calculation(self, latest_lgd_employment):
+        """Test that economic activity rate is correctly calculated."""
+        for _, row in latest_lgd_employment.iterrows():
+            active = row["economically_active"]
+            population = row["population_16plus"]
+            rate = row["economic_activity_rate"]
+            lgd = row["lgd"]
+
+            expected_rate = (active / population) * 100
+
+            # Allow for rounding differences (within 1%)
+            assert abs(rate - expected_rate) < 1.0, (
+                f"{lgd}: Activity rate {rate}% != expected {expected_rate:.1f}% "
+                f"(Active {active} / Population {population})"
+            )
+
+    def test_employment_rates_reasonable(self, latest_lgd_employment):
+        """Test that employment rates are in reasonable range."""
+        # Employment rates in NI typically 45-75%
+        assert latest_lgd_employment["employment_rate"].min() > 40
+        assert latest_lgd_employment["employment_rate"].max() < 80
+
+    def test_population_reasonable(self, latest_lgd_employment):
+        """Test that LGD populations are reasonable."""
+        # Belfast is largest (~260k), smallest LGDs ~80-100k
+        assert latest_lgd_employment["population_16plus"].max() < 300
+        assert latest_lgd_employment["population_16plus"].min() > 70
+
+        # Total should be around 1.5M
+        total_pop = latest_lgd_employment["population_16plus"].sum()
+        assert 1400 < total_pop < 1600, f"Total population {total_pop}k seems unreasonable"
+
+    def test_belfast_largest_employment(self, latest_lgd_employment):
+        """Test that Belfast has the largest absolute employment numbers."""
+        belfast = latest_lgd_employment[latest_lgd_employment["lgd"] == "Belfast"]
+        max_employment = latest_lgd_employment["in_employment"].max()
+
+        assert belfast["in_employment"].values[0] == max_employment
+
+    def test_employment_variation_across_lgds(self, latest_lgd_employment):
+        """Test that employment rates vary meaningfully across LGDs."""
+        rates = latest_lgd_employment["employment_rate"]
+
+        # Should have at least 10 percentage points between highest and lowest
+        assert rates.max() - rates.min() > 10
+
+        # Should have standard deviation > 3%
+        assert rates.std() > 3
+
+    def test_year_value(self, latest_lgd_employment):
+        """Test that year is reasonable."""
+        year = latest_lgd_employment["year"].unique()[0]
+        assert 2020 <= year <= 2030
+
+    def test_no_duplicates(self, latest_lgd_employment):
+        """Test that there are no duplicate LGD rows."""
+        assert not latest_lgd_employment["lgd"].duplicated().any()
