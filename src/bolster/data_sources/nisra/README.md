@@ -599,14 +599,15 @@ When adding a new NISRA dataset, follow these patterns:
 
 ## Future Enhancements
 
-Potential additional NISRA data sources to add:
+Potential additional NISRA-produced data sources to add:
 
-- \[ \] **Crime Statistics** - Monthly police recorded crime
-- \[ \] **House Prices** - Quarterly NI house price index (may overlap with existing `ni_house_price_index.py`)
-- \[ \] **Birth Statistics** - Quarterly birth registrations
-- \[ \] **Education Statistics** - Annual school census data
-- \[ \] **Tourism Statistics** - Quarterly visitor numbers
-- \[ \] **Business Statistics** - Quarterly economic indicators
+- \[ \] **Economic Indicators** - Quarterly Index of Services and Index of Production
+- \[ \] **NI GDP** - Economic Accounts (GDP and components)
+- \[ \] **Construction Output** - Construction sector statistics
+- \[ \] **Deprivation Indices** - Northern Ireland Multiple Deprivation Measure
+- \[ \] **Census 2021** - Detailed population and household characteristics
+
+Note: Crime statistics are published by PSNI (Police Service of Northern Ireland), not NISRA, and would belong in a separate data source module.
 
 ## References
 
