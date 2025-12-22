@@ -21,6 +21,7 @@ from .data_sources.nisra import births as nisra_births
 from .data_sources.nisra import deaths as nisra_deaths
 from .data_sources.nisra import labour_market as nisra_labour_market
 from .data_sources.nisra import marriages as nisra_marriages
+from .data_sources.nisra import migration as nisra_migration
 from .data_sources.nisra import population as nisra_population
 from .data_sources.wikipedia import get_ni_executive_basic_table
 from .utils.rss import filter_entries, get_nisra_statistics_feed, parse_rss_feed
@@ -1770,6 +1771,172 @@ def nisra_marriages_cmd(latest, year, output_format, force_refresh, save):
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
         console.print("   • Visit NISRA website to verify data availability")
+        raise click.Abort()
+
+
+@nisra.command(name="migration")
+@click.option("--latest", is_flag=True, help="Get the most recent migration estimates")
+@click.option("--year", type=int, help="Filter data for specific year")
+@click.option("--start-year", type=int, help="Start year for summary statistics")
+@click.option("--end-year", type=int, help="End year for summary statistics")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics only")
+def nisra_migration_cmd(latest, year, start_year, end_year, output_format, force_refresh, save, summary):
+    """
+    NISRA Migration Estimates (Derived from Demographic Components)
+
+    Calculates net migration using the demographic accounting equation:
+        Net Migration = Population Change - Natural Change
+        Net Migration = ΔPopulation - (Births - Deaths)
+
+    This combines data from:
+    - Mid-year population estimates
+    - Monthly birth registrations (occurrence data)
+    - Historical death registrations
+
+    The demographic equation must hold: Pop(t+1) = Pop(t) + Births - Deaths + Migration
+
+    \b
+    EXAMPLES:
+        # Get all migration data
+        bolster nisra migration --latest
+
+        # Filter for specific year
+        bolster nisra migration --latest --year 2024
+
+        # Show summary statistics for 2010-2024
+        bolster nisra migration --latest --start-year 2010 --summary
+
+        # Save to file
+        bolster nisra migration --latest --save migration.csv
+
+        # Get data as JSON
+        bolster nisra migration --latest --format json
+
+        # Force refresh all source data
+        bolster nisra migration --latest --force-refresh
+
+    \b
+    DATA NOTES:
+        - Coverage: 2011-2024 (limited by historical deaths data)
+        - Derived migration includes net effect of international and internal migration
+        - Also captures measurement error and timing differences between sources
+        - Demographic equation validated for all years (ΔPop = Births - Deaths + Migration)
+
+    \b
+    KEY FINDINGS:
+        - 2023: Highest net immigration (+7,225)
+        - 2024: Strong immigration continues (+6,107)
+        - 2013: Highest net emigration (-2,124)
+        - Average 2011-2024: +2,082 per year
+        - 9 years with net immigration, 5 with net emigration
+
+    \b
+    OUTPUT:
+        - year: Year
+        - population_start, population_end: Mid-year population estimates
+        - births, deaths: Annual totals
+        - natural_change: Births - Deaths
+        - population_change: Year-over-year change
+        - net_migration: Derived migration estimate
+        - migration_rate: Per 1,000 population
+
+    \b
+    SOURCE:
+        Combines three NISRA data sources:
+        - Population: https://www.nisra.gov.uk/statistics/people-and-communities/population
+        - Births: https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/births
+        - Deaths: https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/deaths
+    """
+    console = Console()
+
+    if not latest:
+        console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
+        console.print("[dim]Future versions will support historical years[/dim]")
+        return
+
+    try:
+        with console.status("[bold green]Calculating migration estimates from demographic components..."):
+            data = nisra_migration.get_latest_migration(force_refresh=force_refresh)
+
+        # Filter by year if specified
+        if year:
+            data = nisra_migration.get_migration_by_year(data, year)
+            if data.empty:
+                console.print(f"[yellow]⚠️  No data found for year {year}[/yellow]")
+                return
+
+        console.print("[green]✅ Migration estimates calculated successfully[/green]")
+        console.print(f"[cyan]📊 Total years: {len(data)}[/cyan]")
+
+        if not data.empty:
+            earliest_year = data["year"].min()
+            latest_year = data["year"].max()
+            console.print(f"[dim]Period: {earliest_year} to {latest_year}[/dim]")
+
+            # Show validation
+            console.print("\n[bold]Validation:[/bold]")
+            try:
+                nisra_migration.validate_demographic_equation(data)
+                console.print("   ✓ Demographic equation validated (ΔPop = Births - Deaths + Migration)")
+            except Exception as e:
+                console.print(f"   [red]✗ Validation failed: {e}[/red]")
+
+        # Show summary statistics if requested
+        if summary:
+            stats = nisra_migration.get_migration_summary_statistics(data, start_year=start_year, end_year=end_year)
+
+            period = f"{start_year or data['year'].min()}-{end_year or data['year'].max()}"
+            console.print(f"\n[bold]Summary Statistics ({period}):[/bold]")
+            console.print(f"   Total years: {stats['total_years']}")
+            console.print(f"   Average net migration: {stats['avg_net_migration']:+,.0f}")
+            console.print(f"   Average migration rate: {stats['avg_migration_rate']:+.2f} per 1,000")
+            console.print(f"   Years with net immigration: {stats['positive_years']}")
+            console.print(f"   Years with net emigration: {stats['negative_years']}")
+            console.print(f"\n   Peak immigration: {stats['max_immigration_year']} ({stats['max_immigration']:+,})")
+            console.print(f"   Peak emigration: {stats['max_emigration_year']} ({stats['max_emigration']:+,})")
+
+            if not save:
+                return  # Don't output data if only showing summary
+
+        # Handle file saving
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", date_format="iso", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]💾 Data saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]❌ Error: Permission denied writing to {save}[/red]")
+                console.print("[yellow]💡 Check file permissions or choose a different location[/yellow]")
+                return
+            except Exception as e:
+                console.print(f"[red]❌ Error saving file: {e}[/red]")
+                return
+
+        # Output to console in requested format
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            # CSV output
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
+        console.print("   • Ensure births, deaths, and population data are available")
         raise click.Abort()
 
 

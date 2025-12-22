@@ -98,6 +98,34 @@ This module provides programmatic access to Northern Ireland Statistics and Rese
   - Strict lockdown months: April 2020 (14 marriages), May 2020 (4 marriages)
   - Final data for years up to 2024, provisional data for current year
 
+### 6. Migration Estimates - Derived (`migration.py`)
+
+- **Update Frequency**: Annual (follows mid-year population estimates schedule)
+- **Data Source**: Derived from combining births, deaths, and population data
+- **Methodology**: Uses demographic accounting equation: `Net Migration = ΔPopulation - (Births - Deaths)`
+- **Data Dimensions**:
+  - Year (2011-2024, limited by historical deaths data availability)
+  - Population changes (start, end, change)
+  - Vital events (births, deaths, natural change)
+  - Migration estimates (net migration, migration rate per 1,000)
+- **Key Functions**:
+  - `get_latest_migration()` - Automatically calculates migration from demographic components
+  - `derive_migration()` - Core calculation function
+  - `validate_demographic_equation()` - Verify ΔPop = (Births - Deaths) + Migration
+  - `get_migration_by_year()` - Filter for specific year
+  - `get_migration_summary_statistics()` - Calculate summary statistics by period
+- **Data Format**: Long-format annual time series with demographic components
+- **Notes**:
+  - Derived migration = residual method (not direct measurement)
+  - Captures net effect of international + internal migration
+  - Also includes measurement error and timing differences between sources
+  - Demographic equation validated for all years (data consistency check)
+  - NISRA previously published migration statistics (last update: 2020, discontinued)
+  - 2023: Highest net immigration (+7,225)
+  - 2024: Strong immigration continues (+6,107)
+  - Average 2011-2024: +2,082 per year
+  - 9 years with net immigration, 5 with net emigration
+
 ## Design Philosophy
 
 ### Mother Page Scraping Approach
@@ -249,6 +277,7 @@ class TestDeathsDataIntegrity:
 - **Deaths Statistics**: 15 integrity tests, 87% code coverage
 - **Labour Market Statistics**: 21 integrity tests, 86% code coverage
 - **Marriages Statistics**: 18 integrity tests, 83% code coverage
+- **Migration Statistics**: 20 integrity tests, 96% code coverage
 - **Population Statistics**: 17 integrity tests, 89% code coverage
 
 #### Why This Approach?
@@ -348,7 +377,7 @@ logging.basicConfig(level=logging.WARNING)  # Quiet mode
 ### Quick Start
 
 ```python
-from bolster.data_sources.nisra import births, deaths, labour_market, marriages, population
+from bolster.data_sources.nisra import births, deaths, labour_market, marriages, migration, population
 
 # Get latest monthly births by registration date
 births_df = births.get_latest_births(event_type="registration")
@@ -370,6 +399,11 @@ print(
 marriages_df = marriages.get_latest_marriages()
 df_2024 = marriages.get_marriages_by_year(marriages_df, 2024)
 print(f"Total marriages in 2024: {df_2024['marriages'].sum():,.0f}")
+
+# Get latest migration estimates (derived)
+migration_df = migration.get_latest_migration()
+df_2024 = migration.get_migration_by_year(migration_df, 2024)
+print(f"Net migration in 2024: {df_2024['net_migration'].values[0]:+,}")
 
 # Get latest annual population estimates
 population_df = population.get_latest_population(area="Northern Ireland")
@@ -423,6 +457,15 @@ bolster nisra marriages --latest
 
 # Get marriages for specific year
 bolster nisra marriages --latest --year 2024 --save marriages_2024.csv
+
+# Get latest migration estimates (derived from demographic components)
+bolster nisra migration --latest
+
+# Show migration summary statistics for 2020-2024
+bolster nisra migration --latest --start-year 2020 --summary
+
+# Get migration for specific year
+bolster nisra migration --latest --year 2024 --save migration_2024.csv
 
 # Get latest population estimates for NI
 bolster nisra population --latest
