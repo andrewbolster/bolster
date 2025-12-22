@@ -5,6 +5,7 @@ This package provides access to various statistical datasets published by NISRA,
 including births, deaths, labour market, population, migration, and economic indicators.
 
 Available modules:
+    - ashe: Annual Survey of Hours and Earnings (employee earnings statistics)
     - births: Monthly birth registrations by registration and occurrence date
     - construction_output: Quarterly construction output statistics (all work, new work, repair & maintenance)
     - deaths: Weekly death registrations with demographic, geographic, and place breakdowns
@@ -15,6 +16,11 @@ Available modules:
     - population: Annual mid-year population estimates by age, sex, and geography
 
 Examples:
+    >>> from bolster.data_sources.nisra import ashe
+    >>> earnings_df = ashe.get_latest_ashe_timeseries('weekly')
+    >>> latest = earnings_df[earnings_df['year'] == earnings_df['year'].max()]
+    >>> print(f"Latest NI median weekly earnings: £{latest[latest['work_pattern']=='All']['median_weekly_earnings'].values[0]:.2f}")
+
     >>> from bolster.data_sources.nisra import births
     >>> birth_data = births.get_latest_births(event_type='both')
     >>> print(birth_data['registration'].head())
@@ -51,9 +57,20 @@ Examples:
     >>> print(f"NI population 2024: {pop_df[pop_df['year'] == 2024]['population'].sum():,}")
 """
 
-from . import births, construction_output, deaths, economic_indicators, labour_market, marriages, migration, population
+from . import (
+    ashe,
+    births,
+    construction_output,
+    deaths,
+    economic_indicators,
+    labour_market,
+    marriages,
+    migration,
+    population,
+)
 
 __all__ = [
+    "ashe",
     "births",
     "construction_output",
     "deaths",

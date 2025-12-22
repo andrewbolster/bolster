@@ -17,6 +17,7 @@ from .data_sources.eoni import get_results as get_ni_election_results
 from .data_sources.metoffice import get_uk_precipitation
 from .data_sources.ni_house_price_index import build as get_ni_house_prices
 from .data_sources.ni_water import get_postcode_to_water_supply_zone, get_water_quality_by_zone
+from .data_sources.nisra import ashe as nisra_ashe
 from .data_sources.nisra import births as nisra_births
 from .data_sources.nisra import construction_output as nisra_construction
 from .data_sources.nisra import deaths as nisra_deaths
@@ -2358,6 +2359,188 @@ def nisra_construction_output_cmd(
 
             if not save:
                 return
+
+        # Handle file saving
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", date_format="iso", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]💾 Data saved to: {save}[/green]")
+                return
+            except Exception as e:
+                console.print(f"[red]❌ Error saving file: {e}[/red]")
+                return
+
+        # Output to console
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
+        raise click.Abort()
+
+
+@nisra.command(name="ashe")
+@click.option("--latest", is_flag=True, help="Get the most recent ASHE data")
+@click.option(
+    "--metric",
+    type=click.Choice(["weekly", "hourly", "annual"], case_sensitive=False),
+    default="weekly",
+    help="Type of earnings metric (default: weekly)",
+)
+@click.option(
+    "--dimension",
+    type=click.Choice(["timeseries", "geography", "sector"], case_sensitive=False),
+    help="Data dimension to retrieve",
+)
+@click.option(
+    "--basis",
+    type=click.Choice(["workplace", "residence"], case_sensitive=False),
+    default="workplace",
+    help="Geographic basis (for geography dimension only)",
+)
+@click.option("--year", type=int, help="Filter data for specific year")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--growth", is_flag=True, help="Include year-on-year growth rates (timeseries only)")
+def nisra_ashe_cmd(latest, metric, dimension, basis, year, output_format, force_refresh, save, growth):
+    """
+    NISRA Annual Survey of Hours and Earnings (ASHE) - Employee Earnings Statistics
+
+    Annual survey measuring employee earnings in Northern Ireland across multiple dimensions
+    including employment type, sector, geography, occupation, and industry. Data from April
+    of each year, published in October.
+
+    \b
+    EXAMPLES:
+        # Get weekly earnings timeseries (1997-2025)
+        bolster nisra ashe --latest
+
+        # Get hourly earnings timeseries
+        bolster nisra ashe --latest --metric hourly
+
+        # Get annual earnings timeseries
+        bolster nisra ashe --latest --metric annual
+
+        # Get geographic earnings by workplace
+        bolster nisra ashe --latest --dimension geography
+
+        # Get geographic earnings by residence
+        bolster nisra ashe --latest --dimension geography --basis residence
+
+        # Get public vs private sector comparison
+        bolster nisra ashe --latest --dimension sector
+
+        # Include year-on-year growth rates
+        bolster nisra ashe --latest --growth
+
+        # Filter for specific year
+        bolster nisra ashe --latest --year 2025
+
+        # Save to file
+        bolster nisra ashe --latest --save earnings.csv --format csv
+
+        # Force refresh data
+        bolster nisra ashe --latest --force-refresh
+
+    \b
+    DATA NOTES:
+        - Coverage: April 1997 - 2025 (annual, timeseries)
+        - Annual earnings: 1999 - 2025
+        - Sector breakdown: 2005 - 2025
+        - Reference period: April of each year
+        - Published: October each year
+        - Base: Employee jobs in Northern Ireland (not self-employed)
+
+    \b
+    METRICS:
+        - weekly: Median gross weekly earnings (£)
+        - hourly: Median hourly earnings excluding overtime (£)
+        - annual: Median annual earnings (£)
+
+    \b
+    DIMENSIONS:
+        - timeseries: Historical trends by work pattern (Full-time/Part-time/All)
+        - geography: Earnings by 11 Local Government Districts
+        - sector: Public vs Private sector comparison (NI & UK)
+
+    \b
+    OUTPUT (timeseries):
+        - year: Year
+        - work_pattern: Full-time, Part-time, or All
+        - median_*_earnings: Median earnings (£)
+        - earnings_yoy_growth: YoY % change (if --growth specified)
+
+    \b
+    OUTPUT (geography):
+        - year: Year
+        - lgd: Local Government District name
+        - basis: workplace or residence
+        - median_weekly_earnings: Median weekly earnings (£)
+
+    \b
+    OUTPUT (sector):
+        - year: Year
+        - location: Northern Ireland or United Kingdom
+        - sector: Public or Private
+        - median_weekly_earnings: Median weekly earnings (£)
+
+    \b
+    SOURCE:
+        NISRA Economic & Labour Market Statistics Branch
+        https://www.nisra.gov.uk/statistics/work-pay-and-benefits/annual-survey-hours-and-earnings
+    """
+    console = Console()
+
+    if not latest:
+        console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
+        return
+
+    try:
+        # Determine what data to fetch
+        if dimension == "geography":
+            with console.status(f"[bold green]Fetching ASHE geographic earnings ({basis})..."):
+                data = nisra_ashe.get_latest_ashe_geography(basis=basis, force_refresh=force_refresh)
+        elif dimension == "sector":
+            with console.status("[bold green]Fetching ASHE sector earnings..."):
+                data = nisra_ashe.get_latest_ashe_sector(force_refresh=force_refresh)
+        else:
+            # Default to timeseries
+            with console.status(f"[bold green]Fetching ASHE {metric} earnings..."):
+                data = nisra_ashe.get_latest_ashe_timeseries(metric=metric, force_refresh=force_refresh)
+
+            # Add growth rates if requested (only for timeseries)
+            if growth:
+                data = nisra_ashe.calculate_growth_rates(data)
+
+        # Filter by year if specified
+        if year:
+            data = nisra_ashe.get_earnings_by_year(data, year)
+
+        if data.empty:
+            console.print("[yellow]⚠️  No data found for the specified filters[/yellow]")
+            return
+
+        console.print("[green]✅ ASHE data fetched successfully[/green]")
+        console.print(f"[cyan]📊 Total records: {len(data)}[/cyan]")
+
+        if not data.empty and "year" in data.columns:
+            years = data["year"].unique()
+            console.print(f"[dim]Years: {min(years)} - {max(years)}[/dim]")
 
         # Handle file saving
         if save:

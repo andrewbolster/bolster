@@ -184,6 +184,48 @@ This module provides programmatic access to Northern Ireland Statistics and Rese
   - New Work Q2 2025: 109.7
   - Repair & Maintenance Q2 2025: 143.4
 
+### 9. Annual Survey of Hours and Earnings - ASHE (`ashe.py`)
+
+- **Update Frequency**: Annual (published in October)
+- **Mother Page**: https://www.nisra.gov.uk/statistics/work-pay-and-benefits/annual-survey-hours-and-earnings
+- **Data Dimensions**:
+  - Annual time series (April 1997 - 2025 for weekly/hourly, April 1999 - 2025 for annual)
+  - Three earnings metrics: Weekly, Hourly (excluding overtime), Annual
+  - Work patterns: Full-time, Part-time, All employees
+  - Geographic: 11 Local Government Districts (workplace vs residence basis)
+  - Sector: Public vs Private (Northern Ireland & United Kingdom comparison, 2005-2025)
+- **Key Functions**:
+  - `get_latest_ashe_timeseries()` - Fetch latest earnings timeseries (weekly/hourly/annual)
+  - `get_latest_ashe_geography()` - Earnings by LGD (workplace or residence basis)
+  - `get_latest_ashe_sector()` - Public vs Private sector earnings comparison
+  - `calculate_growth_rates()` - Calculate year-on-year earnings growth
+  - `get_earnings_by_year()` - Filter for specific year
+- **Data Format**: Long-format time series with median earnings values
+- **Notes**:
+  - **Reference period**: April of each year (snapshot)
+  - **Published**: October each year (~6 months after reference period)
+  - **Coverage**: Employee jobs in Northern Ireland (not self-employed)
+  - **Longest timeseries**: 1997-2025 for weekly and hourly earnings (29 years)
+  - **Annual earnings**: Available from 1999-2025 (27 years)
+  - **Sector comparison**: 2005-2025 (21 years)
+  - **Latest data (April 2025)**:
+    - Median weekly earnings (all employees): £591.90
+    - Median hourly earnings (all employees): £16.17
+    - Median annual earnings (all employees): £31,084
+    - Full-time weekly: £713.10 vs Part-time weekly: £272.20
+    - Public sector (NI): £800.50 vs Private sector (NI): £666.40
+    - Belfast (workplace): £766.60 (highest) vs Causeway Coast & Glens: £615.00 (lowest)
+  - **Key insights**:
+    - Consistent full-time > part-time earnings differential (~2.6x)
+    - Public sector premium: ~20% higher than private sector in NI
+    - UK private sector (£752.30) higher than NI private sector (£666.40)
+    - Commuting effect visible: Workplace vs residence earnings differ by LGD
+    - Belfast has highest workplace earnings but Lisburn & Castlereagh has highest residence earnings
+  - **Growth patterns**:
+    - Earnings have more than doubled since 1997 (£237.80 → £591.90 for all employees weekly)
+    - Recent YoY growth (2024→2025): ~5.8% for all employees
+    - Volatility lower than construction sector, steadier than economic indices
+
 ## Design Philosophy
 
 ### Mother Page Scraping Approach
@@ -331,6 +373,7 @@ class TestDeathsDataIntegrity:
 
 #### Test Coverage
 
+- **ASHE (Earnings)**: 42 integrity tests, 92% code coverage
 - **Births Statistics**: 15 integrity tests, 85% code coverage
 - **Construction Output**: 24 integrity tests, 92% code coverage
 - **Deaths Statistics**: 15 integrity tests, 87% code coverage
@@ -339,7 +382,7 @@ class TestDeathsDataIntegrity:
 - **Marriages Statistics**: 18 integrity tests, 83% code coverage
 - **Migration Statistics**: 20 integrity tests, 96% code coverage
 - **Population Statistics**: 17 integrity tests, 89% code coverage
-- **Total**: 169 integrity tests across 8 modules
+- **Total**: 211 integrity tests across 9 modules
 
 #### Why This Approach?
 
