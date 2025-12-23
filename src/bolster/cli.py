@@ -19,6 +19,7 @@ from .data_sources.ni_house_price_index import build as get_ni_house_prices
 from .data_sources.ni_water import get_postcode_to_water_supply_zone, get_water_quality_by_zone
 from .data_sources.nisra import ashe as nisra_ashe
 from .data_sources.nisra import births as nisra_births
+from .data_sources.nisra import composite_index as nisra_composite
 from .data_sources.nisra import construction_output as nisra_construction
 from .data_sources.nisra import deaths as nisra_deaths
 from .data_sources.nisra import economic_indicators as nisra_economic
@@ -2571,6 +2572,193 @@ def nisra_ashe_cmd(latest, metric, dimension, basis, year, output_format, force_
             click.echo(data.to_json(orient="records", date_format="iso", indent=2))
         else:
             console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
+        raise click.Abort()
+
+
+@nisra.command(name="composite-index")
+@click.option("--latest", is_flag=True, help="Get the most recent NICEI data")
+@click.option(
+    "--table",
+    type=click.Choice(["indices", "contributions", "all"], case_sensitive=False),
+    default="indices",
+    help="Which table to retrieve (default: indices)",
+)
+@click.option("--year", type=int, help="Filter data for specific year")
+@click.option("--quarter", type=int, help="Filter data for specific quarter (1-4)")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_composite_index_cmd(latest, table, year, quarter, output_format, force_refresh, save):
+    """
+    NISRA Northern Ireland Composite Economic Index (NICEI) - Experimental Economic Indicator
+
+    Quarterly measure of NI economic performance tracking five key sectors:
+    Services, Production, Construction, Agriculture, and Public Sector.
+    Base period 2022=100, quarterly data from Q1 2006 to present.
+
+    \b
+    EXAMPLES:
+        # Get latest NICEI indices
+        bolster nisra composite-index --latest
+
+        # Get sector contributions to quarterly change
+        bolster nisra composite-index --latest --table contributions
+
+        # Get all tables
+        bolster nisra composite-index --latest --table all
+
+        # Filter for specific year
+        bolster nisra composite-index --latest --year 2024
+
+        # Get specific quarter
+        bolster nisra composite-index --latest --year 2025 --quarter 2
+
+        # Save to file
+        bolster nisra composite-index --latest --save nicei.csv
+
+        # Force refresh data
+        bolster nisra composite-index --latest --force-refresh
+
+    \b
+    DATA NOTES:
+        - Coverage: Q1 2006 - Q2 2025 (quarterly)
+        - Base period: 2022 = 100
+        - Experimental statistic subject to revision
+        - Published ~3 months after quarter end
+        - Not seasonally adjusted
+
+    \b
+    TABLES:
+        indices         - NICEI and component indices by quarter (Table 1)
+                         • Overall NICEI, private/public sector breakdowns
+                         • Sectoral indices: Services, Production, Construction, Agriculture
+                         • Quarterly time series from Q1 2006
+
+        contributions   - Sector contributions to quarterly change (Table 11)
+                         • How much each sector contributed to NICEI quarterly change
+                         • Percentage point contributions
+                         • Identifies main drivers of economic growth/decline
+
+        all             - All available tables
+
+    \b
+    SOURCE:
+        NISRA Economic & Labour Market Statistics Branch
+        https://www.nisra.gov.uk/statistics/economic-output-statistics/ni-composite-economic-index
+    """
+    console = Console()
+
+    if not latest:
+        console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
+        return
+
+    try:
+        with console.status("[bold green]Fetching NICEI data..."):
+            if table in ("indices", "all"):
+                indices_data = nisra_composite.get_latest_nicei(force_refresh=force_refresh)
+            if table in ("contributions", "all"):
+                contrib_data = nisra_composite.get_latest_nicei_contributions(force_refresh=force_refresh)
+
+        # Apply filters
+        if table == "indices":
+            data = indices_data
+            if year:
+                data = nisra_composite.get_nicei_by_year(data, year)
+                if quarter:
+                    data = nisra_composite.get_nicei_by_quarter(data, year, quarter)
+        elif table == "contributions":
+            data = contrib_data
+            if year:
+                data = data[data["year"] == year]
+                if quarter:
+                    data = data[data["quarter"] == quarter]
+        else:  # all
+            # For 'all', we'll use a dict like labour_market does
+            data = {"indices": indices_data, "contributions": contrib_data}
+            if year:
+                data["indices"] = nisra_composite.get_nicei_by_year(data["indices"], year)
+                data["contributions"] = data["contributions"][data["contributions"]["year"] == year]
+                if quarter:
+                    data["indices"] = nisra_composite.get_nicei_by_quarter(data["indices"], year, quarter)
+                    data["contributions"] = data["contributions"][data["contributions"]["quarter"] == quarter]
+
+        # Check for empty results
+        if table in ("indices", "contributions"):
+            if data.empty:
+                console.print("[yellow]⚠️  No data found for the specified filters[/yellow]")
+                return
+        else:
+            if all(df.empty for df in data.values()):
+                console.print("[yellow]⚠️  No data found for the specified filters[/yellow]")
+                return
+
+        # Display success message
+        if table == "all":
+            console.print("[green]✅ Retrieved all tables successfully[/green]")
+            total_records = sum(len(df) for df in data.values())
+            console.print(f"[cyan]📊 Total records: {total_records}[/cyan]")
+            for table_name, df in data.items():
+                console.print(f"   • {table_name}: {len(df)} records")
+        else:
+            console.print(f"[green]✅ Retrieved {table} table successfully[/green]")
+            console.print(f"[cyan]📊 Total records: {len(data)}[/cyan]")
+
+        if not (isinstance(data, dict) and all(df.empty for df in data.values())):
+            if table != "all" and not data.empty:
+                years = data["year"].unique()
+                console.print(f"[dim]Years: {min(years)} - {max(years)}[/dim]")
+
+        # Handle file saving
+        if save:
+            try:
+                if table == "all":
+                    # Save each table to a separate file
+                    for table_name, df in data.items():
+                        filename = (
+                            f"{save.rsplit('.', 1)[0]}_{table_name}.{save.rsplit('.', 1)[-1] if '.' in save else 'csv'}"
+                        )
+                        if output_format == "json" or filename.endswith(".json"):
+                            df.to_json(filename, orient="records", date_format="iso", indent=2)
+                        else:
+                            df.to_csv(filename, index=False)
+                        console.print(f"[green]💾 Saved {table_name} to: {filename}[/green]")
+                else:
+                    # Save single table
+                    if output_format == "json" or save.endswith(".json"):
+                        data.to_json(save, orient="records", date_format="iso", indent=2)
+                    else:
+                        data.to_csv(save, index=False)
+                    console.print(f"[green]💾 Data saved to: {save}[/green]")
+                return
+            except Exception as e:
+                console.print(f"[red]❌ Error saving file: {e}[/red]")
+                return
+
+        # Output to console
+        if table == "all":
+            for table_name, df in data.items():
+                console.print(f"\n[bold]{table_name.upper()}:[/bold]")
+                if output_format == "json":
+                    click.echo(df.to_json(orient="records", date_format="iso", indent=2))
+                else:
+                    console.print(df.to_csv(index=False), end="")
+        else:
+            if output_format == "json":
+                click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+            else:
+                console.print(data.to_csv(index=False), end="")
 
     except Exception as e:
         console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
