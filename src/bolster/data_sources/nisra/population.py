@@ -36,7 +36,7 @@ Example:
 import logging
 import re
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
 
 import pandas as pd
 
@@ -133,15 +133,16 @@ def get_latest_population_publication_url() -> tuple[str, int]:
 
 
 def parse_population_file(
-    file_path: str | Path,
-    area: Literal[
-        "all",
-        "Northern Ireland",
-        "Parliamentary Constituencies (2024)",
-        "Health and Social Care Trusts",
-        "Parliamentary Constituencies (2008)",
-    ]
-    | None = "all",
+    file_path: Union[str, Path],
+    area: Optional[
+        Literal[
+            "all",
+            "Northern Ireland",
+            "Parliamentary Constituencies (2024)",
+            "Health and Social Care Trusts",
+            "Parliamentary Constituencies (2008)",
+        ]
+    ] = "all",
 ) -> pd.DataFrame:
     """Parse NISRA mid-year population estimates Excel file.
 

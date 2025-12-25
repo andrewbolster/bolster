@@ -4,7 +4,7 @@ import hashlib
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Dict, List, Optional
 
 import requests
 from bs4 import BeautifulSoup
@@ -230,7 +230,7 @@ def find_header_row(sheet, expected_columns: list[str], max_rows: int = 20) -> O
     return None
 
 
-def extract_column_mapping(sheet, header_row: int, column_names: list[str]) -> dict[str, int]:
+def extract_column_mapping(sheet, header_row: int, column_names: List[str]) -> Dict[str, int]:
     """Extract a mapping of column names to their indices (0-based) from a header row.
 
     Args:
@@ -266,7 +266,7 @@ def extract_column_mapping(sheet, header_row: int, column_names: list[str]) -> d
     return mapping
 
 
-def parse_age_breakdowns(row, age_columns_map: dict[str, int], start_idx: int = None) -> list[dict]:
+def parse_age_breakdowns(row, age_columns_map: Dict[str, int], start_idx: int = None) -> List[dict]:
     """Parse age breakdown columns into a list of age band dictionaries.
 
     This creates a flexible structure that can handle changing age bands across years.

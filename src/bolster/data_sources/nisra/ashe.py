@@ -41,6 +41,7 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
+from typing import Union
 
 import pandas as pd
 
@@ -131,7 +132,7 @@ def get_ashe_file_url(year: int, file_type: str = "timeseries") -> str:
     return url
 
 
-def parse_ashe_timeseries_weekly(file_path: str | Path) -> pd.DataFrame:
+def parse_ashe_timeseries_weekly(file_path: Union[str, Path]) -> pd.DataFrame:
     """Parse ASHE weekly earnings timeseries.
 
     Extracts the weekly earnings data from the timeseries Excel file.
@@ -168,7 +169,7 @@ def parse_ashe_timeseries_weekly(file_path: str | Path) -> pd.DataFrame:
     return result
 
 
-def parse_ashe_timeseries_hourly(file_path: str | Path) -> pd.DataFrame:
+def parse_ashe_timeseries_hourly(file_path: Union[str, Path]) -> pd.DataFrame:
     """Parse ASHE hourly earnings timeseries.
 
     Extracts the hourly earnings data (excluding overtime) from the timeseries Excel file.
@@ -205,7 +206,7 @@ def parse_ashe_timeseries_hourly(file_path: str | Path) -> pd.DataFrame:
     return result
 
 
-def parse_ashe_timeseries_annual(file_path: str | Path) -> pd.DataFrame:
+def parse_ashe_timeseries_annual(file_path: Union[str, Path]) -> pd.DataFrame:
     """Parse ASHE annual earnings timeseries.
 
     Extracts the annual earnings data from the timeseries Excel file.
@@ -242,7 +243,7 @@ def parse_ashe_timeseries_annual(file_path: str | Path) -> pd.DataFrame:
     return result
 
 
-def parse_ashe_geography(file_path: str | Path, basis: str = "workplace", year: int = None) -> pd.DataFrame:
+def parse_ashe_geography(file_path: Union[str, Path], basis: str = "workplace", year: int = None) -> pd.DataFrame:
     """Parse ASHE geographic earnings data.
 
     Extracts earnings by Local Government District from the linked tables file.
@@ -300,7 +301,7 @@ def parse_ashe_geography(file_path: str | Path, basis: str = "workplace", year: 
     return df
 
 
-def parse_ashe_sector(file_path: str | Path) -> pd.DataFrame:
+def parse_ashe_sector(file_path: Union[str, Path]) -> pd.DataFrame:
     """Parse ASHE public vs private sector earnings.
 
     Extracts public and private sector earnings timeseries from the linked tables file.
