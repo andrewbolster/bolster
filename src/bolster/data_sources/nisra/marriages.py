@@ -36,7 +36,7 @@ Example:
 import logging
 import re
 from pathlib import Path
-from typing import Union
+from typing import Tuple, Union
 
 import pandas as pd
 
@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 MARRIAGES_BASE_URL = "https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/marriages"
 
 
-def get_latest_marriages_publication_url() -> tuple[str, str]:
+def get_latest_marriages_publication_url() -> Tuple[str, str]:
     """Scrape NISRA marriages mother page to find the latest monthly marriages file.
 
     Navigates the publication structure:

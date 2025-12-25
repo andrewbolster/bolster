@@ -69,7 +69,7 @@ Date: 2025-12-21
 import logging
 import re
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 from openpyxl import load_workbook
@@ -92,7 +92,7 @@ LFS_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 LFS_BASE_URL = "https://www.nisra.gov.uk"
 
 
-def _quarter_to_month_names(quarter_str: str) -> tuple[str, str, str]:
+def _quarter_to_month_names(quarter_str: str) -> Tuple[str, str, str]:
     """Convert quarter string to month names.
 
     Args:
@@ -471,7 +471,7 @@ def parse_economic_inactivity(file_path: Union[str, Path]) -> pd.DataFrame:
     return result
 
 
-def get_latest_lfs_publication_url() -> tuple[str, str, str]:
+def get_latest_lfs_publication_url() -> Tuple[str, str, str]:
     """Find the latest Labour Force Survey quarterly tables publication.
 
     Scrapes the NISRA Labour Market statistics mother page to find the most recent
@@ -716,7 +716,7 @@ def get_quarterly_data(
 # ============================================================================
 
 
-def get_latest_lgd_employment_url() -> tuple[str, int]:
+def get_latest_lgd_employment_url() -> Tuple[str, int]:
     """Get the URL of the latest LFS Local Government District tables publication.
 
     Uses known URL pattern to construct the file URL. The LGD tables are published

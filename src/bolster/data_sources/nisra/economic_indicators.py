@@ -40,7 +40,7 @@ Publication Details:
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Tuple, Union
 
 import pandas as pd
 
@@ -53,7 +53,7 @@ IOS_BASE_URL = "https://www.nisra.gov.uk/statistics/economic-output/index-servic
 IOP_BASE_URL = "https://www.nisra.gov.uk/statistics/economic-output/index-production"
 
 
-def get_latest_ios_publication_url() -> tuple[str, datetime]:
+def get_latest_ios_publication_url() -> Tuple[str, datetime]:
     """Get the URL of the latest Index of Services publication.
 
     Scrapes the NISRA Index of Services page to find the most recent publication.
@@ -122,7 +122,7 @@ def get_latest_ios_publication_url() -> tuple[str, datetime]:
     raise NISRADataNotFoundError("Could not find latest Index of Services publication")
 
 
-def get_latest_iop_publication_url() -> tuple[str, datetime]:
+def get_latest_iop_publication_url() -> Tuple[str, datetime]:
     """Get the URL of the latest Index of Production publication.
 
     Scrapes the NISRA Index of Production page to find the most recent publication.

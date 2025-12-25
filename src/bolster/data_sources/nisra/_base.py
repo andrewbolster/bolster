@@ -102,7 +102,7 @@ def download_file(url: str, cache_ttl_hours: int = 24, force_refresh: bool = Fal
         raise NISRADataNotFoundError(f"Failed to download {url}: {e}")
 
 
-def scrape_download_links(page_url: str, file_extension: str = ".xlsx") -> list[dict]:
+def scrape_download_links(page_url: str, file_extension: str = ".xlsx") -> List[dict]:
     """Scrape download links from a NISRA page.
 
     Args:
@@ -194,7 +194,7 @@ def safe_float(val) -> Optional[float]:
         return None
 
 
-def find_header_row(sheet, expected_columns: list[str], max_rows: int = 20) -> Optional[int]:
+def find_header_row(sheet, expected_columns: List[str], max_rows: int = 20) -> Optional[int]:
     """Find the row number containing expected column headers in an Excel sheet.
 
     Args:
