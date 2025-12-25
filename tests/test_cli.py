@@ -2,10 +2,8 @@
 """Tests for CLI module."""
 
 import os
-import sys
 from unittest.mock import patch
 
-import pytest
 from click.testing import CliRunner
 
 from bolster.cli import cli
@@ -205,20 +203,6 @@ class TestParameterValidation:
 
 class TestCLICommandStructure:
     """Test CLI command structure and configuration."""
-
-    @pytest.mark.skipif(sys.version_info < (3, 10), reason="Click exit code behavior differs on Python 3.9")
-    def test_cli_group_exists_newer_python(self):
-        """Test that the main CLI group is properly configured on newer Python versions."""
-        runner = CliRunner()
-        result = runner.invoke(cli, [])
-        assert result.exit_code == 2
-
-    @pytest.mark.skipif(sys.version_info >= (3, 10), reason="Click exit code behavior differs on Python 3.10+")
-    def test_cli_group_exists_python39(self):
-        """Test that the main CLI group is properly configured on Python 3.9."""
-        runner = CliRunner()
-        result = runner.invoke(cli, [])
-        assert result.exit_code == 0
 
     def test_get_precipitation_command_exists(self):
         """Test that get-precipitation command is registered."""

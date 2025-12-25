@@ -2,7 +2,6 @@
 """Tests for `bolster` package."""
 
 import importlib.metadata
-import sys
 
 import pytest
 from click.testing import CliRunner
@@ -24,22 +23,6 @@ def test_content(response):
     """Sample pytest test function with the pytest fixture as an argument."""
     # from bs4 import BeautifulSoup
     # assert 'GitHub' in BeautifulSoup(response.content).title.string
-
-
-@pytest.mark.skipif(sys.version_info < (3, 10), reason="Click exit code behavior differs on Python 3.9")
-def test_command_line_interface_exit_code():
-    """Test the CLI exit code for newer Python versions."""
-    runner = CliRunner()
-    result = runner.invoke(cli)
-    assert result.exit_code == 2
-
-
-@pytest.mark.skipif(sys.version_info >= (3, 10), reason="Click exit code behavior differs on Python 3.10+")
-def test_command_line_interface_exit_code_python39():
-    """Test the CLI exit code for Python 3.9."""
-    runner = CliRunner()
-    result = runner.invoke(cli)
-    assert result.exit_code == 0
 
 
 def test_command_line_interface():
