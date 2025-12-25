@@ -24,6 +24,7 @@ concurrency management, and access to Northern Ireland and UK data sources.
    :caption: Development:
 
    contributing
+   data_source_development
    authors
    history
 
