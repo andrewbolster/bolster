@@ -48,7 +48,7 @@ Date: 2025-12-22
 
 import logging
 from pathlib import Path
-from typing import Union
+from typing import Tuple, Union
 
 import pandas as pd
 
@@ -61,7 +61,7 @@ NICEI_BASE_URL = "https://www.nisra.gov.uk"
 NICEI_STATS_URL = "https://www.nisra.gov.uk/statistics/economic-output-statistics/ni-composite-economic-index"
 
 
-def get_latest_nicei_publication_url() -> tuple[str, int, str]:
+def get_latest_nicei_publication_url() -> Tuple[str, int, str]:
     """Get the URL of the latest NICEI publication.
 
     Scrapes the NISRA NICEI statistics page to find the most recent quarterly publication.

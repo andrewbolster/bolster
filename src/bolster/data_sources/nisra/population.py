@@ -36,7 +36,7 @@ Example:
 import logging
 import re
 from pathlib import Path
-from typing import Literal, Optional, Union
+from typing import Literal, Optional, Tuple, Union
 
 import pandas as pd
 
@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 POPULATION_BASE_URL = "https://www.nisra.gov.uk/statistics/people-and-communities/population"
 
 
-def get_latest_population_publication_url() -> tuple[str, int]:
+def get_latest_population_publication_url() -> Tuple[str, int]:
     """Scrape NISRA population mother page to find the latest MYE age bands file.
 
     Navigates the publication structure:
@@ -216,14 +216,15 @@ def parse_population_file(
 
 
 def get_latest_population(
-    area: Literal[
-        "all",
-        "Northern Ireland",
-        "Parliamentary Constituencies (2024)",
-        "Health and Social Care Trusts",
-        "Parliamentary Constituencies (2008)",
-    ]
-    | None = "all",
+    area: Optional[
+        Literal[
+            "all",
+            "Northern Ireland",
+            "Parliamentary Constituencies (2024)",
+            "Health and Social Care Trusts",
+            "Parliamentary Constituencies (2008)",
+        ]
+    ] = "all",
     force_refresh: bool = False,
 ) -> pd.DataFrame:
     """Get the latest mid-year population estimates.
@@ -305,7 +306,7 @@ def validate_population_totals(df: pd.DataFrame) -> bool:
 def get_population_by_year(
     df: pd.DataFrame,
     year: int,
-    sex: Literal["All persons", "Males", "Females"] | None = "All persons",
+    sex: Optional[Literal["All persons", "Males", "Females"]] = "All persons",
 ) -> pd.DataFrame:
     """Filter population data for a specific year and optional sex.
 

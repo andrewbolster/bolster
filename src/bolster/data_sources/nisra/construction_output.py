@@ -44,7 +44,7 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Tuple, Union
 
 import pandas as pd
 
@@ -56,7 +56,7 @@ logger = logging.getLogger(__name__)
 CONSTRUCTION_BASE_URL = "https://www.nisra.gov.uk/statistics/economic-output/construction-output-statistics"
 
 
-def get_latest_construction_publication_url() -> tuple[str, datetime]:
+def get_latest_construction_publication_url() -> Tuple[str, datetime]:
     """Get the URL of the latest Construction Output publication.
 
     Scrapes the NISRA Construction Output page to find the most recent publication.

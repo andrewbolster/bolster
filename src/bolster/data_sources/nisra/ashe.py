@@ -41,7 +41,7 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Union
+from typing import Tuple, Union
 
 import pandas as pd
 
@@ -53,7 +53,7 @@ logger = logging.getLogger(__name__)
 ASHE_BASE_URL = "https://www.nisra.gov.uk/statistics/work-pay-and-benefits/annual-survey-hours-and-earnings"
 
 
-def get_latest_ashe_publication_url() -> tuple[str, int]:
+def get_latest_ashe_publication_url() -> Tuple[str, int]:
     """Get the URL of the latest ASHE publication and its year.
 
     Scrapes the NISRA ASHE page to find the most recent publication.
