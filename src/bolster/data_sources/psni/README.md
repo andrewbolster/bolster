@@ -15,13 +15,27 @@ This module provides programmatic access to Police Service of Northern Ireland (
 - **Cross-dataset integration** via LGD and NUTS3 geographic codes
 - **Automatic caching** to minimize bandwidth usage
 
+## ⚠️ Data Limitation Notice
+
+**IMPORTANT**: The OpenDataNI dataset was last updated in **January 2022** and only contains data through **December 2021**. This dataset has not been updated in over 4 years.
+
+For **2022-2025 crime statistics**, you will need to:
+
+- Consult PSNI's quarterly PDF bulletins at [PSNI Official Statistics](https://www.psni.police.uk/about-us/our-publications-and-reports/official-statistics/police-recorded-crime-statistics)
+- Contact PSNI Statistics Branch: statistics@psni.police.uk
+- Manually extract data from published reports
+
+The module will automatically warn you about data staleness when you load the statistics.
+
 ## Quick Start
 
 ```python
 from bolster.data_sources.psni import crime_statistics
 
-# Get latest crime data
+# Get latest crime data (NOTE: only through December 2021)
 df = crime_statistics.get_latest_crime_statistics()
+# ⚠️  Data is 4.1 years old (latest: December 2021). OpenDataNI dataset has not been updated...
+
 print(df.head())
 
 # Filter to Belfast
@@ -38,15 +52,16 @@ print(totals.sort_values("total_crimes", ascending=False))
 
 **PSNI Official Statistics:** https://www.psni.police.uk/about-us/our-publications-and-reports/official-statistics/police-recorded-crime-statistics
 
-**Update Frequency:** Quarterly
+**Update Frequency:** ~~Quarterly~~ **STALE SINCE JANUARY 2022**
 
-- End of July (data to 30 June)
-- End of October (data to 30 September)
-- End of January (data to 31 December)
-- End of May (data to 31 March - completed financial year)
+- ~~End of July (data to 30 June)~~
+- ~~End of October (data to 30 September)~~
+- ~~End of January (data to 31 December)~~
+- ~~End of May (data to 31 March - completed financial year)~~
+- **Last update:** January 27, 2022 (data through December 2021)
 
 **Geographic Coverage:** Northern Ireland
-**Time Coverage:** April 2001 to present
+**Time Coverage:** April 2001 to **December 2021** (OpenDataNI dataset)
 **Licence:** Open Government Licence v3.0
 
 ## Available Datasets

@@ -422,6 +422,173 @@ ______________________________________________________________________
 
 ______________________________________________________________________
 
+## 8. Data Gap: 2022-2025 Crime Statistics
+
+### Problem Statement
+
+**The OpenDataNI Police Recorded Crime dataset has not been updated since January 27, 2022**, with coverage ending December 2021. This creates a **4-year data gap** from January 2022 to present (December 2025).
+
+### Evidence of Abandonment
+
+**OpenDataNI Dataset Status:**
+
+- **Last Modified:** January 27, 2022
+- **Last Data Point:** December 2021
+- **Expected Updates:** Quarterly (but none since 2022)
+- **Status:** Appears abandoned
+
+**Other PSNI Datasets ARE Being Updated** (proof PSNI can update OpenDataNI):
+
+- **Road Traffic Collisions:** Updated through 2024 (last update: April 2025)
+- **Stop and Search Statistics:** Updated through 2024/25 Q3 (last update: July 2025)
+- **Anti-Social Behaviour:** Updated through March 2023 (last update: May 2023)
+
+**Conclusion:** The crime statistics dataset specifically has been abandoned, not the entire OpenDataNI integration.
+
+### Current Data Availability
+
+**Where 2022-2025 Crime Data Likely Exists:**
+
+1. **PSNI Official Website** - PDF Quarterly Bulletins
+
+   - **URL:** https://www.psni.police.uk/about-us/our-publications-and-reports/official-statistics/police-recorded-crime-statistics
+   - **Format:** PDF reports with embedded Excel tables (likely)
+   - **Status:** Protected by Cloudflare (blocks automated access)
+   - **Access Method:** Manual download via web browser
+
+1. **PSNI Statistics Branch** - Direct Contact
+
+   - **Email:** statistics@psni.police.uk
+   - **Request:** CSV/Excel files for 2022-2025 quarterly data
+   - **Questions to Ask:**
+     - Why was the OpenDataNI dataset discontinued?
+     - Are 2022-2025 statistics available in machine-readable format?
+     - Current publication schedule and formats?
+     - Plans to resume quarterly CSV updates on OpenDataNI?
+
+1. **Freedom of Information (FOI) Request**
+
+   - **Portal:** https://www.psni.police.uk/about-us/freedom-information/make-foi-request
+   - **Request:** Structured crime data (CSV/Excel) for 2022-2025
+   - **Response Time:** 20 working days (statutory requirement)
+   - **Cost:** Free for public interest requests
+
+### Potential Solutions
+
+#### Short-Term Solutions
+
+1. **Manual Download from PSNI Website**
+
+   - Navigate to PSNI statistics page in web browser
+   - Download quarterly PDF bulletins for 2022-2025
+   - Extract embedded Excel tables (if available)
+   - Manually combine with historical data
+   - **Pros:** Immediate access
+   - **Cons:** Labor-intensive, not reproducible, format may vary
+
+1. **Direct Email Request to PSNI Statistics**
+
+   - Email statistics@psni.police.uk requesting machine-readable data
+   - Request same format as OpenDataNI CSV
+   - **Pros:** Official channel, may provide clean data
+   - **Cons:** Requires manual intervention, unknown response time
+
+1. **RSS Feed Monitoring** (Blocked by Cloudflare)
+
+   - PSNI website has RSS feeds for new publications
+   - **Status:** RSS feeds are also protected by Cloudflare (HTTP 403)
+   - **Conclusion:** Not viable for automated monitoring
+
+#### Long-Term Solutions
+
+1. **Automated PDF Extraction Pipeline**
+
+   - If PSNI continues PDF-only publication:
+     - Download PDFs manually or via browser automation (Selenium/Playwright)
+     - Extract tables using PDF parsing libraries (tabula-py, camelot-py)
+     - Validate against known data structure
+     - Merge with historical OpenDataNI data
+   - **Pros:** Semi-automated after initial setup
+   - **Cons:** Brittle (breaks if PDF format changes), requires maintenance
+
+1. **Direct PSNI Data Partnership**
+
+   - Formal request for API access or bulk data provision
+   - Propose to host updated data on behalf of PSNI (with proper licensing)
+   - **Pros:** Most sustainable long-term solution
+   - **Cons:** Requires organizational commitment, legal agreements
+
+1. **Community Data Collaboration**
+
+   - Work with other NI data users to:
+     - Share extracted 2022-2025 data
+     - Collectively maintain updated dataset
+     - Lobby PSNI/OpenDataNI for resumed updates
+   - **Pros:** Distributed effort, community benefit
+   - **Cons:** Coordination overhead, data quality consistency
+
+### Implementation Recommendations
+
+**Immediate Actions:**
+
+1. ✅ **Add staleness warnings** to module (COMPLETED)
+
+   - Warn users that data only goes through Dec 2021
+   - Direct users to PSNI website and contact information
+   - Implemented in `get_latest_crime_statistics()` function
+
+1. ⏭️ **Contact PSNI Statistics Branch**
+
+   - Email: statistics@psni.police.uk
+   - Request: Machine-readable 2022-2025 crime data in same format as OpenDataNI
+   - Ask about resuming OpenDataNI updates
+
+1. ⏭️ **Manual Data Collection** (if needed urgently)
+
+   - Navigate to PSNI statistics page manually
+   - Download available quarterly reports for 2022-2025
+   - Extract any Excel/CSV attachments
+   - Document extraction methodology for reproducibility
+
+**Future Enhancements:**
+
+4. **Automated Staleness Detection**
+
+   - Monitor OpenDataNI dataset for updates (check "Last Modified" date)
+   - Alert if new data becomes available
+   - Implement in future version with configurable notifications
+
+1. **Fallback Data Sources**
+
+   - If PSNI provides alternate download location, add as secondary source
+   - Consider police.uk API for recent trends (Nov 2022-Oct 2025 available)
+   - Note: police.uk lacks outcome data for NI
+
+1. **PDF Extraction Pipeline** (only if PSNI confirms no CSV availability)
+
+   - Investigate if quarterly PDFs contain extractable tables
+   - Build extraction pipeline only if confirmed necessary
+   - Document limitations and data quality concerns
+
+### Contact Information
+
+**PSNI Statistics Branch:**
+
+- **Email:** statistics@psni.police.uk
+- **Website:** https://www.psni.police.uk/about-us/our-publications-and-reports/official-statistics
+
+**OpenDataNI Support:**
+
+- **Email:** opendatani@nidirect.gov.uk
+- **Website:** https://www.opendatani.gov.uk
+
+**FOI Requests:**
+
+- **Portal:** https://www.psni.police.uk/about-us/freedom-information
+- **Response Time:** 20 working days
+
+______________________________________________________________________
+
 ## Appendix: Sample Data Structure
 
 ### Sample Rows from Monthly CSV

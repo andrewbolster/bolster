@@ -21,10 +21,15 @@ Data Source:
 
     **PSNI Official Statistics**: https://www.psni.police.uk/about-us/our-publications-and-reports/official-statistics/police-recorded-crime-statistics
 
-Update Frequency: Quarterly (end of Jan, May, Jul, Oct)
+    **DATA LIMITATION**: The OpenDataNI dataset was last updated January 2022
+    and only contains data through December 2021. For 2022-2025 data, consult
+    PSNI's quarterly PDF bulletins at the official statistics website above, or
+    contact PSNI Statistics Branch (statistics@psni.police.uk).
+
+Update Frequency: Quarterly (end of Jan, May, Jul, Oct) - **STALE SINCE 2022**
 Geographic Coverage: Northern Ireland (11 policing districts + NI total)
 Reference Date: Month of crime occurrence
-Time Coverage: April 2001 onwards
+Time Coverage: April 2001 to December 2021 (OpenDataNI dataset)
 
 Example:
     >>> from bolster.data_sources.psni import crime_statistics
@@ -192,6 +197,10 @@ def get_latest_crime_statistics(
     and parses it into a pandas DataFrame with optional geographic
     codes for cross-dataset integration.
 
+    **WARNING**: This dataset was last updated in January 2022 and only
+    contains data through December 2021. The function will log a warning
+    if the data is more than 1 year old.
+
     Args:
         force_refresh: If True, bypass cache and download fresh data
         add_geographic_codes: If True, add LGD and NUTS3 code columns
@@ -204,7 +213,7 @@ def get_latest_crime_statistics(
         PSNIValidationError: If file structure is unexpected
 
     Example:
-        >>> # Get all crime data
+        >>> # Get all crime data (NOTE: only through Dec 2021)
         >>> df = get_latest_crime_statistics()
         >>>
         >>> # Filter to recent data
@@ -225,7 +234,21 @@ def get_latest_crime_statistics(
     file_path = download_file(CRIME_STATISTICS_URL, cache_ttl_hours=cache_ttl_hours, force_refresh=force_refresh)
 
     # Parse the file
-    return parse_crime_statistics_file(file_path, add_geographic_codes=add_geographic_codes)
+    df = parse_crime_statistics_file(file_path, add_geographic_codes=add_geographic_codes)
+
+    # Check data staleness and warn users
+    latest_date = df["date"].max()
+    age_days = (datetime.now() - latest_date).days
+    age_years = age_days / 365.25
+
+    if age_days > 365:
+        logger.warning(
+            f"⚠️  Data is {age_years:.1f} years old (latest: {latest_date.strftime('%B %Y')}). "
+            f"OpenDataNI dataset has not been updated since January 2022. "
+            f"For 2022-2025 data, consult PSNI quarterly bulletins or contact statistics@psni.police.uk"
+        )
+
+    return df
 
 
 def validate_crime_statistics(df: pd.DataFrame) -> bool:
