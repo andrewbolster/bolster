@@ -1,5 +1,5 @@
 nox==2025.11.12
-sphinx
+sphinx==9.0.4
 sphinx-click==6.2.0
 sphinx-issues
 nbsphinx==0.9.8
