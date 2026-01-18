@@ -133,6 +133,10 @@ def parse_crime_statistics_file(
         }
     )
 
+    # Strip whitespace from string columns (source data has trailing spaces)
+    for col in ["policing_district", "crime_type", "data_measure", "month"]:
+        df[col] = df[col].str.strip()
+
     # Create datetime column (first day of month)
     # Month names are 3-letter abbreviations: Apr, May, Jun, etc.
     month_map = {
