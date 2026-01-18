@@ -261,7 +261,8 @@ class TestGeographicUtilities:
     def test_get_nuts_region_name(self):
         """Should return correct NUTS3 region name."""
         assert crime_statistics.get_nuts_region_name("UKN01") == "Belfast"
-        assert crime_statistics.get_nuts_region_name("UKN02") == "Outer Belfast"
+        assert crime_statistics.get_nuts_region_name("UKN02") == "North of Northern Ireland"
+        assert crime_statistics.get_nuts_region_name("UKN06") == "Outer Belfast"
         assert crime_statistics.get_nuts_region_name("INVALID") is None
 
     def test_all_districts_have_lgd_codes(self, data):

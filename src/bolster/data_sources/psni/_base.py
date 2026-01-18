@@ -1,4 +1,27 @@
-"""Common utilities for PSNI data sources."""
+"""Common utilities for PSNI data sources.
+
+This module provides shared functionality for all PSNI (Police Service of
+Northern Ireland) data source modules, including:
+
+- **Caching**: Download and cache data files with configurable TTL
+- **Geographic codes**: LGD and NUTS3 code mappings for cross-dataset integration
+- **Exceptions**: Standardized error handling for data operations
+
+Cache Location:
+    Files are cached in ``~/.cache/bolster/psni/`` with filenames based on
+    URL hashes. Cache validity is configurable per-request.
+
+Geographic Code Systems:
+    - **LGD codes** (N09000XXX): ONS Local Government District codes for NI
+    - **NUTS3 codes** (UKN0X): EU statistical region codes for aggregation
+
+Example:
+    >>> from bolster.data_sources.psni._base import get_lgd_code, get_nuts3_code
+    >>> get_lgd_code("Belfast City")
+    'N09000003'
+    >>> get_nuts3_code("Belfast City")
+    'UKN01'
+"""
 
 import hashlib
 import logging
@@ -16,19 +39,35 @@ CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class PSNIDataError(Exception):
-    """Base exception for PSNI data errors."""
+    """Base exception for PSNI data errors.
+
+    All PSNI-specific exceptions inherit from this class, allowing
+    callers to catch all PSNI errors with a single except clause.
+    """
 
     pass
 
 
 class PSNIDataNotFoundError(PSNIDataError):
-    """Data file not available."""
+    """Raised when a PSNI data file cannot be downloaded or accessed.
+
+    This exception is raised when:
+    - Network requests fail (timeout, connection errors)
+    - HTTP errors occur (404, 500, etc.)
+    - The requested resource is unavailable
+    """
 
     pass
 
 
 class PSNIValidationError(PSNIDataError):
-    """Data validation failed."""
+    """Raised when PSNI data fails validation checks.
+
+    This exception is raised when:
+    - CSV structure doesn't match expected columns
+    - Data contains invalid or unexpected values
+    - Required fields are missing or malformed
+    """
 
     pass
 
@@ -62,18 +101,19 @@ NUTS3_CODES = {
     "Newry Mourne & Down": "UKN05",  # West and South of NI
     "Mid Ulster": "UKN05",  # West and South of NI
     "Fermanagh & Omagh": "UKN03",  # West and South of NI
-    "Derry City & Strabane": "UKN02",  # Outer Belfast
+    "Derry City & Strabane": "UKN02",  # North of Northern Ireland
     "Causeway Coast & Glens": "UKN04",  # East of NI
     "Mid & East Antrim": "UKN04",  # East of NI
 }
 
 # NUTS region names for reference
+# Source: ONS NUTS Level 3 (January 2024) Names and Codes
 NUTS_REGION_NAMES = {
     "UKN01": "Belfast",
-    "UKN02": "Outer Belfast",
+    "UKN02": "North of Northern Ireland",
     "UKN03": "West and South of Northern Ireland",
     "UKN04": "East of Northern Ireland",
-    "UKN05": "West and South of Northern Ireland",
+    "UKN05": "South and West of Northern Ireland",
     "UKN06": "Outer Belfast",
 }
 
@@ -127,19 +167,39 @@ def get_nuts_region_name(nuts3_code: str) -> Optional[str]:
 
 
 def hash_url(url: str) -> str:
-    """Generate a safe filename from a URL."""
+    """Generate a safe filename from a URL using MD5 hash.
+
+    Args:
+        url: The URL to hash
+
+    Returns:
+        32-character hexadecimal MD5 hash string
+
+    Example:
+        >>> hash_url("https://example.com/data.csv")
+        '5c8b3b9f8d3e8a1b2c3d4e5f6a7b8c9d'  # doctest: +SKIP
+    """
     return hashlib.md5(url.encode()).hexdigest()
 
 
 def get_cached_file(url: str, cache_ttl_hours: int = 24) -> Optional[Path]:
     """Return cached file if exists and fresh, else None.
 
+    Checks if a cached version of the file exists and is within the TTL.
+    Freshness is determined by comparing the file's modification time
+    against the current time.
+
     Args:
-        url: URL of the file
-        cache_ttl_hours: Cache validity in hours
+        url: URL of the file (used to generate cache filename)
+        cache_ttl_hours: Maximum age in hours before cache is considered stale
 
     Returns:
-        Path to cached file if valid, None otherwise
+        Path to cached file if valid and fresh, None if missing or stale
+
+    Example:
+        >>> path = get_cached_file("https://example.com/data.csv", cache_ttl_hours=24)
+        >>> if path:
+        ...     print(f"Using cached: {path}")  # doctest: +SKIP
     """
     url_hash = hash_url(url)
     ext = Path(url).suffix or ".bin"
@@ -157,16 +217,27 @@ def get_cached_file(url: str, cache_ttl_hours: int = 24) -> Optional[Path]:
 def download_file(url: str, cache_ttl_hours: int = 24, force_refresh: bool = False) -> Path:
     """Download a file with caching support.
 
+    Downloads a file from the given URL and caches it locally. If a valid
+    cached version exists, returns that instead. Uses a 60-second timeout
+    for network requests.
+
     Args:
         url: URL to download
         cache_ttl_hours: Cache validity in hours (default: 24)
-        force_refresh: Force re-download even if cached
+        force_refresh: If True, bypass cache and re-download
 
     Returns:
-        Path to downloaded file
+        Path to the downloaded (or cached) file
 
     Raises:
-        PSNIDataNotFoundError: If download fails
+        PSNIDataNotFoundError: If download fails due to network or HTTP errors
+
+    Example:
+        >>> from bolster.data_sources.psni._base import download_file
+        >>> path = download_file(
+        ...     "https://example.com/data.csv",
+        ...     cache_ttl_hours=24
+        ... )  # doctest: +SKIP
     """
     # Check cache first
     if not force_refresh:
@@ -192,21 +263,34 @@ def download_file(url: str, cache_ttl_hours: int = 24, force_refresh: bool = Fal
         raise PSNIDataNotFoundError(f"Failed to download {url}: {e}")
 
 
-def clear_cache(pattern: Optional[str] = None):
-    """Clear cached files.
+def clear_cache(pattern: Optional[str] = None) -> int:
+    """Clear cached files from the PSNI cache directory.
 
     Args:
-        pattern: Optional glob pattern to match specific files (e.g., "*.csv")
-                 If None, clears all cached files
+        pattern: Optional glob pattern to match specific files (e.g., "*.csv").
+                 If None, clears all cached files in the directory.
+
+    Returns:
+        Number of files deleted
+
+    Example:
+        >>> from bolster.data_sources.psni._base import clear_cache
+        >>> # Clear all CSV files from cache
+        >>> deleted = clear_cache("*.csv")  # doctest: +SKIP
+        >>> # Clear entire cache
+        >>> deleted = clear_cache()  # doctest: +SKIP
     """
     if pattern:
         files = list(CACHE_DIR.glob(pattern))
     else:
         files = list(CACHE_DIR.glob("*"))
 
+    deleted_count = 0
     for file in files:
         if file.is_file():
             file.unlink()
+            deleted_count += 1
             logger.info(f"Deleted {file}")
 
-    logger.info(f"Cleared {len(files)} cached files")
+    logger.info(f"Cleared {deleted_count} cached files")
+    return deleted_count
