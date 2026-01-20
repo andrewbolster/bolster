@@ -142,8 +142,8 @@ class TestDataQuality:
         # All districts should have NUTS3 codes
         assert districts["nuts3_code"].notna().all(), "Some districts missing NUTS3 codes"
 
-        # NUTS3 codes should follow UKN pattern
-        nuts_pattern = r"^UKN\d{2}$"
+        # NUTS3 codes should follow UKN pattern (NUTS 2021 uses alphanumeric: UKN06-UKN0G)
+        nuts_pattern = r"^UKN0[6-9A-G]$"
         assert districts["nuts3_code"].str.match(nuts_pattern).all(), "Invalid NUTS3 code format"
 
 
@@ -253,16 +253,16 @@ class TestGeographicUtilities:
         assert crime_statistics.get_lgd_code("Invalid District") is None
 
     def test_get_nuts3_code(self):
-        """Should return correct NUTS3 code for district."""
-        assert crime_statistics.get_nuts3_code("Belfast City") == "UKN01"
-        assert crime_statistics.get_nuts3_code("Derry City & Strabane") == "UKN02"
+        """Should return correct NUTS3 code for district (NUTS 2021)."""
+        assert crime_statistics.get_nuts3_code("Belfast City") == "UKN06"
+        assert crime_statistics.get_nuts3_code("Derry City & Strabane") == "UKN0A"
         assert crime_statistics.get_nuts3_code("Invalid District") is None
 
     def test_get_nuts_region_name(self):
-        """Should return correct NUTS3 region name."""
-        assert crime_statistics.get_nuts_region_name("UKN01") == "Belfast"
-        assert crime_statistics.get_nuts_region_name("UKN02") == "Outer Belfast"
-        assert crime_statistics.get_nuts_region_name("UKN06") == "Outer Belfast"
+        """Should return correct NUTS3 region name (NUTS 2021)."""
+        assert crime_statistics.get_nuts_region_name("UKN06") == "Belfast"
+        assert crime_statistics.get_nuts_region_name("UKN0A") == "Derry City and Strabane"
+        assert crime_statistics.get_nuts_region_name("UKN0G") == "Fermanagh and Omagh"
         assert crime_statistics.get_nuts_region_name("INVALID") is None
 
     def test_all_districts_have_lgd_codes(self, data):

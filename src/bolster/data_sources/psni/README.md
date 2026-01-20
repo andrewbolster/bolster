@@ -74,28 +74,28 @@ print(totals.sort_values("total_crimes", ascending=False))
 
 ### Policing Districts (11)
 
-The 11 Policing Districts map 1:1 to Northern Ireland's Local Government Districts (LGDs), enabling cross-comparison with other NISRA datasets:
+The 11 Policing Districts map 1:1 to Northern Ireland's Local Government Districts (LGDs), enabling cross-comparison with other NISRA datasets. Since NUTS 2016, each LGD also maps 1:1 to its own NUTS3 region:
 
-| Policing District | LGD Code | NUTS3 Code | Region |
-|-------------------|----------|------------|---------|
-| Belfast City | N09000003 | UKN01 | Belfast |
-| Lisburn & Castlereagh City | N09000007 | UKN06 | Outer Belfast |
-| Antrim & Newtownabbey | N09000001 | UKN06 | Outer Belfast |
-| Ards & North Down | N09000011 | UKN06 | Outer Belfast |
-| Armagh City Banbridge & Craigavon | N09000002 | UKN05 | West and South of NI |
-| Newry Mourne & Down | N09000010 | UKN05 | West and South of NI |
-| Mid Ulster | N09000009 | UKN05 | West and South of NI |
-| Fermanagh & Omagh | N09000006 | UKN03 | West and South of NI |
-| Derry City & Strabane | N09000005 | UKN02 | Outer Belfast |
-| Causeway Coast & Glens | N09000004 | UKN04 | East of NI |
-| Mid & East Antrim | N09000008 | UKN04 | East of NI |
+| Policing District | LGD Code | NUTS3 Code | NUTS3 Region Name |
+|-------------------|----------|------------|-------------------|
+| Antrim & Newtownabbey | N09000001 | UKN0D | Antrim and Newtownabbey |
+| Ards & North Down | N09000011 | UKN09 | Ards and North Down |
+| Armagh City Banbridge & Craigavon | N09000002 | UKN07 | Armagh City, Banbridge and Craigavon |
+| Belfast City | N09000003 | UKN06 | Belfast |
+| Causeway Coast & Glens | N09000004 | UKN0C | Causeway Coast and Glens |
+| Derry City & Strabane | N09000005 | UKN0A | Derry City and Strabane |
+| Fermanagh & Omagh | N09000006 | UKN0G | Fermanagh and Omagh |
+| Lisburn & Castlereagh City | N09000007 | UKN0E | Lisburn and Castlereagh |
+| Mid & East Antrim | N09000008 | UKN0F | Mid and East Antrim |
+| Mid Ulster | N09000009 | UKN0B | Mid Ulster |
+| Newry Mourne & Down | N09000010 | UKN08 | Newry, Mourne and Down |
 
 ### Geographic Codes
 
 Each crime record includes:
 
 - **LGD Code**: ONS Local Government District code (e.g., `N09000003`)
-- **NUTS3 Code**: European regional code (e.g., `UKN01`)
+- **NUTS3 Code**: European regional code (e.g., `UKN06`)
 - **NUTS3 Name**: Region name (e.g., "Belfast")
 
 These codes enable integration with other datasets:
@@ -103,7 +103,7 @@ These codes enable integration with other datasets:
 ```python
 # Get geographic codes for cross-referencing
 lgd = crime_statistics.get_lgd_code("Belfast City")  # Returns: N09000003
-nuts3 = crime_statistics.get_nuts3_code("Belfast City")  # Returns: UKN01
+nuts3 = crime_statistics.get_nuts3_code("Belfast City")  # Returns: UKN06
 
 # Filter crime data and cross-reference with NISRA population data
 from bolster.data_sources.nisra import population

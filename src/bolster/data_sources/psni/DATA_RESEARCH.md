@@ -280,32 +280,28 @@ ______________________________________________________________________
 
 ### Council Area / Policing District Alignment
 
-The 11 Policing Districts correspond exactly to Northern Ireland's 11 Local Government Districts (established 2015):
+The 11 Policing Districts correspond exactly to Northern Ireland's 11 Local Government Districts (established 2015). Since NUTS 2016, each LGD maps 1:1 to its own NUTS3 region:
 
-| Policing District | LGD Code | NUTS3 Code | Notes |
-|-------------------|----------|------------|-------|
-| Antrim & Newtownabbey | N09000001 | UKN06 | Part of Belfast metro area |
-| Ards & North Down | N09000011 | UKN06 | Part of Belfast metro area |
-| Armagh City Banbridge & Craigavon | N09000002 | UKN05 | Outer Belfast |
-| Belfast City | N09000003 | UKN01 | Belfast metro area core |
-| Causeway Coast & Glens | N09000004 | UKN04 | North coast |
-| Derry City & Strabane | N09000005 | UKN02 | North-west |
-| Fermanagh & Omagh | N09000006 | UKN03 | West |
-| Lisburn & Castlereagh City | N09000007 | UKN06 | Belfast metro area |
-| Mid & East Antrim | N09000008 | UKN04 | East coast |
-| Mid Ulster | N09000009 | UKN05 | Central |
-| Newry Mourne & Down | N09000010 | UKN05 | South-east |
+| Policing District | LGD Code | NUTS3 Code | NUTS3 Region Name |
+|-------------------|----------|------------|-------------------|
+| Antrim & Newtownabbey | N09000001 | UKN0D | Antrim and Newtownabbey |
+| Ards & North Down | N09000011 | UKN09 | Ards and North Down |
+| Armagh City Banbridge & Craigavon | N09000002 | UKN07 | Armagh City, Banbridge and Craigavon |
+| Belfast City | N09000003 | UKN06 | Belfast |
+| Causeway Coast & Glens | N09000004 | UKN0C | Causeway Coast and Glens |
+| Derry City & Strabane | N09000005 | UKN0A | Derry City and Strabane |
+| Fermanagh & Omagh | N09000006 | UKN0G | Fermanagh and Omagh |
+| Lisburn & Castlereagh City | N09000007 | UKN0E | Lisburn and Castlereagh |
+| Mid & East Antrim | N09000008 | UKN0F | Mid and East Antrim |
+| Mid Ulster | N09000009 | UKN0B | Mid Ulster |
+| Newry Mourne & Down | N09000010 | UKN08 | Newry, Mourne and Down |
 
-**NUTS Regions (NUTS3 level):**
+**NUTS Classification Notes:**
 
-- UKN01: Belfast
-- UKN02: Outer Belfast
-- UKN03: East of Northern Ireland
-- UKN04: North of Northern Ireland
-- UKN05: West and South of Northern Ireland
-- UKN06: (Check if this is valid - may be misaligned in table above)
-
-**Note:** NUTS codes are for NUTS3 level. Northern Ireland as whole is NUTS1 region UKN. NUTS2 subdivides into Belfast and Outer Belfast.
+- Northern Ireland as a whole is NUTS1 region UKN
+- NUTS2 level: UKN0 (Northern Ireland)
+- NUTS3 level (NUTS 2021): 11 regions corresponding 1:1 to LGDs (UKN06-UKN0G)
+- The older NUTS 2010/2013 classification used 5 aggregated regions (UKN01-UKN05), which are now obsolete
 
 ### Geographic Lookup Resources
 

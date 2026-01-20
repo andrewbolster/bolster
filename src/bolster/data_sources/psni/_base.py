@@ -20,7 +20,7 @@ Example:
     >>> get_lgd_code("Belfast City")
     'N09000003'
     >>> get_nuts3_code("Belfast City")
-    'UKN01'
+    'UKN06'
 """
 
 import logging
@@ -87,31 +87,37 @@ LGD_CODES = {
     "Newry Mourne & Down": "N09000010",
 }
 
-# NUTS3 regional codes for aggregation
+# NUTS3 regional codes for aggregation (NUTS 2021 classification)
 # NUTS = Nomenclature of Territorial Units for Statistics (EU standard)
+# Since 2016, NI NUTS3 regions map 1:1 to Local Government Districts
 NUTS3_CODES = {
-    "Belfast City": "UKN01",  # Belfast
-    "Lisburn & Castlereagh City": "UKN06",  # Outer Belfast
-    "Antrim & Newtownabbey": "UKN06",  # Outer Belfast
-    "Ards & North Down": "UKN06",  # Outer Belfast
-    "Armagh City Banbridge & Craigavon": "UKN05",  # West and South of NI
-    "Newry Mourne & Down": "UKN05",  # West and South of NI
-    "Mid Ulster": "UKN05",  # West and South of NI
-    "Fermanagh & Omagh": "UKN03",  # West and South of NI
-    "Derry City & Strabane": "UKN02",  # Outer Belfast
-    "Causeway Coast & Glens": "UKN04",  # East of NI
-    "Mid & East Antrim": "UKN04",  # East of NI
+    "Antrim & Newtownabbey": "UKN0D",
+    "Ards & North Down": "UKN09",
+    "Armagh City Banbridge & Craigavon": "UKN07",
+    "Belfast City": "UKN06",
+    "Causeway Coast & Glens": "UKN0C",
+    "Derry City & Strabane": "UKN0A",
+    "Fermanagh & Omagh": "UKN0G",
+    "Lisburn & Castlereagh City": "UKN0E",
+    "Mid & East Antrim": "UKN0F",
+    "Mid Ulster": "UKN0B",
+    "Newry Mourne & Down": "UKN08",
 }
 
 # NUTS region names for reference
-# Source: ONS NUTS Level 3 (January 2024) Names and Codes
+# Source: Eurostat NUTS 2021 classification
 NUTS_REGION_NAMES = {
-    "UKN01": "Belfast",
-    "UKN02": "Outer Belfast",
-    "UKN03": "West and South of Northern Ireland",
-    "UKN04": "East of Northern Ireland",
-    "UKN05": "West and South of Northern Ireland",
-    "UKN06": "Outer Belfast",
+    "UKN06": "Belfast",
+    "UKN07": "Armagh City, Banbridge and Craigavon",
+    "UKN08": "Newry, Mourne and Down",
+    "UKN09": "Ards and North Down",
+    "UKN0A": "Derry City and Strabane",
+    "UKN0B": "Mid Ulster",
+    "UKN0C": "Causeway Coast and Glens",
+    "UKN0D": "Antrim and Newtownabbey",
+    "UKN0E": "Lisburn and Castlereagh",
+    "UKN0F": "Mid and East Antrim",
+    "UKN0G": "Fermanagh and Omagh",
 }
 
 
@@ -134,15 +140,19 @@ def get_lgd_code(district_name: str) -> Optional[str]:
 def get_nuts3_code(district_name: str) -> Optional[str]:
     """Get NUTS3 regional code for a policing district.
 
+    Uses NUTS 2021 classification where each LGD maps 1:1 to a NUTS3 region.
+
     Args:
         district_name: Policing district name (e.g., "Belfast City")
 
     Returns:
-        NUTS3 code (e.g., "UKN01") or None if not found
+        NUTS3 code (e.g., "UKN06") or None if not found
 
     Example:
         >>> get_nuts3_code("Belfast City")
-        'UKN01'
+        'UKN06'
+        >>> get_nuts3_code("Derry City & Strabane")
+        'UKN0A'
     """
     return NUTS3_CODES.get(district_name)
 
@@ -151,14 +161,16 @@ def get_nuts_region_name(nuts3_code: str) -> Optional[str]:
     """Get descriptive name for a NUTS3 region code.
 
     Args:
-        nuts3_code: NUTS3 code (e.g., "UKN01")
+        nuts3_code: NUTS3 code (e.g., "UKN06")
 
     Returns:
         Region name (e.g., "Belfast") or None if not found
 
     Example:
-        >>> get_nuts_region_name("UKN01")
+        >>> get_nuts_region_name("UKN06")
         'Belfast'
+        >>> get_nuts_region_name("UKN0A")
+        'Derry City and Strabane'
     """
     return NUTS_REGION_NAMES.get(nuts3_code)
 
