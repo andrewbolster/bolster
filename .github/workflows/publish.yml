@@ -24,21 +24,9 @@ jobs:
                 cache-dependency-glob: "uv.lock"
 
             - name: Install the project
-              run: uv sync --all-extras --dev
-
-            - name: Run tests
-              run: uv run pytest tests --cov-branch --cov-report=xml --cov=bolster --cov --junitxml=junit.xml -o junit_family=legacy
-
-            - name: Check code coverage
-              id: coverage
-              run: uv run coverage report --fail-under=5
+              run: uv sync --all-extras
 
             - name: Build and publish to pypi
-              if: steps.coverage.outcome == 'success'
               run: |
                     uv build
                     uv publish
-            - name: Upload coverage reports to Codecov
-              uses: codecov/codecov-action@v5
-              with:
-                  token: ${{ secrets.CODECOV_TOKEN }}

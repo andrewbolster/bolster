@@ -1,9 +1,12 @@
 import unittest
 from urllib.parse import urlparse
 
+import pytest
 import requests_cache
 
 from bolster.data_sources import ni_house_price_index as hpi
+
+pytestmark = pytest.mark.network  # All tests in this module require network access
 
 
 class MyTestCase(unittest.TestCase):
