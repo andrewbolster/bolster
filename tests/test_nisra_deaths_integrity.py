@@ -442,11 +442,11 @@ class TestHistoricalDeathsIntegrity:
         Each year should have 52 or 53 weeks depending on how ISO week boundaries fall.
         Incomplete years suggest data issues.
         """
-        # Check last 3 complete years
+        # Check last 3 complete years (excluding current and previous year due to publication lag)
         from datetime import datetime
 
         current_year = datetime.now().year
-        years_to_check = [current_year - 3, current_year - 2, current_year - 1]
+        years_to_check = [current_year - 4, current_year - 3, current_year - 2]
 
         df = deaths.get_historical_deaths(years=years_to_check, force_refresh=False)
 
@@ -466,12 +466,13 @@ class TestCombinedDeathsIntegrity:
 
     @pytest.fixture(scope="class")
     def combined_data(self):
-        """Fetch combined data (last 2 years + current)."""
+        """Fetch combined data (2 complete historical years + current)."""
         from datetime import datetime
 
         current_year = datetime.now().year
+        # Use years with complete data (current-3, current-2) due to publication lag
         return deaths.get_combined_deaths(
-            years=[current_year - 2, current_year - 1], include_current_year=True, force_refresh=False
+            years=[current_year - 3, current_year - 2], include_current_year=True, force_refresh=False
         )
 
     def test_combined_data_sources_labeled(self, combined_data):

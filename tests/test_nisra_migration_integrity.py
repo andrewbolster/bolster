@@ -201,14 +201,18 @@ class TestMigrationDataIntegrity:
         assert min_year <= 2011, f"Expected data from 2011, earliest is {min_year}"
 
     def test_recent_data_available(self, latest_migration):
-        """Test that recent data is available (within last year)."""
+        """Test that recent data is available (within last 2 years).
+
+        Migration statistics have a longer publication lag than other NISRA data,
+        typically 1-2 years behind the current year.
+        """
         import datetime
 
         max_year = latest_migration["year"].max()
         current_year = datetime.datetime.now().year
 
-        # Should have data up to current year or previous year
-        assert max_year >= current_year - 1, f"Latest data ({max_year}) is more than 1 year old"
+        # Should have data within 2 years (migration data has longer publication lag)
+        assert max_year >= current_year - 2, f"Latest data ({max_year}) is more than 2 years old"
 
     def test_post_covid_migration_surge(self, latest_migration):
         """Test that post-COVID migration surge is visible in data.

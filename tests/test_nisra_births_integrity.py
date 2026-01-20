@@ -206,12 +206,13 @@ class TestBirthsDataIntegrity:
             .sum()
         )
 
-        # Compare years that exist in both datasets (excluding most recent incomplete year)
+        # Compare years that exist in both datasets (excluding recent incomplete years)
         common_years = set(reg_annual.index) & set(occ_annual.index)
 
-        # Exclude current year as it may be incomplete
+        # Exclude current year and previous year as data may be incomplete
+        # (NISRA data typically has a publication lag of several months)
         current_year = pd.Timestamp.now().year
-        common_years = common_years - {current_year}
+        common_years = common_years - {current_year, current_year - 1}
 
         for year in sorted(common_years):
             reg_total = reg_annual[year]
