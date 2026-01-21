@@ -50,7 +50,6 @@ extensions = [
     "sphinx_issues",  # Link to GitHub issues/PRs
     "nbsphinx",  # Jupyter notebook integration
     "sphinx_github_changelog",  # Generate changelog from GitHub
-    "sphinxcontrib.apidoc",  # Enhanced API documentation
     # Output formats and publishing
     "sphinx.ext.githubpages",  # Publish to GitHub Pages
 ]

@@ -17,6 +17,8 @@ from bolster.data_sources.ni_water import (
     get_water_quality_csv_data,
 )
 
+pytestmark = pytest.mark.network  # All tests in this module require network access
+
 
 class TestNIWaterIntegrationBasic:
     """Basic integration tests for NI Water data functions."""

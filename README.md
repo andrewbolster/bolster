@@ -140,12 +140,49 @@ weather = get_precipitation_data("Belfast", start_date="2024-01-01", end_date="2
 ### Northern Ireland House Price Index
 
 ```python
-from bolster.data_sources.nihpi import get_house_price_index
+from bolster.data_sources.ni_house_price_index import (
+    get_hpi_trends,
+    get_sales_volumes,
+    get_average_prices,
+)
 
-# Get latest house price data
-hpi_data = get_house_price_index()
-print(f"Current average price: £{hpi_data['average_price']:,.0f}")
+# Get HPI index trends over time (Q1 2005 - present)
+hpi = get_hpi_trends()
+print(hpi[["Period", "NI House Price Index", "Annual Change"]].tail())
+
+# Get property sales volumes by type
+sales = get_sales_volumes()
+print(f"Total sales in latest quarter: {sales.iloc[-1]['Total']:,}")
+
+# Get average sale prices
+prices = get_average_prices()
+print(f"Current median price: £{prices.iloc[-1]['Simple Median']:,.0f}")
 ```
+
+### NISRA Statistics
+
+Comprehensive access to Northern Ireland Statistics and Research Agency (NISRA) data:
+
+```python
+from bolster.data_sources.nisra import population, births, deaths, migration
+
+# Mid-year population estimates by geography and demographics
+pop_df = population.get_latest_population()
+print(f"NI Population: {pop_df['population'].sum():,}")
+
+# Monthly birth registrations
+births_df = births.get_latest_births()
+
+# Weekly death registrations with excess deaths analysis
+deaths_df = deaths.get_latest_deaths()
+
+# Migration estimates derived from demographic components
+migration_df = migration.get_latest_migration()
+```
+
+Additional NISRA modules: `labour_market`, `economic_indicators`, `construction_output`, `composite_index`, `marriages`, `ashe` (earnings survey).
+
+See [NISRA module documentation](https://bolster.readthedocs.io/en/latest/data_sources/nisra.html) for full API reference.
 
 ## ☁️ Cloud Services
 
@@ -303,8 +340,8 @@ print(db_record)
 
 ### Prerequisites
 
-- Python 3.8+ (3.9, 3.10, 3.11, 3.12 supported)
-- PDM (Python Dependency Management)
+- Python 3.9+ (3.10, 3.11, 3.12, 3.13 supported)
+- [uv](https://docs.astral.sh/uv/) (fast Python package manager)
 
 ### Installation for Development
 
@@ -314,36 +351,35 @@ git clone https://github.com/andrewbolster/bolster.git
 cd bolster
 
 # Install with development dependencies
-pdm install -G dev
+uv sync --all-extras --dev
 
 # Install pre-commit hooks
-pdm run pre-commit install
+uv run pre-commit install
 
 # Run tests
-pdm run pytest
+uv run pytest
 
 # Run with coverage
-pdm run pytest --cov=bolster --cov-report=html
+uv run pytest --cov=bolster --cov-report=html
 
 # Build documentation
-cd docs
-pdm run make html
+cd docs && uv run make html
 ```
 
 ### Running Tests
 
 ```bash
 # Run all tests
-pdm run pytest
+uv run pytest
 
 # Run with verbose output and coverage
-pdm run pytest -v --cov=bolster --cov-report=term-missing
+uv run pytest -v --cov=bolster --cov-report=term-missing
 
 # Run specific test file
-pdm run pytest tests/test_core_utilities.py
+uv run pytest tests/test_core_utilities.py
 
-# Run doctests
-pdm run pytest --doctest-modules src/bolster/
+# Skip network-dependent tests (useful if SSL issues)
+uv run pytest -m "not network"
 ```
 
 ## 📚 Documentation

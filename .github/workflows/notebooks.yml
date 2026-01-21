@@ -1,8 +1,10 @@
-name: Release
+name: Test Notebooks
 
 on:
-    - push
-    - pull_request
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
 
 env:
     python-version: "3.11"
