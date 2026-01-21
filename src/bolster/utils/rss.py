@@ -111,7 +111,16 @@ def parse_feed_entry(entry: feedparser.FeedParserDict) -> FeedEntry:
     if hasattr(entry, "tags"):
         categories = [tag.get("term", "") for tag in entry.tags if tag.get("term")]
 
-    # Extract dates
+    # Extract dates - try updated first since some feeds only have updated
+    updated = None
+    if hasattr(entry, "updated"):
+        updated = parse_date(entry.updated)
+    elif hasattr(entry, "updated_parsed") and entry.updated_parsed:
+        try:
+            updated = datetime(*entry.updated_parsed[:6])
+        except (TypeError, ValueError):
+            pass
+
     published = None
     if hasattr(entry, "published"):
         published = parse_date(entry.published)
@@ -121,14 +130,9 @@ def parse_feed_entry(entry: feedparser.FeedParserDict) -> FeedEntry:
         except (TypeError, ValueError):
             pass
 
-    updated = None
-    if hasattr(entry, "updated"):
-        updated = parse_date(entry.updated)
-    elif hasattr(entry, "updated_parsed") and entry.updated_parsed:
-        try:
-            updated = datetime(*entry.updated_parsed[:6])
-        except (TypeError, ValueError):
-            pass
+    # Fall back to updated if published is not available
+    if published is None and updated is not None:
+        published = updated
 
     # Extract content
     content = None
