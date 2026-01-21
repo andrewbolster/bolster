@@ -140,11 +140,23 @@ weather = get_precipitation_data("Belfast", start_date="2024-01-01", end_date="2
 ### Northern Ireland House Price Index
 
 ```python
-from bolster.data_sources.ni_house_price_index import build
+from bolster.data_sources.ni_house_price_index import (
+    get_hpi_trends,
+    get_sales_volumes,
+    get_average_prices,
+)
 
-# Get latest house price data
-hpi_data = build()
-print(f"Loaded {len(hpi_data)} housing market indicators")
+# Get HPI index trends over time (Q1 2005 - present)
+hpi = get_hpi_trends()
+print(hpi[["Period", "NI House Price Index", "Annual Change"]].tail())
+
+# Get property sales volumes by type
+sales = get_sales_volumes()
+print(f"Total sales in latest quarter: {sales.iloc[-1]['Total']:,}")
+
+# Get average sale prices
+prices = get_average_prices()
+print(f"Current median price: £{prices.iloc[-1]['Simple Median']:,.0f}")
 ```
 
 ### NISRA Statistics
