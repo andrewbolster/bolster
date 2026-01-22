@@ -200,8 +200,8 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Population Estimates | `nisra.population` | ✅ |
 | Migration Estimates | `nisra.migration` | ✅ |
 | Annual Survey of Hours & Earnings | `nisra.ashe` | ✅ |
+| DVA Monthly Tests Statistics | `dva` | ✅ |
 | Individual Wellbeing | - | Planned |
-| DVA Monthly Tests Statistics | - | Planned |
 | Cancer Waiting Times | - | Planned |
 | Monthly Occupancy Statistics | - | Planned |
 | Security Situation Statistics | - | Planned |
