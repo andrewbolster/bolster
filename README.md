@@ -184,6 +184,29 @@ Additional NISRA modules: `labour_market`, `economic_indicators`, `construction_
 
 See [NISRA module documentation](https://bolster.readthedocs.io/en/latest/data_sources/nisra.html) for full API reference.
 
+#### NISRA RSS Feed Coverage
+
+The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-statistics.atom?organisations%5B%5D=northern-ireland-statistics-and-research-agency) tracks new NISRA publications. Current implementation status:
+
+| Publication | Module | Status |
+|-------------|--------|--------|
+| Labour Market Statistics | `nisra.labour_market` | ✅ |
+| Weekly/Monthly Deaths | `nisra.deaths` | ✅ |
+| Monthly Births/Stillbirths | `nisra.births` | ✅ |
+| Monthly Marriages | `nisra.marriages` | ✅ |
+| NI Composite Economic Index | `nisra.composite_index` | ✅ |
+| Construction Bulletin | `nisra.construction_output` | ✅ |
+| Index of Services/Production | `nisra.economic_indicators` | ✅ |
+| Population Estimates | `nisra.population` | ✅ |
+| Migration Estimates | `nisra.migration` | ✅ |
+| Annual Survey of Hours & Earnings | `nisra.ashe` | ✅ |
+| Individual Wellbeing | - | Planned |
+| DVA Monthly Tests Statistics | - | Planned |
+| Cancer Waiting Times | - | Planned |
+| Monthly Occupancy Statistics | - | Planned |
+| Security Situation Statistics | - | Planned |
+| Road Traffic Collisions | - | Planned |
+
 ## ☁️ Cloud Services
 
 ### AWS Integration
