@@ -4,8 +4,9 @@ These tests validate the structure and consistency of DVA test statistics data.
 They use real data from the DVA monthly publications to ensure parsing is correct.
 """
 
-import pytest
 from datetime import datetime
+
+import pytest
 
 from bolster.data_sources import dva
 
