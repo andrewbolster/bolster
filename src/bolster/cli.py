@@ -504,11 +504,27 @@ def dva_cmd(latest, test_type, year, output_format, force_refresh, save, summary
             console.print(f"\n[cyan]Latest Data: {latest_month}[/cyan]\n")
 
             # Calculate stats for each test type
-            console.print(f"{'Test Type':<15} {'This Month':>12} {'YoY Change':>12} {'vs Pre-COVID':>14}")
-            console.print("─" * 55)
+            console.print(f"{'Test Type':<10} {'This Month':>12} {'MoM':>8} {'QoQ':>8} {'YoY':>8}")
+            console.print("─" * 50)
 
             for label, df in [("Vehicle", vehicle_df), ("Driver", driver_df), ("Theory", theory_df)]:
                 current = df.iloc[-1]["tests_conducted"]
+
+                # Month-on-month change
+                if len(df) >= 2:
+                    prev_month = df.iloc[-2]["tests_conducted"]
+                    mom_change = ((current - prev_month) / prev_month) * 100
+                    mom_str = f"{mom_change:+.1f}%"
+                else:
+                    mom_str = "N/A"
+
+                # Quarter-on-quarter change (3 months ago)
+                if len(df) >= 4:
+                    prev_quarter = df.iloc[-4]["tests_conducted"]
+                    qoq_change = ((current - prev_quarter) / prev_quarter) * 100
+                    qoq_str = f"{qoq_change:+.1f}%"
+                else:
+                    qoq_str = "N/A"
 
                 # YoY change (same month last year)
                 last_year = df[(df["year"] == latest_row["year"] - 1) & (df["month"] == latest_row["month"])]
@@ -520,16 +536,7 @@ def dva_cmd(latest, test_type, year, output_format, force_refresh, save, summary
                 else:
                     yoy_str = "N/A"
 
-                # vs Pre-COVID (2017-2019 average for same month)
-                pre_covid = df[(df["year"].isin([2017, 2018, 2019])) & (df["month"] == latest_row["month"])]
-                if not pre_covid.empty:
-                    pre_covid_avg = pre_covid["tests_conducted"].mean()
-                    covid_change = ((current - pre_covid_avg) / pre_covid_avg) * 100
-                    covid_str = f"{covid_change:+.1f}%"
-                else:
-                    covid_str = "N/A"
-
-                console.print(f"{label:<15} {current:>12,} {yoy_str:>12} {covid_str:>14}")
+                console.print(f"{label:<10} {current:>12,} {mom_str:>8} {qoq_str:>8} {yoy_str:>8}")
 
             # YTD total
             current_year = latest_row["year"]
