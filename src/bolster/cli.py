@@ -11,6 +11,7 @@ from rich.panel import Panel
 from rich.text import Text
 
 from . import __version__
+from .data_sources import dva
 from .data_sources.cineworld import get_cinema_listings
 from .data_sources.companies_house import get_companies_house_records_that_might_be_in_farset, query_basic_company_data
 from .data_sources.eoni import get_results as get_ni_election_results
@@ -56,6 +57,10 @@ def cli(verbose, args=None):
         ni-house-prices      NI house price index data
 
     \b
+    🚗 Transport:
+        dva                  DVA monthly test statistics (vehicle, driver, theory)
+
+    \b
     🎬 Entertainment & Lifestyle:
         cinema-listings      Cineworld movie showtimes
 
@@ -70,6 +75,7 @@ def cli(verbose, args=None):
     📋 QUICK EXAMPLES
         bolster water-quality BT1 5GS         # Water quality for postcode
         bolster nisra deaths --latest         # Latest NISRA deaths statistics
+        bolster dva --latest --summary        # DVA test statistics summary
         bolster rss nisra-statistics          # Browse NISRA publications
         bolster ni-executive                  # NI Executive history
         bolster companies-house farset        # Companies at Farset Labs
@@ -433,6 +439,186 @@ def ni_house_prices(output_format, save):
 
     except Exception as e:
         click.echo(f"Error retrieving house price data: {e}")
+
+
+@cli.command(name="dva")
+@click.option("--latest", is_flag=True, required=True, help="Get the most recent DVA data available")
+@click.option(
+    "--test-type",
+    type=click.Choice(["vehicle", "driver", "theory", "all"], case_sensitive=False),
+    default="all",
+    help="Type of test statistics to retrieve (default: all)",
+)
+@click.option("--year", type=int, help="Filter data by year")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["json", "csv"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary dashboard only")
+def dva_cmd(latest, test_type, year, output_format, force_refresh, save, summary):
+    """
+    DVA (Driver & Vehicle Agency) Monthly Test Statistics.
+
+    Retrieves monthly test statistics from the NI Driver & Vehicle Agency including:
+    - Vehicle tests (MOT-style tests)
+    - Driver tests (practical driving tests)
+    - Theory tests
+
+    Data available from April 2014 to present.
+
+    \b
+    EXAMPLES:
+        bolster dva --latest                          # All test types
+        bolster dva --latest --test-type vehicle      # Just vehicle tests
+        bolster dva --latest --year 2024              # Filter by year
+        bolster dva --latest --summary                # Quick summary dashboard
+        bolster dva --latest --format json --save tests.json
+
+    \b
+    SOURCE:
+        https://www.infrastructure-ni.gov.uk/publications/type/statistics
+    """
+    console = Console()
+
+    try:
+        if summary:
+            # Show summary dashboard
+            console.print("\n[bold]DVA Test Statistics Summary[/bold]")
+            console.print("━" * 50)
+
+            all_data = dva.get_latest_all_tests(force_refresh=force_refresh)
+
+            # Get latest month info
+            vehicle_df = all_data["vehicle"]
+            driver_df = all_data["driver"]
+            theory_df = all_data["theory"]
+
+            latest_row = vehicle_df.iloc[-1]
+            latest_month = f"{latest_row['month']} {latest_row['year']}"
+
+            console.print(f"\n[cyan]Latest Data: {latest_month}[/cyan]\n")
+
+            # Calculate stats for each test type
+            console.print(f"{'Test Type':<15} {'This Month':>12} {'YoY Change':>12} {'vs Pre-COVID':>14}")
+            console.print("─" * 55)
+
+            for label, df in [("Vehicle", vehicle_df), ("Driver", driver_df), ("Theory", theory_df)]:
+                current = df.iloc[-1]["tests_conducted"]
+
+                # YoY change (same month last year)
+                last_year = df[(df["year"] == latest_row["year"] - 1) & (df["month"] == latest_row["month"])]
+                if not last_year.empty:
+                    yoy_change = (
+                        (current - last_year.iloc[0]["tests_conducted"]) / last_year.iloc[0]["tests_conducted"]
+                    ) * 100
+                    yoy_str = f"{yoy_change:+.1f}%"
+                else:
+                    yoy_str = "N/A"
+
+                # vs Pre-COVID (2017-2019 average for same month)
+                pre_covid = df[(df["year"].isin([2017, 2018, 2019])) & (df["month"] == latest_row["month"])]
+                if not pre_covid.empty:
+                    pre_covid_avg = pre_covid["tests_conducted"].mean()
+                    covid_change = ((current - pre_covid_avg) / pre_covid_avg) * 100
+                    covid_str = f"{covid_change:+.1f}%"
+                else:
+                    covid_str = "N/A"
+
+                console.print(f"{label:<15} {current:>12,} {yoy_str:>12} {covid_str:>14}")
+
+            # YTD total
+            current_year = latest_row["year"]
+            ytd_total = sum(df[df["year"] == current_year]["tests_conducted"].sum() for df in all_data.values())
+            console.print(f"\n[dim]{current_year} YTD Total: {ytd_total:,} tests[/dim]")
+
+            return
+
+        # Regular data retrieval
+        console.print(f"[cyan]Fetching DVA {test_type} test statistics...[/cyan]")
+
+        if test_type == "all":
+            data = dva.get_latest_all_tests(force_refresh=force_refresh)
+            if year:
+                data = {k: dva.get_tests_by_year(v, year) for k, v in data.items()}
+        else:
+            if test_type == "vehicle":
+                data = dva.get_latest_vehicle_tests(force_refresh=force_refresh)
+            elif test_type == "driver":
+                data = dva.get_latest_driver_tests(force_refresh=force_refresh)
+            else:  # theory
+                data = dva.get_latest_theory_tests(force_refresh=force_refresh)
+
+            if year:
+                data = dva.get_tests_by_year(data, year)
+
+        # Check for empty data
+        if test_type == "all":
+            if all(df.empty for df in data.values()):
+                console.print("[yellow]⚠️  No data found for the specified filters[/yellow]")
+                return
+        else:
+            if data.empty:
+                console.print("[yellow]⚠️  No data found for the specified filters[/yellow]")
+                return
+
+        # Display success
+        if test_type == "all":
+            total_records = sum(len(df) for df in data.values())
+            console.print(f"[green]✅ Retrieved {total_records} records[/green]")
+            for name, df in data.items():
+                console.print(f"   • {name}: {len(df)} months")
+        else:
+            console.print(f"[green]✅ Retrieved {len(data)} months of {test_type} test data[/green]")
+
+        # Save to file
+        if save:
+            try:
+                if test_type == "all":
+                    for name, df in data.items():
+                        filename = (
+                            f"{save.rsplit('.', 1)[0]}_{name}.{save.rsplit('.', 1)[-1] if '.' in save else 'csv'}"
+                        )
+                        if output_format == "json" or filename.endswith(".json"):
+                            df.to_json(filename, orient="records", date_format="iso", indent=2)
+                        else:
+                            df.to_csv(filename, index=False)
+                        console.print(f"[green]💾 Saved {name} to: {filename}[/green]")
+                else:
+                    if output_format == "json" or save.endswith(".json"):
+                        data.to_json(save, orient="records", date_format="iso", indent=2)
+                    else:
+                        data.to_csv(save, index=False)
+                    console.print(f"[green]💾 Data saved to: {save}[/green]")
+                return
+            except Exception as e:
+                console.print(f"[red]❌ Error saving file: {e}[/red]")
+                return
+
+        # Output to console
+        if test_type == "all":
+            for name, df in data.items():
+                console.print(f"\n[bold]{name.upper()} TESTS:[/bold]")
+                if output_format == "json":
+                    click.echo(df.to_json(orient="records", date_format="iso", indent=2))
+                else:
+                    console.print(df.to_csv(index=False), end="")
+        else:
+            if output_format == "json":
+                click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+            else:
+                console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
+        raise click.Abort()
 
 
 @cli.command()
@@ -2801,6 +2987,10 @@ def list_sources():
     click.echo("  ni-house-prices      NI house price index data from official sources")
     click.echo("                       Price trends by property type, region, time period")
 
+    click.echo("\n🚗 TRANSPORT")
+    click.echo("  dva                  DVA monthly test statistics (vehicle, driver, theory)")
+    click.echo("                       April 2014 - present, includes --summary dashboard")
+
     click.echo("\n🎬 ENTERTAINMENT & LIFESTYLE")
     click.echo("  cinema-listings      Cineworld movie listings and showtimes")
     click.echo("                       Default: Belfast (site 117), supports other locations")
@@ -2815,6 +3005,7 @@ def list_sources():
     click.echo("  bolster.data_sources.metoffice         - UK Met Office API integration")
     click.echo("  bolster.data_sources.ni_water          - NI Water quality data")
     click.echo("  bolster.data_sources.nisra.deaths      - NISRA weekly deaths statistics")
+    click.echo("  bolster.data_sources.dva               - DVA monthly test statistics")
     click.echo("  bolster.data_sources.wikipedia         - NI Executive Wikipedia scraping")
     click.echo("  bolster.data_sources.ni_house_price_index - NI house price statistics")
     click.echo("  bolster.data_sources.cineworld         - Cineworld cinema API")
@@ -2825,6 +3016,7 @@ def list_sources():
     click.echo("\n💡 USAGE EXAMPLES")
     click.echo("  bolster water-quality BT1 5GS              # Water quality by postcode")
     click.echo("  bolster nisra deaths --latest              # Latest NISRA deaths data")
+    click.echo("  bolster dva --latest --summary             # DVA test statistics summary")
     click.echo("  bolster rss nisra-statistics               # Browse NISRA publications")
     click.echo("  bolster ni-executive --format json         # Executive data as JSON")
     click.echo("  bolster companies-house farset             # Search for Farset companies")
