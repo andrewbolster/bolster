@@ -9,6 +9,8 @@ Various scrapers and API wrappers for NI government data:
 - cineworld: Movie listings
 - companies_house: UK company data
 - eoni: Electoral data
+- dva: Driver & Vehicle Agency monthly test statistics
+- nisra: NISRA statistics (deaths, births, labour market, population, etc.)
 
 Most have corresponding CLI commands.
 """
