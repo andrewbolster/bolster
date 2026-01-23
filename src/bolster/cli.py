@@ -27,6 +27,7 @@ from .data_sources.nisra import economic_indicators as nisra_economic
 from .data_sources.nisra import labour_market as nisra_labour_market
 from .data_sources.nisra import marriages as nisra_marriages
 from .data_sources.nisra import migration as nisra_migration
+from .data_sources.nisra import occupancy as nisra_occupancy
 from .data_sources.nisra import population as nisra_population
 from .data_sources.wikipedia import get_ni_executive_basic_table
 from .utils.rss import filter_entries, get_nisra_statistics_feed, parse_rss_feed
@@ -1976,6 +1977,196 @@ def nisra_marriages_cmd(latest, year, output_format, force_refresh, save):
     except Exception as e:
         console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
         console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
+        console.print("   • Visit NISRA website to verify data availability")
+        raise click.Abort()
+
+
+@nisra.command(name="occupancy")
+@click.option("--latest", is_flag=True, help="Get the most recent hotel occupancy data")
+@click.option("--year", type=int, help="Filter data for specific year")
+@click.option("--data-type", type=click.Choice(["rates", "sold"], case_sensitive=False), default="rates", help="Data type: rates (occupancy rates) or sold (rooms/beds sold)")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics only")
+def nisra_occupancy_cmd(latest, year, data_type, output_format, force_refresh, save, summary):
+    """
+    NISRA Monthly Hotel Occupancy Statistics
+
+    Retrieves monthly hotel occupancy data for Northern Ireland from the
+    Tourism Statistics Branch.
+
+    \b
+    DATA TYPES:
+        rates  - Room and bed occupancy rates (0-1 scale)
+        sold   - Number of rooms and beds sold monthly
+
+    \b
+    EXAMPLES:
+        # Get latest occupancy rates
+        bolster nisra occupancy --latest
+
+        # Get rooms/beds sold data
+        bolster nisra occupancy --latest --data-type sold
+
+        # Filter for a specific year
+        bolster nisra occupancy --latest --year 2024
+
+        # Show summary by year
+        bolster nisra occupancy --latest --summary
+
+        # Save to file
+        bolster nisra occupancy --latest --save occupancy.csv
+
+    \b
+    DATA NOTES:
+        - Monthly time series from 2011 to present
+        - Room occupancy is typically higher than bed occupancy
+        - COVID-19 Note: 2020-2021 shows dramatic impact on tourism
+          (hotels closed March-July 2020, Oct-Dec 2020, Jan-May 2021)
+
+    \b
+    SEASONAL PATTERNS:
+        Summer months (June-September) are peak tourism season:
+        • August typically has the highest occupancy (~80%+)
+        • July-September are consistently strong
+        • January-February typically have the lowest occupancy
+
+    \b
+    OUTPUT (rates):
+        - date: First day of month (datetime)
+        - year: Year
+        - month: Month name
+        - room_occupancy: Room occupancy rate (0-1)
+        - bed_occupancy: Bed occupancy rate (0-1)
+
+    \b
+    OUTPUT (sold):
+        - date: First day of month (datetime)
+        - year: Year
+        - month: Month name
+        - rooms_sold: Number of hotel rooms sold
+        - beds_sold: Number of hotel beds sold
+
+    \b
+    SOURCE:
+        https://www.nisra.gov.uk/statistics/tourism/occupancy-surveys
+    """
+    console = Console()
+
+    if not latest and not summary:
+        console.print("[yellow]Use --latest to retrieve data or --summary for statistics[/yellow]")
+        return
+
+    try:
+        with console.status("[bold green]Downloading latest NISRA hotel occupancy data..."):
+            if data_type == "sold":
+                data = nisra_occupancy.get_latest_rooms_beds_sold(force_refresh=force_refresh)
+            else:
+                data = nisra_occupancy.get_latest_hotel_occupancy(force_refresh=force_refresh)
+
+        # Filter by year if specified
+        if year:
+            data = nisra_occupancy.get_occupancy_by_year(data, year)
+            if data.empty:
+                console.print(f"[yellow]No data found for year {year}[/yellow]")
+                return
+
+        # Summary mode
+        if summary:
+            console.print("\n[bold cyan]Hotel Occupancy Summary[/bold cyan]")
+            console.print("=" * 50)
+
+            if data_type == "rates":
+                yearly_summary = nisra_occupancy.get_occupancy_summary_by_year(data)
+                console.print(f"\n{'Year':<8} {'Room Occ':>10} {'Bed Occ':>10} {'Months':>8}")
+                console.print("-" * 40)
+
+                for _, row in yearly_summary.tail(10).iterrows():
+                    room_pct = f"{row['avg_room_occupancy']:.1%}" if row['avg_room_occupancy'] else "N/A"
+                    bed_pct = f"{row['avg_bed_occupancy']:.1%}" if row['avg_bed_occupancy'] else "N/A"
+                    console.print(f"{int(row['year']):<8} {room_pct:>10} {bed_pct:>10} {int(row['months_reported']):>8}")
+
+                # Seasonal patterns
+                console.print("\n[bold]Seasonal Patterns (All Years):[/bold]")
+                seasonal = nisra_occupancy.get_seasonal_patterns(data)
+                peak = seasonal.loc[seasonal['avg_room_occupancy'].idxmax()]
+                low = seasonal.loc[seasonal['avg_room_occupancy'].idxmin()]
+                console.print(f"   Peak month: {peak['month']} ({peak['avg_room_occupancy']:.1%})")
+                console.print(f"   Low month: {low['month']} ({low['avg_room_occupancy']:.1%})")
+            else:
+                # Rooms/beds sold summary
+                yearly = data.groupby("year").agg(
+                    total_rooms=("rooms_sold", "sum"),
+                    total_beds=("beds_sold", "sum"),
+                    months=("rooms_sold", lambda x: x.notna().sum()),
+                ).reset_index()
+
+                console.print(f"\n{'Year':<8} {'Rooms Sold':>14} {'Beds Sold':>14} {'Months':>8}")
+                console.print("-" * 48)
+
+                for _, row in yearly.tail(10).iterrows():
+                    console.print(
+                        f"{int(row['year']):<8} {row['total_rooms']:>14,.0f} "
+                        f"{row['total_beds']:>14,.0f} {int(row['months']):>8}"
+                    )
+            return
+
+        console.print("[green]Retrieved hotel occupancy data successfully[/green]")
+        console.print(f"[cyan]Total records: {len(data)}[/cyan]")
+
+        if not data.empty:
+            earliest_date = data["date"].min()
+            latest_date = data["date"].max()
+            console.print(f"[dim]Period: {earliest_date.strftime('%b %Y')} to {latest_date.strftime('%b %Y')}[/dim]")
+
+            # Show quick stats
+            if data_type == "rates":
+                avg_room = data["room_occupancy"].mean()
+                avg_bed = data["bed_occupancy"].mean()
+                console.print("\n[bold]Average Occupancy:[/bold]")
+                console.print(f"   Room: {avg_room:.1%}")
+                console.print(f"   Bed: {avg_bed:.1%}")
+            else:
+                total_rooms = data["rooms_sold"].sum()
+                total_beds = data["beds_sold"].sum()
+                console.print("\n[bold]Totals:[/bold]")
+                console.print(f"   Rooms sold: {total_rooms:,.0f}")
+                console.print(f"   Beds sold: {total_beds:,.0f}")
+
+        # Handle file saving
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", date_format="iso", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Data saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        # Output to console in requested format
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
         console.print("   • Visit NISRA website to verify data availability")
