@@ -44,7 +44,7 @@ Publication Details:
 import logging
 import re
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Tuple, Union
 
 import pandas as pd
 
