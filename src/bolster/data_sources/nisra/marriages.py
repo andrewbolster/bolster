@@ -1,22 +1,24 @@
-"""NISRA Marriage Registrations Data Source.
+"""NISRA Marriage and Civil Partnership Registrations Data Source.
 
-Provides access to monthly marriage registration data for Northern Ireland.
+Provides access to monthly marriage and civil partnership registration data for Northern Ireland.
 
 Data includes:
 - Monthly marriage registrations from 2006 to present
-- Total marriages by month and year
+- Monthly civil partnership registrations from 2006 to present
+- Total registrations by month and year
 - Historical time series for trend analysis
 
-Marriage registrations represent when the marriage was registered, not when the ceremony occurred.
+Registrations represent when the event was registered, not when the ceremony occurred.
 The data is published monthly with provisional figures for the current year and final figures for
 previous years.
 
-Data Source:
-    **Mother Page**: https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/marriages
+Data Sources:
+    **Marriages Mother Page**: https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/marriages
+    **Civil Partnerships Page**: https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/civil-partnerships
 
-    This page lists all marriage statistics publications in reverse chronological order
-    (newest first). The module automatically scrapes this page to find the latest
-    "Monthly Marriages" publication, then downloads the Excel file.
+    These pages list all relevant statistics publications in reverse chronological order
+    (newest first). The module automatically scrapes these pages to find the latest
+    publications, then downloads the Excel files.
 
 Update Frequency: Monthly (published around 11th of the following month)
 Geographic Coverage: Northern Ireland
@@ -27,6 +29,10 @@ Example:
     >>> # Get latest marriage registrations
     >>> df = marriages.get_latest_marriages()
     >>> print(df.head())
+
+    >>> # Get latest civil partnership registrations
+    >>> cp_df = marriages.get_latest_civil_partnerships()
+    >>> print(f"Total civil partnerships in 2024: {cp_df[cp_df['year']==2024]['civil_partnerships'].sum()}")
 
     >>> # Filter for a specific year
     >>> df_2024 = df[df['year'] == 2024]
@@ -44,8 +50,9 @@ from ._base import NISRADataNotFoundError, NISRAValidationError, download_file
 
 logger = logging.getLogger(__name__)
 
-# Base URL for marriage statistics
+# Base URLs for marriage and civil partnership statistics
 MARRIAGES_BASE_URL = "https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/marriages"
+CIVIL_PARTNERSHIPS_BASE_URL = "https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/civil-partnerships"
 
 
 def get_latest_marriages_publication_url() -> Tuple[str, str]:
@@ -373,6 +380,312 @@ def get_marriages_summary_by_year(df: pd.DataFrame) -> pd.DataFrame:
     )
 
     # Round average
+    summary["avg_per_month"] = summary["avg_per_month"].round(1)
+
+    return summary
+
+
+# ============================================================================
+# Civil Partnership Functions
+# ============================================================================
+
+
+def get_latest_civil_partnerships_publication_url() -> Tuple[str, str]:
+    """Scrape NISRA civil partnerships page to find the latest monthly civil partnerships file.
+
+    Returns:
+        Tuple of (excel_file_url, publication_date)
+
+    Raises:
+        NISRADataNotFoundError: If publication or file not found
+    """
+    import requests
+    from bs4 import BeautifulSoup
+
+    mother_page = CIVIL_PARTNERSHIPS_BASE_URL
+
+    try:
+        response = requests.get(mother_page, timeout=30)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        raise NISRADataNotFoundError(f"Failed to fetch civil partnerships page: {e}")
+
+    soup = BeautifulSoup(response.content, "html.parser")
+
+    # Find "Monthly Civil Partnerships" publication link
+    pub_link = None
+    pub_date = None
+
+    for link in soup.find_all("a", href=True):
+        link_text = link.get_text(strip=True)
+
+        if "monthly-civil-partnerships" in link["href"].lower():
+            href = link["href"]
+
+            if href.startswith("/"):
+                href = f"https://www.nisra.gov.uk{href}"
+
+            pub_link = href
+            logger.info(f"Found Monthly Civil Partnerships publication: {link_text}")
+            break
+
+    if not pub_link:
+        raise NISRADataNotFoundError("Could not find Monthly Civil Partnerships publication")
+
+    # Scrape the publication page for Excel file
+    try:
+        pub_response = requests.get(pub_link, timeout=30)
+        pub_response.raise_for_status()
+    except requests.RequestException as e:
+        raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}")
+
+    pub_soup = BeautifulSoup(pub_response.content, "html.parser")
+
+    # Find civil partnerships Excel file
+    excel_url = None
+
+    for link in pub_soup.find_all("a", href=True):
+        href = link["href"]
+
+        if "Civil" in href and "Partnership" in href and href.endswith(".xlsx"):
+            if href.startswith("/"):
+                href = f"https://www.nisra.gov.uk{href}"
+
+            # Extract date from filename if possible
+            # Pattern: "Monthly Civil Partnerships December 2025.xlsx"
+            date_match = re.search(r"([A-Z][a-z]+)\s+(\d{4})\.xlsx", href)
+            if date_match:
+                pub_date = f"{date_match.group(1)} {date_match.group(2)}"
+
+            excel_url = href
+            logger.info(f"Found civil partnerships Excel file: {href}")
+            break
+
+    if not excel_url:
+        raise NISRADataNotFoundError("Could not find civil partnerships Excel file on publication page")
+
+    return excel_url, pub_date or "Unknown"
+
+
+def parse_civil_partnerships_file(file_path: Union[str, Path]) -> pd.DataFrame:
+    """Parse NISRA monthly civil partnerships Excel file.
+
+    The civil partnerships file contains a "Civil Partnerships" sheet with a wide-format table:
+    - Rows: Months (January-December)
+    - Columns: Years (2006-present)
+    - Values: Number of civil partnership registrations
+
+    Args:
+        file_path: Path to the civil partnerships Excel file
+
+    Returns:
+        DataFrame with columns:
+            - date: datetime (first day of month)
+            - year: int (year of registration)
+            - month: str (month name)
+            - civil_partnerships: int (number of civil partnership registrations)
+
+    Raises:
+        NISRAValidationError: If file structure is unexpected
+    """
+    file_path = Path(file_path)
+
+    try:
+        # Read the Civil Partnerships sheet
+        # Row 0: Title
+        # Row 1: "This sheet contains..."
+        # Row 2: "All Civil Partnerships"
+        # Row 3: Headers (Month of Registration, 2006, 2007, ...)
+        # Row 4+: Data (January, February, ...)
+        df_raw = pd.read_excel(
+            file_path,
+            sheet_name="Civil Partnerships",
+            header=None,
+            skiprows=3,  # Skip to header row
+            nrows=13,  # Read header + 12 months
+        )
+    except Exception as e:
+        raise NISRAValidationError(f"Failed to read civil partnerships file: {e}")
+
+    # First row is the header
+    headers = df_raw.iloc[0].tolist()
+    df_raw = df_raw.iloc[1:].reset_index(drop=True)
+    df_raw.columns = headers
+
+    # Find the month column
+    month_col = None
+    for col in df_raw.columns:
+        col_str = str(col)
+        if "Month" in col_str or "Registration" in col_str:
+            month_col = col
+            break
+
+    if not month_col:
+        month_col = df_raw.columns[0]
+
+    # Rename month column
+    df_raw = df_raw.rename(columns={month_col: "month"})
+
+    # Filter out Total row and any non-month rows
+    month_names = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+    ]
+    df_raw = df_raw[df_raw["month"].isin(month_names)].copy()
+
+    # Identify year columns
+    year_cols = []
+    for col in df_raw.columns:
+        if col == "month":
+            continue
+        col_str = str(col)
+        year_match = re.search(r"(\d{4})", col_str)
+        if year_match:
+            year_cols.append((col, int(year_match.group(1))))
+
+    # Build long-format data
+    records = []
+    month_map = {
+        "January": 1,
+        "February": 2,
+        "March": 3,
+        "April": 4,
+        "May": 5,
+        "June": 6,
+        "July": 7,
+        "August": 8,
+        "September": 9,
+        "October": 10,
+        "November": 11,
+        "December": 12,
+    }
+
+    for _, row in df_raw.iterrows():
+        month_name = row["month"]
+        month_num = month_map.get(month_name)
+
+        if not month_num:
+            continue
+
+        for col, year in year_cols:
+            val = row[col]
+            if pd.notna(val) and val != "-":
+                try:
+                    civil_partnerships = int(float(val))
+                except (ValueError, TypeError):
+                    civil_partnerships = None
+
+                if civil_partnerships is not None:
+                    records.append(
+                        {
+                            "year": year,
+                            "month": month_name,
+                            "month_num": month_num,
+                            "civil_partnerships": civil_partnerships,
+                        }
+                    )
+
+    df = pd.DataFrame(records)
+
+    # Create datetime column
+    df["date"] = pd.to_datetime({"year": df["year"], "month": df["month_num"], "day": 1})
+
+    # Select and reorder columns
+    result = df[["date", "year", "month", "civil_partnerships"]].copy()
+
+    # Sort by date
+    result = result.sort_values("date").reset_index(drop=True)
+
+    logger.info(
+        f"Parsed {len(result)} monthly civil partnership records "
+        f"({result['date'].min().strftime('%Y-%m')} to {result['date'].max().strftime('%Y-%m')})"
+    )
+
+    return result
+
+
+def get_latest_civil_partnerships(force_refresh: bool = False) -> pd.DataFrame:
+    """Get the latest monthly civil partnership registrations data.
+
+    Automatically discovers and downloads the most recent civil partnership registrations
+    from the NISRA website.
+
+    Args:
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with columns:
+            - date: datetime (first day of month)
+            - year: int (year of registration)
+            - month: str (month name)
+            - civil_partnerships: int (number of civil partnership registrations)
+
+    Raises:
+        NISRADataNotFoundError: If latest publication cannot be found
+        NISRAValidationError: If file structure is unexpected
+
+    Example:
+        >>> df = get_latest_civil_partnerships()
+        >>> df_2024 = df[df['year'] == 2024]
+        >>> total = df_2024['civil_partnerships'].sum()
+        >>> print(f"Total civil partnerships in 2024: {total}")
+    """
+    excel_url, pub_date = get_latest_civil_partnerships_publication_url()
+
+    logger.info(f"Downloading civil partnerships data ({pub_date}) from: {excel_url}")
+
+    cache_ttl_hours = 30 * 24
+    file_path = download_file(excel_url, cache_ttl_hours=cache_ttl_hours, force_refresh=force_refresh)
+
+    return parse_civil_partnerships_file(file_path)
+
+
+def get_civil_partnerships_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
+    """Filter civil partnership data for a specific year.
+
+    Args:
+        df: DataFrame from get_latest_civil_partnerships()
+        year: Year to filter
+
+    Returns:
+        Filtered DataFrame
+    """
+    return df[df["year"] == year].reset_index(drop=True)
+
+
+def get_civil_partnerships_summary_by_year(df: pd.DataFrame) -> pd.DataFrame:
+    """Calculate annual civil partnership totals and statistics.
+
+    Args:
+        df: DataFrame from get_latest_civil_partnerships()
+
+    Returns:
+        DataFrame with columns:
+            - year: int
+            - total_civil_partnerships: int
+            - months_reported: int
+            - avg_per_month: float
+    """
+    summary = (
+        df.groupby("year")
+        .agg(
+            total_civil_partnerships=("civil_partnerships", "sum"),
+            months_reported=("civil_partnerships", lambda x: x.notna().sum()),
+            avg_per_month=("civil_partnerships", "mean"),
+        )
+        .reset_index()
+    )
+
     summary["avg_per_month"] = summary["avg_per_month"].round(1)
 
     return summary
