@@ -203,7 +203,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | DVA Monthly Tests Statistics | `dva` | ✅ |
 | Individual Wellbeing | - | Planned |
 | Cancer Waiting Times | - | Planned |
-| Monthly Occupancy Statistics | - | Planned |
+| Monthly Occupancy Statistics | `nisra.occupancy` | ✅ |
 | Security Situation Statistics | - | Planned |
 | Road Traffic Collisions | - | Planned |
 

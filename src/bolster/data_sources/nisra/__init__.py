@@ -14,6 +14,7 @@ Available modules:
     - labour_market: Quarterly Labour Force Survey statistics (employment, economic inactivity)
     - marriages: Monthly marriage registrations
     - migration: Derived migration estimates from demographic components
+    - occupancy: Monthly hotel and accommodation occupancy statistics
     - population: Annual mid-year population estimates by age, sex, and geography
 
 Examples:
@@ -53,6 +54,11 @@ Examples:
     >>> df_2024 = marriages.get_marriages_by_year(marriages_df, 2024)
     >>> print(f"Total marriages in 2024: {df_2024['marriages'].sum():,}")
 
+    >>> from bolster.data_sources.nisra import occupancy
+    >>> occ_df = occupancy.get_latest_hotel_occupancy()
+    >>> avg_2024 = occ_df[occ_df['year'] == 2024]['room_occupancy'].mean()
+    >>> print(f"2024 average room occupancy: {avg_2024:.1%}")
+
     >>> from bolster.data_sources.nisra import migration
     >>> migration_df = migration.get_latest_migration()
     >>> df_2024 = migration.get_migration_by_year(migration_df, 2024)
@@ -73,6 +79,7 @@ from . import (
     labour_market,
     marriages,
     migration,
+    occupancy,
     population,
 )
 
@@ -86,5 +93,6 @@ __all__ = [
     "labour_market",
     "marriages",
     "migration",
+    "occupancy",
     "population",
 ]
