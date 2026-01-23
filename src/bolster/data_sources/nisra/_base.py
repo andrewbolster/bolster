@@ -8,6 +8,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from bolster.utils.cache import CachedDownloader, DownloadError
+from bolster.utils.web import session
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +68,7 @@ def scrape_download_links(page_url: str, file_extension: str = ".xlsx") -> List[
         List of dicts with 'url' and 'text' keys
     """
     try:
-        response = requests.get(page_url, timeout=30)
+        response = session.get(page_url, timeout=30)
         response.raise_for_status()
     except requests.RequestException as e:
         raise NISRADataError(f"Failed to fetch page {page_url}: {e}")

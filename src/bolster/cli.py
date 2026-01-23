@@ -29,6 +29,7 @@ from .data_sources.nisra import marriages as nisra_marriages
 from .data_sources.nisra import migration as nisra_migration
 from .data_sources.nisra import occupancy as nisra_occupancy
 from .data_sources.nisra import population as nisra_population
+from .data_sources.nisra import wellbeing as nisra_wellbeing
 from .data_sources.wikipedia import get_ni_executive_basic_table
 from .utils.rss import filter_entries, get_nisra_statistics_feed, parse_rss_feed
 
@@ -3143,6 +3144,169 @@ def nisra_composite_index_cmd(latest, table, year, quarter, output_format, force
                 click.echo(data.to_json(orient="records", date_format="iso", indent=2))
             else:
                 console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
+        raise click.Abort()
+
+
+@nisra.command(name="wellbeing")
+@click.option("--latest", is_flag=True, help="Get the most recent wellbeing data available")
+@click.option(
+    "--metric",
+    type=click.Choice(["personal", "loneliness", "self-efficacy", "summary"], case_sensitive=False),
+    default="personal",
+    help="Type of wellbeing data to retrieve (default: personal)",
+)
+@click.option("--year", type=str, help="Filter data for specific year (format: 2024/25)")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_wellbeing_cmd(latest, metric, year, output_format, force_refresh, save):
+    """
+    NISRA Individual Wellbeing Statistics
+
+    Retrieves individual wellbeing statistics for Northern Ireland, measuring
+    subjective wellbeing across the population aged 16 and over.
+
+    \b
+    METRICS:
+        personal     - ONS4 measures: Life Satisfaction, Worthwhile, Happiness, Anxiety
+                       Scores from 0-10 (higher is better, except Anxiety where lower is better)
+        loneliness   - Proportion feeling lonely at least some of the time
+        self-efficacy - Mean self-efficacy scores (range 5-25)
+        summary      - Combined latest values for all measures
+
+    \b
+    EXAMPLES:
+        # Get personal wellbeing (ONS4 measures)
+        bolster nisra wellbeing --latest
+
+        # Get loneliness statistics
+        bolster nisra wellbeing --latest --metric loneliness
+
+        # Get summary of all metrics for latest year
+        bolster nisra wellbeing --latest --metric summary
+
+        # Filter for a specific year
+        bolster nisra wellbeing --latest --year "2023/24"
+
+        # Save to file
+        bolster nisra wellbeing --latest --save wellbeing.csv
+
+    \b
+    DATA NOTES:
+        - Personal wellbeing: Annual from 2014/15 to present
+        - Loneliness: Annual from 2017/18 to present
+        - Self-efficacy: Annual from 2014/15 to present
+        - COVID-19 Note: 2020/21 shows increased anxiety and loneliness
+
+    \b
+    OUTPUT (personal):
+        - year: Financial year (e.g., "2024/25")
+        - life_satisfaction: Mean score 0-10 (higher is better)
+        - worthwhile: Mean score 0-10 (higher is better)
+        - happiness: Mean score 0-10 (higher is better)
+        - anxiety: Mean score 0-10 (lower is better)
+
+    \b
+    SOURCE:
+        https://www.nisra.gov.uk/statistics/wellbeing/individual-wellbeing-northern-ireland
+    """
+    console = Console()
+
+    if not latest:
+        console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
+        console.print("[dim]Use --latest to get the most recent wellbeing data[/dim]")
+        return
+
+    try:
+        with console.status("[bold green]Downloading latest NISRA wellbeing data..."):
+            if metric == "personal":
+                data = nisra_wellbeing.get_latest_personal_wellbeing(force_refresh=force_refresh)
+            elif metric == "loneliness":
+                data = nisra_wellbeing.get_latest_loneliness(force_refresh=force_refresh)
+            elif metric == "self-efficacy":
+                data = nisra_wellbeing.get_latest_self_efficacy(force_refresh=force_refresh)
+            elif metric == "summary":
+                data = nisra_wellbeing.get_wellbeing_summary(force_refresh=force_refresh)
+
+        # Filter by year if specified
+        if year and metric == "personal":
+            data = nisra_wellbeing.get_personal_wellbeing_by_year(data, year)
+            if data.empty:
+                console.print(f"[yellow]⚠️  No data found for year {year}[/yellow]")
+                return
+        elif year and metric != "summary":
+            data = data[data["year"] == year]
+            if data.empty:
+                console.print(f"[yellow]⚠️  No data found for year {year}[/yellow]")
+                return
+
+        console.print(f"[green]✅ Retrieved {metric} wellbeing data successfully[/green]")
+        console.print(f"[cyan]📊 Total records: {len(data)}[/cyan]")
+
+        if not data.empty:
+            years = data["year"].unique()
+            if len(years) > 1:
+                console.print(f"[dim]Years: {years[0]} - {years[-1]}[/dim]")
+            else:
+                console.print(f"[dim]Year: {years[0]}[/dim]")
+
+            # Show summary based on metric type
+            if metric == "personal":
+                latest_row = data.iloc[-1]
+                console.print("\n[bold]Latest Values:[/bold]")
+                console.print(f"   Life Satisfaction: {latest_row['life_satisfaction']:.1f}/10")
+                console.print(f"   Worthwhile: {latest_row['worthwhile']:.1f}/10")
+                console.print(f"   Happiness: {latest_row['happiness']:.1f}/10")
+                console.print(f"   Anxiety: {latest_row['anxiety']:.1f}/10 (lower is better)")
+            elif metric == "loneliness":
+                latest_row = data.iloc[-1]
+                console.print("\n[bold]Latest Values:[/bold]")
+                console.print(f"   Lonely (some of time): {latest_row['lonely_some_of_time']:.1%}")
+            elif metric == "self-efficacy":
+                latest_row = data.iloc[-1]
+                console.print("\n[bold]Latest Values:[/bold]")
+                console.print(f"   Self-efficacy mean: {latest_row['self_efficacy_mean']:.1f}/25")
+            elif metric == "summary":
+                row = data.iloc[0]
+                console.print("\n[bold]Wellbeing Summary:[/bold]")
+                console.print(f"   Life Satisfaction: {row['life_satisfaction']:.1f}/10")
+                console.print(f"   Worthwhile: {row['worthwhile']:.1f}/10")
+                console.print(f"   Happiness: {row['happiness']:.1f}/10")
+                console.print(f"   Anxiety: {row['anxiety']:.1f}/10")
+                console.print(f"   Lonely (some of time): {row['lonely_some_of_time']:.1%}")
+                console.print(f"   Self-efficacy: {row['self_efficacy_mean']:.1f}/25")
+
+        # Handle file saving
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", date_format="iso", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]💾 Data saved to: {save}[/green]")
+                return
+            except Exception as e:
+                console.print(f"[red]❌ Error saving file: {e}[/red]")
+                return
+
+        # Output to console
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            console.print("\n[bold]Data:[/bold]")
+            console.print(data.to_csv(index=False), end="")
 
     except Exception as e:
         console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
