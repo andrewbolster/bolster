@@ -15,6 +15,7 @@ Available modules:
     - marriages: Monthly marriage registrations
     - migration: Derived migration estimates from demographic components
     - population: Annual mid-year population estimates by age, sex, and geography
+    - wellbeing: Individual wellbeing statistics (life satisfaction, happiness, anxiety, loneliness)
 
 Examples:
     >>> from bolster.data_sources.nisra import ashe
@@ -61,6 +62,11 @@ Examples:
     >>> from bolster.data_sources.nisra import population
     >>> pop_df = population.get_latest_population(area='Northern Ireland')
     >>> print(f"NI population 2024: {pop_df[pop_df['year'] == 2024]['population'].sum():,}")
+
+    >>> from bolster.data_sources.nisra import wellbeing
+    >>> df = wellbeing.get_latest_personal_wellbeing()
+    >>> latest = df.iloc[-1]
+    >>> print(f"Life satisfaction {latest['year']}: {latest['life_satisfaction']}")
 """
 
 from . import (
@@ -74,6 +80,7 @@ from . import (
     marriages,
     migration,
     population,
+    wellbeing,
 )
 
 __all__ = [
@@ -87,4 +94,5 @@ __all__ = [
     "marriages",
     "migration",
     "population",
+    "wellbeing",
 ]

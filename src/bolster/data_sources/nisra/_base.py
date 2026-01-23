@@ -9,6 +9,8 @@ from typing import Dict, List, Optional
 import requests
 from bs4 import BeautifulSoup
 
+from bolster.utils.web import session
+
 logger = logging.getLogger(__name__)
 
 # Cache directory
@@ -91,7 +93,7 @@ def download_file(url: str, cache_ttl_hours: int = 24, force_refresh: bool = Fal
 
     try:
         logger.info(f"Downloading {url}")
-        response = requests.get(url, timeout=30)
+        response = session.get(url, timeout=30)
         response.raise_for_status()
 
         cache_path.write_bytes(response.content)
@@ -113,7 +115,7 @@ def scrape_download_links(page_url: str, file_extension: str = ".xlsx") -> List[
         List of dicts with 'url' and 'text' keys
     """
     try:
-        response = requests.get(page_url, timeout=30)
+        response = session.get(page_url, timeout=30)
         response.raise_for_status()
     except requests.RequestException as e:
         raise NISRADataError(f"Failed to fetch page {page_url}: {e}")
