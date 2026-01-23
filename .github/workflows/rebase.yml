@@ -1,11 +1,11 @@
-name: Rebase Bot Pull Requests
+name: Rebase Pull Requests
 on:
     push:
         branches: [main]
     workflow_dispatch:
         inputs:
             pr_number:
-                description: 'PR number to rebase (leave empty for all bot PRs)'
+                description: 'PR number to rebase (leave empty for all non-draft PRs)'
                 required: false
                 type: string
 
@@ -15,7 +15,7 @@ permissions:
 
 jobs:
     auto-rebase:
-        name: Rebase bot PRs
+        name: Rebase PRs
         runs-on: ubuntu-latest
         timeout-minutes: 15
         steps:
@@ -30,15 +30,15 @@ jobs:
                   git config user.name "github-actions[bot]"
                   git config user.email "github-actions[bot]@users.noreply.github.com"
 
-            - name: Update bot PR branches
+            - name: Update PR branches
               if: github.event_name == 'push' && github.ref == 'refs/heads/main'
               run: |
                   set +e  # Don't exit on errors - we want to process all PRs
-                  echo "Updating bot PRs with latest main..."
+                  echo "Updating non-draft PRs with latest main..."
 
-                  # Get all open bot PRs that need updating
-                  gh pr list --state open --json number,author,mergeStateStatus \
-                    --jq '.[] | select(.author.login | test("bot|renovate|github-actions")) | select(.mergeStateStatus == "DIRTY") | .number' | \
+                  # Get all open non-draft PRs that need updating
+                  gh pr list --state open --json number,isDraft,mergeStateStatus \
+                    --jq '.[] | select(.isDraft == false) | select(.mergeStateStatus == "DIRTY") | .number' | \
                   while read -r pr; do
                     echo "----------------------------------------"
                     echo "Updating PR #$pr with latest main..."

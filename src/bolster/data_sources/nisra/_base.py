@@ -1,21 +1,22 @@
 """Common utilities for NISRA data sources."""
 
-import hashlib
 import logging
-from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
 import requests
 from bs4 import BeautifulSoup
 
+from bolster.utils.cache import CachedDownloader, DownloadError
 from bolster.utils.web import session
 
 logger = logging.getLogger(__name__)
 
-# Cache directory
-CACHE_DIR = Path.home() / ".cache" / "bolster" / "nisra"
-CACHE_DIR.mkdir(parents=True, exist_ok=True)
+# Shared downloader instance for NISRA data sources
+_downloader = CachedDownloader("nisra", timeout=30)
+
+# Expose cache directory for modules that need subdirectories
+CACHE_DIR = _downloader.cache_dir
 
 
 class NISRADataError(Exception):
@@ -36,36 +37,6 @@ class NISRAValidationError(NISRADataError):
     pass
 
 
-def hash_url(url: str) -> str:
-    """Generate a safe filename from a URL."""
-    return hashlib.md5(url.encode()).hexdigest()
-
-
-def get_cached_file(url: str, cache_ttl_hours: int = 24) -> Optional[Path]:
-    """Return cached file if exists and fresh, else None.
-
-    Args:
-        url: URL of the file
-        cache_ttl_hours: Cache validity in hours
-
-    Returns:
-        Path to cached file if valid, None otherwise
-    """
-    # Create a safe filename from URL
-    url_hash = hash_url(url)
-    # Extract file extension from URL
-    ext = Path(url).suffix or ".bin"
-    cache_path = CACHE_DIR / f"{url_hash}{ext}"
-
-    if cache_path.exists():
-        age = datetime.now() - datetime.fromtimestamp(cache_path.stat().st_mtime)
-        if age.total_seconds() < cache_ttl_hours * 3600:
-            logger.info(f"Using cached file: {cache_path}")
-            return cache_path
-
-    return None
-
-
 def download_file(url: str, cache_ttl_hours: int = 24, force_refresh: bool = False) -> Path:
     """Download a file with caching support.
 
@@ -80,28 +51,10 @@ def download_file(url: str, cache_ttl_hours: int = 24, force_refresh: bool = Fal
     Raises:
         NISRADataNotFoundError: If download fails
     """
-    # Check cache first
-    if not force_refresh:
-        cached = get_cached_file(url, cache_ttl_hours)
-        if cached:
-            return cached
-
-    # Download the file
-    url_hash = hash_url(url)
-    ext = Path(url).suffix or ".bin"
-    cache_path = CACHE_DIR / f"{url_hash}{ext}"
-
     try:
-        logger.info(f"Downloading {url}")
-        response = session.get(url, timeout=30)
-        response.raise_for_status()
-
-        cache_path.write_bytes(response.content)
-        logger.info(f"Saved to {cache_path}")
-        return cache_path
-
-    except requests.RequestException as e:
-        raise NISRADataNotFoundError(f"Failed to download {url}: {e}")
+        return _downloader.download(url, cache_ttl_hours=cache_ttl_hours, force_refresh=force_refresh)
+    except DownloadError as e:
+        raise NISRADataNotFoundError(str(e)) from e
 
 
 def scrape_download_links(page_url: str, file_extension: str = ".xlsx") -> List[dict]:
@@ -139,24 +92,17 @@ def scrape_download_links(page_url: str, file_extension: str = ".xlsx") -> List[
     return links
 
 
-def clear_cache(pattern: Optional[str] = None):
+def clear_cache(pattern: Optional[str] = None) -> int:
     """Clear cached files.
 
     Args:
         pattern: Optional glob pattern to match specific files (e.g., "*.xlsx")
                  If None, clears all cached files
+
+    Returns:
+        Number of files deleted
     """
-    if pattern:
-        files = list(CACHE_DIR.glob(pattern))
-    else:
-        files = list(CACHE_DIR.glob("*"))
-
-    for file in files:
-        if file.is_file():
-            file.unlink()
-            logger.info(f"Deleted {file}")
-
-    logger.info(f"Cleared {len(files)} cached files")
+    return _downloader.clear(pattern)
 
 
 # Excel parsing utilities
