@@ -181,6 +181,47 @@ class TestMigrationDataIntegrity:
         assert stats["max_immigration"] > 0
         assert stats["max_emigration"] < 0
 
+    def test_summary_statistics_with_start_year(self, latest_migration):
+        """Test get_migration_summary_statistics with start_year filter."""
+        start_year = 2015
+        stats = migration.get_migration_summary_statistics(latest_migration, start_year=start_year)
+
+        # Total years should only include years from start_year onwards
+        expected_years = len(latest_migration[latest_migration["year"] >= start_year])
+        assert stats["total_years"] == expected_years
+
+    def test_summary_statistics_with_end_year(self, latest_migration):
+        """Test get_migration_summary_statistics with end_year filter."""
+        end_year = 2020
+        stats = migration.get_migration_summary_statistics(latest_migration, end_year=end_year)
+
+        # Total years should only include years up to end_year
+        expected_years = len(latest_migration[latest_migration["year"] <= end_year])
+        assert stats["total_years"] == expected_years
+
+    def test_summary_statistics_with_year_range(self, latest_migration):
+        """Test get_migration_summary_statistics with both start and end year."""
+        start_year = 2015
+        end_year = 2020
+        stats = migration.get_migration_summary_statistics(latest_migration, start_year=start_year, end_year=end_year)
+
+        # Total years should only include years in range
+        expected_years = len(
+            latest_migration[(latest_migration["year"] >= start_year) & (latest_migration["year"] <= end_year)]
+        )
+        assert stats["total_years"] == expected_years
+
+    def test_summary_statistics_empty_result(self, latest_migration):
+        """Test get_migration_summary_statistics with filters that return no data."""
+        # Use a future year range that won't have any data
+        stats = migration.get_migration_summary_statistics(latest_migration, start_year=2099)
+
+        # Should return zeros/None for empty data
+        assert stats["total_years"] == 0
+        assert stats["avg_net_migration"] == 0.0
+        assert stats["positive_years"] == 0
+        assert stats["max_immigration_year"] is None
+
     def test_validation_function_works(self, latest_migration):
         """Test that the validate_demographic_equation function works correctly."""
         # Should pass with valid data
