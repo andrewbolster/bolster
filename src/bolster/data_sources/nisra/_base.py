@@ -255,6 +255,9 @@ def parse_month_year(month_str: str, format: str = "%B %Y") -> Optional["pd.Time
     """
     import pandas as pd
 
+    if month_str is None or (isinstance(month_str, str) and month_str.strip() == ""):
+        return None
+
     try:
         return pd.to_datetime(month_str, format=format)
     except (ValueError, TypeError):
@@ -283,9 +286,18 @@ def add_date_columns(df: "pd.DataFrame", source_col: str, date_col: str = "date"
         >>> df.columns.tolist()
         ['treatment_month', 'date', 'year', 'month']
     """
+    import pandas as pd
+
     df = df.copy()
     df[date_col] = df[source_col].apply(parse_month_year)
     df = df.dropna(subset=[date_col])
+
+    # Handle empty DataFrame after dropping invalid dates
+    if len(df) == 0:
+        df["year"] = pd.Series(dtype=int)
+        df["month"] = pd.Series(dtype=str)
+        return df
+
     df["year"] = df[date_col].dt.year.astype(int)
     df["month"] = df[date_col].dt.strftime("%B")
     return df
