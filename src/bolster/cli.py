@@ -30,6 +30,7 @@ from .data_sources.nisra import migration as nisra_migration
 from .data_sources.nisra import occupancy as nisra_occupancy
 from .data_sources.nisra import population as nisra_population
 from .data_sources.nisra import wellbeing as nisra_wellbeing
+from .data_sources.nisra import cancer_waiting_times as nisra_cancer
 from .data_sources.wikipedia import get_ni_executive_basic_table
 from .utils.rss import filter_entries, get_nisra_statistics_feed, parse_rss_feed
 
@@ -3423,6 +3424,200 @@ def nisra_wellbeing_cmd(latest, metric, year, output_format, force_refresh, save
                 console.print(f"   Anxiety: {row['anxiety']:.1f}/10")
                 console.print(f"   Lonely (some of time): {row['lonely_some_of_time']:.1%}")
                 console.print(f"   Self-efficacy: {row['self_efficacy_mean']:.1f}/25")
+
+        # Handle file saving
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", date_format="iso", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]💾 Data saved to: {save}[/green]")
+                return
+            except Exception as e:
+                console.print(f"[red]❌ Error saving file: {e}[/red]")
+                return
+
+        # Output to console
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            console.print("\n[bold]Data:[/bold]")
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
+        raise click.Abort()
+
+
+@nisra.command(name="cancer-waiting-times")
+@click.option("--latest", is_flag=True, help="Get the most recent cancer waiting times data available")
+@click.option(
+    "--target",
+    type=click.Choice(["14-day", "31-day", "62-day", "referrals"], case_sensitive=False),
+    default="31-day",
+    help="Waiting time target to retrieve (default: 31-day)",
+)
+@click.option(
+    "--dimension",
+    type=click.Choice(["trust", "tumour"], case_sensitive=False),
+    default="trust",
+    help="Data dimension: by HSC Trust or by Tumour Site (default: trust)",
+)
+@click.option("--year", type=int, help="Filter data for specific year")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show NI-wide summary instead of raw data")
+def nisra_cancer_cmd(latest, target, dimension, year, output_format, force_refresh, save, summary):
+    """
+    NISRA Cancer Waiting Times Statistics
+
+    Retrieves cancer waiting times performance data for Northern Ireland from the
+    Department of Health, tracking progress against ministerial targets.
+
+    \b
+    TARGETS:
+        14-day    - Urgent breast referrals seen within 14 days (breast cancer only)
+        31-day    - Treatment within 31 days of decision to treat (all cancers)
+        62-day    - Treatment within 62 days of urgent GP referral (all cancers)
+        referrals - Monthly breast cancer referral volumes
+
+    \b
+    DIMENSIONS:
+        trust     - Breakdown by HSC Trust (Belfast, Northern, South Eastern, Southern, Western)
+        tumour    - Breakdown by Tumour Site (Breast, Lung, Skin, Urological, etc.)
+                    Note: 14-day target only available for breast cancer
+
+    \b
+    EXAMPLES:
+        # Get latest 31-day performance by trust
+        bolster nisra cancer-waiting-times --latest
+
+        # Get 62-day performance by tumour site
+        bolster nisra cancer-waiting-times --latest --target 62-day --dimension tumour
+
+        # Get 14-day breast cancer performance
+        bolster nisra cancer-waiting-times --latest --target 14-day
+
+        # Get NI-wide summary for 2024
+        bolster nisra cancer-waiting-times --latest --year 2024 --summary
+
+        # Save to file
+        bolster nisra cancer-waiting-times --latest --save cancer.csv
+
+    \b
+    KEY INSIGHTS (as of 2025):
+        - 31-day target (95%): NI achieving ~90% average
+        - 62-day target (95%): Performance collapsed to ~32% (crisis level)
+        - 14-day breast target: Dropped from 77% (2020) to 17% (2025)
+        - Trust disparities: Belfast 82% vs Western 97% for 31-day
+
+    \b
+    DATA NOTES:
+        - Data from Q1 2008 to present (monthly)
+        - Some Belfast Trust data missing Q2-Q3 2024 (encompass system rollout)
+        - Regional breast service transition from May 2025
+        - COVID-19 impact visible in 2020 volumes and post-2020 backlogs
+
+    \b
+    SOURCE:
+        https://www.health-ni.gov.uk/articles/cancer-waiting-times
+    """
+    console = Console()
+
+    if not latest:
+        console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
+        console.print("[dim]Use --latest to get the most recent cancer waiting times data[/dim]")
+        return
+
+    try:
+        with console.status("[bold green]Downloading latest NISRA cancer waiting times data..."):
+            # Select appropriate data source based on target and dimension
+            if target == "14-day":
+                data = nisra_cancer.get_latest_14_day_breast(force_refresh=force_refresh)
+                target_label = "14-day Breast"
+            elif target == "referrals":
+                data = nisra_cancer.get_latest_breast_referrals(force_refresh=force_refresh)
+                target_label = "Breast Referrals"
+            elif target == "31-day":
+                if dimension == "tumour":
+                    data = nisra_cancer.get_latest_31_day_by_tumour(force_refresh=force_refresh)
+                    target_label = "31-day by Tumour Site"
+                else:
+                    data = nisra_cancer.get_latest_31_day_by_trust(force_refresh=force_refresh)
+                    target_label = "31-day by HSC Trust"
+            elif target == "62-day":
+                if dimension == "tumour":
+                    data = nisra_cancer.get_latest_62_day_by_tumour(force_refresh=force_refresh)
+                    target_label = "62-day by Tumour Site"
+                else:
+                    data = nisra_cancer.get_latest_62_day_by_trust(force_refresh=force_refresh)
+                    target_label = "62-day by HSC Trust"
+
+        # Filter by year if specified
+        if year:
+            data = nisra_cancer.get_data_by_year(data, year)
+            if data.empty:
+                console.print(f"[yellow]⚠️  No data found for year {year}[/yellow]")
+                return
+
+        # Get NI-wide summary if requested (not for referrals)
+        if summary and target != "referrals":
+            data = nisra_cancer.get_ni_wide_performance(data)
+
+        console.print(f"[green]✅ Retrieved {target_label} data successfully[/green]")
+        console.print(f"[cyan]📊 Total records: {len(data)}[/cyan]")
+
+        if not data.empty:
+            years = sorted(data["year"].unique())
+            if len(years) > 1:
+                console.print(f"[dim]Years: {years[0]} - {years[-1]}[/dim]")
+            else:
+                console.print(f"[dim]Year: {years[0]}[/dim]")
+
+            # Show summary statistics
+            if target == "referrals":
+                latest_year = data["year"].max()
+                latest_data = data[data["year"] == latest_year]
+                total_referrals = latest_data["total_referrals"].sum()
+                urgent_referrals = latest_data["urgent_referrals"].sum()
+                console.print(f"\n[bold]Latest Year ({latest_year}) Summary:[/bold]")
+                console.print(f"   Total Referrals: {total_referrals:,.0f}")
+                console.print(f"   Urgent Referrals: {urgent_referrals:,.0f}")
+                console.print(f"   Urgent Rate: {urgent_referrals/total_referrals:.1%}")
+            else:
+                # Performance summary
+                valid_data = data.dropna(subset=["performance_rate"])
+                valid_data = valid_data[valid_data["total"] > 0]
+                if not valid_data.empty:
+                    latest_year = valid_data["year"].max()
+                    latest_data = valid_data[valid_data["year"] == latest_year]
+                    total_patients = latest_data["total"].sum()
+                    within_target = latest_data["within_target"].sum()
+                    overall_rate = within_target / total_patients if total_patients > 0 else 0
+
+                    console.print(f"\n[bold]Latest Year ({latest_year}) Summary:[/bold]")
+                    console.print(f"   Total Patients: {total_patients:,.0f}")
+                    console.print(f"   Within Target: {within_target:,.0f}")
+                    console.print(f"   Performance Rate: {overall_rate:.1%}")
+
+                    # Show target status
+                    target_threshold = 0.95
+                    if overall_rate >= target_threshold:
+                        console.print(f"   [green]✅ Meeting 95% target[/green]")
+                    else:
+                        gap = (target_threshold - overall_rate) * 100
+                        console.print(f"   [red]❌ {gap:.1f}pp below 95% target[/red]")
 
         # Handle file saving
         if save:
