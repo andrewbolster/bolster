@@ -214,6 +214,83 @@ def extract_column_mapping(sheet, header_row: int, column_names: List[str]) -> D
     return mapping
 
 
+def make_absolute_url(url: str, base_url: str) -> str:
+    """Convert a relative URL to absolute.
+
+    Args:
+        url: URL that may be relative (starting with /) or absolute
+        base_url: Base URL to prepend for relative URLs (e.g., "https://www.nisra.gov.uk")
+
+    Returns:
+        Absolute URL
+
+    Example:
+        >>> make_absolute_url("/publications/file.xlsx", "https://www.nisra.gov.uk")
+        'https://www.nisra.gov.uk/publications/file.xlsx'
+        >>> make_absolute_url("https://example.com/file.xlsx", "https://www.nisra.gov.uk")
+        'https://example.com/file.xlsx'
+    """
+    if url.startswith("/"):
+        return f"{base_url}{url}"
+    elif not url.startswith("http"):
+        return f"{base_url}/{url}"
+    return url
+
+
+def parse_month_year(month_str: str, format: str = "%B %Y") -> Optional["pd.Timestamp"]:
+    """Parse a month-year string to datetime.
+
+    Args:
+        month_str: String like "April 2008" or "Jan 2024"
+        format: strftime format string (default: "%B %Y" for full month name)
+
+    Returns:
+        pandas Timestamp or None if parsing fails
+
+    Example:
+        >>> parse_month_year("April 2008")
+        Timestamp('2008-04-01 00:00:00')
+        >>> parse_month_year("Jan 2024", format="%b %Y")
+        Timestamp('2024-01-01 00:00:00')
+    """
+    import pandas as pd
+
+    try:
+        return pd.to_datetime(month_str, format=format)
+    except (ValueError, TypeError):
+        return None
+
+
+def add_date_columns(df: "pd.DataFrame", source_col: str, date_col: str = "date") -> "pd.DataFrame":
+    """Add standardized date, year, and month columns from a source column.
+
+    Parses a column containing "Month Year" strings (e.g., "April 2008") and adds:
+    - date: pandas datetime
+    - year: integer year
+    - month: full month name (e.g., "January")
+
+    Args:
+        df: DataFrame to modify
+        source_col: Column name containing "Month Year" strings
+        date_col: Name for the date column (default: "date")
+
+    Returns:
+        DataFrame with added columns (rows with invalid dates are dropped)
+
+    Example:
+        >>> df = pd.DataFrame({"treatment_month": ["April 2008", "May 2008"]})
+        >>> df = add_date_columns(df, "treatment_month")
+        >>> df.columns.tolist()
+        ['treatment_month', 'date', 'year', 'month']
+    """
+    df = df.copy()
+    df[date_col] = df[source_col].apply(parse_month_year)
+    df = df.dropna(subset=[date_col])
+    df["year"] = df[date_col].dt.year.astype(int)
+    df["month"] = df[date_col].dt.strftime("%B")
+    return df
+
+
 def parse_age_breakdowns(row, age_columns_map: Dict[str, int], start_idx: int = None) -> List[dict]:
     """Parse age breakdown columns into a list of age band dictionaries.
 

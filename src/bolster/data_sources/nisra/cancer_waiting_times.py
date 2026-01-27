@@ -52,7 +52,7 @@ from typing import Tuple, Union
 import pandas as pd
 from bs4 import BeautifulSoup
 
-from ._base import NISRADataNotFoundError, download_file
+from ._base import NISRADataNotFoundError, add_date_columns, download_file, make_absolute_url
 from bolster.utils.web import session
 
 logger = logging.getLogger(__name__)
@@ -109,8 +109,7 @@ def get_latest_publication_url() -> Tuple[str, str]:
     logger.info(f"Found publication: {pub_text}")
 
     # Make absolute URL
-    if pub_url.startswith("/"):
-        pub_url = f"{DOH_BASE_URL}{pub_url}"
+    pub_url = make_absolute_url(pub_url, DOH_BASE_URL)
 
     # Extract quarter from publication text
     quarter_match = re.search(
@@ -143,19 +142,10 @@ def get_latest_publication_url() -> Tuple[str, str]:
         raise NISRADataNotFoundError("Could not find Excel file in publication page")
 
     # Make absolute URL
-    if excel_url.startswith("/"):
-        excel_url = f"{DOH_BASE_URL}{excel_url}"
+    excel_url = make_absolute_url(excel_url, DOH_BASE_URL)
 
     logger.info(f"Found Excel file: {excel_url}")
     return excel_url, quarter_str
-
-
-def _parse_month(month_str: str) -> pd.Timestamp:
-    """Parse month string like 'April 2008' to datetime."""
-    try:
-        return pd.to_datetime(month_str, format="%B %Y")
-    except ValueError:
-        return pd.NaT
 
 
 def parse_31_day_by_trust(file_path: Union[str, Path]) -> pd.DataFrame:
@@ -171,10 +161,7 @@ def parse_31_day_by_trust(file_path: Union[str, Path]) -> pd.DataFrame:
     df = pd.read_excel(file_path, sheet_name=SHEET_31_DAY_TRUST)
 
     df.columns = ["treatment_month", "trust", "within_target", "over_target", "total"]
-    df["date"] = df["treatment_month"].apply(_parse_month)
-    df = df.dropna(subset=["date"])
-    df["year"] = df["date"].dt.year.astype(int)
-    df["month"] = df["date"].dt.strftime("%B")
+    df = add_date_columns(df, "treatment_month")
     df["performance_rate"] = df["within_target"] / df["total"]
 
     return df[["date", "year", "month", "trust", "within_target", "over_target", "total", "performance_rate"]]
@@ -193,10 +180,7 @@ def parse_31_day_by_tumour(file_path: Union[str, Path]) -> pd.DataFrame:
     df = pd.read_excel(file_path, sheet_name=SHEET_31_DAY_TUMOUR)
 
     df.columns = ["treatment_month", "tumour_site", "within_target", "over_target", "total"]
-    df["date"] = df["treatment_month"].apply(_parse_month)
-    df = df.dropna(subset=["date"])
-    df["year"] = df["date"].dt.year.astype(int)
-    df["month"] = df["date"].dt.strftime("%B")
+    df = add_date_columns(df, "treatment_month")
     df["performance_rate"] = df["within_target"] / df["total"]
 
     return df[["date", "year", "month", "tumour_site", "within_target", "over_target", "total", "performance_rate"]]
@@ -219,10 +203,7 @@ def parse_62_day_by_trust(file_path: Union[str, Path]) -> pd.DataFrame:
     df = pd.read_excel(file_path, sheet_name=SHEET_62_DAY_TRUST)
 
     df.columns = ["treatment_month", "trust", "within_target", "over_target", "total"]
-    df["date"] = df["treatment_month"].apply(_parse_month)
-    df = df.dropna(subset=["date"])
-    df["year"] = df["date"].dt.year.astype(int)
-    df["month"] = df["date"].dt.strftime("%B")
+    df = add_date_columns(df, "treatment_month")
     df["performance_rate"] = df["within_target"] / df["total"]
 
     return df[["date", "year", "month", "trust", "within_target", "over_target", "total", "performance_rate"]]
@@ -241,10 +222,7 @@ def parse_62_day_by_tumour(file_path: Union[str, Path]) -> pd.DataFrame:
     df = pd.read_excel(file_path, sheet_name=SHEET_62_DAY_TUMOUR)
 
     df.columns = ["treatment_month", "tumour_site", "within_target", "over_target", "total"]
-    df["date"] = df["treatment_month"].apply(_parse_month)
-    df = df.dropna(subset=["date"])
-    df["year"] = df["date"].dt.year.astype(int)
-    df["month"] = df["date"].dt.strftime("%B")
+    df = add_date_columns(df, "treatment_month")
     df["performance_rate"] = df["within_target"] / df["total"]
 
     return df[["date", "year", "month", "tumour_site", "within_target", "over_target", "total", "performance_rate"]]
@@ -267,19 +245,15 @@ def parse_14_day_breast(file_path: Union[str, Path]) -> pd.DataFrame:
     # Parse historic data (by Trust, up to April 2025)
     df_historic = pd.read_excel(file_path, sheet_name=SHEET_14_DAY_HISTORIC)
     df_historic.columns = ["month_seen", "trust", "within_target", "over_target", "total"]
-    df_historic["date"] = df_historic["month_seen"].apply(_parse_month)
-    df_historic = df_historic.dropna(subset=["date"])
+    df_historic = add_date_columns(df_historic, "month_seen")
 
     # Parse regional data (May 2025 onwards)
     df_regional = pd.read_excel(file_path, sheet_name=SHEET_14_DAY_REGIONAL)
     df_regional.columns = ["month_seen", "trust", "within_target", "over_target", "total"]
-    df_regional["date"] = df_regional["month_seen"].apply(_parse_month)
-    df_regional = df_regional.dropna(subset=["date"])
+    df_regional = add_date_columns(df_regional, "month_seen")
 
     # Combine
     df = pd.concat([df_historic, df_regional], ignore_index=True)
-    df["year"] = df["date"].dt.year.astype(int)
-    df["month"] = df["date"].dt.strftime("%B")
     df["performance_rate"] = df["within_target"] / df["total"]
 
     return df[["date", "year", "month", "trust", "within_target", "over_target", "total", "performance_rate"]]
@@ -298,10 +272,7 @@ def parse_breast_referrals(file_path: Union[str, Path]) -> pd.DataFrame:
     df = pd.read_excel(file_path, sheet_name=SHEET_BREAST_REFERRALS)
 
     df.columns = ["referral_month", "trust", "total_referrals", "urgent_referrals"]
-    df["date"] = df["referral_month"].apply(_parse_month)
-    df = df.dropna(subset=["date"])
-    df["year"] = df["date"].dt.year.astype(int)
-    df["month"] = df["date"].dt.strftime("%B")
+    df = add_date_columns(df, "referral_month")
     df["urgent_rate"] = df["urgent_referrals"] / df["total_referrals"]
 
     return df[["date", "year", "month", "trust", "total_referrals", "urgent_referrals", "urgent_rate"]]
@@ -407,7 +378,7 @@ def get_data_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
     Returns:
         Filtered DataFrame
     """
-    return df[df["year"] == year].copy()
+    return df[df["year"] == year].reset_index(drop=True)
 
 
 def get_performance_summary_by_year(
