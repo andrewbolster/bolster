@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Optional
 
+import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
@@ -237,7 +238,7 @@ def make_absolute_url(url: str, base_url: str) -> str:
     return url
 
 
-def parse_month_year(month_str: str, format: str = "%B %Y") -> Optional["pd.Timestamp"]:
+def parse_month_year(month_str: str, format: str = "%B %Y") -> Optional[pd.Timestamp]:
     """Parse a month-year string to datetime.
 
     Args:
@@ -253,8 +254,6 @@ def parse_month_year(month_str: str, format: str = "%B %Y") -> Optional["pd.Time
         >>> parse_month_year("Jan 2024", format="%b %Y")
         Timestamp('2024-01-01 00:00:00')
     """
-    import pandas as pd
-
     if month_str is None or (isinstance(month_str, str) and month_str.strip() == ""):
         return None
 
@@ -264,7 +263,7 @@ def parse_month_year(month_str: str, format: str = "%B %Y") -> Optional["pd.Time
         return None
 
 
-def add_date_columns(df: "pd.DataFrame", source_col: str, date_col: str = "date") -> "pd.DataFrame":
+def add_date_columns(df: pd.DataFrame, source_col: str, date_col: str = "date") -> pd.DataFrame:
     """Add standardized date, year, and month columns from a source column.
 
     Parses a column containing "Month Year" strings (e.g., "April 2008") and adds:
@@ -286,8 +285,6 @@ def add_date_columns(df: "pd.DataFrame", source_col: str, date_col: str = "date"
         >>> df.columns.tolist()
         ['treatment_month', 'date', 'year', 'month']
     """
-    import pandas as pd
-
     df = df.copy()
     df[date_col] = df[source_col].apply(parse_month_year)
     df = df.dropna(subset=[date_col])

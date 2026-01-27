@@ -4,7 +4,6 @@ These tests validate the shared utility functions in the NISRA _base module.
 """
 
 import pandas as pd
-import pytest
 
 from bolster.data_sources.nisra._base import (
     add_date_columns,
@@ -125,9 +124,7 @@ class TestAddDateColumns:
 
     def test_drops_invalid_dates(self):
         """Test that rows with invalid dates are dropped."""
-        df = pd.DataFrame({
-            "treatment_month": ["April 2008", "invalid", "May 2008", ""]
-        })
+        df = pd.DataFrame({"treatment_month": ["April 2008", "invalid", "May 2008", ""]})
         result = add_date_columns(df, "treatment_month")
 
         assert len(result) == 2
@@ -135,11 +132,13 @@ class TestAddDateColumns:
 
     def test_preserves_other_columns(self):
         """Test that other columns are preserved."""
-        df = pd.DataFrame({
-            "treatment_month": ["April 2008", "May 2008"],
-            "value": [100, 200],
-            "category": ["A", "B"],
-        })
+        df = pd.DataFrame(
+            {
+                "treatment_month": ["April 2008", "May 2008"],
+                "value": [100, 200],
+                "category": ["A", "B"],
+            }
+        )
         result = add_date_columns(df, "treatment_month")
 
         assert "value" in result.columns
@@ -172,9 +171,7 @@ class TestAddDateColumns:
 
     def test_correct_year_extraction(self):
         """Test that years are correctly extracted."""
-        df = pd.DataFrame({
-            "treatment_month": ["January 2008", "December 2024", "June 2015"]
-        })
+        df = pd.DataFrame({"treatment_month": ["January 2008", "December 2024", "June 2015"]})
         result = add_date_columns(df, "treatment_month")
 
         assert result["year"].tolist() == [2008, 2024, 2015]

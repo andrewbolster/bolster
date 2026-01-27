@@ -52,8 +52,9 @@ from typing import Tuple, Union
 import pandas as pd
 from bs4 import BeautifulSoup
 
-from ._base import NISRADataNotFoundError, add_date_columns, download_file, make_absolute_url
 from bolster.utils.web import session
+
+from ._base import NISRADataNotFoundError, add_date_columns, download_file, make_absolute_url
 
 logger = logging.getLogger(__name__)
 
@@ -381,9 +382,7 @@ def get_data_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
     return df[df["year"] == year].reset_index(drop=True)
 
 
-def get_performance_summary_by_year(
-    df: pd.DataFrame, group_col: str = "trust"
-) -> pd.DataFrame:
+def get_performance_summary_by_year(df: pd.DataFrame, group_col: str = "trust") -> pd.DataFrame:
     """Calculate annual performance summary.
 
     Args:

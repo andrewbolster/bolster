@@ -20,6 +20,7 @@ from .data_sources.ni_house_price_index import build as get_ni_house_prices
 from .data_sources.ni_water import get_postcode_to_water_supply_zone, get_water_quality_by_zone
 from .data_sources.nisra import ashe as nisra_ashe
 from .data_sources.nisra import births as nisra_births
+from .data_sources.nisra import cancer_waiting_times as nisra_cancer
 from .data_sources.nisra import composite_index as nisra_composite
 from .data_sources.nisra import construction_output as nisra_construction
 from .data_sources.nisra import deaths as nisra_deaths
@@ -30,7 +31,6 @@ from .data_sources.nisra import migration as nisra_migration
 from .data_sources.nisra import occupancy as nisra_occupancy
 from .data_sources.nisra import population as nisra_population
 from .data_sources.nisra import wellbeing as nisra_wellbeing
-from .data_sources.nisra import cancer_waiting_times as nisra_cancer
 from .data_sources.wikipedia import get_ni_executive_basic_table
 from .utils.rss import filter_entries, get_nisra_statistics_feed, parse_rss_feed
 
@@ -2124,7 +2124,12 @@ def nisra_civil_partnerships_cmd(latest, year, output_format, force_refresh, sav
 @nisra.command(name="occupancy")
 @click.option("--latest", is_flag=True, help="Get the most recent hotel occupancy data")
 @click.option("--year", type=int, help="Filter data for specific year")
-@click.option("--data-type", type=click.Choice(["rates", "sold"], case_sensitive=False), default="rates", help="Data type: rates (occupancy rates) or sold (rooms/beds sold)")
+@click.option(
+    "--data-type",
+    type=click.Choice(["rates", "sold"], case_sensitive=False),
+    default="rates",
+    help="Data type: rates (occupancy rates) or sold (rooms/beds sold)",
+)
 @click.option(
     "--format",
     "output_format",
@@ -2229,24 +2234,30 @@ def nisra_occupancy_cmd(latest, year, data_type, output_format, force_refresh, s
                 console.print("-" * 40)
 
                 for _, row in yearly_summary.tail(10).iterrows():
-                    room_pct = f"{row['avg_room_occupancy']:.1%}" if row['avg_room_occupancy'] else "N/A"
-                    bed_pct = f"{row['avg_bed_occupancy']:.1%}" if row['avg_bed_occupancy'] else "N/A"
-                    console.print(f"{int(row['year']):<8} {room_pct:>10} {bed_pct:>10} {int(row['months_reported']):>8}")
+                    room_pct = f"{row['avg_room_occupancy']:.1%}" if row["avg_room_occupancy"] else "N/A"
+                    bed_pct = f"{row['avg_bed_occupancy']:.1%}" if row["avg_bed_occupancy"] else "N/A"
+                    console.print(
+                        f"{int(row['year']):<8} {room_pct:>10} {bed_pct:>10} {int(row['months_reported']):>8}"
+                    )
 
                 # Seasonal patterns
                 console.print("\n[bold]Seasonal Patterns (All Years):[/bold]")
                 seasonal = nisra_occupancy.get_seasonal_patterns(data)
-                peak = seasonal.loc[seasonal['avg_room_occupancy'].idxmax()]
-                low = seasonal.loc[seasonal['avg_room_occupancy'].idxmin()]
+                peak = seasonal.loc[seasonal["avg_room_occupancy"].idxmax()]
+                low = seasonal.loc[seasonal["avg_room_occupancy"].idxmin()]
                 console.print(f"   Peak month: {peak['month']} ({peak['avg_room_occupancy']:.1%})")
                 console.print(f"   Low month: {low['month']} ({low['avg_room_occupancy']:.1%})")
             else:
                 # Rooms/beds sold summary
-                yearly = data.groupby("year").agg(
-                    total_rooms=("rooms_sold", "sum"),
-                    total_beds=("beds_sold", "sum"),
-                    months=("rooms_sold", lambda x: x.notna().sum()),
-                ).reset_index()
+                yearly = (
+                    data.groupby("year")
+                    .agg(
+                        total_rooms=("rooms_sold", "sum"),
+                        total_beds=("beds_sold", "sum"),
+                        months=("rooms_sold", lambda x: x.notna().sum()),
+                    )
+                    .reset_index()
+                )
 
                 console.print(f"\n{'Year':<8} {'Rooms Sold':>14} {'Beds Sold':>14} {'Months':>8}")
                 console.print("-" * 48)
@@ -3594,7 +3605,7 @@ def nisra_cancer_cmd(latest, target, dimension, year, output_format, force_refre
                 console.print(f"\n[bold]Latest Year ({latest_year}) Summary:[/bold]")
                 console.print(f"   Total Referrals: {total_referrals:,.0f}")
                 console.print(f"   Urgent Referrals: {urgent_referrals:,.0f}")
-                console.print(f"   Urgent Rate: {urgent_referrals/total_referrals:.1%}")
+                console.print(f"   Urgent Rate: {urgent_referrals / total_referrals:.1%}")
             else:
                 # Performance summary
                 valid_data = data.dropna(subset=["performance_rate"])
@@ -3614,7 +3625,7 @@ def nisra_cancer_cmd(latest, target, dimension, year, output_format, force_refre
                     # Show target status
                     target_threshold = 0.95
                     if overall_rate >= target_threshold:
-                        console.print(f"   [green]✅ Meeting 95% target[/green]")
+                        console.print("   [green]✅ Meeting 95% target[/green]")
                     else:
                         gap = (target_threshold - overall_rate) * 100
                         console.print(f"   [red]❌ {gap:.1f}pp below 95% target[/red]")

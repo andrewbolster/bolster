@@ -113,9 +113,7 @@ class Test62DayByTumourIntegrity:
         avg_62 = latest_data[latest_data["year"] == recent_year]["performance_rate"].mean()
         avg_31 = df_31[df_31["year"] == recent_year]["performance_rate"].mean()
 
-        assert avg_62 < avg_31, (
-            f"62-day ({avg_62:.1%}) should be worse than 31-day ({avg_31:.1%})"
-        )
+        assert avg_62 < avg_31, f"62-day ({avg_62:.1%}) should be worse than 31-day ({avg_31:.1%})"
 
     def test_validation_function(self, latest_data):
         """Test that the validation function passes."""
@@ -151,10 +149,7 @@ class Test14DayBreastIntegrity:
         Performance has declined dramatically from 2020 to 2025.
         """
         # Group by year and calculate average performance
-        yearly = latest_data.groupby("year").agg(
-            total=("total", "sum"),
-            within=("within_target", "sum")
-        ).reset_index()
+        yearly = latest_data.groupby("year").agg(total=("total", "sum"), within=("within_target", "sum")).reset_index()
         yearly["rate"] = yearly["within"] / yearly["total"]
 
         # Check 2020 vs 2024/2025 decline
@@ -165,8 +160,7 @@ class Test14DayBreastIntegrity:
             # Performance should have dropped significantly
             decline = (rate_2020 - rate_2024) / rate_2020 * 100
             assert decline > 30, (
-                f"Expected >30% decline from 2020 ({rate_2020:.1%}) to 2024 ({rate_2024:.1%}), "
-                f"got {decline:.1f}%"
+                f"Expected >30% decline from 2020 ({rate_2020:.1%}) to 2024 ({rate_2024:.1%}), got {decline:.1f}%"
             )
 
 
@@ -302,8 +296,7 @@ class TestCOVIDImpact:
 
             # Post-COVID performance should be worse
             assert rate_2023 < rate_2019, (
-                f"Expected post-COVID decline, but 2023 ({rate_2023:.1%}) "
-                f"is better than 2019 ({rate_2019:.1%})"
+                f"Expected post-COVID decline, but 2023 ({rate_2023:.1%}) is better than 2019 ({rate_2019:.1%})"
             )
 
 
@@ -334,8 +327,18 @@ class TestDataQuality:
         """Test that all month names are valid."""
         df = cwt.get_latest_31_day_by_trust()
         expected_months = {
-            "January", "February", "March", "April", "May", "June",
-            "July", "August", "September", "October", "November", "December"
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December",
         }
         actual_months = set(df["month"].unique())
         assert actual_months.issubset(expected_months), f"Invalid month names: {actual_months - expected_months}"
