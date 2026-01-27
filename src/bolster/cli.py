@@ -1984,6 +1984,142 @@ def nisra_marriages_cmd(latest, year, output_format, force_refresh, save):
         raise click.Abort()
 
 
+@nisra.command(name="civil-partnerships")
+@click.option("--latest", is_flag=True, help="Get the most recent civil partnerships data")
+@click.option("--year", type=int, help="Filter data for specific year")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics only")
+def nisra_civil_partnerships_cmd(latest, year, output_format, force_refresh, save, summary):
+    """
+    NISRA Monthly Civil Partnership Registrations Statistics
+
+    Retrieves monthly civil partnership registration data for Northern Ireland.
+
+    Civil partnerships became legal in Northern Ireland in December 2005.
+    The data is published monthly with provisional figures for the current year
+    and final figures for previous years.
+
+    \b
+    EXAMPLES:
+        # Get latest civil partnerships data
+        bolster nisra civil-partnerships --latest
+
+        # Filter for a specific year
+        bolster nisra civil-partnerships --latest --year 2024
+
+        # Show annual summary
+        bolster nisra civil-partnerships --latest --summary
+
+        # Save to file
+        bolster nisra civil-partnerships --latest --save civil_partnerships.csv
+
+    \b
+    DATA NOTES:
+        - Monthly time series from 2006 to present
+        - Typically 80-120 civil partnerships per year
+        - Numbers generally lower than marriages (5-10 per month average)
+        - COVID-19 Note: 2020-2021 shows reduced registrations
+
+    \b
+    OUTPUT:
+        - date: First day of month (datetime)
+        - year: Year of registration
+        - month: Month name
+        - civil_partnerships: Number of civil partnership registrations
+
+    \b
+    SOURCE:
+        https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/civil-partnerships
+    """
+    console = Console()
+
+    if not latest and not summary:
+        console.print("[yellow]Use --latest to retrieve data or --summary for statistics[/yellow]")
+        return
+
+    try:
+        with console.status("[bold green]Downloading latest NISRA civil partnerships data..."):
+            data = nisra_marriages.get_latest_civil_partnerships(force_refresh=force_refresh)
+
+        # Filter by year if specified
+        if year:
+            data = nisra_marriages.get_civil_partnerships_by_year(data, year)
+            if data.empty:
+                console.print(f"[yellow]No data found for year {year}[/yellow]")
+                return
+
+        # Summary mode
+        if summary:
+            console.print("\n[bold cyan]Civil Partnerships Summary[/bold cyan]")
+            console.print("=" * 45)
+
+            yearly_summary = nisra_marriages.get_civil_partnerships_summary_by_year(data)
+            console.print(f"\n{'Year':<8} {'Total':>8} {'Avg/Month':>10} {'Months':>8}")
+            console.print("-" * 38)
+
+            for _, row in yearly_summary.tail(10).iterrows():
+                console.print(
+                    f"{int(row['year']):<8} {int(row['total_civil_partnerships']):>8} "
+                    f"{row['avg_per_month']:>10.1f} {int(row['months_reported']):>8}"
+                )
+            return
+
+        console.print("[green]Retrieved civil partnerships data successfully[/green]")
+        console.print(f"[cyan]Total records: {len(data)}[/cyan]")
+
+        if not data.empty:
+            earliest_date = data["date"].min()
+            latest_date = data["date"].max()
+            console.print(f"[dim]Period: {earliest_date.strftime('%b %Y')} to {latest_date.strftime('%b %Y')}[/dim]")
+
+            total = data["civil_partnerships"].sum()
+            avg_per_month = data["civil_partnerships"].mean()
+
+            console.print("\n[bold]Summary:[/bold]")
+            if year:
+                console.print(f"   Total civil partnerships in {year}: {total}")
+            else:
+                years_available = data["year"].nunique()
+                console.print(f"   Years available: {years_available}")
+                console.print(f"   Total civil partnerships: {total}")
+            console.print(f"   Average per month: {avg_per_month:.1f}")
+
+        # Handle file saving
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", date_format="iso", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Data saved to: {save}[/green]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        # Output to console
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
+        console.print("   • Visit NISRA website to verify data availability")
+        raise click.Abort()
+
+
 @nisra.command(name="occupancy")
 @click.option("--latest", is_flag=True, help="Get the most recent hotel occupancy data")
 @click.option("--year", type=int, help="Filter data for specific year")

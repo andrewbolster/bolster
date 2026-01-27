@@ -281,3 +281,115 @@ class TestMarriagesDataIntegrity:
         top_3_months = monthly_avg.head(3).index.tolist()
 
         assert "August" in top_3_months, f"August should be in top 3 months, but top 3 are: {top_3_months}"
+
+
+class TestCivilPartnershipsDataIntegrity:
+    """Test suite for validating internal consistency of civil partnership data."""
+
+    @pytest.fixture(scope="class")
+    def latest_civil_partnerships(self):
+        """Fetch latest civil partnerships data once for the test class."""
+        return marriages.get_latest_civil_partnerships(force_refresh=False)
+
+    def test_required_columns_present(self, latest_civil_partnerships):
+        """Test that all required columns are present."""
+        required_columns = {"date", "year", "month", "civil_partnerships"}
+
+        assert set(latest_civil_partnerships.columns) == required_columns, (
+            f"Incorrect columns: {set(latest_civil_partnerships.columns)}"
+        )
+
+    def test_no_negative_values(self, latest_civil_partnerships):
+        """Test that there are no negative civil partnership counts."""
+        non_null_data = latest_civil_partnerships[latest_civil_partnerships["civil_partnerships"].notna()]
+
+        assert (non_null_data["civil_partnerships"] >= 0).all(), "Data contains negative counts"
+
+    def test_realistic_ranges(self, latest_civil_partnerships):
+        """Test that civil partnership counts are within realistic ranges.
+
+        Monthly civil partnerships in NI typically range from 0-30.
+        """
+        non_null_data = latest_civil_partnerships[latest_civil_partnerships["civil_partnerships"].notna()]
+
+        max_cp = non_null_data["civil_partnerships"].max()
+        assert max_cp < 50, f"Maximum civil partnerships ({max_cp}) seems unrealistically high"
+
+    def test_data_types_correct(self, latest_civil_partnerships):
+        """Test that column data types are correct."""
+        assert latest_civil_partnerships["date"].dtype == "datetime64[ns]", "date should be datetime"
+        assert latest_civil_partnerships["year"].dtype in ["int64", "int32"], "year should be integer"
+        assert latest_civil_partnerships["month"].dtype == "object", "month should be string"
+        assert latest_civil_partnerships["civil_partnerships"].dtype in ["int64", "int32"], (
+            "civil_partnerships should be integer"
+        )
+
+    def test_month_names_valid(self, latest_civil_partnerships):
+        """Test that all month names are valid."""
+        expected_months = {
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December",
+        }
+
+        actual_months = set(latest_civil_partnerships["month"].unique())
+        assert actual_months == expected_months, f"Unexpected month names: {actual_months - expected_months}"
+
+    def test_historical_coverage(self, latest_civil_partnerships):
+        """Test that data goes back to at least 2006."""
+        min_year = latest_civil_partnerships["year"].min()
+
+        assert min_year <= 2006, f"Expected data from 2006, earliest is {min_year}"
+
+    def test_recent_data_available(self, latest_civil_partnerships):
+        """Test that recent data is available (within last year)."""
+        import datetime
+
+        max_year = latest_civil_partnerships["year"].max()
+        current_year = datetime.datetime.now().year
+
+        assert max_year >= current_year - 1, f"Latest data ({max_year}) is more than 1 year old"
+
+    def test_helper_function_get_civil_partnerships_by_year(self, latest_civil_partnerships):
+        """Test the get_civil_partnerships_by_year helper function."""
+        if 2024 in latest_civil_partnerships["year"].values:
+            df_2024 = marriages.get_civil_partnerships_by_year(latest_civil_partnerships, 2024)
+
+            assert df_2024["year"].nunique() == 1
+            assert df_2024["year"].iloc[0] == 2024
+            assert len(df_2024) <= 12
+
+    def test_helper_function_get_civil_partnerships_summary_by_year(self, latest_civil_partnerships):
+        """Test the get_civil_partnerships_summary_by_year helper function."""
+        summary = marriages.get_civil_partnerships_summary_by_year(latest_civil_partnerships)
+
+        required_cols = {"year", "total_civil_partnerships", "months_reported", "avg_per_month"}
+        assert set(summary.columns) == required_cols
+
+        assert (summary["months_reported"] >= 1).all()
+        assert (summary["months_reported"] <= 12).all()
+
+    def test_covid_impact_visible(self, latest_civil_partnerships):
+        """Test that COVID-19 impact is visible in 2020 data."""
+        if 2020 not in latest_civil_partnerships["year"].values:
+            pytest.skip("2020 data not available")
+
+        df_2020 = marriages.get_civil_partnerships_by_year(latest_civil_partnerships, 2020)
+        df_2019 = marriages.get_civil_partnerships_by_year(latest_civil_partnerships, 2019)
+
+        total_2020 = df_2020["civil_partnerships"].sum()
+        total_2019 = df_2019["civil_partnerships"].sum()
+
+        # 2020 should be significantly less than 2019
+        assert total_2020 < total_2019, (
+            f"2020 civil partnerships ({total_2020}) should be less than 2019 ({total_2019})"
+        )

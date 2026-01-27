@@ -193,7 +193,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Labour Market Statistics | `nisra.labour_market` | ✅ |
 | Weekly/Monthly Deaths | `nisra.deaths` | ✅ |
 | Monthly Births/Stillbirths | `nisra.births` | ✅ |
-| Monthly Marriages | `nisra.marriages` | ✅ |
+| Monthly Marriages & Civil Partnerships | `nisra.marriages` | ✅ |
 | NI Composite Economic Index | `nisra.composite_index` | ✅ |
 | Construction Bulletin | `nisra.construction_output` | ✅ |
 | Index of Services/Production | `nisra.economic_indicators` | ✅ |
