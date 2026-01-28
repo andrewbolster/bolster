@@ -202,7 +202,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Annual Survey of Hours & Earnings | `nisra.ashe` | ✅ |
 | DVA Monthly Tests Statistics | `dva` | ✅ |
 | Individual Wellbeing | `nisra.wellbeing` | ✅ |
-| Cancer Waiting Times | - | Planned |
+| Cancer Waiting Times | `nisra.cancer_waiting_times` | ✅ |
 | Monthly Occupancy Statistics | `nisra.occupancy` | ✅ |
 | Security Situation Statistics | - | Planned |
 | Road Traffic Collisions | - | Planned |

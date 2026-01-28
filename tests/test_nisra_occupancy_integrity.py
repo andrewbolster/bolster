@@ -36,9 +36,7 @@ class TestHotelOccupancyDataIntegrity:
         """Test that all required columns are present in occupancy data."""
         required_columns = {"date", "year", "month", "room_occupancy", "bed_occupancy"}
 
-        assert set(latest_occupancy.columns) == required_columns, (
-            f"Incorrect columns: {set(latest_occupancy.columns)}"
-        )
+        assert set(latest_occupancy.columns) == required_columns, f"Incorrect columns: {set(latest_occupancy.columns)}"
 
     def test_required_columns_present_rooms_beds(self, latest_rooms_beds_sold):
         """Test that all required columns are present in rooms/beds sold data."""
@@ -74,9 +72,7 @@ class TestHotelOccupancyDataIntegrity:
         Monthly hotel rooms sold in NI typically range from 50,000-250,000.
         """
         # Filter out NaN and COVID years (2020-2021)
-        non_covid = latest_rooms_beds_sold[
-            ~latest_rooms_beds_sold["year"].isin([2020, 2021])
-        ]
+        non_covid = latest_rooms_beds_sold[~latest_rooms_beds_sold["year"].isin([2020, 2021])]
         rooms = non_covid["rooms_sold"].dropna()
 
         if len(rooms) > 0:
@@ -154,8 +150,7 @@ class TestHotelOccupancyDataIntegrity:
 
         # Peak months should have higher occupancy
         assert peak_avg > off_peak_avg, (
-            f"Peak months ({peak_avg:.1%}) should have higher occupancy "
-            f"than off-peak months ({off_peak_avg:.1%})"
+            f"Peak months ({peak_avg:.1%}) should have higher occupancy than off-peak months ({off_peak_avg:.1%})"
         )
 
     def test_data_types_correct_occupancy(self, latest_occupancy):
@@ -263,8 +258,7 @@ class TestHotelOccupancyDataIntegrity:
         pct_room_higher = room_higher.sum() / len(valid_data) * 100
 
         assert pct_room_higher > 80, (
-            f"Room occupancy should typically be higher than bed occupancy "
-            f"(only {pct_room_higher:.1f}% of months)"
+            f"Room occupancy should typically be higher than bed occupancy (only {pct_room_higher:.1f}% of months)"
         )
 
     def test_beds_sold_higher_than_rooms_sold(self, latest_rooms_beds_sold):
@@ -282,8 +276,7 @@ class TestHotelOccupancyDataIntegrity:
         pct_beds_higher = beds_higher.sum() / len(valid_data) * 100
 
         assert pct_beds_higher > 95, (
-            f"Beds sold should be higher than rooms sold "
-            f"(only {pct_beds_higher:.1f}% of months)"
+            f"Beds sold should be higher than rooms sold (only {pct_beds_higher:.1f}% of months)"
         )
 
     def test_summer_peak_occupancy(self, latest_occupancy):

@@ -265,11 +265,13 @@ def parse_loneliness(file_path: Union[str, Path]) -> pd.DataFrame:
 
         if isinstance(year_val, str) and "/" in year_val and pd.notna(estimate):
             try:
-                data.append({
-                    "year": year_val,
-                    "lonely_some_of_time": float(estimate),
-                    "confidence_interval": str(ci) if pd.notna(ci) else None,
-                })
+                data.append(
+                    {
+                        "year": year_val,
+                        "lonely_some_of_time": float(estimate),
+                        "confidence_interval": str(ci) if pd.notna(ci) else None,
+                    }
+                )
             except (ValueError, TypeError):
                 continue
 
@@ -317,11 +319,13 @@ def parse_self_efficacy(file_path: Union[str, Path]) -> pd.DataFrame:
 
         if isinstance(year_val, str) and "/" in year_val and pd.notna(estimate):
             try:
-                data.append({
-                    "year": year_val,
-                    "self_efficacy_mean": float(estimate),
-                    "confidence_interval": str(ci) if pd.notna(ci) else None,
-                })
+                data.append(
+                    {
+                        "year": year_val,
+                        "self_efficacy_mean": float(estimate),
+                        "confidence_interval": str(ci) if pd.notna(ci) else None,
+                    }
+                )
             except (ValueError, TypeError):
                 continue
 
