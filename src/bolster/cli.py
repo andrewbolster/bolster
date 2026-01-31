@@ -2122,8 +2122,14 @@ def nisra_civil_partnerships_cmd(latest, year, output_format, force_refresh, sav
 
 
 @nisra.command(name="occupancy")
-@click.option("--latest", is_flag=True, help="Get the most recent hotel occupancy data")
+@click.option("--latest", is_flag=True, help="Get the most recent occupancy data")
 @click.option("--year", type=int, help="Filter data for specific year")
+@click.option(
+    "--accommodation",
+    type=click.Choice(["hotel", "ssa", "combined"], case_sensitive=False),
+    default="hotel",
+    help="Accommodation type: hotel, ssa (B&Bs/guest houses), or combined",
+)
 @click.option(
     "--data-type",
     type=click.Choice(["rates", "sold"], case_sensitive=False),
@@ -2140,12 +2146,20 @@ def nisra_civil_partnerships_cmd(latest, year, output_format, force_refresh, sav
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
 @click.option("--summary", is_flag=True, help="Show summary statistics only")
-def nisra_occupancy_cmd(latest, year, data_type, output_format, force_refresh, save, summary):
+@click.option("--compare", is_flag=True, help="Compare hotel vs SSA occupancy by year")
+def nisra_occupancy_cmd(latest, year, accommodation, data_type, output_format, force_refresh, save, summary, compare):
     """
-    NISRA Monthly Hotel Occupancy Statistics
+    NISRA Monthly Accommodation Occupancy Statistics
 
-    Retrieves monthly hotel occupancy data for Northern Ireland from the
-    Tourism Statistics Branch.
+    Retrieves monthly occupancy data for Northern Ireland from the Tourism
+    Statistics Branch. Supports both hotel and SSA (Small Service Accommodation
+    - B&Bs, guest houses) data.
+
+    \b
+    ACCOMMODATION TYPES:
+        hotel     - Hotels (2011-present, ~65% avg occupancy)
+        ssa       - Small Service Accommodation: B&Bs, guest houses (2013-present, ~33% avg)
+        combined  - Both types with accommodation_type column
 
     \b
     DATA TYPES:
@@ -2154,8 +2168,17 @@ def nisra_occupancy_cmd(latest, year, data_type, output_format, force_refresh, s
 
     \b
     EXAMPLES:
-        # Get latest occupancy rates
+        # Get latest hotel occupancy rates (default)
         bolster nisra occupancy --latest
+
+        # Get SSA (B&B/guest house) occupancy
+        bolster nisra occupancy --latest --accommodation ssa
+
+        # Get combined data with accommodation type
+        bolster nisra occupancy --latest --accommodation combined
+
+        # Compare hotel vs SSA by year
+        bolster nisra occupancy --compare
 
         # Get rooms/beds sold data
         bolster nisra occupancy --latest --data-type sold
@@ -2171,17 +2194,18 @@ def nisra_occupancy_cmd(latest, year, data_type, output_format, force_refresh, s
 
     \b
     DATA NOTES:
-        - Monthly time series from 2011 to present
+        - Hotel data: 2011-present (~65% average room occupancy)
+        - SSA data: 2013-present (~33% average room occupancy)
         - Room occupancy is typically higher than bed occupancy
         - COVID-19 Note: 2020-2021 shows dramatic impact on tourism
-          (hotels closed March-July 2020, Oct-Dec 2020, Jan-May 2021)
+          (all accommodation closed March-July 2020, Oct-Dec 2020, Jan-May 2021)
 
     \b
     SEASONAL PATTERNS:
         Summer months (June-September) are peak tourism season:
-        • August typically has the highest occupancy (~80%+)
-        • July-September are consistently strong
-        • January-February typically have the lowest occupancy
+        - August typically has the highest occupancy (~80% hotel, ~55% SSA)
+        - July-September are consistently strong
+        - January-February typically have the lowest occupancy
 
     \b
     OUTPUT (rates):
@@ -2190,14 +2214,15 @@ def nisra_occupancy_cmd(latest, year, data_type, output_format, force_refresh, s
         - month: Month name
         - room_occupancy: Room occupancy rate (0-1)
         - bed_occupancy: Bed occupancy rate (0-1)
+        - accommodation_type: (combined only) 'hotel' or 'ssa'
 
     \b
     OUTPUT (sold):
         - date: First day of month (datetime)
         - year: Year
         - month: Month name
-        - rooms_sold: Number of hotel rooms sold
-        - beds_sold: Number of hotel beds sold
+        - rooms_sold: Number of rooms sold
+        - beds_sold: Number of beds sold
 
     \b
     SOURCE:
@@ -2205,16 +2230,67 @@ def nisra_occupancy_cmd(latest, year, data_type, output_format, force_refresh, s
     """
     console = Console()
 
-    if not latest and not summary:
-        console.print("[yellow]Use --latest to retrieve data or --summary for statistics[/yellow]")
+    if not latest and not summary and not compare:
+        console.print("[yellow]Use --latest to retrieve data, --summary for statistics, or --compare[/yellow]")
         return
 
     try:
-        with console.status("[bold green]Downloading latest NISRA hotel occupancy data..."):
-            if data_type == "sold":
-                data = nisra_occupancy.get_latest_rooms_beds_sold(force_refresh=force_refresh)
-            else:
-                data = nisra_occupancy.get_latest_hotel_occupancy(force_refresh=force_refresh)
+        # Handle comparison mode
+        if compare:
+            with console.status("[bold green]Downloading hotel and SSA occupancy data..."):
+                combined = nisra_occupancy.get_combined_occupancy(force_refresh=force_refresh)
+
+            console.print("\n[bold cyan]Hotel vs SSA Occupancy Comparison[/bold cyan]")
+            console.print("=" * 60)
+
+            comparison = nisra_occupancy.compare_accommodation_types(combined)
+
+            # Exclude COVID years from summary
+            non_covid = comparison[~comparison["year"].isin([2020, 2021])]
+
+            console.print(f"\n{'Year':<8} {'Hotel':>12} {'SSA':>12} {'Difference':>12}")
+            console.print("-" * 48)
+
+            for _, row in comparison.tail(10).iterrows():
+                hotel_pct = f"{row['hotel_room_occupancy']:.1%}" if row["hotel_room_occupancy"] else "N/A"
+                ssa_pct = f"{row['ssa_room_occupancy']:.1%}" if row["ssa_room_occupancy"] else "N/A"
+                diff = row["difference"]
+                diff_str = f"{diff:+.1%}" if diff else "N/A"
+                console.print(f"{int(row['year']):<8} {hotel_pct:>12} {ssa_pct:>12} {diff_str:>12}")
+
+            # Average summary
+            avg_hotel = non_covid["hotel_room_occupancy"].mean()
+            avg_ssa = non_covid["ssa_room_occupancy"].mean()
+            avg_diff = non_covid["difference"].mean()
+
+            console.print("\n[bold]Average (excl. COVID years):[/bold]")
+            console.print(f"   Hotel: {avg_hotel:.1%}")
+            console.print(f"   SSA: {avg_ssa:.1%}")
+            console.print(f"   Difference: {avg_diff:+.1%}")
+            return
+
+        # Determine accommodation type and status message
+        acc_label = {
+            "hotel": "hotel",
+            "ssa": "SSA (B&B/guest house)",
+            "combined": "combined hotel and SSA",
+        }[accommodation]
+
+        with console.status(f"[bold green]Downloading latest NISRA {acc_label} occupancy data..."):
+            if accommodation == "combined":
+                if data_type == "sold":
+                    console.print("[yellow]Note: Combined mode only supports rates, not sold data[/yellow]")
+                data = nisra_occupancy.get_combined_occupancy(force_refresh=force_refresh)
+            elif accommodation == "ssa":
+                if data_type == "sold":
+                    data = nisra_occupancy.get_latest_ssa_rooms_beds_sold(force_refresh=force_refresh)
+                else:
+                    data = nisra_occupancy.get_latest_ssa_occupancy(force_refresh=force_refresh)
+            else:  # hotel (default)
+                if data_type == "sold":
+                    data = nisra_occupancy.get_latest_rooms_beds_sold(force_refresh=force_refresh)
+                else:
+                    data = nisra_occupancy.get_latest_hotel_occupancy(force_refresh=force_refresh)
 
         # Filter by year if specified
         if year:
@@ -2225,7 +2301,7 @@ def nisra_occupancy_cmd(latest, year, data_type, output_format, force_refresh, s
 
         # Summary mode
         if summary:
-            console.print("\n[bold cyan]Hotel Occupancy Summary[/bold cyan]")
+            console.print(f"\n[bold cyan]{acc_label.title()} Occupancy Summary[/bold cyan]")
             console.print("=" * 50)
 
             if data_type == "rates":
@@ -2269,7 +2345,7 @@ def nisra_occupancy_cmd(latest, year, data_type, output_format, force_refresh, s
                     )
             return
 
-        console.print("[green]Retrieved hotel occupancy data successfully[/green]")
+        console.print(f"[green]Retrieved {acc_label} occupancy data successfully[/green]")
         console.print(f"[cyan]Total records: {len(data)}[/cyan]")
 
         if not data.empty:
