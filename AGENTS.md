@@ -91,7 +91,8 @@ Three specialized agents for the data source development lifecycle.
 
 **Workflow**:
 
-1. **Branch** - `git checkout -b feature/<name>`
+1. **Check CI status** - Before starting, run `gh pr list` and `gh run list` to check for failing tests
+1. **Branch** - `git checkout -b feature/<name>` (or use existing feature branch)
 1. **Study patterns** - Read similar modules before writing
 1. **Implement** in order:
    - Core module in `src/bolster/data_sources/<source>/`
@@ -100,8 +101,12 @@ Three specialized agents for the data source development lifecycle.
    - Cross-validation tests if related data exists
    - CLI command in `src/bolster/cli.py`
    - README coverage table update
-1. **Quality checks** - Tests pass, >90% coverage, pre-commit clean
-1. **PR** - Create with insights from the data
+1. **Quality checks**:
+   - Run `uv run pytest tests/ -v` - ALL tests must pass (not just new ones)
+   - Run `uv run pytest --cov=src/bolster` - >90% coverage on new code
+   - Run `uv run pre-commit run --all-files` - must be clean
+1. **PR** - Create with `gh pr create`, include insights from the data
+1. **Verify CI** - After PR, run `gh pr checks` to confirm CI passes
 
 **Module template**:
 
@@ -138,7 +143,18 @@ class TestDataIntegrity:
 
 **Purpose**: Review PRs for consistency, shared utilities, and quality.
 
+**Before reviewing**:
+
+1. Run `gh pr list` to see open PRs
+1. Run `gh pr checks <PR#>` to check CI status
+1. If CI is failing, identify the failing tests before reviewing code
+
 **Checklist**:
+
+### CI Status
+
+- \[ \] `gh pr checks` shows all checks passing
+- \[ \] If checks fail, identify root cause before proceeding
 
 ### Code Quality
 
@@ -153,6 +169,7 @@ class TestDataIntegrity:
 - \[ \] Uses `scope="class"` fixtures
 - \[ \] Tests data integrity, not just code paths
 - \[ \] >90% coverage on new code
+- \[ \] ALL existing tests still pass (no regressions)
 
 ### Integration
 
