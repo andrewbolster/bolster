@@ -15,7 +15,7 @@ Available modules:
     - labour_market: Quarterly Labour Force Survey statistics (employment, economic inactivity)
     - marriages: Monthly marriage registrations
     - migration: Derived migration estimates from demographic components
-    - occupancy: Monthly hotel and accommodation occupancy statistics
+    - occupancy: Monthly hotel and SSA (B&B/guest house) occupancy statistics
     - population: Annual mid-year population estimates by age, sex, and geography
     - wellbeing: Individual wellbeing statistics (life satisfaction, happiness, anxiety, loneliness)
 
@@ -60,6 +60,14 @@ Examples:
     >>> occ_df = occupancy.get_latest_hotel_occupancy()
     >>> avg_2024 = occ_df[occ_df['year'] == 2024]['room_occupancy'].mean()
     >>> print(f"2024 average room occupancy: {avg_2024:.1%}")
+
+    >>> # SSA (B&B/guest house) occupancy
+    >>> ssa_df = occupancy.get_latest_ssa_occupancy()
+    >>> print(f"SSA room occupancy: {ssa_df['room_occupancy'].mean():.1%}")
+
+    >>> # Compare hotel vs SSA
+    >>> combined = occupancy.get_combined_occupancy()
+    >>> print(combined.groupby('accommodation_type')['room_occupancy'].mean())
 
     >>> from bolster.data_sources.nisra import migration
     >>> migration_df = migration.get_latest_migration()
