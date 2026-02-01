@@ -28,9 +28,9 @@ from .data_sources.nisra import economic_indicators as nisra_economic
 from .data_sources.nisra import labour_market as nisra_labour_market
 from .data_sources.nisra import marriages as nisra_marriages
 from .data_sources.nisra import migration as nisra_migration
-from .data_sources.nisra import occupancy as nisra_occupancy
 from .data_sources.nisra import population as nisra_population
 from .data_sources.nisra import wellbeing as nisra_wellbeing
+from .data_sources.nisra.tourism import occupancy as nisra_occupancy
 from .data_sources.wikipedia import get_ni_executive_basic_table
 from .utils.rss import filter_entries, get_nisra_statistics_feed, parse_rss_feed
 

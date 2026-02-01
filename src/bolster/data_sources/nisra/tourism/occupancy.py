@@ -24,7 +24,7 @@ Geographic Coverage: Northern Ireland
 Reference Date: Month of survey
 
 Example:
-    >>> from bolster.data_sources.nisra import occupancy
+    >>> from bolster.data_sources.nisra.tourism import occupancy
     >>> # Get latest hotel occupancy rates
     >>> df = occupancy.get_latest_hotel_occupancy()
     >>> print(df.head())
@@ -49,7 +49,7 @@ from typing import Literal, Tuple, Union
 
 import pandas as pd
 
-from ._base import NISRADataNotFoundError, NISRAValidationError, download_file
+from .._base import NISRADataNotFoundError, NISRAValidationError, download_file
 
 logger = logging.getLogger(__name__)
 
