@@ -205,7 +205,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Cancer Waiting Times | `nisra.cancer_waiting_times` | ✅ |
 | Monthly Occupancy Statistics | `nisra.occupancy` | ✅ |
 | Security Situation Statistics | - | Planned |
-| Road Traffic Collisions | - | Planned |
+| Road Traffic Collisions | `psni.road_traffic_collisions` | ✅ |
 
 ## ☁️ Cloud Services
 
