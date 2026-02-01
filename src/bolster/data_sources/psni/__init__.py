@@ -42,6 +42,7 @@ from .crime_statistics import (
     get_available_crime_types,
     get_available_districts,
     get_crime_trends,
+    get_data_source_info,
     get_latest_crime_statistics,
     get_lgd_code,
     get_nuts3_code,
@@ -85,6 +86,7 @@ __all__ = [
     # Crime Statistics - Helper functions
     "get_available_crime_types",
     "get_available_districts",
+    "get_data_source_info",
     # Road Traffic Collisions - Main functions
     "get_collisions",
     "get_casualties",
