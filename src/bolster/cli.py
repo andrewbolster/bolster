@@ -3734,6 +3734,153 @@ def nisra_cancer_cmd(latest, target, dimension, year, output_format, force_refre
         raise click.Abort()
 
 
+@cli.group()
+def psni():
+    """
+    PSNI (Police Service of Northern Ireland) data sources.
+
+    Access official statistics from the Police Service of Northern Ireland including:
+    - Road Traffic Collision statistics (injury collisions, casualties, vehicles)
+    - Police recorded crime statistics (from OpenDataNI)
+
+    All data is sourced from OpenDataNI under the Open Government Licence v3.0.
+    Geographic breakdowns use 11 Policing Districts aligned with LGDs.
+    """
+    pass
+
+
+@psni.command(name="rtc")
+@click.option("--year", type=int, help="Specific year to retrieve (default: latest)")
+@click.option(
+    "--data-type",
+    type=click.Choice(["collisions", "casualties", "vehicles", "summary"], case_sensitive=False),
+    default="summary",
+    help="Type of data to retrieve (default: summary)",
+)
+@click.option(
+    "--by",
+    type=click.Choice(["district", "road-user", "year"], case_sensitive=False),
+    help="Group results by dimension",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+def psni_rtc_cmd(year, data_type, by, output_format, save, force_refresh):
+    """
+    PSNI Road Traffic Collision Statistics
+
+    Retrieves police-recorded injury road traffic collision data including:
+    - Collision records with date, location, road conditions
+    - Casualty records with severity (fatal/serious/slight), road user type
+    - Vehicle records with type and driver details
+
+    \b
+    EXAMPLES:
+        # Get annual summary for all available years
+        bolster psni rtc --data-type summary
+
+        # Get 2024 casualties by district
+        bolster psni rtc --year 2024 --data-type casualties --by district
+
+        # Get casualties by road user type
+        bolster psni rtc --data-type casualties --by road-user
+
+        # Export collision data to CSV
+        bolster psni rtc --year 2024 --data-type collisions --format csv --save collisions.csv
+
+    \b
+    DATA NOTES:
+        - Data covers injury collisions only (not damage-only)
+        - Available from 2013 onwards via OpenDataNI
+        - Severity: Fatal, Serious, Slight
+        - Updated annually (~6 months after year end)
+    """
+    from rich.table import Table
+
+    from bolster.data_sources.psni import road_traffic_collisions
+
+    console = Console()
+
+    try:
+        console.print("\n[bold blue]🚗 PSNI Road Traffic Collision Statistics[/bold blue]\n")
+
+        if data_type == "summary" or by == "year":
+            # Annual summary
+            if year:
+                console.print("[yellow]Note: --year ignored for summary view[/yellow]\n")
+            df = road_traffic_collisions.get_annual_summary()
+            title = "Annual RTC Summary"
+
+        elif by == "district":
+            df = road_traffic_collisions.get_casualties_by_district(year, force_refresh=force_refresh)
+            title = f"Casualties by District ({year or 'latest'})"
+
+        elif by == "road-user":
+            df = road_traffic_collisions.get_casualties_by_road_user(year, force_refresh=force_refresh)
+            title = f"Casualties by Road User Type ({year or 'latest'})"
+
+        elif data_type == "collisions":
+            df = road_traffic_collisions.get_collisions(year, force_refresh=force_refresh)
+            title = f"Collision Records ({year or 'latest'})"
+
+        elif data_type == "casualties":
+            df = road_traffic_collisions.get_casualties(year, force_refresh=force_refresh)
+            title = f"Casualty Records ({year or 'latest'})"
+
+        elif data_type == "vehicles":
+            df = road_traffic_collisions.get_vehicles(year, force_refresh=force_refresh)
+            title = f"Vehicle Records ({year or 'latest'})"
+
+        else:
+            df = road_traffic_collisions.get_annual_summary()
+            title = "Annual RTC Summary"
+
+        console.print(f"[bold]{title}[/bold]\n")
+
+        if output_format == "table":
+            # Create rich table
+            table = Table(show_header=True, header_style="bold cyan")
+            for col in df.columns:
+                table.add_column(str(col))
+            for _, row in df.head(50).iterrows():
+                table.add_row(*[str(v) for v in row.values])
+            console.print(table)
+            if len(df) > 50:
+                console.print(f"\n[yellow]Showing first 50 of {len(df)} rows[/yellow]")
+
+        elif output_format == "csv":
+            console.print(df.to_csv(index=False))
+
+        elif output_format == "json":
+            console.print(df.to_json(orient="records", indent=2))
+
+        if save:
+            if save.endswith(".json"):
+                df.to_json(save, orient="records", indent=2)
+            else:
+                df.to_csv(save, index=False)
+            console.print(f"\n[green]✅ Saved to {save}[/green]")
+
+        # Show summary stats
+        if data_type == "summary" or by == "year":
+            total_fatal = df["fatal"].sum()
+            total_casualties = df["casualties"].sum()
+            years_covered = f"{df['year'].min()}-{df['year'].max()}"
+            console.print(
+                f"\n[dim]Data covers {years_covered} | {total_casualties:,} total casualties | {total_fatal:,} fatalities[/dim]"
+            )
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        raise click.Abort()
+
+
 @cli.command()
 def list_sources():
     """
