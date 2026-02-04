@@ -47,6 +47,8 @@ from typing import Optional, Tuple
 
 import pandas as pd
 
+from bolster.utils.web import session
+
 from .._base import NISRADataNotFoundError, NISRAValidationError, download_file
 
 logger = logging.getLogger(__name__)
@@ -82,7 +84,8 @@ def get_latest_visitor_statistics_publication_url() -> Tuple[str, str]:
     from bs4 import BeautifulSoup
 
     try:
-        response = requests.get(TOURISM_PUBLICATIONS_URL, timeout=30)
+        # Use shared session with retry logic for resilient requests
+        response = session.get(TOURISM_PUBLICATIONS_URL, timeout=30)
         response.raise_for_status()
     except requests.RequestException as e:
         raise NISRADataNotFoundError(f"Failed to fetch tourism publications page: {e}")
