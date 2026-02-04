@@ -16,7 +16,7 @@ import datetime
 
 import pytest
 
-from bolster.data_sources.nisra import occupancy
+from bolster.data_sources.nisra.tourism import occupancy
 
 
 class TestHotelOccupancyDataIntegrity:

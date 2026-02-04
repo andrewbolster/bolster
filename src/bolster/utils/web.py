@@ -6,14 +6,29 @@ from typing import Dict, Generator, Optional, Tuple
 
 import pandas as pd
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from waybackpy import WaybackMachineCDXServerAPI, exceptions
 
 from . import version_no
 
 ua = f"@Bolster/{version_no} (+http://bolster.online/)"
 
+# Configure retry strategy for transient failures
+# Retries on: connection errors, 500, 502, 503, 504 status codes
+_retry_strategy = Retry(
+    total=3,
+    backoff_factor=1,  # 1s, 2s, 4s delays between retries
+    status_forcelist=[500, 502, 503, 504],
+    allowed_methods=["HEAD", "GET", "OPTIONS"],
+    raise_on_status=False,  # Don't raise immediately, let raise_for_status() handle it
+)
+_adapter = HTTPAdapter(max_retries=_retry_strategy)
+
 session = requests.Session()
 session.headers.update({"User-Agent": ua})
+session.mount("http://", _adapter)
+session.mount("https://", _adapter)
 
 
 def get_last_valid(url: str) -> str:

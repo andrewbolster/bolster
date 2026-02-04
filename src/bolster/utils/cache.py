@@ -22,6 +22,8 @@ from typing import Optional
 
 import requests
 
+from .web import session as web_session
+
 logger = logging.getLogger(__name__)
 
 # Base cache directory
@@ -132,7 +134,8 @@ class CachedDownloader:
 
         try:
             logger.info(f"Downloading {url}")
-            response = requests.get(url, timeout=self.timeout)
+            # Use shared session with retry logic for resilient downloads
+            response = web_session.get(url, timeout=self.timeout)
             response.raise_for_status()
 
             cache_path.write_bytes(response.content)

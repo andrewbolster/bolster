@@ -203,7 +203,9 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | DVA Monthly Tests Statistics | `dva` | ✅ |
 | Individual Wellbeing | `nisra.wellbeing` | ✅ |
 | Cancer Waiting Times | `nisra.cancer_waiting_times` | ✅ |
-| Monthly Occupancy Statistics | `nisra.occupancy` | ✅ |
+| Tourism - Hotel Occupancy | `nisra.tourism.occupancy` | ✅ |
+| Tourism - SSA Occupancy | `nisra.tourism.occupancy` | ✅ |
+| Tourism - Visitor Statistics | `nisra.tourism.visitor_statistics` | ✅ |
 | Security Situation Statistics | - | Planned |
 | Road Traffic Collisions | `psni.road_traffic_collisions` | ✅ |
 

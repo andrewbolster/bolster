@@ -2,7 +2,8 @@
 NISRA (Northern Ireland Statistics and Research Agency) Data Sources.
 
 This package provides access to various statistical datasets published by NISRA,
-including births, deaths, labour market, population, migration, and economic indicators.
+including births, deaths, labour market, population, migration, economic indicators,
+and tourism statistics.
 
 Available modules:
     - ashe: Annual Survey of Hours and Earnings (employee earnings statistics)
@@ -15,8 +16,8 @@ Available modules:
     - labour_market: Quarterly Labour Force Survey statistics (employment, economic inactivity)
     - marriages: Monthly marriage registrations
     - migration: Derived migration estimates from demographic components
-    - occupancy: Monthly hotel and SSA (B&B/guest house) occupancy statistics
     - population: Annual mid-year population estimates by age, sex, and geography
+    - tourism: Tourism statistics including occupancy surveys, visitor stats (subpackage)
     - wellbeing: Individual wellbeing statistics (life satisfaction, happiness, anxiety, loneliness)
 
 Examples:
@@ -56,7 +57,7 @@ Examples:
     >>> df_2024 = marriages.get_marriages_by_year(marriages_df, 2024)
     >>> print(f"Total marriages in 2024: {df_2024['marriages'].sum():,}")
 
-    >>> from bolster.data_sources.nisra import occupancy
+    >>> from bolster.data_sources.nisra.tourism import occupancy
     >>> occ_df = occupancy.get_latest_hotel_occupancy()
     >>> avg_2024 = occ_df[occ_df['year'] == 2024]['room_occupancy'].mean()
     >>> print(f"2024 average room occupancy: {avg_2024:.1%}")
@@ -95,8 +96,8 @@ from . import (
     labour_market,
     marriages,
     migration,
-    occupancy,
     population,
+    tourism,
     wellbeing,
 )
 
@@ -111,7 +112,7 @@ __all__ = [
     "labour_market",
     "marriages",
     "migration",
-    "occupancy",
     "population",
+    "tourism",
     "wellbeing",
 ]

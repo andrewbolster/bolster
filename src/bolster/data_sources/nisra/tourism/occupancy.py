@@ -24,7 +24,7 @@ Geographic Coverage: Northern Ireland
 Reference Date: Month of survey
 
 Example:
-    >>> from bolster.data_sources.nisra import occupancy
+    >>> from bolster.data_sources.nisra.tourism import occupancy
     >>> # Get latest hotel occupancy rates
     >>> df = occupancy.get_latest_hotel_occupancy()
     >>> print(df.head())
@@ -49,7 +49,9 @@ from typing import Literal, Tuple, Union
 
 import pandas as pd
 
-from ._base import NISRADataNotFoundError, NISRAValidationError, download_file
+from bolster.utils.web import session
+
+from .._base import NISRADataNotFoundError, NISRAValidationError, download_file
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +79,8 @@ def get_latest_hotel_occupancy_publication_url() -> Tuple[str, str]:
     mother_page = OCCUPANCY_BASE_URL
 
     try:
-        response = requests.get(mother_page, timeout=30)
+        # Use shared session with retry logic for resilient requests
+        response = session.get(mother_page, timeout=30)
         response.raise_for_status()
     except requests.RequestException as e:
         raise NISRADataNotFoundError(f"Failed to fetch occupancy surveys page: {e}")
@@ -115,7 +118,7 @@ def get_latest_hotel_occupancy_publication_url() -> Tuple[str, str]:
 
     # Scrape the publication page for Excel file
     try:
-        pub_response = requests.get(pub_link, timeout=30)
+        pub_response = session.get(pub_link, timeout=30)
         pub_response.raise_for_status()
     except requests.RequestException as e:
         raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}")
@@ -166,7 +169,8 @@ def get_latest_ssa_occupancy_publication_url() -> Tuple[str, str]:
     mother_page = OCCUPANCY_BASE_URL
 
     try:
-        response = requests.get(mother_page, timeout=30)
+        # Use shared session with retry logic for resilient requests
+        response = session.get(mother_page, timeout=30)
         response.raise_for_status()
     except requests.RequestException as e:
         raise NISRADataNotFoundError(f"Failed to fetch occupancy surveys page: {e}")
@@ -203,7 +207,7 @@ def get_latest_ssa_occupancy_publication_url() -> Tuple[str, str]:
 
     # Scrape the publication page for Excel file
     try:
-        pub_response = requests.get(pub_link, timeout=30)
+        pub_response = session.get(pub_link, timeout=30)
         pub_response.raise_for_status()
     except requests.RequestException as e:
         raise NISRADataNotFoundError(f"Failed to fetch SSA publication page: {e}")
