@@ -246,6 +246,21 @@ class TestVisitorStatisticsHelperFunctions:
         trips_pct_total = summary["trips_pct"].sum()
         assert abs(trips_pct_total - 100) < 1, f"Trips percentages sum to {trips_pct_total}%"
 
+    def test_get_domestic_vs_external_no_domestic(self):
+        """Test that get_domestic_vs_external returns empty DataFrame when no domestic data."""
+        import pandas as pd
+
+        # DataFrame without NI Residents
+        no_domestic_df = pd.DataFrame(
+            [
+                {"market": "Great Britain", "trips": 1000000, "nights": 3000000, "expenditure": 300},
+                {"market": "Total", "trips": 1000000, "nights": 3000000, "expenditure": 300},
+            ]
+        )
+        result = visitor_statistics.get_domestic_vs_external(no_domestic_df)
+
+        assert result.empty
+
 
 class TestVisitorStatisticsValidation:
     """Test validation function."""
@@ -278,14 +293,40 @@ class TestVisitorStatisticsValidation:
         incomplete_df = pd.DataFrame([{"market": "Great Britain", "trips": 1000000}])
         assert visitor_statistics.validate_visitor_statistics(incomplete_df) is False
 
-    def test_validate_visitor_statistics_negative_values(self):
-        """Test that negative values fail validation."""
+    def test_validate_visitor_statistics_negative_trips(self):
+        """Test that negative trip values fail validation."""
         import pandas as pd
 
         negative_df = pd.DataFrame(
             [
                 {"market": "Great Britain", "trips": -1000, "nights": 3000000, "expenditure": 300},
+                {"market": "NI Residents", "trips": 500000, "nights": 1000000, "expenditure": 100},
                 {"market": "Total", "trips": 100000, "nights": 4000000, "expenditure": 400},
             ]
         )
         assert visitor_statistics.validate_visitor_statistics(negative_df) is False
+
+    def test_validate_visitor_statistics_negative_expenditure(self):
+        """Test that negative expenditure values fail validation."""
+        import pandas as pd
+
+        negative_df = pd.DataFrame(
+            [
+                {"market": "Great Britain", "trips": 1000000, "nights": 3000000, "expenditure": -300},
+                {"market": "NI Residents", "trips": 500000, "nights": 1000000, "expenditure": 100},
+                {"market": "Total", "trips": 1500000, "nights": 4000000, "expenditure": 400},
+            ]
+        )
+        assert visitor_statistics.validate_visitor_statistics(negative_df) is False
+
+    def test_validate_visitor_statistics_too_few_markets(self):
+        """Test that too few markets fails validation."""
+        import pandas as pd
+
+        few_markets_df = pd.DataFrame(
+            [
+                {"market": "Great Britain", "trips": 1000000, "nights": 3000000, "expenditure": 300},
+                {"market": "Total", "trips": 1000000, "nights": 3000000, "expenditure": 300},
+            ]
+        )
+        assert visitor_statistics.validate_visitor_statistics(few_markets_df) is False
