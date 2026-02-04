@@ -3,7 +3,7 @@
 This module provides access to Northern Ireland tourism data including:
 
 - **Occupancy Surveys**: Hotel and SSA (B&B/guest house) occupancy rates
-- **Visitor Statistics**: Trips, expenditure, demographics (coming soon)
+- **Visitor Statistics**: Quarterly trips, nights spent, and expenditure by market
 - **Air Passenger Flow**: Airport throughput data (coming soon)
 
 All data is sourced from NISRA (Northern Ireland Statistics and Research Agency)
@@ -19,10 +19,17 @@ Example:
     >>> df_combined = occupancy.get_combined_occupancy()
     >>> comparison = occupancy.compare_accommodation_types(df_combined)
     >>> print(comparison)
+    >>>
+    >>> from bolster.data_sources.nisra.tourism import visitor_statistics
+    >>> # Get visitor statistics by market
+    >>> vs = visitor_statistics.get_latest_visitor_statistics()
+    >>> gb = vs[vs['market'] == 'Great Britain'].iloc[0]
+    >>> print(f"GB: {gb['trips']:,.0f} trips, £{gb['expenditure']:.1f}M spent")
 
 See individual module docstrings for detailed documentation.
 """
 
+from . import visitor_statistics
 from .occupancy import (
     compare_accommodation_types,
     get_combined_occupancy,
@@ -53,4 +60,6 @@ __all__ = [
     "get_occupancy_by_year",
     "get_occupancy_summary_by_year",
     "get_seasonal_patterns",
+    # Visitor statistics module
+    "visitor_statistics",
 ]

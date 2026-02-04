@@ -31,6 +31,7 @@ from .data_sources.nisra import migration as nisra_migration
 from .data_sources.nisra import population as nisra_population
 from .data_sources.nisra import wellbeing as nisra_wellbeing
 from .data_sources.nisra.tourism import occupancy as nisra_occupancy
+from .data_sources.nisra.tourism import visitor_statistics as nisra_visitors
 from .data_sources.wikipedia import get_ni_executive_basic_table
 from .utils.rss import filter_entries, get_nisra_statistics_feed, parse_rss_feed
 
@@ -2366,6 +2367,219 @@ def nisra_occupancy_cmd(latest, year, accommodation, data_type, output_format, f
                 console.print("\n[bold]Totals:[/bold]")
                 console.print(f"   Rooms sold: {total_rooms:,.0f}")
                 console.print(f"   Beds sold: {total_beds:,.0f}")
+
+        # Handle file saving
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", date_format="iso", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Data saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        # Output to console in requested format
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
+        console.print("   • Visit NISRA website to verify data availability")
+        raise click.Abort()
+
+
+@nisra.command(name="visitors")
+@click.option("--latest", is_flag=True, help="Get the most recent visitor statistics")
+@click.option(
+    "--market",
+    type=click.Choice(
+        ["all", "gb", "europe", "north-america", "overseas", "roi", "ni", "total"],
+        case_sensitive=False,
+    ),
+    default="all",
+    help="Filter by visitor origin market",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show market summary with derived metrics")
+@click.option("--compare", is_flag=True, help="Compare domestic vs external visitors")
+def nisra_visitors_cmd(latest, market, output_format, force_refresh, save, summary, compare):
+    """
+    NISRA Quarterly Visitor Statistics (Trips, Nights, Expenditure)
+
+    Retrieves quarterly visitor statistics for Northern Ireland from NISRA,
+    showing overnight trips, nights spent, and visitor expenditure by market origin.
+
+    \b
+    MARKETS:
+        gb           - Great Britain (largest external market)
+        europe       - Other Europe (excluding GB and ROI)
+        north-america - North America (USA and Canada)
+        overseas     - Other overseas (Asia, Oceania, etc.)
+        roi          - Republic of Ireland
+        ni           - NI Residents (domestic tourism)
+        total        - All markets combined
+        all          - Show all markets (default)
+
+    \b
+    EXAMPLES:
+        # Get latest visitor statistics
+        bolster nisra visitors --latest
+
+        # Show market summary with per-trip metrics
+        bolster nisra visitors --latest --summary
+
+        # Compare domestic vs external visitors
+        bolster nisra visitors --latest --compare
+
+        # Get Great Britain visitors only
+        bolster nisra visitors --latest --market gb
+
+        # Save to file
+        bolster nisra visitors --latest --save visitors.csv
+
+    \b
+    DATA INSIGHTS:
+        - GB is typically the largest external market (~30% of trips, ~38% of spend)
+        - ROI visitors growing rapidly (up 32% trips, 68% spend YoY in 2025)
+        - NI residents account for ~31% of trips but only ~17% of expenditure
+        - External visitors spend 2-4x more per trip than NI residents
+        - "Other Overseas" (long-haul) has highest spend per trip (~£540)
+
+    \b
+    DATA SOURCE:
+        https://www.nisra.gov.uk/publications/quarterly-tourism-statistics-publications
+    """
+    from rich.console import Console
+    from rich.table import Table
+
+    console = Console()
+
+    try:
+        if not latest and not save:
+            console.print("[yellow]Hint: Use --latest to fetch data, or --save to save to file[/yellow]")
+            return
+
+        with console.status("[bold green]Downloading NISRA visitor statistics..."):
+            data = nisra_visitors.get_latest_visitor_statistics(force_refresh=force_refresh)
+
+        # Market name mapping for filter
+        market_map = {
+            "gb": "Great Britain",
+            "europe": "Other Europe",
+            "north-america": "North America",
+            "overseas": "Other Overseas",
+            "roi": "Republic of Ireland",
+            "ni": "NI Residents",
+            "total": "Total",
+        }
+
+        if compare:
+            # Show domestic vs external comparison
+            comparison = nisra_visitors.get_domestic_vs_external(data)
+            console.print("\n[bold cyan]Domestic vs External Visitors[/bold cyan]\n")
+
+            table = Table(show_header=True, header_style="bold")
+            table.add_column("Category")
+            table.add_column("Trips", justify="right")
+            table.add_column("% Trips", justify="right")
+            table.add_column("Expenditure", justify="right")
+            table.add_column("% Spend", justify="right")
+
+            for _, row in comparison.iterrows():
+                table.add_row(
+                    row["category"],
+                    f"{row['trips']:,.0f}",
+                    f"{row['trips_pct']:.1f}%",
+                    f"£{row['expenditure']:.1f}M",
+                    f"{row['expenditure_pct']:.1f}%",
+                )
+
+            console.print(table)
+
+            # Additional insights
+            ni_row = comparison[comparison["category"] == "Domestic (NI)"].iloc[0]
+            ext_row = comparison[comparison["category"] == "External"].iloc[0]
+
+            if ni_row["trips"] > 0 and ext_row["trips"] > 0:
+                ni_spend_per = ni_row["expenditure"] * 1_000_000 / ni_row["trips"]
+                ext_spend_per = ext_row["expenditure"] * 1_000_000 / ext_row["trips"]
+                console.print(
+                    f"\n[dim]Spend per trip: Domestic £{ni_spend_per:.0f} vs External £{ext_spend_per:.0f}[/dim]"
+                )
+
+            return
+
+        if summary:
+            # Show market summary with derived metrics
+            market_summary = nisra_visitors.get_market_summary(data)
+            console.print("\n[bold cyan]Visitor Statistics by Market[/bold cyan]\n")
+
+            table = Table(show_header=True, header_style="bold")
+            table.add_column("Market")
+            table.add_column("Trips", justify="right")
+            table.add_column("% Share", justify="right")
+            table.add_column("Expenditure", justify="right")
+            table.add_column("£/Trip", justify="right")
+            table.add_column("Nights/Trip", justify="right")
+
+            for _, row in market_summary.iterrows():
+                table.add_row(
+                    row["market"],
+                    f"{row['trips']:,.0f}",
+                    f"{row['trips_pct']:.1f}%",
+                    f"£{row['expenditure']:.1f}M",
+                    f"£{row['expenditure_per_trip']:.0f}",
+                    f"{row['nights_per_trip']:.1f}",
+                )
+
+            console.print(table)
+
+            # Total stats
+            total = nisra_visitors.get_total_visitor_statistics(data)
+            if total is not None:
+                console.print("\n[bold]Totals:[/bold]")
+                console.print(f"   Trips: {total['trips']:,.0f}")
+                console.print(f"   Nights: {total['nights']:,.0f}")
+                console.print(f"   Expenditure: £{total['expenditure']:.1f}M")
+
+            return
+
+        # Filter by market if specified
+        if market != "all":
+            market_name = market_map.get(market.lower())
+            if market_name:
+                data = data[data["market"] == market_name]
+
+        console.print("[green]Retrieved visitor statistics successfully[/green]")
+        console.print(f"[dim]Period: {data['period'].iloc[0]} to {data['year'].iloc[0]}[/dim]")
+
+        # Show quick stats
+        total = data[data["market"] == "Total"]
+        if not total.empty:
+            t = total.iloc[0]
+            console.print("\n[bold]Total Visitors:[/bold]")
+            console.print(f"   Trips: {t['trips']:,.0f}")
+            console.print(f"   Nights: {t['nights']:,.0f}")
+            console.print(f"   Expenditure: £{t['expenditure']:.1f}M")
 
         # Handle file saving
         if save:
