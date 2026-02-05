@@ -68,6 +68,44 @@ CRIME_STATISTICS_URL = "https://admin.opendatani.gov.uk/dataset/80dc9542-7b2a-48
 # Data guide for reference
 DATA_GUIDE_URL = "https://admin.opendatani.gov.uk/dataset/80dc9542-7b2a-48f5-bbf4-ccc7040d36af/resource/51cd6a9e-646b-42bf-9daa-8d2cb618764e/download/police-recorded-crime-data-guide.pdf"
 
+# PSNI Official Statistics (for current data not available on OpenDataNI)
+PSNI_OFFICIAL_STATS_URL = "https://www.psni.police.uk/about-us/our-publications-and-reports/official-statistics/police-recorded-crime-statistics"
+PSNI_STATISTICS_EMAIL = "statistics@psni.police.uk"
+
+
+def get_data_source_info() -> dict:
+    """Get information about crime statistics data sources.
+
+    Returns a dictionary with URLs and contact information for accessing
+    PSNI crime statistics. Use this when you need data beyond December 2021.
+
+    Returns:
+        Dictionary with keys:
+            - opendatani_url: OpenDataNI dataset URL (data through Dec 2021)
+            - data_guide_url: PDF data guide URL
+            - psni_official_url: PSNI official statistics page (current data)
+            - contact_email: PSNI Statistics Branch email
+            - data_limitation: Description of OpenDataNI data limitations
+            - last_update: Last known update date for OpenDataNI
+
+    Example:
+        >>> info = get_data_source_info()
+        >>> print(f"For current data, visit: {info['psni_official_url']}")
+        >>> print(f"Or contact: {info['contact_email']}")
+    """
+    return {
+        "opendatani_url": "https://www.opendatani.gov.uk/dataset/police-recorded-crime-in-northern-ireland",
+        "data_guide_url": DATA_GUIDE_URL,
+        "psni_official_url": PSNI_OFFICIAL_STATS_URL,
+        "contact_email": PSNI_STATISTICS_EMAIL,
+        "data_limitation": (
+            "OpenDataNI dataset was last updated January 2022 and only contains "
+            "data through December 2021. For 2022-2025 data, consult PSNI's quarterly "
+            "bulletins at the official statistics URL or contact PSNI Statistics Branch."
+        ),
+        "last_update": "2022-01-27",
+    }
+
 
 def parse_crime_statistics_file(
     file_path: Union[str, Path],
