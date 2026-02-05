@@ -1170,6 +1170,115 @@ def nisra():
     pass
 
 
+@nisra.command(name="feed")
+@click.option("--limit", "-n", default=20, help="Number of entries to show (default: 20)")
+@click.option("--filter", "-f", "title_filter", help="Filter entries by title (case-insensitive)")
+@click.option("--days", "-d", type=int, help="Show entries from last N days")
+@click.option("--check-coverage", is_flag=True, help="Show which datasets have modules implemented")
+def nisra_feed(limit: int, title_filter: str, days: int, check_coverage: bool):
+    """Show recent NISRA publications from RSS feed.
+
+    Useful for discovering new datasets and checking for updates.
+
+    Examples:
+
+        bolster nisra feed                    # Recent 20 publications
+
+        bolster nisra feed -n 50              # More entries
+
+        bolster nisra feed -f tourism         # Filter by title
+
+        bolster nisra feed --days 7           # Last week only
+
+        bolster nisra feed --check-coverage   # Show implementation status
+    """
+    from datetime import datetime, timedelta
+
+    from rich.console import Console
+    from rich.table import Table
+
+    from bolster.utils.rss import filter_entries, get_nisra_statistics_feed
+
+    console = Console()
+
+    # Known implemented modules (keywords that map to our modules)
+    implemented_keywords = {
+        "death": "deaths",
+        "birth": "births",
+        "marriage": "marriages",
+        "civil partnership": "civil-partnerships",
+        "labour market": "labour-market",
+        "labour force": "labour-market",
+        "population": "population",
+        "migration": "migration",
+        "occupancy": "occupancy",
+        "tourism": "visitors",
+        "visitor": "visitors",
+        "index of services": "index-of-services",
+        "index of production": "index-of-production",
+        "construction output": "construction-output",
+        "ashe": "ashe",
+        "hours and earnings": "ashe",
+        "composite economic index": "composite-index",
+        "nicei": "composite-index",
+        "wellbeing": "wellbeing",
+        "cancer waiting": "cancer-waiting-times",
+    }
+
+    with console.status("Fetching NISRA RSS feed..."):
+        feed = get_nisra_statistics_feed()
+
+    entries = feed.entries
+
+    # Apply date filter
+    if days:
+        cutoff = datetime.now() - timedelta(days=days)
+        entries = [e for e in entries if e.published and e.published >= cutoff]
+
+    # Apply title filter
+    if title_filter:
+        entries = filter_entries(entries, title_contains=title_filter)
+
+    # Limit entries
+    entries = entries[:limit]
+
+    if not entries:
+        console.print("[yellow]No entries found matching criteria[/yellow]")
+        return
+
+    # Build table
+    table = Table(title=f"NISRA Publications ({len(entries)} shown)")
+    table.add_column("Date", style="cyan", width=10)
+    table.add_column("Title", style="white")
+
+    if check_coverage:
+        table.add_column("Module", style="green", width=20)
+
+    for entry in entries:
+        date_str = entry.published.strftime("%Y-%m-%d") if entry.published else "N/A"
+        title = entry.title[:75] + "..." if len(entry.title) > 75 else entry.title
+
+        if check_coverage:
+            # Check if we have a module for this
+            module = None
+            title_lower = entry.title.lower()
+            for keyword, mod_name in implemented_keywords.items():
+                if keyword in title_lower:
+                    module = mod_name
+                    break
+            module_str = f"[green]✓ {module}[/green]" if module else "[dim]-[/dim]"
+            table.add_row(date_str, title, module_str)
+        else:
+            table.add_row(date_str, title)
+
+    console.print(table)
+
+    if check_coverage:
+        # Summary
+        covered = sum(1 for e in entries if any(kw in e.title.lower() for kw in implemented_keywords))
+        console.print(f"\n[green]Covered: {covered}[/green] | [yellow]Not covered: {len(entries) - covered}[/yellow]")
+
+
 @nisra.command(name="deaths")
 @click.option("--latest", is_flag=True, help="Get the most recent deaths data available")
 @click.option(
