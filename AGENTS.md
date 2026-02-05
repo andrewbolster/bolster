@@ -9,16 +9,29 @@ src/bolster/
 ├── data_sources/
 │   ├── nisra/          # NI Statistics and Research Agency
 │   │   ├── _base.py    # Shared utilities (download, parse, validate)
+│   │   ├── tourism/    # Subpackage for related data (occupancy, visitors)
 │   │   ├── deaths.py, births.py, marriages.py, ...
 │   │   └── cancer_waiting_times.py
 │   ├── psni/           # Police Service of NI
+│   │   ├── _base.py    # PSNI shared utilities
+│   │   └── road_traffic_collisions.py, crime_statistics.py
 │   └── dva.py          # Driver and Vehicle Agency
 ├── utils/
-│   ├── cache.py        # CachedDownloader
+│   ├── cache.py        # CachedDownloader (uses web.session)
 │   ├── rss.py          # get_nisra_statistics_feed()
-│   └── web.py          # HTTP session utilities
+│   └── web.py          # HTTP session with retry logic
 └── cli.py              # Click-based CLI
 ```
+
+### When to create subpackages
+
+Create a subpackage (e.g., `nisra/tourism/`) when:
+
+- Multiple related modules share common concepts (e.g., tourism has occupancy + visitors)
+- Modules will likely grow together over time
+- There's a clear domain boundary
+
+Keep flat modules when the data source is standalone.
 
 ## Commands
 
@@ -38,11 +51,23 @@ uv run bolster --help                                # CLI
 
 ## Shared Utilities
 
-Located in `src/bolster/data_sources/nisra/_base.py`:
+### HTTP utilities (`src/bolster/utils/web.py`)
+
+**Always use the shared session for HTTP requests** - it has retry logic for transient failures:
+
+```python
+from bolster.utils.web import session
+
+response = session.get(url, timeout=30)  # Retries on 500/502/503/504
+```
+
+Do NOT use raw `requests.get()` - it lacks retry logic and causes CI flakiness.
+
+### NISRA utilities (`src/bolster/data_sources/nisra/_base.py`)
 
 | Function | Purpose |
 |----------|---------|
-| `download_file(url, cache_ttl_hours=24)` | Download with caching |
+| `download_file(url, cache_ttl_hours=24)` | Download with caching (uses shared session) |
 | `make_absolute_url(url, base_url)` | Convert relative URLs |
 | `parse_month_year(str, format="%B %Y")` | Parse "April 2008" → Timestamp |
 | `add_date_columns(df, source_col)` | Add date/year/month columns |
@@ -131,7 +156,23 @@ class TestDataIntegrity:
     def test_required_columns(self, latest_data): ...
     def test_value_ranges(self, latest_data): ...
     def test_historical_coverage(self, latest_data): ...
+
+
+class TestValidation:
+    """Unit tests for validation edge cases - no network calls needed."""
+
+    def test_validate_empty_dataframe(self): ...
+    def test_validate_missing_columns(self): ...
+    def test_validate_negative_values(self): ...
+    def test_validate_too_few_records(self): ...
 ```
+
+**Coverage tips**:
+
+- `codecov/patch` checks coverage on new/changed lines specifically
+- Validation functions have easy-to-test edge cases (empty data, bad values)
+- Add unit tests for validation branches - they don't need network calls
+- Error handling paths (try/except) are harder to cover without mocks - acceptable to leave uncovered
 
 **PR must include**:
 
@@ -160,6 +201,7 @@ class TestDataIntegrity:
 
 - \[ \] Follows existing module patterns
 - \[ \] Uses shared utilities from `_base.py` (no reinventing)
+- \[ \] Uses `web.session` for HTTP requests (not raw `requests.get()`)
 - \[ \] Type hints on public functions
 - \[ \] Docstrings with examples
 
