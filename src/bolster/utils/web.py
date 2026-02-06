@@ -21,7 +21,7 @@ _retry_strategy = Retry(
     backoff_factor=1,  # 1s, 2s, 4s delays between retries
     status_forcelist=[500, 502, 503, 504],
     allowed_methods=["HEAD", "GET", "OPTIONS"],
-    raise_on_status=False,  # Don't raise immediately, let raise_for_status() handle it
+    raise_on_status=True,  # Let urllib3 handle retries and raise properly
 )
 _adapter = HTTPAdapter(max_retries=_retry_strategy)
 
