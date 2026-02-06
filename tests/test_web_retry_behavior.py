@@ -38,8 +38,10 @@ class TestRetryBehavior:
 
     def test_retry_configuration_is_correct(self):
         """Test that the critical fix is applied - raise_on_status=True."""
-        # This is the core fix for the infinite retry issue
+        # This is the core fix that enables proper exponential backoff for 503 errors
+        # instead of immediate failures that cause tests to run for 56+ minutes
         assert _retry_strategy.raise_on_status is True
+        assert _retry_strategy.respect_retry_after_header is True
 
     def test_session_uses_retry_adapter(self):
         """Test that session is configured with retry adapter."""
