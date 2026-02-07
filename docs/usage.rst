@@ -250,7 +250,7 @@ Error Handling
             print(f"Got result: {result}")
 
 Development Utilities
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 **Directory Context Manager:**
 
@@ -283,7 +283,7 @@ Development Utilities
     )
 
 Tree and Dictionary Analysis
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 

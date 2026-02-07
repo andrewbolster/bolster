@@ -3,10 +3,10 @@
 Provides access to monthly hotel and accommodation occupancy data for Northern Ireland.
 
 Data includes:
+
 - Hotel room and bed occupancy rates from 2011 to present
 - Rooms and beds sold monthly (hotels)
-- Small Service Accommodation (SSA) occupancy from 2013 to present
-  (B&Bs, guest houses, and similar establishments)
+- Small Service Accommodation (SSA) occupancy from 2013 to present (B&Bs, guest houses, and similar establishments)
 - Rooms and beds sold monthly (SSA)
 
 The survey provides indicative monthly occupancy rates that are revised and

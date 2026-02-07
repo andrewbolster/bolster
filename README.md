@@ -203,6 +203,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | DVA Monthly Tests Statistics | `dva` | ✅ |
 | Individual Wellbeing | `nisra.wellbeing` | ✅ |
 | Cancer Waiting Times | `nisra.cancer_waiting_times` | ✅ |
+| Registrar General Quarterly Tables | `nisra.registrar_general` | ✅ |
 | Tourism - Hotel Occupancy | `nisra.tourism.occupancy` | ✅ |
 | Tourism - SSA Occupancy | `nisra.tourism.occupancy` | ✅ |
 | Tourism - Visitor Statistics | `nisra.tourism.visitor_statistics` | ✅ |
@@ -428,7 +429,7 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 
 ## 📄 License
 
-This project is licensed under the GNU General Public License v3 (GPLv3) - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU General Public License v3 (GPLv3) - see the [LICENSE](https://github.com/andrewbolster/bolster/blob/main/LICENSE) file for details.
 
 ## 🐛 Bug Reports
 

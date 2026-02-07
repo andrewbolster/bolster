@@ -150,7 +150,7 @@ class CachedDownloader:
         """Clear cached files.
 
         Args:
-            pattern: Optional glob pattern (e.g., "*.csv"). If None, clears all.
+            pattern: Optional glob pattern (e.g., ``*.csv``). If None, clears all.
 
         Returns:
             Number of files deleted

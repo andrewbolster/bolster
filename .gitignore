@@ -120,3 +120,5 @@ http_cache.sqlite
 .virtual_documents/
 .juypter
 notebooks/cache
+# Auto-generated API documentation
+docs/autoapi/

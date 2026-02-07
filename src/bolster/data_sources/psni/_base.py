@@ -210,7 +210,7 @@ def clear_cache(pattern: Optional[str] = None) -> int:
     """Clear cached files from the PSNI cache directory.
 
     Args:
-        pattern: Optional glob pattern to match specific files (e.g., "*.csv").
+        pattern: Optional glob pattern to match specific files (e.g., ``*.csv``).
                  If None, clears all cached files in the directory.
 
     Returns:
