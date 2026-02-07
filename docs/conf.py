@@ -31,6 +31,8 @@ extensions = [
     "sphinx.ext.autodoc.typehints",  # Automatic type hints documentation
     # API documentation
     "autoapi.extension",  # Automatic API documentation generation
+    # Markdown support
+    "myst_parser",  # Parse Markdown files (for README.md inclusion)
     # Cross-referencing and linking
     "sphinx.ext.intersphinx",  # Link to other project's documentation
     "sphinx.ext.extlinks",  # Markup for external links
@@ -58,10 +60,10 @@ extensions = [
 templates_path = ["_templates"]
 
 # The suffix(es) of source filenames.
-# You can specify multiple suffix as a list of string:
-#
-# source_suffix = ['.rst', '.md']
-source_suffix = ".rst"
+source_suffix = {
+    ".rst": "restructuredtext",
+    ".md": "markdown",
+}
 
 # The master toctree document.
 master_doc = "index"
@@ -116,14 +118,8 @@ html_theme = "sphinx_rtd_theme"
 
 # Theme-specific configuration for improved UX
 html_theme_options = {
-    "canonical_url": "",
-    "analytics_id": "",
-    "analytics_anonymize_ip": False,
-    "logo_only": False,
-    "display_version": True,
     "prev_next_buttons_location": "bottom",
     "style_external_links": False,
-    "vcs_pageview_mode": "",
     "style_nav_header_background": "#2980B9",
     # Toc options
     "collapse_navigation": True,
@@ -228,8 +224,10 @@ autoapi_options = [
     "special-members",
     "imported-members",
 ]
+# Exclude examples directory from API docs
+autoapi_ignore = ["**/examples/*"]
 
-# Suppress some autoapi warnings
+# Keep generated files for debugging (set to False in production)
 autoapi_keep_files = True
 
 # -- Options for Napoleon Extension --
@@ -266,9 +264,10 @@ todo_emit_warnings = True
 coverage_show_missing_items = True
 
 # -- Options for External Links --
+# Note: sphinx_issues provides :issue: and :pr: roles, so we use different names here
 extlinks = {
-    "issue": (f"{github_root}issues/%s", "issue %s"),
-    "pr": (f"{github_root}pull/%s", "PR %s"),
+    "gh-issue": (f"{github_root}issues/%s", "issue %s"),
+    "gh-pr": (f"{github_root}pull/%s", "PR %s"),
 }
 
 # -- Options for Sphinx Click Extension --

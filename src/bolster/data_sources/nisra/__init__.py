@@ -17,6 +17,7 @@ Available modules:
     - marriages: Monthly marriage registrations
     - migration: Derived migration estimates from demographic components
     - population: Annual mid-year population estimates by age, sex, and geography
+    - registrar_general: Registrar General Quarterly Tables (quarterly births, deaths, marriages, LGD breakdowns)
     - tourism: Tourism statistics including occupancy surveys, visitor stats (subpackage)
     - wellbeing: Individual wellbeing statistics (life satisfaction, happiness, anxiety, loneliness)
 
@@ -75,6 +76,11 @@ Examples:
     >>> df_2024 = migration.get_migration_by_year(migration_df, 2024)
     >>> print(f"Net migration in 2024: {df_2024['net_migration'].values[0]:+,}")
 
+    >>> from bolster.data_sources.nisra import registrar_general
+    >>> data = registrar_general.get_quarterly_vital_statistics()
+    >>> births = data['births']
+    >>> print(f"Quarterly births from {births['year'].min()} to {births['year'].max()}")
+
     >>> from bolster.data_sources.nisra import population
     >>> pop_df = population.get_latest_population(area='Northern Ireland')
     >>> print(f"NI population 2024: {pop_df[pop_df['year'] == 2024]['population'].sum():,}")
@@ -97,6 +103,7 @@ from . import (
     marriages,
     migration,
     population,
+    registrar_general,
     tourism,
     wellbeing,
 )
@@ -113,6 +120,7 @@ __all__ = [
     "marriages",
     "migration",
     "population",
+    "registrar_general",
     "tourism",
     "wellbeing",
 ]

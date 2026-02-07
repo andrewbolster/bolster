@@ -207,27 +207,26 @@ def pull_sources(
 
 
 def basic_cleanup(df: pd.DataFrame, offset=1) -> pd.DataFrame:
-    """
-    Generic cleanup operations for NI HPI data;
-    * Re-header from Offset row and translate table to eliminate incorrect headers
-    * remove any columns with 'Nan' or 'None' in the given offset-row
-    * If 'NI' appears and all the values are 100, remove it.
-    * Remove any rows below and including the first 'all nan' row (gets most tail-notes)
-    * If 'Sale Year','Sale Quarter' appear in the columns, replace with 'Year','Quarter' respectively
-    * For Year; forward fill any none/nan values
-    * If Year/Quarter appear, add  a new composite 'Period' column with a PeriodIndex columns representing the
-        year/quarter (i.e. 2022-Q1)
-    * Reset and drop the index
-    * Attempt to infer the new/current column object types
+    """Generic cleanup operations for NI HPI data.
 
-    Parameters
-    ----------
-    df
-    offset
+    Operations performed:
 
-    Returns
-    -------
+    - Re-header from Offset row and translate table to eliminate incorrect headers
+    - Remove any columns with 'Nan' or 'None' in the given offset-row
+    - If 'NI' appears and all the values are 100, remove it
+    - Remove any rows below and including the first 'all nan' row (gets most tail-notes)
+    - If 'Sale Year','Sale Quarter' appear in the columns, replace with 'Year','Quarter' respectively
+    - For Year; forward fill any none/nan values
+    - If Year/Quarter appear, add a new composite 'Period' column with a PeriodIndex columns representing the year/quarter (i.e. 2022-Q1)
+    - Reset and drop the index
+    - Attempt to infer the new/current column object types
 
+    Args:
+        df: DataFrame to clean
+        offset: Row offset to find headers
+
+    Returns:
+        Cleaned DataFrame
     """
     df = df.copy()
     # Re-header from row 1 (which was row 3 in excel)
@@ -279,18 +278,16 @@ def basic_cleanup(df: pd.DataFrame, offset=1) -> pd.DataFrame:
 
 
 def cleanup_contents(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Fix Contents table of NI HPI Stats
-    * Shift/rebuild headers
-    * Strip Figures because they're gonna be broken anyway
+    """Fix Contents table of NI HPI Stats.
 
-    Parameters
-    ----------
-    df
+    - Shift/rebuild headers
+    - Strip Figures because they're gonna be broken anyway
 
-    Returns
-    -------
+    Args:
+        df: Raw DataFrame from Excel
 
+    Returns:
+        Cleaned DataFrame
     """
     new_header = df.iloc[0]
     df = df[1:].copy()
@@ -366,21 +363,18 @@ TABLE_TRANSFORMATION_MAP[re.compile("Table 3[a-z]")] = partial(
 
 
 def cleanup_with_munged_quarters_and_total_rows(df: pd.DataFrame, offset=3) -> pd.DataFrame:
-    """
-    Number of Verified Residential Property Sales
+    """Number of Verified Residential Property Sales.
 
-    * Regex 'Quarter X' to 'QX' in future 'Sales Quarter' column
-    * Drop Year Total rows
-    * Clear any Newlines from the future 'Sales Year' column
-    * call `basic_cleanup` with offset=3
+    - Regex 'Quarter X' to 'QX' in future 'Sales Quarter' column
+    - Drop Year Total rows
+    - Clear any Newlines from the future 'Sales Year' column
+    - Call ``basic_cleanup`` with offset=3
 
-    Parameters
-    ----------
-    df
+    Args:
+        df: Raw DataFrame from Excel
 
-    Returns
-    -------
-
+    Returns:
+        Cleaned DataFrame
     """
     df = df.copy()
     df.iloc[:, 1] = df.iloc[:, 1].str.replace("Quarter ([1-4])", r"Q\1", regex=True)

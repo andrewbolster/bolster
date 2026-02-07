@@ -153,11 +153,12 @@ def parse_births_file(
             - "both": Return dict with both types
 
     Returns:
-        If event_type is "both": Dict with keys "registration" and "occurrence"
+        If event_type is "both": Dict with keys "registration" and "occurrence".
         Otherwise: Single DataFrame with columns:
-            - month: datetime (first day of month)
-            - sex: str (Persons, Male, Female)
-            - births: int (number of births)
+
+        - month: datetime (first day of month)
+        - sex: str (Persons, Male, Female)
+        - births: int (number of births)
 
     Raises:
         NISRAValidationError: If file structure is unexpected
@@ -330,11 +331,12 @@ def get_latest_births(
         force_refresh: If True, bypass cache and download fresh data
 
     Returns:
-        If event_type is "both": Dict with keys "registration" and "occurrence"
+        If event_type is "both": Dict with keys "registration" and "occurrence".
         Otherwise: Single DataFrame with columns:
-            - month: datetime (first day of month)
-            - sex: str (Persons, Male, Female)
-            - births: int
+
+        - month: datetime (first day of month)
+        - sex: str (Persons, Male, Female)
+        - births: int
 
     Raises:
         NISRADataNotFoundError: If latest publication cannot be found

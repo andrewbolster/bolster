@@ -7,27 +7,27 @@ import requests
 
 
 def get_ni_executive_basic_table() -> pd.DataFrame:
-    """
-    Takes Data from https://en.wikipedia.org/wiki/Northern_Ireland_Executive#Composition_since_devolution
-    Table should be called "Historical composition of the Northern Ireland Executive "
+    """Get Northern Ireland Executive composition data from Wikipedia.
 
-    EG
-            Established	Dissolved	Duration	Interregnum
-    Executive
-    1st	1998-07-01	2002-10-14	1566 days	1667 days
-    2nd	2007-05-08	2011-03-24	1416 days	53 days
-    3rd	2011-05-16	2016-05-16	1827 days	10 days
-    4th	2016-05-26	2017-01-16	235 days	1090 days
-    5th	2020-01-11	2022-02-03	754 days	730 days
-    6th	2024-02-03	NaT	127 days	NaT
+    Extracts historical data from the "Historical composition of the Northern Ireland Executive"
+    table at: https://en.wikipedia.org/wiki/Northern_Ireland_Executive#Composition_since_devolution
 
-    >>> get_ni_executive_basic_table().dtypes
-    Established     datetime64[ns]
-    Dissolved       datetime64[ns]
-    Duration       timedelta64[ns]
-    Interregnum    timedelta64[ns]
-    dtype: object
+    Returns:
+        DataFrame with Executive index and columns:
 
+        - Established: datetime64[ns] - When the executive was formed
+        - Dissolved: datetime64[ns] - When the executive ended
+        - Duration: timedelta64[ns] - How long the executive lasted
+        - Interregnum: timedelta64[ns] - Gap until next executive
+
+    Example:
+        >>> df = get_ni_executive_basic_table()
+        >>> print(df.dtypes)
+        Established     datetime64[ns]
+        Dissolved       datetime64[ns]
+        Duration       timedelta64[ns]
+        Interregnum    timedelta64[ns]
+        dtype: object
     """
     # Use a custom user agent to avoid Wikipedia 403 errors
     # Wikipedia blocks default pandas/urllib user agents

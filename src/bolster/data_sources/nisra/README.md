@@ -184,7 +184,33 @@ This module provides programmatic access to Northern Ireland Statistics and Rese
   - New Work Q2 2025: 109.7
   - Repair & Maintenance Q2 2025: 143.4
 
-### 9. Annual Survey of Hours and Earnings - ASHE (`ashe.py`)
+### 9. Registrar General Quarterly Tables (`registrar_general.py`)
+
+- **Update Frequency**: Quarterly (published ~3 months after quarter end)
+- **Mother Page**: https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/registrar-general-quarterly-report
+- **Data Dimensions**:
+  - Quarterly time series (Q1 2009 - present, 60+ quarters)
+  - Three datasets: Births, Deaths/Marriages, LGD breakdowns
+  - Cross-validation against monthly births and marriages data
+- **Key Functions**:
+  - `get_quarterly_vital_statistics()` - Fetch all quarterly vital statistics (returns dict)
+  - `get_quarterly_births()` - Fetch quarterly births data
+  - `get_quarterly_deaths()` - Fetch quarterly deaths/marriages/civil partnerships
+  - `get_lgd_statistics()` - Get current quarter LGD-level breakdowns
+  - `validate_against_monthly_births()` - Cross-validate against monthly births module
+  - `validate_against_monthly_marriages()` - Cross-validate against monthly marriages module
+  - `get_validation_report()` - Comprehensive validation report
+- **Data Format**: Multiple long-format DataFrames in a dictionary
+- **Notes**:
+  - **Births table**: Total births, stillbirths, birth rates, births outside marriage, teenage births, births to mothers 30+
+  - **Deaths table**: Total deaths, death rates, infant deaths, marriages, civil partnerships
+  - **LGD table**: Births, deaths, marriages by Local Government District (11 LGDs)
+  - **Cross-validation**: Quarterly births match monthly births with 0.00% difference across 67 quarters
+  - **Historical depth**: 60+ quarters of data (vs monthly data starting 2006)
+  - **COVID-19 impact visible**: Q2 2020 shows elevated deaths, reduced marriages
+  - Latest data: Q3 2024 (5,091 births, 4,133 deaths, 2,411 marriages)
+
+### 10. Annual Survey of Hours and Earnings - ASHE (`ashe.py`)
 
 - **Update Frequency**: Annual (published in October)
 - **Mother Page**: https://www.nisra.gov.uk/statistics/work-pay-and-benefits/annual-survey-hours-and-earnings
@@ -382,7 +408,8 @@ class TestDeathsDataIntegrity:
 - **Marriages Statistics**: 18 integrity tests, 83% code coverage
 - **Migration Statistics**: 20 integrity tests, 96% code coverage
 - **Population Statistics**: 17 integrity tests, 89% code coverage
-- **Total**: 211 integrity tests across 9 modules
+- **Registrar General Quarterly**: 38 integrity tests, 90% code coverage
+- **Total**: 249 integrity tests across 10 modules
 
 #### Why This Approach?
 
@@ -571,6 +598,18 @@ bolster nisra migration --latest --start-year 2020 --summary
 # Get migration for specific year
 bolster nisra migration --latest --year 2024 --save migration_2024.csv
 
+# Get latest Registrar General quarterly vital statistics
+bolster nisra registrar-general --latest
+
+# Get quarterly births time series
+bolster nisra registrar-general --quarterly --table births
+
+# Get LGD-level statistics for current quarter
+bolster nisra registrar-general --lgd
+
+# Run cross-validation against monthly data
+bolster nisra registrar-general --validate
+
 # Get latest population estimates for NI
 bolster nisra population --latest
 
@@ -705,7 +744,6 @@ When adding a new NISRA dataset, follow these patterns:
 
 Potential additional NISRA-produced data sources to add:
 
-- \[ \] **NI Composite Economic Index** - Experimental quarterly economic performance measure
 - \[ \] **NI GDP** - Economic Accounts (GDP and components)
 - \[ \] **Deprivation Indices** - Northern Ireland Multiple Deprivation Measure
 - \[ \] **Census 2021** - Detailed population and household characteristics
@@ -714,6 +752,8 @@ Completed:
 
 - \[x\] **Economic Indicators** - Quarterly Index of Services and Index of Production (implemented in `economic_indicators.py`)
 - \[x\] **Construction Output** - Quarterly construction sector statistics (implemented in `construction_output.py`)
+- \[x\] **NI Composite Economic Index** - Experimental quarterly economic performance measure (implemented in `composite_index.py`)
+- \[x\] **Registrar General Quarterly Tables** - Quarterly births, deaths, marriages with LGD breakdowns (implemented in `registrar_general.py`)
 
 Note: Crime statistics are published by PSNI (Police Service of Northern Ireland), not NISRA, and would belong in a separate data source module.
 

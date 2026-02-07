@@ -189,6 +189,7 @@ def parse_deaths_totals(file_path: Union[str, Path]) -> pd.DataFrame:
     """Parse weekly totals with COVID-19, flu/pneumonia, and excess deaths from weekly deaths file.
 
     Extracts Table 1a and creates a flat table with columns:
+
     - week_ending: Friday of the reporting week
     - week_number: Week number in the year
     - observed_deaths: Total deaths registered in the week
@@ -282,6 +283,7 @@ def parse_deaths_demographics(file_path: Union[str, Path]) -> pd.DataFrame:
     """Parse demographics dimension (age, sex) from weekly deaths file.
 
     Extracts Table 2 and creates a flat table with columns:
+
     - week_ending: Friday of the reporting week
     - sex: Total, Male, or Female
     - age_range: All, 0-14, 15-44, 45-64, 65-74, 75-84, 85+
@@ -381,6 +383,7 @@ def parse_deaths_geography(file_path: Union[str, Path]) -> pd.DataFrame:
     """Parse geography dimension (Local Government Districts) from weekly deaths file.
 
     Extracts Table 3 and creates a flat table with columns:
+
     - week_ending: Friday of the reporting week
     - lgd: Local Government District name
     - deaths: Count of deaths
@@ -451,6 +454,7 @@ def parse_deaths_place(file_path: Union[str, Path]) -> pd.DataFrame:
     """Parse place of death dimension from weekly deaths file.
 
     Extracts Table 4 and creates a flat table with columns:
+
     - week_ending: Friday of the reporting week
     - place_of_death: Hospital, Care/Nursing Home, Hospice, Home, Other
     - deaths: Count of deaths
@@ -598,26 +602,31 @@ def get_historical_deaths(
 
     Returns:
         If include_age_breakdowns=False:
-            DataFrame with columns:
-                - year: Year
-                - week_number: Week number in year
-                - week_ending: Friday of the reporting week
-                - total_deaths: Total deaths registered in week
-                - expected_deaths_5yr: Average deaths over previous 5 years
-                - excess_deaths: Observed minus expected deaths
-                - respiratory_deaths_involving: Deaths involving respiratory diseases
-                - flu_pneumonia_deaths_involving: Deaths involving flu/pneumonia
-                - covid_deaths_involving: Deaths involving COVID-19
-                - covid_deaths_due_to: Deaths due to COVID-19 (underlying cause)
+
+        DataFrame with columns:
+
+        - year: Year
+        - week_number: Week number in year
+        - week_ending: Friday of the reporting week
+        - total_deaths: Total deaths registered in week
+        - expected_deaths_5yr: Average deaths over previous 5 years
+        - excess_deaths: Observed minus expected deaths
+        - respiratory_deaths_involving: Deaths involving respiratory diseases
+        - flu_pneumonia_deaths_involving: Deaths involving flu/pneumonia
+        - covid_deaths_involving: Deaths involving COVID-19
+        - covid_deaths_due_to: Deaths due to COVID-19 (underlying cause)
 
         If include_age_breakdowns=True:
-            Dict with:
-                'totals': DataFrame as above
-                'age_breakdowns': DataFrame in long format with columns:
-                    - year: Year
-                    - week_ending: Friday of the reporting week
-                    - age_range: Age range label (e.g., '0-7 days', '15-44', '85+')
-                    - deaths: Death count for this age range
+
+        Dict with keys:
+
+        - 'totals': DataFrame as above
+        - 'age_breakdowns': DataFrame in long format with columns:
+
+          - year: Year
+          - week_ending: Friday of the reporting week
+          - age_range: Age range label (e.g., '0-7 days', '15-44', '85+')
+          - deaths: Death count for this age range
 
     Example:
         >>> # Get totals only
@@ -750,14 +759,15 @@ def get_combined_deaths(
 
     Returns:
         DataFrame with columns:
-            - year: Year
-            - week_number: Week number in year
-            - week_ending: Friday of the reporting week
-            - total_deaths: Total deaths registered in week
-            - covid_deaths: COVID-19 deaths (from current year) or covid_deaths_involving (historical)
-            - flu_pneumonia_deaths: Flu/pneumonia deaths
-            - excess_deaths: Excess deaths (observed - expected)
-            - data_source: 'historical' or 'current'
+
+        - year: Year
+        - week_number: Week number in year
+        - week_ending: Friday of the reporting week
+        - total_deaths: Total deaths registered in week
+        - covid_deaths: COVID-19 deaths (from current year) or covid_deaths_involving (historical)
+        - flu_pneumonia_deaths: Flu/pneumonia deaths
+        - excess_deaths: Excess deaths (observed - expected)
+        - data_source: 'historical' or 'current'
 
     Example:
         >>> # Get past 5 years plus 2025 YTD

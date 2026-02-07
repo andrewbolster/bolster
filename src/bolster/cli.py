@@ -29,6 +29,7 @@ from .data_sources.nisra import labour_market as nisra_labour_market
 from .data_sources.nisra import marriages as nisra_marriages
 from .data_sources.nisra import migration as nisra_migration
 from .data_sources.nisra import population as nisra_population
+from .data_sources.nisra import registrar_general as nisra_registrar_general
 from .data_sources.nisra import wellbeing as nisra_wellbeing
 from .data_sources.nisra.tourism import occupancy as nisra_occupancy
 from .data_sources.nisra.tourism import visitor_statistics as nisra_visitors
@@ -4054,6 +4055,290 @@ def nisra_cancer_cmd(latest, target, dimension, year, output_format, force_refre
         console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
+        raise click.Abort()
+
+
+@nisra.command(name="registrar-general")
+@click.option("--latest", is_flag=True, help="Get the most recent quarterly tables data")
+@click.option("--quarterly", is_flag=True, help="Show full quarterly time series")
+@click.option("--lgd", is_flag=True, help="Show LGD (Local Government District) breakdown")
+@click.option("--validate", is_flag=True, help="Run cross-validation against monthly data")
+@click.option(
+    "--table",
+    type=click.Choice(["births", "deaths", "all"], case_sensitive=False),
+    default="all",
+    help="Which table to retrieve (default: all)",
+)
+@click.option("--year", type=int, help="Filter data for specific year")
+@click.option("--quarter", type=int, help="Filter data for specific quarter (1-4)")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_registrar_general_cmd(
+    latest, quarterly, lgd, validate, table, year, quarter, output_format, force_refresh, save
+):
+    """
+    NISRA Registrar General Quarterly Tables
+
+    Quarterly vital statistics for Northern Ireland including births, deaths,
+    marriages, civil partnerships, and LGD-level breakdowns. Data available
+    from Q1 2009 to present.
+
+    \b
+    TABLES AVAILABLE:
+        births  - Quarterly births, stillbirths, birth rates
+        deaths  - Quarterly deaths, marriages, civil partnerships, death rates
+        lgd     - Current quarter breakdown by Local Government District
+
+    \b
+    EXAMPLES:
+        # Get latest quarterly data (all tables)
+        bolster nisra registrar-general --latest
+
+        # Get quarterly births time series
+        bolster nisra registrar-general --quarterly --table births
+
+        # Get LGD breakdown for current quarter
+        bolster nisra registrar-general --lgd
+
+        # Cross-validate quarterly vs monthly data
+        bolster nisra registrar-general --validate
+
+        # Get specific year/quarter
+        bolster nisra registrar-general --quarterly --year 2024 --quarter 1
+
+        # Save to file
+        bolster nisra registrar-general --quarterly --save quarterly.csv
+
+    \b
+    CROSS-VALIDATION:
+        The --validate option compares quarterly totals against aggregated
+        monthly data from the births and marriages modules. Differences
+        within 2% are considered acceptable (timing of registrations).
+
+    \b
+    DATA NOTES:
+        - Quarterly data from Q1 2009 to present
+        - Updated approximately 6 weeks after each quarter ends
+        - 11 Local Government Districts in NI
+        - Birth/death rates per 1,000 population
+
+    \b
+    SOURCE:
+        https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/registrar-general-quarterly-report
+    """
+    console = Console()
+
+    if not any([latest, quarterly, lgd, validate]):
+        console.print("[yellow]⚠️  Please specify an option: --latest, --quarterly, --lgd, or --validate[/yellow]")
+        console.print("[dim]Use --help for more information[/dim]")
+        return
+
+    try:
+        with console.status("[bold green]Downloading Registrar General Quarterly Tables..."):
+            data = nisra_registrar_general.get_quarterly_vital_statistics(force_refresh=force_refresh)
+
+        # Handle validation mode
+        if validate:
+            console.print("[bold cyan]Cross-Validation Report[/bold cyan]")
+            console.print("=" * 50)
+
+            report = nisra_registrar_general.get_validation_report(force_refresh=force_refresh)
+
+            if not report["summary"].empty:
+                console.print("\n[bold]Summary:[/bold]")
+                for _, row in report["summary"].iterrows():
+                    validation_name = row["validation"].replace("_", " ").title()
+                    console.print(f"  {validation_name}:")
+                    console.print(f"    Quarters compared: {row['quarters_compared']}")
+                    console.print(f"    Average difference: {row['avg_pct_diff']:.2f}%")
+                    console.print(f"    Max difference: {row['max_pct_diff']:.2f}%")
+                    console.print(f"    Within 2%: {row['within_2pct']}")
+
+            if "births_validation" in report and not report["births_validation"].empty:
+                console.print("\n[bold]Births Validation (recent quarters):[/bold]")
+                recent = report["births_validation"].tail(8)
+                console.print(recent.to_string(index=False))
+
+            if "marriages_validation" in report and not report["marriages_validation"].empty:
+                console.print("\n[bold]Marriages Validation (recent quarters):[/bold]")
+                recent = report["marriages_validation"].tail(8)
+                console.print(recent.to_string(index=False))
+
+            return
+
+        # Handle LGD mode
+        if lgd:
+            lgd_data = data["lgd"]
+            if lgd_data.empty:
+                console.print("[yellow]⚠️  LGD data not available[/yellow]")
+                return
+
+            console.print("[bold cyan]LGD-Level Statistics (Current Quarter)[/bold cyan]")
+            console.print(f"[dim]{len(lgd_data)} Local Government Districts[/dim]\n")
+
+            # Handle file saving
+            if save:
+                try:
+                    if output_format == "json" or save.endswith(".json"):
+                        lgd_data.to_json(save, orient="records", indent=2)
+                    else:
+                        lgd_data.to_csv(save, index=False)
+                    console.print(f"[green]💾 Data saved to: {save}[/green]")
+                    return
+                except Exception as e:
+                    console.print(f"[red]❌ Error saving file: {e}[/red]")
+                    return
+
+            # Output data
+            if output_format == "json":
+                click.echo(lgd_data.to_json(orient="records", indent=2))
+            else:
+                console.print(lgd_data.to_csv(index=False), end="")
+            return
+
+        # Handle quarterly time series or latest
+        if table == "births" or table == "all":
+            births_data = data["births"]
+            if not births_data.empty:
+                # Filter by year/quarter if specified
+                if year:
+                    births_data = births_data[births_data["year"] == year]
+                if quarter:
+                    births_data = births_data[births_data["quarter"] == quarter]
+
+                if table == "births" or (table == "all" and not quarterly):
+                    output_data = births_data
+                else:
+                    output_data = births_data if table == "births" else None
+
+        if table == "deaths" or table == "all":
+            deaths_data = data["deaths"]
+            if not deaths_data.empty:
+                if year:
+                    deaths_data = deaths_data[deaths_data["year"] == year]
+                if quarter:
+                    deaths_data = deaths_data[deaths_data["quarter"] == quarter]
+
+                if table == "deaths":
+                    output_data = deaths_data
+
+        # Show summary for --latest
+        if latest and not quarterly:
+            console.print("[bold cyan]Registrar General Quarterly Tables - Latest Data[/bold cyan]")
+            console.print("=" * 50)
+
+            if not data["births"].empty:
+                latest_birth = data["births"].iloc[-1]
+                console.print(f"\n[bold]Latest Births (Q{latest_birth['quarter']} {latest_birth['year']}):[/bold]")
+                console.print(f"  Total births: {latest_birth['total_births']:,}")
+                if "birth_rate" in latest_birth and pd.notna(latest_birth["birth_rate"]):
+                    console.print(f"  Birth rate: {latest_birth['birth_rate']:.1f} per 1,000")
+                if "stillbirths" in latest_birth and pd.notna(latest_birth["stillbirths"]):
+                    console.print(f"  Stillbirths: {int(latest_birth['stillbirths'])}")
+
+            if not data["deaths"].empty:
+                latest_death = data["deaths"].iloc[-1]
+                console.print(
+                    f"\n[bold]Latest Deaths/Marriages (Q{latest_death['quarter']} {latest_death['year']}):[/bold]"
+                )
+                console.print(f"  Deaths: {latest_death['deaths']:,}")
+                if "death_rate" in latest_death and pd.notna(latest_death["death_rate"]):
+                    console.print(f"  Death rate: {latest_death['death_rate']:.1f} per 1,000")
+                if "marriages" in latest_death and pd.notna(latest_death["marriages"]):
+                    console.print(f"  Marriages: {int(latest_death['marriages']):,}")
+                if "civil_partnerships" in latest_death and pd.notna(latest_death["civil_partnerships"]):
+                    console.print(f"  Civil partnerships: {int(latest_death['civil_partnerships'])}")
+
+            # Show historical range
+            if not data["births"].empty:
+                min_year = data["births"]["year"].min()
+                num_quarters = len(data["births"])
+                console.print(f"\n[dim]Historical data: {num_quarters} quarters from Q1 {min_year} to present[/dim]")
+
+            return
+
+        # Handle full data output for --quarterly
+        if quarterly:
+            if table == "all":
+                console.print("[bold cyan]Quarterly Vital Statistics[/bold cyan]")
+                console.print("\n[bold]Births Data:[/bold]")
+                if not data["births"].empty:
+                    output = data["births"]
+                    if year:
+                        output = output[output["year"] == year]
+                    if quarter:
+                        output = output[output["quarter"] == quarter]
+                    console.print(f"[dim]{len(output)} records[/dim]")
+
+                    if save:
+                        births_file = save.replace(".", "_births.")
+                        output.to_csv(births_file, index=False)
+                        console.print(f"[green]💾 Births saved to: {births_file}[/green]")
+                    else:
+                        if output_format == "json":
+                            click.echo(output.to_json(orient="records", date_format="iso", indent=2))
+                        else:
+                            console.print(output.to_csv(index=False), end="")
+
+                console.print("\n[bold]Deaths/Marriages Data:[/bold]")
+                if not data["deaths"].empty:
+                    output = data["deaths"]
+                    if year:
+                        output = output[output["year"] == year]
+                    if quarter:
+                        output = output[output["quarter"] == quarter]
+                    console.print(f"[dim]{len(output)} records[/dim]")
+
+                    if save:
+                        deaths_file = save.replace(".", "_deaths.")
+                        output.to_csv(deaths_file, index=False)
+                        console.print(f"[green]💾 Deaths saved to: {deaths_file}[/green]")
+                    else:
+                        if output_format == "json":
+                            click.echo(output.to_json(orient="records", date_format="iso", indent=2))
+                        else:
+                            console.print(output.to_csv(index=False), end="")
+            else:
+                # Single table output
+                output_data = data["births"] if table == "births" else data["deaths"]
+                if year:
+                    output_data = output_data[output_data["year"] == year]
+                if quarter:
+                    output_data = output_data[output_data["quarter"] == quarter]
+
+                console.print(f"[bold cyan]Quarterly {table.title()} Data[/bold cyan]")
+                console.print(f"[dim]{len(output_data)} records[/dim]\n")
+
+                if save:
+                    try:
+                        if output_format == "json" or save.endswith(".json"):
+                            output_data.to_json(save, orient="records", date_format="iso", indent=2)
+                        else:
+                            output_data.to_csv(save, index=False)
+                        console.print(f"[green]💾 Data saved to: {save}[/green]")
+                        return
+                    except Exception as e:
+                        console.print(f"[red]❌ Error saving file: {e}[/red]")
+                        return
+
+                if output_format == "json":
+                    click.echo(output_data.to_json(orient="records", date_format="iso", indent=2))
+                else:
+                    console.print(output_data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
+        console.print("   • Visit NISRA website to verify data availability")
         raise click.Abort()
 
 
