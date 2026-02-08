@@ -38,41 +38,13 @@ class TestBirthsDataIntegrity:
 
     def test_sex_sum_to_total_registration(self, registration_data):
         """Test that male + female births equal persons births for registration data."""
-        months = registration_data["month"].unique()
-
-        for month in months:
-            month_data = registration_data[registration_data["month"] == month]
-
-            persons = month_data[month_data["sex"] == "Persons"]["births"].sum()
-            male = month_data[month_data["sex"] == "Male"]["births"].sum()
-            female = month_data[month_data["sex"] == "Female"]["births"].sum()
-
-            assert persons > 0, f"Month {month.date()}: Persons births is zero"
-            assert male > 0, f"Month {month.date()}: Male births is zero"
-            assert female > 0, f"Month {month.date()}: Female births is zero"
-
-            assert persons == male + female, (
-                f"Month {month.date()}: Persons ({persons}) != Male ({male}) + Female ({female})"
-            )
+        # Use constitutional validation function instead of manual checks
+        assert births.validate_births_totals(registration_data)
 
     def test_sex_sum_to_total_occurrence(self, occurrence_data):
         """Test that male + female births equal persons births for occurrence data."""
-        months = occurrence_data["month"].unique()
-
-        for month in months:
-            month_data = occurrence_data[occurrence_data["month"] == month]
-
-            persons = month_data[month_data["sex"] == "Persons"]["births"].sum()
-            male = month_data[month_data["sex"] == "Male"]["births"].sum()
-            female = month_data[month_data["sex"] == "Female"]["births"].sum()
-
-            assert persons > 0, f"Month {month.date()}: Persons births is zero"
-            assert male > 0, f"Month {month.date()}: Male births is zero"
-            assert female > 0, f"Month {month.date()}: Female births is zero"
-
-            assert persons == male + female, (
-                f"Month {month.date()}: Persons ({persons}) != Male ({male}) + Female ({female})"
-            )
+        # Use constitutional validation function instead of manual checks
+        assert births.validate_births_totals(occurrence_data)
 
     def test_no_negative_values(self, latest_births_data):
         """Test that there are no negative birth counts."""

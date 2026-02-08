@@ -706,7 +706,8 @@ def validate_dva_test_data(df: pd.DataFrame) -> bool:
         return False
 
     # Check for reasonable monthly test volumes
-    if df["tests_conducted"].max() > 50000:  # Unreasonably high for NI
+    # Vehicle tests typically range from 40,000 to 100,000 per month in NI
+    if df["tests_conducted"].max() > 200000:  # Allow for variation but catch obvious errors
         logging.warning("Unreasonably high test counts found")
         return False
 

@@ -16,6 +16,7 @@ Used as a pre-commit hook and in CI/CD pipelines to enforce constitutional
 constraints before any version increment or release.
 """
 
+import ast
 import subprocess
 import sys
 from pathlib import Path
@@ -29,6 +30,23 @@ def run_command(cmd: List[str], check: bool = True) -> Tuple[int, str, str]:
         return result.returncode, result.stdout, result.stderr
     except FileNotFoundError:
         return 1, "", f"Command not found: {' '.join(cmd)}"
+
+
+def has_print_calls_in_code(file_path: Path) -> bool:
+    """Check if file has actual print() calls in code (not in docstrings)."""
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # Parse the AST to find actual print calls
+        tree = ast.parse(content)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "print":
+                return True
+        return False
+    except Exception:
+        # If we can't parse the file, fall back to simple string search
+        return "print(" in content
 
 
 def check_test_coverage() -> Dict[str, bool]:
@@ -192,12 +210,12 @@ def check_logging_standards() -> Dict[str, bool]:
 
             # Check for logger setup
             has_logger_setup = "logger = logging.getLogger(__name__)" in content
-            has_print_usage = "print(" in content
+            has_print_calls = has_print_calls_in_code(file_path)
 
             if not has_logger_setup:
                 violations.append(f"{file_path}: Missing logger setup")
 
-            if has_print_usage and "pragma: no cover" not in content:
+            if has_print_calls and "pragma: no cover" not in content:
                 violations.append(f"{file_path}: Using print() instead of logger")
 
         except Exception as e:

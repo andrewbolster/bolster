@@ -38,23 +38,17 @@ class TestVehicleTestsIntegrity:
         assert len(vehicle_tests_data) > 0, "Vehicle tests data should not be empty"
 
     @pytest.mark.network
-    def test_vehicle_tests_has_required_columns(self, vehicle_tests_data):
-        """Verify that all required columns are present."""
-        required_cols = ["date", "year", "month", "tests_conducted"]
-        for col in required_cols:
-            assert col in vehicle_tests_data.columns, f"Missing required column: {col}"
+    def test_vehicle_tests_validation(self, vehicle_tests_data):
+        """Verify that vehicle tests data passes constitutional validation."""
+        # Use constitutional validation function - covers columns, positive values, and ranges
+        assert dva.validate_dva_test_data(vehicle_tests_data)
 
     @pytest.mark.network
-    def test_vehicle_tests_positive_values(self, vehicle_tests_data):
-        """Verify that test counts are positive."""
-        assert (vehicle_tests_data["tests_conducted"] > 0).all(), "All test counts should be positive"
-
-    @pytest.mark.network
-    def test_vehicle_tests_reasonable_range(self, vehicle_tests_data):
-        """Verify that test counts are within reasonable range."""
+    def test_vehicle_tests_additional_range_check(self, vehicle_tests_data):
+        """Additional range checks specific to vehicle tests (beyond constitutional validation)."""
         # Vehicle tests typically range from 40,000 to 100,000 per month
         # Note: COVID lockdown (April-June 2020) caused extremely low values
-        # Exclude 2020 from minimum check
+        # Exclude 2020 from minimum check - this is business logic beyond basic validation
         non_covid = vehicle_tests_data[vehicle_tests_data["year"] != 2020]
         assert non_covid["tests_conducted"].min() > 10000, "Minimum tests too low (excluding COVID period)"
         assert vehicle_tests_data["tests_conducted"].max() < 200000, "Maximum tests too high"
@@ -81,22 +75,17 @@ class TestDriverTestsIntegrity:
         assert len(driver_tests_data) > 0, "Driver tests data should not be empty"
 
     @pytest.mark.network
-    def test_driver_tests_has_required_columns(self, driver_tests_data):
-        """Verify that all required columns are present."""
-        required_cols = ["date", "year", "month", "tests_conducted"]
-        for col in required_cols:
-            assert col in driver_tests_data.columns, f"Missing required column: {col}"
+    def test_driver_tests_validation(self, driver_tests_data):
+        """Verify that driver tests data passes constitutional validation."""
+        # Use constitutional validation function - covers columns, positive values, and basic ranges
+        assert dva.validate_dva_test_data(driver_tests_data)
 
     @pytest.mark.network
-    def test_driver_tests_positive_values(self, driver_tests_data):
-        """Verify that test counts are positive."""
-        assert (driver_tests_data["tests_conducted"] > 0).all(), "All test counts should be positive"
-
-    @pytest.mark.network
-    def test_driver_tests_reasonable_range(self, driver_tests_data):
-        """Verify that test counts are within reasonable range."""
+    def test_driver_tests_additional_range_check(self, driver_tests_data):
+        """Additional range checks specific to driver tests (beyond constitutional validation)."""
         # Driver tests typically range from 2,000 to 7,000 per month
         # Note: COVID lockdowns (2020-2021) caused extremely low values
+        # This is business logic beyond basic validation
         non_covid = driver_tests_data[~driver_tests_data["year"].isin([2020, 2021])]
         assert non_covid["tests_conducted"].min() > 500, "Minimum tests too low (excluding COVID period)"
         assert driver_tests_data["tests_conducted"].max() < 20000, "Maximum tests too high"

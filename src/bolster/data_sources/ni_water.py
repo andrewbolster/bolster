@@ -20,6 +20,8 @@ import pandas as pd
 from bolster import backoff
 from bolster.utils.web import session
 
+logger = logging.getLogger(__name__)
+
 # Legacy postcode to zone mapping (still functional)
 POSTCODE_DATASET_URL = "https://admin.opendatani.gov.uk/dataset/38a9a8f1-9346-41a2-8e5f-944d87d9caf2/resource/f2bc12c1-4277-4db5-8bd3-b7bb027cc401/download/postcode-v-zone-lookup-by-year.csv"
 

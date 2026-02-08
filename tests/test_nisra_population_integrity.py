@@ -33,21 +33,8 @@ class TestPopulationDataIntegrity:
 
     def test_sex_sum_to_total(self, latest_population_ni):
         """Test that male + female population equals all persons for each year/age group."""
-        # Group by year and age_5, check totals
-        groups = latest_population_ni.groupby(["year", "age_5"])
-
-        for (year, age_band), group_data in groups:
-            all_persons = group_data[group_data["sex"] == "All persons"]["population"].sum()
-            males = group_data[group_data["sex"] == "Males"]["population"].sum()
-            females = group_data[group_data["sex"] == "Females"]["population"].sum()
-
-            assert all_persons > 0, f"Year {year}, Age {age_band}: All persons is zero"
-            assert males > 0, f"Year {year}, Age {age_band}: Males is zero"
-            assert females > 0, f"Year {year}, Age {age_band}: Females is zero"
-
-            assert all_persons == males + females, (
-                f"Year {year}, Age {age_band}: All persons ({all_persons}) != Males ({males}) + Females ({females})"
-            )
+        # Use constitutional validation function instead of manual checks
+        assert population.validate_population_totals(latest_population_ni)
 
     def test_no_negative_values(self, latest_population_all):
         """Test that there are no negative population counts."""
