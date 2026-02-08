@@ -893,3 +893,35 @@ def get_latest_employment_by_lgd(force_refresh: bool = False) -> pd.DataFrame:
     file_path = download_file(excel_url, cache_ttl_hours=180 * 24, force_refresh=force_refresh)
 
     return parse_employment_by_lgd(file_path, year=year)
+
+
+def validate_labour_market_data(df: pd.DataFrame) -> bool:
+    """Validate labour market data integrity.
+
+    Args:
+        df: DataFrame from labour market functions
+
+    Returns:
+        True if validation passes, False otherwise
+    """
+    if df.empty:
+        logger.warning("Labour market data is empty")
+        return False
+
+    # Check for employment-related columns
+    employment_indicators = ["employed", "unemployed", "rate", "count", "percentage"]
+    has_employment_data = any(indicator in " ".join(df.columns).lower() for indicator in employment_indicators)
+
+    if not has_employment_data:
+        logger.warning("No employment indicators found in labour market data")
+        return False
+
+    # Check for reasonable employment rates/percentages
+    rate_cols = [col for col in df.columns if "rate" in col.lower() or "percentage" in col.lower()]
+    for col in rate_cols:
+        if col in df.columns and df[col].dtype in ["float64", "int64"]:
+            if (df[col] < 0).any() or (df[col] > 100).any():
+                logger.warning(f"Employment rates out of range in column {col}")
+                return False
+
+    return True

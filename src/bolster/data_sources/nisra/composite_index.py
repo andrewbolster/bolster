@@ -354,3 +354,26 @@ def get_nicei_by_quarter(df: pd.DataFrame, year: int, quarter: int) -> pd.DataFr
         >>> print(f"Q2 2024 NICEI: {q2_2024['nicei'].values[0]:.2f}")
     """
     return df[(df["year"] == year) & (df["quarter"] == quarter)].reset_index(drop=True)
+
+
+def validate_composite_index_data(df: pd.DataFrame) -> bool:
+    """Validate composite index data integrity.
+
+    Args:
+        df: DataFrame from composite index functions
+
+    Returns:
+        True if validation passes, False otherwise
+    """
+    if df.empty:
+        logger.warning("Composite index data is empty")
+        return False
+
+    # Check for index-related columns
+    index_indicators = ["index", "composite", "measure", "value"]
+    has_index_data = any(indicator in " ".join(df.columns).lower() for indicator in index_indicators)
+    if not has_index_data:
+        logger.warning("No index indicators found in composite index data")
+        return False
+
+    return True

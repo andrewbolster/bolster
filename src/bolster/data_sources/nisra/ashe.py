@@ -540,3 +540,26 @@ def get_gender_pay_gap(df_weekly: pd.DataFrame) -> pd.DataFrame:
     """
     # Placeholder - would need gender-specific data from linked tables
     raise NotImplementedError("Gender pay gap calculation requires gender-specific data from linked tables file")
+
+
+def validate_ashe_data(df: pd.DataFrame) -> bool:
+    """Validate ASHE earnings data integrity.
+
+    Args:
+        df: DataFrame from ASHE functions
+
+    Returns:
+        True if validation passes, False otherwise
+    """
+    if df.empty:
+        logger.warning("ASHE data is empty")
+        return False
+
+    # Check for earnings-related columns
+    earnings_indicators = ["earnings", "salary", "pay", "gross", "hourly"]
+    has_earnings_data = any(indicator in " ".join(df.columns).lower() for indicator in earnings_indicators)
+    if not has_earnings_data:
+        logger.warning("No earnings indicators found in ASHE data")
+        return False
+
+    return True

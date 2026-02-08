@@ -365,3 +365,26 @@ def get_summary_statistics(df: pd.DataFrame, start_year: Optional[int] = None, e
         "repair_maintenance_max": float(filtered["repair_maintenance_index"].max()),
         "quarters_count": len(filtered),
     }
+
+
+def validate_construction_data(df: pd.DataFrame) -> bool:
+    """Validate construction output data integrity.
+
+    Args:
+        df: DataFrame from construction output functions
+
+    Returns:
+        True if validation passes, False otherwise
+    """
+    if df.empty:
+        logger.warning("Construction data is empty")
+        return False
+
+    # Check for time series structure
+    time_cols = ["quarter", "year", "date", "period"]
+    has_time_data = any(col in df.columns for col in time_cols)
+    if not has_time_data:
+        logger.warning("No time series columns found in construction data")
+        return False
+
+    return True

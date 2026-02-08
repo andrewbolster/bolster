@@ -12,10 +12,13 @@ Example usage:
 
 """
 
+import logging
 from datetime import date
 from typing import Any, Dict, List
 
 from ..utils.web import session
+
+logger = logging.getLogger(__name__)
 
 
 def get_cinema_listings(site_code: int = 117, screening_date: date = date.today()) -> List[Dict[str, Any]]:
@@ -60,3 +63,19 @@ def get_cinema_listings(site_code: int = 117, screening_date: date = date.today(
         return listings
     except Exception as e:
         raise e
+
+
+def validate_cinema_data(data) -> bool:
+    """Validate cinema data integrity.
+
+    Args:
+        data: Cinema data from Cineworld functions
+
+    Returns:
+        True if validation passes, False otherwise
+    """
+    if not data:
+        logger.warning("Cinema data is empty")
+        return False
+
+    return True

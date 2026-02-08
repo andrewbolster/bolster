@@ -551,3 +551,33 @@ def get_iop_summary_statistics(
         "uk_max": float(filtered["uk_index"].max()),
         "quarters_count": len(filtered),
     }
+
+
+def validate_economic_indicators_data(df: pd.DataFrame) -> bool:
+    """Validate economic indicators data integrity.
+
+    Args:
+        df: DataFrame from economic indicators functions
+
+    Returns:
+        True if validation passes, False otherwise
+    """
+    if df.empty:
+        logger.warning("Economic indicators data is empty")
+        return False
+
+    # Check for time series structure
+    time_cols = ["quarter", "year", "date", "period"]
+    has_time_data = any(col in df.columns for col in time_cols)
+    if not has_time_data:
+        logger.warning("No time series columns found in economic indicators data")
+        return False
+
+    # Check for economic index columns
+    index_indicators = ["index", "gdp", "gva", "economic"]
+    has_economic_data = any(indicator in " ".join(df.columns).lower() for indicator in index_indicators)
+    if not has_economic_data:
+        logger.warning("No economic index indicators found")
+        return False
+
+    return True
