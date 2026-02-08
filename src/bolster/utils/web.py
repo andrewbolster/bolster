@@ -12,17 +12,52 @@ from waybackpy import WaybackMachineCDXServerAPI, exceptions
 
 from . import version_no
 
+logger = logging.getLogger(__name__)
 ua = f"@Bolster/{version_no} (+http://bolster.online/)"
 
+
+class RateLimitAwareRetry(Retry):
+    """Custom retry strategy that handles 429 (Too Many Requests) with longer backoffs."""
+
+    def get_backoff_time(self):
+        """Calculate backoff time, with special handling for 429 responses."""
+        # For 429 responses, use much longer backoff
+        if hasattr(self, "_last_status") and self._last_status == 429:
+            # Use exponential backoff starting at 30 seconds for 429 responses
+            # Calculate current retry attempt (starts from 0)
+            retry_count = self.history or 0
+            backoff_value = 30 * (2**retry_count)
+            logger.warning(
+                f"Rate limited (429) - backing off for {backoff_value:.1f} seconds. "
+                f"Retry attempt {retry_count + 1}/{self.total + 1}"
+            )
+            return backoff_value
+        else:
+            # Use normal backoff for other status codes
+            return super().get_backoff_time()
+
+    def increment(self, method=None, url=None, response=None, error=None, _pool=None, _stacktrace=None):
+        """Override increment to track the last response status."""
+        if response is not None:
+            self._last_status = response.status
+            if response.status == 429:
+                logger.warning(
+                    f"Received 429 Too Many Requests from {url}. "
+                    f"Server may be rate limiting requests. Will retry with extended backoff."
+                )
+
+        return super().increment(method, url, response, error, _pool, _stacktrace)
+
+
 # Configure retry strategy for transient failures
-# Retries on: connection errors, 500, 502, 503, 504 status codes
-_retry_strategy = Retry(
-    total=3,
-    backoff_factor=1,  # 1s, 2s, 4s delays between retries
-    status_forcelist=[500, 502, 503, 504],
+# Retries on: connection errors, 429, 500, 502, 503, 504 status codes
+_retry_strategy = RateLimitAwareRetry(
+    total=4,  # Increased for 429 handling
+    backoff_factor=1,  # 1s, 2s, 4s delays for normal errors
+    status_forcelist=[429, 500, 502, 503, 504],  # Added 429
     allowed_methods=["HEAD", "GET", "OPTIONS"],
     raise_on_status=True,  # Enable proper retries with exponential backoff
-    # Prevent infinite retry loops by respecting server retry-after headers
+    # Respect server retry-after headers (important for 429)
     respect_retry_after_header=True,
 )
 _adapter = HTTPAdapter(max_retries=_retry_strategy)
