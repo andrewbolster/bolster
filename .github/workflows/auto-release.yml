@@ -86,34 +86,62 @@ jobs:
             return;
           }
 
-          // Skip if no meaningful changes
-          if (releaseCommits.length === 0) {
+          // Check for version:* label on the merged PR (label overrides commit analysis)
+          let labelOverride = null;
+          try {
+            const headSha = execSync('git rev-parse HEAD', { encoding: 'utf-8' }).trim();
+            const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: headSha,
+            });
+            for (const pr of prs.data) {
+              const versionLabel = pr.labels.map(l => l.name).find(n => n.startsWith('version:'));
+              if (versionLabel) {
+                labelOverride = versionLabel.replace('version:', '');
+                console.log(`PR #${pr.number} label override: ${labelOverride}`);
+                break;
+              }
+            }
+          } catch (e) {
+            console.log(`Could not check PR labels: ${e.message}`);
+          }
+
+          if (labelOverride === 'skip') {
+            console.log('PR label version:skip - skipping release');
+            core.setOutput('should_release', 'false');
+            return;
+          }
+
+          // Skip if no meaningful changes (and no label forcing a release)
+          if (releaseCommits.length === 0 && !labelOverride) {
             console.log('No release-worthy changes found');
             core.setOutput('should_release', 'false');
             return;
           }
 
-          // Determine version bump type
-          let versionBump = 'patch';  // Default
-          let hasBreaking = false;
-          let hasFeatures = false;
+          // Determine version bump: label takes priority over commit analysis
+          let versionBump = labelOverride || 'patch';
 
-          for (const commit of releaseCommits) {
-            // Breaking changes
-            if (commit.includes('BREAKING CHANGE') || commit.includes('!:')) {
-              hasBreaking = true;
-              break;
-            }
-            // New features
-            if (commit.match(/^feat(\(.*\))?:/)) {
-              hasFeatures = true;
-            }
-          }
+          if (!labelOverride) {
+            let hasBreaking = false;
+            let hasFeatures = false;
 
-          if (hasBreaking) {
-            versionBump = 'major';
-          } else if (hasFeatures) {
-            versionBump = 'minor';
+            for (const commit of releaseCommits) {
+              if (commit.includes('BREAKING CHANGE') || commit.includes('!:')) {
+                hasBreaking = true;
+                break;
+              }
+              if (commit.match(/^feat(\(.*\))?:/)) {
+                hasFeatures = true;
+              }
+            }
+
+            if (hasBreaking) {
+              versionBump = 'major';
+            } else if (hasFeatures) {
+              versionBump = 'minor';
+            }
           }
 
           // Generate changelog
