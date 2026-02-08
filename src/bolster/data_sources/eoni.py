@@ -19,10 +19,9 @@ import re
 from typing import AnyStr, Dict, Iterable, Optional, Union
 
 import pandas as pd
-import requests
 from bs4 import BeautifulSoup
 
-from bolster.utils.web import get_excel_dataframe, ua
+from bolster.utils.web import get_excel_dataframe, session, ua
 
 #
 _headers = {
@@ -44,7 +43,7 @@ def get_page(path: AnyStr) -> BeautifulSoup:
     'Elections | The Electoral Office for Northern Ireland'
 
     """
-    res = requests.get(_base_url + path, headers=_headers)
+    res = session.get(_base_url + path, headers=_headers)
     res.raise_for_status()
     page = BeautifulSoup(res.content, features="html.parser")
     return page

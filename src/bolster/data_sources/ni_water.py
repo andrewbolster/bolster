@@ -16,9 +16,9 @@ from typing import Dict, Optional
 from urllib.error import HTTPError
 
 import pandas as pd
-import requests
 
 from bolster import backoff
+from bolster.utils.web import session
 
 # Legacy postcode to zone mapping (still functional)
 POSTCODE_DATASET_URL = "https://admin.opendatani.gov.uk/dataset/38a9a8f1-9346-41a2-8e5f-944d87d9caf2/resource/f2bc12c1-4277-4db5-8bd3-b7bb027cc401/download/postcode-v-zone-lookup-by-year.csv"
@@ -68,7 +68,7 @@ def get_water_quality_csv_data() -> pd.DataFrame:
 
     logging.info(f"Downloading water quality data from {WATER_QUALITY_CSV_URL}")
 
-    with requests.get(WATER_QUALITY_CSV_URL, stream=True) as r:
+    with session.get(WATER_QUALITY_CSV_URL, stream=True) as r:
         r.raise_for_status()
         _water_quality_cache = pd.read_csv(r.url)
 
@@ -199,7 +199,7 @@ def get_postcode_to_water_supply_zone() -> Dict[str, str]:
 
     """
 
-    with requests.get(POSTCODE_DATASET_URL, stream=True) as r:
+    with session.get(POSTCODE_DATASET_URL, stream=True) as r:
         lines = (line.decode("utf-8") for line in r.iter_lines())
         reader = csv.DictReader(lines)
         keys = reader.fieldnames[:2]  # Take POSTCODE and first year

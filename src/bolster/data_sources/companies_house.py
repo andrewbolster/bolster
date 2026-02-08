@@ -2,11 +2,10 @@ import csv
 from typing import Callable, Dict, Iterator, Text
 
 import bs4
-import requests
 from tqdm.auto import tqdm
 
 from .. import always, dict_concat_safe
-from ..utils.web import download_extract_zip
+from ..utils.web import download_extract_zip, session
 
 
 def get_basic_company_data_url() -> Text:
@@ -17,7 +16,7 @@ def get_basic_company_data_url() -> Text:
     """
     base_url = "http://download.companieshouse.gov.uk/en_output.html"
     # TODO: Network integration testing - requires active Companies House website
-    s = bs4.BeautifulSoup(requests.get(base_url).content)  # pragma: no cover
+    s = bs4.BeautifulSoup(session.get(base_url).content)  # pragma: no cover
     for a in s.find_all("a"):  # pragma: no cover
         if a.get("href").startswith("BasicCompanyDataAsOneFile"):  # pragma: no cover
             url = f"http://download.companieshouse.gov.uk/{a.get('href')}"  # pragma: no cover

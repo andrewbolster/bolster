@@ -49,6 +49,8 @@ from typing import Dict, List, Literal, Optional
 import pandas as pd
 import requests
 
+from bolster.utils.web import session
+
 from ._base import (
     PSNIDataNotFoundError,
     PSNIValidationError,
@@ -176,7 +178,7 @@ def _get_available_datasets() -> List[Dict]:
         PSNIDataNotFoundError: If API request fails
     """
     try:
-        resp = requests.get(
+        resp = session.get(
             f"{OPENDATANI_API}/package_search",
             params={"q": "police recorded injury road traffic collision northern ireland", "rows": 50},
             headers={"User-Agent": "bolster/1.0"},

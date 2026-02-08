@@ -46,6 +46,8 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
+from bolster.utils.web import session
+
 logger = logging.getLogger(__name__)
 
 # Cache directory
@@ -104,7 +106,7 @@ def _download_file(url: str, cache_ttl_hours: int = 24, force_refresh: bool = Fa
     # Download
     try:
         logger.info(f"Downloading {url}")
-        response = requests.get(url, timeout=60)
+        response = session.get(url, timeout=60)
         response.raise_for_status()
         cache_path.write_bytes(response.content)
         logger.info(f"Saved to {cache_path}")
@@ -167,7 +169,7 @@ def get_latest_dva_publication_url() -> Tuple[str, str, datetime]:
         logger.info(f"Trying publication URL: {pub_url}")
 
         try:
-            response = requests.get(pub_url, timeout=30)
+            response = session.get(pub_url, timeout=30)
             if response.status_code == 200:
                 logger.info(f"Found publication for {month_name.title()} {year}")
 

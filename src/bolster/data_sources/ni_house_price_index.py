@@ -45,6 +45,8 @@ import bs4
 import pandas as pd
 import requests
 
+from bolster.utils.web import session
+
 logger = logging.getLogger(__name__)
 
 # Data source URL
@@ -123,7 +125,7 @@ def _download_file(url: str, cache_ttl_hours: int = 24, force_refresh: bool = Fa
 
     try:
         logger.info(f"Downloading {url}")
-        response = requests.get(url, timeout=60)
+        response = session.get(url, timeout=60)
         response.raise_for_status()
 
         cache_path.write_bytes(response.content)
@@ -155,7 +157,7 @@ def get_source_url(base_url=DEFAULT_URL) -> Text:
         NIHPIDataNotFoundError: If no Excel file found
     """
     try:
-        response = requests.get(base_url, timeout=30)
+        response = session.get(base_url, timeout=30)
         response.raise_for_status()
     except requests.RequestException as e:
         raise NIHPIDataNotFoundError(f"Failed to fetch publication page: {e}")
