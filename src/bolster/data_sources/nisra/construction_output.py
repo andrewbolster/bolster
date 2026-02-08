@@ -7,6 +7,16 @@ This module provides access to Northern Ireland's quarterly construction output 
 
 Data is published quarterly by NISRA's Economic & Labour Market Statistics Branch.
 
+Data Source: Northern Ireland Statistics and Research Agency provides quarterly construction
+output statistics through their Economic Output section at https://www.nisra.gov.uk/statistics/economic-output/construction-output-statistics.
+The data tracks construction activity across all sectors using a chained volume measure
+approach to provide comparable time series data for construction output analysis.
+
+Update Frequency: Quarterly publications are released approximately 3 months after the end
+of each quarter. Construction output statistics are published as part of NISRA's Economic
+Output series, providing the official measure of construction sector performance in Northern
+Ireland with data updated four times per year.
+
 Data Coverage:
     - All Work: Q1 2000 - Present (quarterly, non-seasonally adjusted)
     - New Work: Q1 2000 - Present (quarterly, non-seasonally adjusted)
