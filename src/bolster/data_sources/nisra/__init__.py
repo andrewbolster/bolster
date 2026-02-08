@@ -19,6 +19,7 @@ Available modules:
     - population: Annual mid-year population estimates by age, sex, and geography
     - registrar_general: Registrar General Quarterly Tables (quarterly births, deaths, marriages, LGD breakdowns)
     - tourism: Tourism statistics including occupancy surveys, visitor stats (subpackage)
+    - validation: Cross-validation utilities using demographic accounting equation
     - wellbeing: Individual wellbeing statistics (life satisfaction, happiness, anxiety, loneliness)
 
 Examples:
@@ -105,6 +106,7 @@ from . import (
     population,
     registrar_general,
     tourism,
+    validation,
     wellbeing,
 )
 
@@ -122,5 +124,6 @@ __all__ = [
     "population",
     "registrar_general",
     "tourism",
+    "validation",
     "wellbeing",
 ]
