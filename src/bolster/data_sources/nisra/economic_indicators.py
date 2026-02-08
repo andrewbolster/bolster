@@ -6,12 +6,23 @@ This module provides access to Northern Ireland's quarterly economic output indi
 
 Both indices are published quarterly by NISRA's Economic & Labour Market Statistics Branch.
 
+Data Source: Northern Ireland Statistics and Research Agency provides quarterly economic output
+statistics through their Economic Output section at https://www.nisra.gov.uk/statistics/economic-output.
+This module accesses both the Index of Services at https://www.nisra.gov.uk/statistics/economic-output/index-services
+and Index of Production at https://www.nisra.gov.uk/statistics/economic-output/index-production.
+Both datasets provide quarterly measures of economic performance with historical data from Q1 2005.
+
+Update Frequency: Quarterly publications are released approximately 3 months after the end of
+each quarter. Index of Services and Index of Production data are published simultaneously with
+detailed breakdowns and UK comparator statistics. The datasets are updated four times per year
+following the standard quarterly release schedule.
+
 Data Coverage:
     - Index of Services: Q1 2005 - Present (quarterly)
     - Index of Production: Q1 2005 - Present (quarterly)
     - Both include NI and UK comparator data
 
-Examples:
+Example:
     >>> from bolster.data_sources.nisra import economic_indicators
     >>> # Get latest Index of Services data
     >>> ios_df = economic_indicators.get_latest_index_of_services()
