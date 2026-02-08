@@ -234,15 +234,59 @@ uv run bump-my-version bump --dry-run patch
 git log $(git describe --tags --abbrev=0)..HEAD --pretty=format:"%s"
 ```
 
+## AI Integration
+
+### Current AI Features
+
+1. **Documentation Validation** (Optional)
+
+   - Automatic docstring completeness checking
+   - AI-generated documentation suggestions
+   - README coverage validation
+   - **Requirement**: Add `ANTHROPIC_API_KEY` to repository secrets
+
+1. **AI-Powered Code Review** (Optional)
+
+   - Multi-agent security analysis
+   - Performance optimization suggestions
+   - Best practices review
+   - **Requirement**: Add `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` to repository secrets
+
+1. **Release Documentation Validation** (Optional)
+
+   - AI validation of documentation completeness before release
+   - **Fallback**: Basic validation if AI not configured
+
+### Enabling AI Features
+
+Add one of these to your repository secrets:
+
+```bash
+# Preferred (more cost-effective)
+ANTHROPIC_API_KEY=sk-ant-api03-...
+
+# Alternative (not yet fully implemented)
+OPENAI_API_KEY=sk-...
+```
+
+### AI Feature Behavior
+
+- **Fail-safe design**: No AI features are required for core functionality
+- **Graceful degradation**: Falls back to basic validation if AI unavailable
+- **Cost control**: Uses efficient models (Claude Haiku) for most analysis
+- **Transparent**: All AI analysis is clearly marked and reviewable
+- **Default-fail**: AI features fail explicitly when not properly configured
+
 ## Future Enhancements
 
 Potential improvements to consider:
 
 1. **Enhanced AI Integration**
 
-   - GitHub Copilot for automatic documentation generation
+   - GitHub Copilot CLI integration
+   - OpenAI implementation completion
    - Intelligent changelog enhancement
-   - Breaking change detection
+   - Automated breaking change detection
 
 1. **Release Notes Intelligence**
 
