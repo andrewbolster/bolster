@@ -29,6 +29,7 @@ import importlib.metadata
 
 __version__ = importlib.metadata.version("bolster")
 
+# Export constitutional exception hierarchy
 import base64
 import contextlib
 import gzip
@@ -64,6 +65,14 @@ from typing import (
     Union,
 )
 from urllib.error import HTTPError, URLError
+
+from .exceptions import (
+    DataNotFoundError,
+    DataSourceError,
+    NetworkError,
+    ParseError,
+    ValidationError,
+)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

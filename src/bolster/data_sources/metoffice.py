@@ -18,6 +18,7 @@ from urllib.parse import quote
 
 from PIL import Image, ImageDraw, ImageFilter
 
+from .. import NetworkError
 from ..utils.web import session
 
 logger = logging.getLogger(__name__)
@@ -40,7 +41,9 @@ def get_order_latest(order_name: str) -> Dict:
     if response.status_code == 200:  # pragma: no cover
         return response.json()  # pragma: no cover
     else:  # pragma: no cover
-        raise Exception(f"Failed to fetch order status: {response.status_code} {response.text}")  # pragma: no cover
+        raise NetworkError(
+            f"Failed to fetch order status: {response.text}", status_code=response.status_code, url=url
+        )  # pragma: no cover
 
 
 def get_file_meta(order_name: str, file_id: str) -> Dict:
@@ -50,7 +53,9 @@ def get_file_meta(order_name: str, file_id: str) -> Dict:
     if response.status_code == 200:  # pragma: no cover
         return response.json()  # pragma: no cover
     else:  # pragma: no cover
-        raise Exception(f"Failed to fetch order status: {response.status_code} {response.text}")  # pragma: no cover
+        raise NetworkError(
+            f"Failed to fetch order status: {response.text}", status_code=response.status_code, url=url
+        )  # pragma: no cover
 
 
 @lru_cache
@@ -61,7 +66,9 @@ def get_file(order_name: str, file_id: str) -> bytes:
     if response.status_code == 200:  # pragma: no cover
         return response.content  # pragma: no cover
     else:  # pragma: no cover
-        raise Exception(f"Failed to fetch order status: {response.status_code} {response.text}")  # pragma: no cover
+        raise NetworkError(
+            f"Failed to fetch order status: {response.text}", status_code=response.status_code, url=url
+        )  # pragma: no cover
 
 
 ### Data Filtering

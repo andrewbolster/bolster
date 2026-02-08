@@ -176,6 +176,181 @@ def check_code_quality() -> Dict[str, bool]:
         return {"code_quality": False, "message": "Code quality issues"}
 
 
+def check_logging_standards() -> Dict[str, bool]:
+    """Check that all data source modules have proper logging setup."""
+    print("📋 Checking logging standards...")
+
+    violations = []
+    data_source_files = list(Path("src/bolster/data_sources").rglob("*.py"))
+
+    for file_path in data_source_files:
+        if file_path.name in ["__init__.py", "_base.py"]:
+            continue
+
+        try:
+            content = file_path.read_text()
+
+            # Check for logger setup
+            has_logger_setup = "logger = logging.getLogger(__name__)" in content
+            has_print_usage = "print(" in content
+
+            if not has_logger_setup:
+                violations.append(f"{file_path}: Missing logger setup")
+
+            if has_print_usage and "pragma: no cover" not in content:
+                violations.append(f"{file_path}: Using print() instead of logger")
+
+        except Exception as e:
+            print(f"⚠️  Could not check {file_path}: {e}")
+
+    if not violations:
+        print("✅ Logging standards compliant")
+        return {"logging_standards": True, "message": "All modules have proper logging"}
+    else:
+        print("❌ CONSTITUTIONAL VIOLATION: Logging standards violated")
+        for violation in violations[:5]:  # Show first 5
+            print(f"  - {violation}")
+        if len(violations) > 5:
+            print(f"  ... and {len(violations) - 5} more")
+        return {"logging_standards": False, "message": f"{len(violations)} logging violations"}
+
+
+def check_error_handling_hierarchy() -> Dict[str, bool]:
+    """Check for proper domain-specific exception usage."""
+    print("🚨 Checking error handling hierarchy...")
+
+    violations = []
+    data_source_files = list(Path("src/bolster/data_sources").rglob("*.py"))
+
+    for file_path in data_source_files:
+        if file_path.name in ["__init__.py", "_base.py"]:
+            continue
+
+        try:
+            content = file_path.read_text()
+
+            # Look for generic Exception raises (should use domain-specific exceptions)
+            if "raise Exception(" in content and "pragma: no cover" not in content:
+                violations.append(f"{file_path}: Using generic Exception instead of domain-specific")
+
+        except Exception as e:
+            print(f"⚠️  Could not check {file_path}: {e}")
+
+    if not violations:
+        print("✅ Error handling hierarchy compliant")
+        return {"error_handling": True, "message": "Proper exception hierarchy used"}
+    else:
+        print("❌ CONSTITUTIONAL VIOLATION: Error handling violations")
+        for violation in violations[:3]:
+            print(f"  - {violation}")
+        return {"error_handling": False, "message": f"{len(violations)} error handling violations"}
+
+
+def check_function_naming_conventions() -> Dict[str, bool]:
+    """Check for consistent function naming patterns."""
+    print("📝 Checking function naming conventions...")
+
+    data_source_files = list(Path("src/bolster/data_sources").rglob("*.py"))
+
+    expected_patterns = {
+        "get_latest_": "retrieval functions",
+        "parse_": "file parsing functions",
+        "validate_": "data validation functions",
+    }
+
+    consistent_modules = 0
+    total_modules = 0
+
+    for file_path in data_source_files:
+        if file_path.name in ["__init__.py", "_base.py"]:
+            continue
+
+        total_modules += 1
+        try:
+            content = file_path.read_text()
+
+            # Check for expected function patterns
+            has_expected_patterns = any(pattern in content for pattern in expected_patterns.keys())
+
+            if has_expected_patterns:
+                consistent_modules += 1
+
+        except Exception as e:
+            print(f"⚠️  Could not check {file_path}: {e}")
+
+    compliance_rate = consistent_modules / total_modules if total_modules > 0 else 0
+
+    if compliance_rate >= 0.8:  # 80% compliance threshold
+        print(f"✅ Function naming conventions mostly compliant ({consistent_modules}/{total_modules})")
+        return {"function_naming": True, "message": f"{compliance_rate * 100:.1f}% compliance"}
+    else:
+        print(f"❌ CONSTITUTIONAL VIOLATION: Function naming inconsistent ({consistent_modules}/{total_modules})")
+        return {"function_naming": False, "message": f"Only {compliance_rate * 100:.1f}% compliance"}
+
+
+def check_data_source_documentation() -> Dict[str, bool]:
+    """Check for comprehensive data source documentation."""
+    print("📖 Checking data source documentation...")
+
+    violations = []
+    data_source_files = list(Path("src/bolster/data_sources").rglob("*.py"))
+
+    required_doc_elements = ["Data Source", "Update Frequency", "Example"]
+
+    for file_path in data_source_files:
+        if file_path.name in ["__init__.py", "_base.py"]:
+            continue
+
+        try:
+            content = file_path.read_text()
+
+            # Check module docstring for required elements
+            missing_elements = []
+            for element in required_doc_elements:
+                if element not in content[:2000]:  # Check first 2000 chars (module docstring area)
+                    missing_elements.append(element)
+
+            if missing_elements:
+                violations.append(f"{file_path}: Missing documentation - {', '.join(missing_elements)}")
+
+        except Exception as e:
+            print(f"⚠️  Could not check {file_path}: {e}")
+
+    if not violations:
+        print("✅ Data source documentation compliant")
+        return {"documentation": True, "message": "All modules have proper documentation"}
+    else:
+        print("❌ CONSTITUTIONAL VIOLATION: Documentation standards violated")
+        for violation in violations[:3]:
+            print(f"  - {violation}")
+        if len(violations) > 3:
+            print(f"  ... and {len(violations) - 3} more")
+        return {"documentation": False, "message": f"{len(violations)} documentation violations"}
+
+
+def check_cli_integration() -> Dict[str, bool]:
+    """Check that data sources are integrated with CLI commands."""
+    print("🖥️ Checking CLI integration...")
+
+    # Read CLI module to see what's integrated
+    try:
+        cli_content = Path("src/bolster/cli.py").read_text()
+
+        # Count CLI commands/integrations
+        command_count = cli_content.count("@click.command")
+
+        if command_count > 10:  # Reasonable threshold for CLI integration
+            print(f"✅ CLI integration extensive ({command_count} commands)")
+            return {"cli_integration": True, "message": f"{command_count} CLI commands available"}
+        else:
+            print(f"⚠️  Limited CLI integration ({command_count} commands)")
+            return {"cli_integration": False, "message": f"Only {command_count} CLI commands"}
+
+    except Exception as e:
+        print(f"⚠️  Could not check CLI integration: {e}")
+        return {"cli_integration": False, "message": "CLI check failed"}
+
+
 def check_constitutional_compliance() -> bool:
     """Run all constitutional compliance checks."""
     print("=" * 80)
@@ -193,6 +368,13 @@ def check_constitutional_compliance() -> bool:
     results.update(check_shared_utilities_usage())
     results.update(check_data_validation_functions())
     results.update(check_code_quality())
+
+    # New constitutional patterns
+    results.update(check_logging_standards())
+    results.update(check_error_handling_hierarchy())
+    results.update(check_function_naming_conventions())
+    results.update(check_data_source_documentation())
+    results.update(check_cli_integration())
 
     print()
     print("=" * 80)

@@ -34,6 +34,79 @@ repos:
           - id: trailing-whitespace
           - id: mixed-line-ending
           - id: trailing-whitespace
+
+    # Constitutional compliance checks (critical patterns only)
+    - repo: local
+      hooks:
+          - id: constitutional-logging-check
+            name: Check for proper logging setup
+            entry: python
+            language: python
+            args:
+                - -c
+                - |
+                  import sys
+                  from pathlib import Path
+                  violations = []
+                  for file_path in sys.argv[1:]:
+                      if 'data_sources' in file_path and file_path.endswith('.py'):
+                          if Path(file_path).name not in ['__init__.py', '_base.py']:
+                              content = Path(file_path).read_text()
+                              if 'logger = logging.getLogger(__name__)' not in content:
+                                  violations.append(f'{file_path}: Missing logger setup')
+                  if violations:
+                      print('❌ CONSTITUTIONAL VIOLATION: Missing logger setup')
+                      for v in violations: print(f'  - {v}')
+                      sys.exit(1)
+            files: ^src/bolster/data_sources/.*\.py$
+
+          - id: constitutional-validation-check
+            name: Check for validation functions
+            entry: python
+            language: python
+            args:
+                - -c
+                - |
+                  import sys
+                  from pathlib import Path
+                  violations = []
+                  for file_path in sys.argv[1:]:
+                      if 'data_sources' in file_path and file_path.endswith('.py'):
+                          if Path(file_path).name not in ['__init__.py', '_base.py']:
+                              content = Path(file_path).read_text()
+                              if 'def validate_' not in content:
+                                  violations.append(f'{file_path}: Missing validation function')
+                  if violations:
+                      print('❌ CONSTITUTIONAL VIOLATION: Missing validation functions')
+                      for v in violations: print(f'  - {v}')
+                      sys.exit(1)
+            files: ^src/bolster/data_sources/.*\.py$
+
+          - id: constitutional-http-check
+            name: Check for proper HTTP usage
+            entry: python
+            language: python
+            args:
+                - -c
+                - |
+                  import sys
+                  from pathlib import Path
+                  violations = []
+                  for file_path in sys.argv[1:]:
+                      if file_path.endswith('.py') and 'src/bolster' in file_path:
+                          content = Path(file_path).read_text()
+                          # Allow utils/web.py to import requests
+                          if 'utils/web.py' not in file_path and 'import requests' in content:
+                              violations.append(f'{file_path}: Using raw requests instead of web.session')
+                          if 'requests.get(' in content or 'requests.post(' in content:
+                              if 'utils/web.py' not in file_path:
+                                  violations.append(f'{file_path}: Using raw requests.get/post')
+                  if violations:
+                      print('❌ CONSTITUTIONAL VIOLATION: HTTP centralization violated')
+                      for v in violations: print(f'  - {v}')
+                      sys.exit(1)
+            files: ^src/bolster/.*\.py$
+
     # - repo: https://github.com/kynan/nbstripout
     #   rev: 0.8.1
     #   hooks:

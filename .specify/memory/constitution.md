@@ -33,6 +33,61 @@ This document establishes the inviolable principles and constraints for AI-assis
 - **Consistent data schema** using pandas DataFrames with documented column types
 - **Cross-validation** with related datasets where applicable
 
+### 5. Logging Standards
+
+- **MUST include logger setup** in every data source module: `logger = logging.getLogger(__name__)`
+- **MUST use structured logging** with appropriate levels (info/warning/error)
+- **MUST NOT use `print()`** for operational messages (use logger instead)
+- **SHOULD include context** in log messages (module, function, operation)
+
+### 6. Error Handling Hierarchy
+
+- **MUST use domain-specific exceptions** inherited from base classes:
+  - `DataSourceError` (base class for all data source errors)
+  - `DataNotFoundError` (for missing publications/URLs)
+  - `ValidationError` (for data integrity failures)
+  - `ParseError` (for file format/parsing issues)
+- **MUST NOT use generic `Exception`** for domain-specific issues
+- **SHOULD provide actionable error messages** with troubleshooting guidance
+
+### 7. Function Naming Conventions
+
+- **MUST follow naming hierarchy**:
+  - `get_latest_X()` - Retrieve most recent published data
+  - `parse_X_file(file_path)` - Parse downloaded files into DataFrames
+  - `validate_X_data(df)` - Validate parsed data integrity
+  - `get_X_summary()` - Generate analytical summaries
+- **MUST use consistent parameter names** across similar functions
+- **SHOULD include data type in function name** when ambiguous
+
+### 8. Module Structure Standards
+
+- **MUST create subpackages** when:
+  - 3+ related modules share domain concepts (e.g., `nisra/tourism/`)
+  - Modules will likely grow together over time
+  - Clear domain boundary exists with shared utilities
+- **MUST use flat modules** for standalone data sources
+- **MUST follow import patterns**: `from .._base import shared_function`
+
+### 9. Data Source Documentation
+
+- **MUST include comprehensive module docstring** with:
+  - **Data Source**: Mother page URL and official publication details
+  - **Update Frequency**: Publication schedule (daily/weekly/monthly/annual)
+  - **Geographic Coverage**: Spatial scope and administrative boundaries
+  - **Reference Period**: Historical coverage and data availability
+  - **Example**: Code snippet demonstrating basic usage
+- **MUST include function docstrings** with Args, Returns, and Examples
+- **SHOULD include data quality notes** and known limitations
+
+### 10. CLI Integration Standards
+
+- **MUST expose at least one CLI command** per data source module
+- **MUST follow command pattern**: `bolster <source> <action>` (e.g., `bolster nisra deaths`)
+- **MUST include comprehensive `--help`** with data source context
+- **SHOULD include common options**: `--output`, `--format`, `--cache-refresh`
+- **MUST provide meaningful output** for direct CLI usage (not just raw DataFrames)
+
 ## Architectural Guidelines (SHOULD Level - Strong preference)
 
 ### 1. Library-First Architecture
@@ -107,6 +162,11 @@ def constitutional_pre_check():
         verify_all_tests_passing(),
         verify_shared_utilities_usage(),
         verify_data_validation_functions(),
+        verify_logging_standards(),
+        verify_error_handling_hierarchy(),
+        verify_function_naming_conventions(),
+        verify_data_source_documentation(),
+        verify_cli_integration(),
         verify_conventional_commit_format(),
     ]
     return all(checks)
