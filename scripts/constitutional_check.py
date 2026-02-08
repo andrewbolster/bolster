@@ -4,6 +4,13 @@
 Enforces project-specific architectural conventions before release.
 Standard CI (pytest, codecov, pre-commit/ruff) handles testing and linting separately.
 
+TODO: Replace this hand-rolled script with a proper spec-kit implementation.
+      See https://github.com/github/spec-kit for the intended approach.
+      This script is a temporary stand-in that performs ad-hoc string/AST checks
+      against the conventions documented in .claude/constitution.md. A proper
+      spec-kit setup would define machine-readable specs in .specify/ and enforce
+      them via the spec-kit toolchain rather than bespoke grep logic.
+
 Checks:
 - Shared utilities usage (no raw requests.get())
 - Data source modules have validation functions
