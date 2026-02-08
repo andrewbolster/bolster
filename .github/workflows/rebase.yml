@@ -5,7 +5,7 @@ on:
     workflow_dispatch:
         inputs:
             pr_number:
-                description: 'PR number to rebase (leave empty for all non-draft PRs)'
+                description: 'PR number to rebase (leave empty for all open PRs)'
                 required: false
                 type: string
 
@@ -34,11 +34,11 @@ jobs:
               if: github.event_name == 'push' && github.ref == 'refs/heads/main'
               run: |
                   set +e  # Don't exit on errors - we want to process all PRs
-                  echo "Updating non-draft PRs with latest main..."
+                  echo "Updating all open PRs (including drafts) with latest main..."
 
-                  # Get all open non-draft PRs that need updating
+                  # Get all open PRs that need updating (including drafts and unstable)
                   gh pr list --state open --json number,isDraft,mergeStateStatus \
-                    --jq '.[] | select(.isDraft == false) | select(.mergeStateStatus == "DIRTY") | .number' | \
+                    --jq '.[] | select(.mergeStateStatus == "DIRTY" or .mergeStateStatus == "UNSTABLE") | .number' | \
                   while read -r pr; do
                     echo "----------------------------------------"
                     echo "Updating PR #$pr with latest main..."
