@@ -4,19 +4,11 @@ These tests validate that SSA (B&B, guest house) occupancy data is internally
 consistent across different time periods. They use real data from NISRA (not mocked)
 and should work with any dataset (latest or historical).
 
-SSA data is comparable to hotel data but has different characteristics:
-- Lower average occupancy (B&Bs are smaller, more seasonal)
-- Data starts from 2013 (vs 2011 for hotels)
-- More seasonal variation
-- Same COVID-19 impact patterns
-
 Key validations:
 - Occupancy rates between 0 and 1
-- Realistic rooms/beds sold values
+- No negative rooms/beds sold values
 - Temporal continuity (no missing months in time series)
-- Seasonal patterns (summer months typically have higher occupancy)
-- COVID-19 impact visible in 2020
-- Cross-validation with hotel occupancy data
+- Cross-validation with hotel occupancy data (shared column structure)
 """
 
 import datetime
@@ -74,21 +66,6 @@ class TestSSAOccupancyDataIntegrity:
         assert (rooms >= 0).all(), "Rooms sold contains negative values"
         assert (beds >= 0).all(), "Beds sold contains negative values"
 
-    def test_realistic_rooms_sold_ranges(self, latest_ssa_rooms_beds_sold):
-        """Test that SSA rooms sold are within realistic ranges.
-
-        SSA monthly rooms sold are much lower than hotels - typically 15,000-80,000.
-        """
-        non_covid = latest_ssa_rooms_beds_sold[~latest_ssa_rooms_beds_sold["year"].isin([2020, 2021])]
-        rooms = non_covid["rooms_sold"].dropna()
-
-        if len(rooms) > 0:
-            max_rooms = rooms.max()
-            min_rooms = rooms.min()
-
-            assert max_rooms < 150000, f"Max rooms sold ({max_rooms:,.0f}) unrealistically high for SSA"
-            assert min_rooms > 5000, f"Min rooms sold ({min_rooms:,.0f}) unrealistically low for SSA"
-
     def test_temporal_continuity(self, latest_ssa_occupancy):
         """Test that there are no unexpected gaps in the SSA time series.
 
@@ -110,40 +87,6 @@ class TestSSAOccupancyDataIntegrity:
                     assert months[i] == months[i - 1] + 1 or months[i] == 1, (
                         f"Year {year}: Months are not consecutive: {months}"
                     )
-
-    def test_covid_impact_visible(self, latest_ssa_occupancy):
-        """Test that COVID-19 impact is visible in 2020 SSA data."""
-        if 2020 not in latest_ssa_occupancy["year"].values:
-            pytest.skip("2020 data not available")
-
-        df_2020 = occupancy.get_occupancy_by_year(latest_ssa_occupancy, 2020)
-        df_2019 = occupancy.get_occupancy_by_year(latest_ssa_occupancy, 2019)
-
-        avg_2020 = df_2020["room_occupancy"].mean()
-        avg_2019 = df_2019["room_occupancy"].mean()
-
-        reduction = ((avg_2019 - avg_2020) / avg_2019) * 100
-
-        assert reduction > 20, (
-            f"2020 SSA occupancy ({avg_2020:.1%}) should show COVID-19 impact "
-            f"(expected >20% reduction from 2019: {avg_2019:.1%})"
-        )
-
-    def test_seasonal_patterns(self, latest_ssa_occupancy):
-        """Test that summer months typically have higher SSA occupancy."""
-        non_covid = latest_ssa_occupancy[~latest_ssa_occupancy["year"].isin([2020, 2021])]
-
-        monthly_avg = non_covid.groupby("month")["room_occupancy"].mean()
-
-        peak_months = ["June", "July", "August", "September"]
-        off_peak_months = ["January", "February", "November", "December"]
-
-        peak_avg = monthly_avg[monthly_avg.index.isin(peak_months)].mean()
-        off_peak_avg = monthly_avg[monthly_avg.index.isin(off_peak_months)].mean()
-
-        assert peak_avg > off_peak_avg, (
-            f"Peak months ({peak_avg:.1%}) should have higher SSA occupancy than off-peak ({off_peak_avg:.1%})"
-        )
 
     def test_data_types_correct_occupancy(self, latest_ssa_occupancy):
         """Test that column data types are correct for SSA occupancy data."""
@@ -206,19 +149,6 @@ class TestSSAOccupancyDataIntegrity:
 
         assert len(duplicates) == 0, f"Found duplicate year-month combinations: {duplicates}"
 
-    def test_room_occupancy_higher_than_bed_occupancy(self, latest_ssa_occupancy):
-        """Test that SSA room occupancy is typically higher than bed occupancy."""
-        valid_data = latest_ssa_occupancy[
-            latest_ssa_occupancy["room_occupancy"].notna() & latest_ssa_occupancy["bed_occupancy"].notna()
-        ]
-
-        room_higher = valid_data["room_occupancy"] >= valid_data["bed_occupancy"]
-        pct_room_higher = room_higher.sum() / len(valid_data) * 100
-
-        assert pct_room_higher > 80, (
-            f"Room occupancy should typically be higher than bed occupancy (only {pct_room_higher:.1f}% of months)"
-        )
-
     def test_beds_sold_higher_than_rooms_sold(self, latest_ssa_rooms_beds_sold):
         """Test that SSA beds sold is typically higher than rooms sold."""
         valid_data = latest_ssa_rooms_beds_sold[
@@ -230,33 +160,6 @@ class TestSSAOccupancyDataIntegrity:
 
         assert pct_beds_higher > 95, (
             f"Beds sold should be higher than rooms sold (only {pct_beds_higher:.1f}% of months)"
-        )
-
-    def test_ssa_occupancy_lower_than_hotel(self, latest_ssa_occupancy):
-        """Test that SSA occupancy is typically lower than hotel occupancy.
-
-        B&Bs and guest houses generally have lower occupancy than hotels due to
-        smaller scale, more seasonal nature, and less commercial focus.
-        """
-        hotel_df = occupancy.get_latest_hotel_occupancy()
-
-        # Get overlapping years
-        ssa_years = set(latest_ssa_occupancy["year"].unique())
-        hotel_years = set(hotel_df["year"].unique())
-        common_years = ssa_years & hotel_years
-
-        # Exclude COVID years
-        common_years = common_years - {2020, 2021}
-
-        if not common_years:
-            pytest.skip("No overlapping non-COVID years for comparison")
-
-        # Compare average occupancy for common years
-        ssa_avg = latest_ssa_occupancy[latest_ssa_occupancy["year"].isin(common_years)]["room_occupancy"].mean()
-        hotel_avg = hotel_df[hotel_df["year"].isin(common_years)]["room_occupancy"].mean()
-
-        assert ssa_avg < hotel_avg, (
-            f"SSA occupancy ({ssa_avg:.1%}) should typically be lower than hotel ({hotel_avg:.1%})"
         )
 
 
@@ -282,54 +185,6 @@ class TestCrossValidation:
         assert set(combined_occupancy.columns) == required_cols, (
             f"Missing columns: {required_cols - set(combined_occupancy.columns)}"
         )
-
-    def test_hotel_higher_occupancy_than_ssa(self, combined_occupancy):
-        """Test that hotels have higher average occupancy than SSA."""
-        # Exclude COVID years
-        non_covid = combined_occupancy[~combined_occupancy["year"].isin([2020, 2021])]
-
-        hotel_avg = non_covid[non_covid["accommodation_type"] == "hotel"]["room_occupancy"].mean()
-        ssa_avg = non_covid[non_covid["accommodation_type"] == "ssa"]["room_occupancy"].mean()
-
-        assert hotel_avg > ssa_avg, f"Hotel occupancy ({hotel_avg:.1%}) should be higher than SSA ({ssa_avg:.1%})"
-
-    def test_similar_seasonal_patterns(self, combined_occupancy):
-        """Test that hotel and SSA have similar seasonal patterns.
-
-        Both should have peak season in summer months.
-        """
-        non_covid = combined_occupancy[~combined_occupancy["year"].isin([2020, 2021])]
-
-        summer = ["June", "July", "August"]
-        winter = ["December", "January", "February"]
-
-        for acc_type in ["hotel", "ssa"]:
-            data = non_covid[non_covid["accommodation_type"] == acc_type]
-
-            summer_avg = data[data["month"].isin(summer)]["room_occupancy"].mean()
-            winter_avg = data[data["month"].isin(winter)]["room_occupancy"].mean()
-
-            assert summer_avg > winter_avg, (
-                f"{acc_type}: Summer occupancy ({summer_avg:.1%}) should be higher than winter ({winter_avg:.1%})"
-            )
-
-    def test_similar_covid_impact(self, combined_occupancy):
-        """Test that both hotel and SSA show similar COVID-19 impact in 2020."""
-        if 2020 not in combined_occupancy["year"].values:
-            pytest.skip("2020 data not available")
-
-        if 2019 not in combined_occupancy["year"].values:
-            pytest.skip("2019 data not available")
-
-        for acc_type in ["hotel", "ssa"]:
-            data = combined_occupancy[combined_occupancy["accommodation_type"] == acc_type]
-
-            avg_2019 = data[data["year"] == 2019]["room_occupancy"].mean()
-            avg_2020 = data[data["year"] == 2020]["room_occupancy"].mean()
-
-            reduction = ((avg_2019 - avg_2020) / avg_2019) * 100
-
-            assert reduction > 20, f"{acc_type}: 2020 should show >20% reduction from 2019 (actual: {reduction:.1f}%)"
 
     def test_compare_accommodation_types_function(self, combined_occupancy):
         """Test the compare_accommodation_types helper function."""

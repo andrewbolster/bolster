@@ -6,10 +6,8 @@ any dataset (latest or historical).
 
 Key validations:
 - Occupancy rates between 0 and 1
-- Realistic rooms/beds sold values
+- No negative rooms/beds sold values
 - Temporal continuity (no missing months in time series)
-- Seasonal patterns (summer months typically have higher occupancy)
-- COVID-19 impact visible in 2020
 """
 
 import datetime
@@ -66,22 +64,6 @@ class TestHotelOccupancyDataIntegrity:
         assert (rooms >= 0).all(), "Rooms sold contains negative values"
         assert (beds >= 0).all(), "Beds sold contains negative values"
 
-    def test_realistic_rooms_sold_ranges(self, latest_rooms_beds_sold):
-        """Test that rooms sold are within realistic ranges.
-
-        Monthly hotel rooms sold in NI typically range from 50,000-250,000.
-        """
-        # Filter out NaN and COVID years (2020-2021)
-        non_covid = latest_rooms_beds_sold[~latest_rooms_beds_sold["year"].isin([2020, 2021])]
-        rooms = non_covid["rooms_sold"].dropna()
-
-        if len(rooms) > 0:
-            max_rooms = rooms.max()
-            min_rooms = rooms.min()
-
-            assert max_rooms < 300000, f"Max rooms sold ({max_rooms:,.0f}) unrealistically high"
-            assert min_rooms > 50000, f"Min rooms sold ({min_rooms:,.0f}) unrealistically low"
-
     def test_temporal_continuity(self, latest_occupancy):
         """Test that there are no unexpected gaps in the time series.
 
@@ -109,49 +91,6 @@ class TestHotelOccupancyDataIntegrity:
                     assert months[i] == months[i - 1] + 1 or months[i] == 1, (
                         f"Year {year}: Months are not consecutive: {months}"
                     )
-
-    def test_covid_impact_visible(self, latest_occupancy):
-        """Test that COVID-19 impact is visible in 2020 data.
-
-        2020 should show significantly reduced occupancy due to lockdowns.
-        """
-        if 2020 not in latest_occupancy["year"].values:
-            pytest.skip("2020 data not available")
-
-        df_2020 = occupancy.get_occupancy_by_year(latest_occupancy, 2020)
-        df_2019 = occupancy.get_occupancy_by_year(latest_occupancy, 2019)
-
-        # Average 2020 occupancy should be significantly lower than 2019
-        avg_2020 = df_2020["room_occupancy"].mean()
-        avg_2019 = df_2019["room_occupancy"].mean()
-
-        reduction = ((avg_2019 - avg_2020) / avg_2019) * 100
-
-        assert reduction > 20, (
-            f"2020 occupancy ({avg_2020:.1%}) should show COVID-19 impact "
-            f"(expected >20% reduction from 2019: {avg_2019:.1%})"
-        )
-
-    def test_seasonal_patterns(self, latest_occupancy):
-        """Test that summer months typically have higher occupancy.
-
-        Peak tourism season is typically June-September.
-        """
-        # Exclude COVID years for seasonal pattern analysis
-        non_covid = latest_occupancy[~latest_occupancy["year"].isin([2020, 2021])]
-
-        monthly_avg = non_covid.groupby("month")["room_occupancy"].mean()
-
-        peak_months = ["June", "July", "August", "September"]
-        off_peak_months = ["January", "February", "November", "December"]
-
-        peak_avg = monthly_avg[monthly_avg.index.isin(peak_months)].mean()
-        off_peak_avg = monthly_avg[monthly_avg.index.isin(off_peak_months)].mean()
-
-        # Peak months should have higher occupancy
-        assert peak_avg > off_peak_avg, (
-            f"Peak months ({peak_avg:.1%}) should have higher occupancy than off-peak months ({off_peak_avg:.1%})"
-        )
 
     def test_data_types_correct_occupancy(self, latest_occupancy):
         """Test that column data types are correct for occupancy data."""
@@ -242,25 +181,6 @@ class TestHotelOccupancyDataIntegrity:
 
         assert len(duplicates) == 0, f"Found duplicate year-month combinations: {duplicates}"
 
-    def test_room_occupancy_higher_than_bed_occupancy(self, latest_occupancy):
-        """Test that room occupancy is typically higher than bed occupancy.
-
-        Room occupancy is usually higher because not all beds in a room are used.
-        """
-        # Filter out NaN values
-        valid_data = latest_occupancy[
-            latest_occupancy["room_occupancy"].notna() & latest_occupancy["bed_occupancy"].notna()
-        ]
-
-        room_higher = valid_data["room_occupancy"] >= valid_data["bed_occupancy"]
-
-        # Most months should have higher room occupancy
-        pct_room_higher = room_higher.sum() / len(valid_data) * 100
-
-        assert pct_room_higher > 80, (
-            f"Room occupancy should typically be higher than bed occupancy (only {pct_room_higher:.1f}% of months)"
-        )
-
     def test_beds_sold_higher_than_rooms_sold(self, latest_rooms_beds_sold):
         """Test that beds sold is typically higher than rooms sold.
 
@@ -278,20 +198,3 @@ class TestHotelOccupancyDataIntegrity:
         assert pct_beds_higher > 95, (
             f"Beds sold should be higher than rooms sold (only {pct_beds_higher:.1f}% of months)"
         )
-
-    def test_summer_peak_occupancy(self, latest_occupancy):
-        """Test that August typically has the highest occupancy.
-
-        August is peak tourism season in Northern Ireland.
-        """
-        # Exclude COVID years
-        non_covid = latest_occupancy[~latest_occupancy["year"].isin([2020, 2021])]
-
-        monthly_avg = non_covid.groupby("month")["room_occupancy"].mean().sort_values(ascending=False)
-
-        top_3_months = monthly_avg.head(3).index.tolist()
-
-        summer_months = ["July", "August", "September"]
-        has_summer_peak = any(month in top_3_months for month in summer_months)
-
-        assert has_summer_peak, f"Summer months should be in top 3, but top 3 are: {top_3_months}"

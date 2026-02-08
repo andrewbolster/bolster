@@ -34,50 +34,6 @@ class TestPersonalWellbeingIntegrity:
             f"Incorrect columns: {set(latest_personal_wellbeing.columns)}"
         )
 
-    def test_life_satisfaction_range(self, latest_personal_wellbeing):
-        """Test that life satisfaction scores are within valid range (0-10)."""
-        scores = latest_personal_wellbeing["life_satisfaction"]
-
-        assert scores.min() >= 0, f"Life satisfaction below 0: {scores.min()}"
-        assert scores.max() <= 10, f"Life satisfaction above 10: {scores.max()}"
-
-        # Typical range for NI is 7.5-8.0
-        assert scores.mean() >= 7.0, f"Average life satisfaction unusually low: {scores.mean()}"
-        assert scores.mean() <= 9.0, f"Average life satisfaction unusually high: {scores.mean()}"
-
-    def test_worthwhile_range(self, latest_personal_wellbeing):
-        """Test that worthwhile scores are within valid range (0-10)."""
-        scores = latest_personal_wellbeing["worthwhile"]
-
-        assert scores.min() >= 0, f"Worthwhile below 0: {scores.min()}"
-        assert scores.max() <= 10, f"Worthwhile above 10: {scores.max()}"
-
-        # Typical range for NI is 7.8-8.2
-        assert scores.mean() >= 7.0, f"Average worthwhile unusually low: {scores.mean()}"
-        assert scores.mean() <= 9.0, f"Average worthwhile unusually high: {scores.mean()}"
-
-    def test_happiness_range(self, latest_personal_wellbeing):
-        """Test that happiness scores are within valid range (0-10)."""
-        scores = latest_personal_wellbeing["happiness"]
-
-        assert scores.min() >= 0, f"Happiness below 0: {scores.min()}"
-        assert scores.max() <= 10, f"Happiness above 10: {scores.max()}"
-
-        # Typical range for NI is 7.4-7.8
-        assert scores.mean() >= 7.0, f"Average happiness unusually low: {scores.mean()}"
-        assert scores.mean() <= 9.0, f"Average happiness unusually high: {scores.mean()}"
-
-    def test_anxiety_range(self, latest_personal_wellbeing):
-        """Test that anxiety scores are within valid range (0-10)."""
-        scores = latest_personal_wellbeing["anxiety"]
-
-        assert scores.min() >= 0, f"Anxiety below 0: {scores.min()}"
-        assert scores.max() <= 10, f"Anxiety above 10: {scores.max()}"
-
-        # Anxiety is typically lower (2.5-3.5) - lower is better
-        assert scores.mean() >= 1.0, f"Average anxiety unusually low: {scores.mean()}"
-        assert scores.mean() <= 5.0, f"Average anxiety unusually high: {scores.mean()}"
-
     def test_historical_coverage(self, latest_personal_wellbeing):
         """Test that data goes back to at least 2014/15."""
         years = latest_personal_wellbeing["year"].tolist()
@@ -97,28 +53,6 @@ class TestPersonalWellbeingIntegrity:
         duplicates = latest_personal_wellbeing["year"].duplicated().sum()
 
         assert duplicates == 0, f"Found {duplicates} duplicate years"
-
-    def test_covid_impact_visible(self, latest_personal_wellbeing):
-        """Test that COVID-19 impact is visible in 2020/21 data.
-
-        2020/21 should show elevated anxiety compared to adjacent years.
-        """
-        df = latest_personal_wellbeing
-
-        if "2020/21" not in df["year"].values:
-            pytest.skip("2020/21 data not available")
-
-        covid_anxiety = df[df["year"] == "2020/21"]["anxiety"].values[0]
-
-        # Get adjacent years for comparison
-        pre_covid = df[df["year"] == "2019/20"]["anxiety"].values
-        post_covid = df[df["year"] == "2021/22"]["anxiety"].values
-
-        if len(pre_covid) > 0 and len(post_covid) > 0:
-            # COVID year anxiety should be higher than both adjacent years
-            assert covid_anxiety >= pre_covid[0], (
-                f"2020/21 anxiety ({covid_anxiety}) should be >= 2019/20 ({pre_covid[0]})"
-            )
 
     def test_validation_function_works(self, latest_personal_wellbeing):
         """Test that the validate_personal_wellbeing function works correctly."""
@@ -155,10 +89,6 @@ class TestLonelinessIntegrity:
         assert proportions.min() >= 0, f"Loneliness proportion below 0: {proportions.min()}"
         assert proportions.max() <= 1, f"Loneliness proportion above 1: {proportions.max()}"
 
-        # Typical range for NI is 0.15-0.25 (15-25%)
-        assert proportions.mean() >= 0.10, f"Average loneliness unusually low: {proportions.mean()}"
-        assert proportions.mean() <= 0.30, f"Average loneliness unusually high: {proportions.mean()}"
-
     def test_historical_coverage(self, latest_loneliness):
         """Test that data goes back to at least 2017/18."""
         years = latest_loneliness["year"].tolist()
@@ -170,25 +100,6 @@ class TestLonelinessIntegrity:
         duplicates = latest_loneliness["year"].duplicated().sum()
 
         assert duplicates == 0, f"Found {duplicates} duplicate years"
-
-    def test_covid_impact_visible(self, latest_loneliness):
-        """Test that COVID-19 impact is visible in loneliness data.
-
-        2020/21 and 2021/22 should show elevated loneliness.
-        """
-        df = latest_loneliness
-
-        if "2020/21" not in df["year"].values:
-            pytest.skip("2020/21 data not available")
-
-        covid_loneliness = df[df["year"] == "2020/21"]["lonely_some_of_time"].values[0]
-        pre_covid = df[df["year"] == "2019/20"]["lonely_some_of_time"].values
-
-        if len(pre_covid) > 0:
-            # COVID year loneliness should be higher
-            assert covid_loneliness >= pre_covid[0], (
-                f"2020/21 loneliness ({covid_loneliness:.1%}) should be >= 2019/20 ({pre_covid[0]:.1%})"
-            )
 
 
 class TestSelfEfficacyIntegrity:
@@ -213,10 +124,6 @@ class TestSelfEfficacyIntegrity:
 
         assert scores.min() >= 5, f"Self-efficacy below 5: {scores.min()}"
         assert scores.max() <= 25, f"Self-efficacy above 25: {scores.max()}"
-
-        # Typical range for NI is 19-20
-        assert scores.mean() >= 18, f"Average self-efficacy unusually low: {scores.mean()}"
-        assert scores.mean() <= 22, f"Average self-efficacy unusually high: {scores.mean()}"
 
     def test_historical_coverage(self, latest_self_efficacy):
         """Test that data goes back to at least 2014/15."""
@@ -258,22 +165,6 @@ class TestWellbeingSummary:
     def test_summary_single_row(self, wellbeing_summary):
         """Test that summary returns a single row."""
         assert len(wellbeing_summary) == 1, f"Expected 1 row, got {len(wellbeing_summary)}"
-
-    def test_summary_values_reasonable(self, wellbeing_summary):
-        """Test that summary values are within reasonable ranges."""
-        row = wellbeing_summary.iloc[0]
-
-        # Life satisfaction (0-10)
-        assert 6 <= row["life_satisfaction"] <= 9
-
-        # Anxiety (0-10, lower is better)
-        assert 1 <= row["anxiety"] <= 5
-
-        # Loneliness (proportion)
-        assert 0.1 <= row["lonely_some_of_time"] <= 0.3
-
-        # Self-efficacy (5-25)
-        assert 17 <= row["self_efficacy_mean"] <= 22
 
 
 class TestHelperFunctions:

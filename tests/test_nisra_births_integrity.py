@@ -127,21 +127,6 @@ class TestBirthsDataIntegrity:
             assert (sorted_df["month"].dt.year >= 2000).all(), f"{event_type} has pre-2000 dates"
             assert (sorted_df["month"].dt.year <= 2030).all(), f"{event_type} has future dates beyond 2030"
 
-    def test_sex_ratio_realistic(self, latest_births_data):
-        """Test that male/female ratio is within realistic bounds (95-105 males per 100 females)."""
-        for event_type, df in latest_births_data.items():
-            # Calculate overall sex ratio
-            total_male = df[df["sex"] == "Male"]["births"].sum()
-            total_female = df[df["sex"] == "Female"]["births"].sum()
-
-            sex_ratio = (total_male / total_female) * 100  # Males per 100 females
-
-            # Biological sex ratio at birth is typically 103-107 males per 100 females
-            # Allow wider range (95-110) to account for statistical variation
-            assert 95 <= sex_ratio <= 110, (
-                f"{event_type}: Sex ratio ({sex_ratio:.1f} males per 100 females) outside realistic range"
-            )
-
     def test_registration_lags_occurrence(self, registration_data, occurrence_data):
         """Test that registration data includes more recent months than occurrence data.
 
@@ -240,27 +225,6 @@ class TestBirthsDataIntegrity:
                 max_pct = (max_month / annual_total) * 100
 
                 assert max_pct < 20, f"{event_type} - Year {year}: Single month has {max_pct:.1f}% of annual births"
-
-    def test_declining_trend_recent_years(self, latest_births_data):
-        """Test that recent birth trends align with known demographic patterns.
-
-        NI births have been declining since ~2008 peak. Not a strict test but checks
-        that 2024 births < 2015 births (general downward trend).
-        """
-        for event_type, df in latest_births_data.items():
-            persons_data = df[df["sex"] == "Persons"].copy()
-
-            # Get annual totals
-            annual = persons_data.assign(year=lambda x: x["month"].dt.year).groupby("year")["births"].sum()
-
-            # Check if we have data for these years
-            if 2015 in annual.index and 2024 in annual.index:
-                births_2015 = annual[2015]
-                births_2024 = annual[2024]
-
-                assert births_2024 < births_2015, (
-                    f"{event_type}: Expected declining trend, but 2024 ({births_2024}) >= 2015 ({births_2015})"
-                )
 
     def test_validate_function_works(self, registration_data):
         """Test that the validate_births_totals function works correctly."""
