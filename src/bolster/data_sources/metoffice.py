@@ -13,9 +13,11 @@ from functools import lru_cache
 from io import BytesIO
 from itertools import groupby
 from typing import Dict, List, Optional, Tuple
+from urllib.parse import quote
 
-import requests
 from PIL import Image, ImageDraw, ImageFilter
+
+from ..utils.web import session
 
 # assert os.getenv('MET_OFFICE_API_KEY') is not None, "MET_OFFICE_API_KEY not set in .env file"
 # assert os.getenv('MAP_IMAGES_ORDER_NAME') is not None, "MAP_IMAGES_ORDER_NAME not set in .env file"
@@ -24,14 +26,14 @@ BASE_URL = "https://data.hub.api.metoffice.gov.uk/map-images/1.0.0"
 
 ### API Client Functions
 
-session = requests.Session()
-session.headers.update({"Accept": "application/json", "apikey": f"{os.getenv('MET_OFFICE_API_KEY')}"})
+# Configure API key for Met Office requests
+_api_headers = {"Accept": "application/json", "apikey": f"{os.getenv('MET_OFFICE_API_KEY')}"}
 
 
 def get_order_latest(order_name: str) -> Dict:
     url = f"{BASE_URL}/orders/{order_name.lower()}/latest"  # pragma: no cover
     # TODO: Network integration testing - requires valid Met Office API key and order
-    response = session.get(url)  # pragma: no cover
+    response = session.get(url, headers=_api_headers)  # pragma: no cover
     if response.status_code == 200:  # pragma: no cover
         return response.json()  # pragma: no cover
     else:  # pragma: no cover
@@ -39,9 +41,9 @@ def get_order_latest(order_name: str) -> Dict:
 
 
 def get_file_meta(order_name: str, file_id: str) -> Dict:
-    url = f"{BASE_URL}/orders/{order_name.lower()}/latest/{requests.utils.quote(file_id)}"  # To handle + in the file_id  # pragma: no cover
+    url = f"{BASE_URL}/orders/{order_name.lower()}/latest/{quote(file_id)}"  # To handle + in the file_id  # pragma: no cover
     # TODO: Network integration testing - requires valid Met Office API key and order
-    response = session.get(url)  # pragma: no cover
+    response = session.get(url, headers=_api_headers)  # pragma: no cover
     if response.status_code == 200:  # pragma: no cover
         return response.json()  # pragma: no cover
     else:  # pragma: no cover
@@ -50,11 +52,9 @@ def get_file_meta(order_name: str, file_id: str) -> Dict:
 
 @lru_cache
 def get_file(order_name: str, file_id: str) -> bytes:
-    url = f"{BASE_URL}/orders/{order_name.lower()}/latest/{requests.utils.quote(file_id)}/data"  # To handle + in the file_id  # pragma: no cover
+    url = f"{BASE_URL}/orders/{order_name.lower()}/latest/{quote(file_id)}/data"  # To handle + in the file_id  # pragma: no cover
     # TODO: Network integration testing - requires valid Met Office API key and order
-    response = session.get(
-        url, headers={**session.headers, **{"Accept": "application/octet-stream"}}
-    )  # pragma: no cover
+    response = session.get(url, headers={**_api_headers, **{"Accept": "application/octet-stream"}})  # pragma: no cover
     if response.status_code == 200:  # pragma: no cover
         return response.content  # pragma: no cover
     else:  # pragma: no cover

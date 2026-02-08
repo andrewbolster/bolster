@@ -21,15 +21,24 @@ class RateLimitAwareRetry(Retry):
 
     def get_backoff_time(self):
         """Calculate backoff time, with special handling for 429 responses."""
+        # Check if the last request resulted in a 429 by looking at history
+        is_rate_limited = False
+        if self.history and len(self.history) > 0:
+            last_request = self.history[-1]
+            if hasattr(last_request, "status") and last_request.status == 429:
+                is_rate_limited = True
+
         # For 429 responses, use much longer backoff
-        if hasattr(self, "_last_status") and self._last_status == 429:
+        if is_rate_limited:
             # Use exponential backoff starting at 30 seconds for 429 responses
-            # Calculate current retry attempt (starts from 0)
-            retry_count = self.history or 0
+            # Calculate current retry attempt (history length - 1 since we haven't incremented yet)
+            retry_count = len(self.history) - 1 if self.history else 0
+            # Ensure retry_count is at least 0 for the first retry
+            retry_count = max(0, retry_count)
             backoff_value = 30 * (2**retry_count)
             logger.warning(
                 f"Rate limited (429) - backing off for {backoff_value:.1f} seconds. "
-                f"Retry attempt {retry_count + 1}/{self.total + 1}"
+                f"Retry attempt {retry_count + 1}/{self.total}"
             )
             return backoff_value
         else:
