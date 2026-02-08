@@ -169,14 +169,28 @@ jobs:
         echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
 
     - name: Generate changelog entry
+      env:
+        CHANGELOG_ENTRY: ${{ needs.analyze-changes.outputs.changelog }}
       run: |
-        cat >> CHANGELOG.md << EOF
+        python3 - <<'PYEOF'
+        import os
+        from datetime import date
+        from pathlib import Path
 
-        ## [$NEW_VERSION] - $(date +%Y-%m-%d)
+        version = os.environ["NEW_VERSION"]
+        entry_text = os.environ["CHANGELOG_ENTRY"]
+        entry = f"\n## [{version}] - {date.today()}\n\n{entry_text}\n"
 
-        ${{ needs.analyze-changes.outputs.changelog }}
-
-        EOF
+        path = Path("CHANGELOG.md")
+        content = path.read_text()
+        # Insert new entry after the first heading line (newest at top)
+        lines = content.split("\n")
+        for i, line in enumerate(lines):
+            if line.startswith("# "):
+                lines.insert(i + 1, entry)
+                break
+        path.write_text("\n".join(lines))
+        PYEOF
 
     - name: Commit version bump
       run: |
