@@ -1,11 +1,14 @@
 import csv
-from typing import Callable, Dict, Iterator, Text
+import logging
+from typing import Callable, Dict, Iterator, List, Text
 
 import bs4
 from tqdm.auto import tqdm
 
 from .. import always, dict_concat_safe
 from ..utils.web import download_extract_zip, session
+
+logger = logging.getLogger(__name__)
 
 
 def get_basic_company_data_url() -> Text:
@@ -77,3 +80,38 @@ def companies_house_record_might_be_farset(r: Dict) -> bool:
 def get_companies_house_records_that_might_be_in_farset() -> Iterator[Dict]:
     # TODO: Network integration testing - requires Companies House data download
     yield from query_basic_company_data(companies_house_record_might_be_farset)  # pragma: no cover
+
+
+def validate_companies_house_data(records: List[Dict]) -> bool:
+    """Validate Companies House data integrity.
+
+    Args:
+        records: List of company records from Companies House
+
+    Returns:
+        True if validation passes, False otherwise
+    """
+    if not records:
+        logger.warning("Companies House data is empty")
+        return False
+
+    # Check for required fields in first record
+    required_fields = {"CompanyName", "CompanyNumber", "RegAddress.PostCode"}
+    first_record = records[0]
+
+    if not required_fields.issubset(first_record.keys()):
+        missing = required_fields - set(first_record.keys())
+        logger.warning(f"Missing required fields: {missing}")
+        return False
+
+    # Check for reasonable data
+    valid_count = 0
+    for record in records:
+        if record.get("CompanyName") and record.get("CompanyNumber"):
+            valid_count += 1
+
+    if valid_count < len(records) * 0.8:  # At least 80% should have basic data
+        logger.warning(f"Only {valid_count}/{len(records)} records have valid company data")
+        return False
+
+    return True

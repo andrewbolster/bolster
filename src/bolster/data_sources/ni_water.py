@@ -345,3 +345,30 @@ def get_water_quality() -> pd.DataFrame:
     except Exception as e:
         logging.error(f"Failed to get water quality data: {e}")
         raise
+
+
+def validate_water_quality_data(df: pd.DataFrame) -> bool:
+    """Validate water quality data integrity.
+
+    Args:
+        df: DataFrame from get_water_quality or get_water_quality_csv_data
+
+    Returns:
+        True if validation passes, False otherwise
+    """
+    if df.empty:
+        logging.warning("Water quality data is empty")
+        return False
+
+    # Check for reasonable number of sites
+    if len(df) < 10:
+        logging.warning(f"Very few water quality sites: {len(df)}")
+        return False
+
+    # Check for hardness classification column if present
+    if "NI Hardness Classification" in df.columns:
+        if df["NI Hardness Classification"].isna().all():
+            logging.warning("All hardness classification values are missing")
+            return False
+
+    return True

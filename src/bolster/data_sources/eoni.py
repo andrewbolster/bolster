@@ -15,6 +15,7 @@ Hitlist:
 """
 
 import datetime
+import logging
 import re
 from typing import AnyStr, Dict, Iterable, Optional, Union
 
@@ -22,6 +23,8 @@ import pandas as pd
 from bs4 import BeautifulSoup
 
 from bolster.utils.web import get_excel_dataframe, session, ua
+
+logger = logging.getLogger(__name__)
 
 #
 _headers = {
@@ -221,3 +224,45 @@ def get_results(year: int) -> Dict[str, Union[pd.DataFrame, dict]]:
         data = get_results_from_sheet(sheet_url)
         results[data["metadata"]["constituency"]] = data
     return results
+
+
+def validate_election_results(results: Dict[str, Dict]) -> bool:
+    """Validate election results data integrity.
+
+    Args:
+        results: Dictionary of election results by constituency
+
+    Returns:
+        True if validation passes, False otherwise
+    """
+    if not results:
+        logger.warning("Election results data is empty")
+        return False
+
+    valid_constituencies = 0
+    for constituency, data in results.items():
+        if not isinstance(data, dict):
+            logger.warning(f"Invalid data structure for {constituency}")
+            continue
+
+        required_keys = {"candidates", "stage_votes", "metadata"}
+        if not required_keys.issubset(data.keys()):
+            missing = required_keys - set(data.keys())
+            logger.warning(f"Missing required keys in {constituency}: {missing}")
+            continue
+
+        # Check candidates DataFrame
+        candidates = data["candidates"]
+        if isinstance(candidates, pd.DataFrame) and not candidates.empty:
+            if "candidate_name" in candidates.columns or "name" in candidates.columns:
+                valid_constituencies += 1
+            else:
+                logger.warning(f"Missing candidate names in {constituency}")
+        else:
+            logger.warning(f"Invalid or empty candidates data for {constituency}")
+
+    if valid_constituencies < len(results) * 0.8:  # At least 80% should be valid
+        logger.warning(f"Only {valid_constituencies}/{len(results)} constituencies have valid data")
+        return False
+
+    return True

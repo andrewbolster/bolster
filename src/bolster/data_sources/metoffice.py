@@ -6,6 +6,7 @@ See [here](https://datahub.metoffice.gov.uk/docs/f/category/map-images/type/map-
 
 """
 
+import logging
 import os
 import re
 from datetime import datetime, timedelta
@@ -18,6 +19,8 @@ from urllib.parse import quote
 from PIL import Image, ImageDraw, ImageFilter
 
 from ..utils.web import session
+
+logger = logging.getLogger(__name__)
 
 # assert os.getenv('MET_OFFICE_API_KEY') is not None, "MET_OFFICE_API_KEY not set in .env file"
 # assert os.getenv('MAP_IMAGES_ORDER_NAME') is not None, "MAP_IMAGES_ORDER_NAME not set in .env file"
@@ -189,3 +192,28 @@ def get_uk_precipitation(order_name: str, bounding_box: Optional[Tuple[int, int,
     image = generate_image(order_name, block, bounding_box=bounding_box)  # pragma: no cover
 
     return image  # pragma: no cover
+
+
+def validate_weather_data(data: Dict) -> bool:
+    """Validate Met Office weather data integrity.
+
+    Args:
+        data: Weather data dictionary from Met Office API
+
+    Returns:
+        True if validation passes, False otherwise
+    """
+    if not data:
+        logger.warning("Weather data is empty")
+        return False
+
+    # Check if data has forecast structure
+    if "date" in data and "blocks" in data:
+        return True
+
+    # Check if data has image metadata
+    if "order_name" in data or "file_id" in data:
+        return True
+
+    logger.warning("Weather data missing expected structure")
+    return False

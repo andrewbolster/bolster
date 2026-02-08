@@ -918,3 +918,36 @@ def _validate_place(df: pd.DataFrame):
         logger.warning(f"Missing expected places: {missing}")
 
     logger.info(f"Place validation passed ({len(places)} places found)")
+
+
+def validate_deaths_data(df: pd.DataFrame) -> bool:
+    """Validate NISRA deaths data integrity.
+
+    Args:
+        df: DataFrame from get_latest_deaths or parse_deaths_file
+
+    Returns:
+        True if validation passes, False otherwise
+    """
+    if df.empty:
+        logger.warning("Deaths data is empty")
+        return False
+
+    required_cols = {"month", "deaths_total", "place"}
+    if not required_cols.issubset(df.columns):
+        missing = required_cols - set(df.columns)
+        logger.warning(f"Missing required death data columns: {missing}")
+        return False
+
+    # Check for non-negative death counts
+    if (df["deaths_total"] < 0).any():
+        logger.warning("Found negative death counts")
+        return False
+
+    # Check for reasonable monthly ranges (Northern Ireland context)
+    monthly_max = df["deaths_total"].max()
+    if monthly_max > 2000:  # Unreasonably high for NI
+        logger.warning(f"Unreasonably high monthly deaths: {monthly_max}")
+        return False
+
+    return True

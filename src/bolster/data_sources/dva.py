@@ -679,3 +679,35 @@ def get_summary_statistics(df: pd.DataFrame, start_year: Optional[int] = None, e
         "monthly_max": int(filtered["tests_conducted"].max()),
         "months_count": len(filtered),
     }
+
+
+def validate_dva_test_data(df: pd.DataFrame) -> bool:
+    """Validate DVA test statistics data integrity.
+
+    Args:
+        df: DataFrame from DVA test functions (vehicle, driver, or theory tests)
+
+    Returns:
+        True if validation passes, False otherwise
+    """
+    if df.empty:
+        logging.warning("DVA test data is empty")
+        return False
+
+    required_cols = {"month", "tests_conducted"}
+    if not required_cols.issubset(df.columns):
+        missing = required_cols - set(df.columns)
+        logging.warning(f"Missing required DVA columns: {missing}")
+        return False
+
+    # Check for non-negative test counts
+    if (df["tests_conducted"] < 0).any():
+        logging.warning("Found negative test counts in DVA data")
+        return False
+
+    # Check for reasonable monthly test volumes
+    if df["tests_conducted"].max() > 50000:  # Unreasonably high for NI
+        logging.warning("Unreasonably high test counts found")
+        return False
+
+    return True
