@@ -8,6 +8,17 @@ This module provides access to Northern Ireland's earnings statistics:
 
 Data is published annually in October by NISRA's Economic & Labour Market Statistics Branch.
 
+Data Source: Northern Ireland Statistics and Research Agency provides Annual Survey of Hours
+and Earnings statistics through their Work, Pay and Benefits section at
+https://www.nisra.gov.uk/statistics/work-pay-and-benefits/annual-survey-hours-and-earnings.
+ASHE data covers employee earnings across all sectors based on a sample survey of payroll
+records from HMRC PAYE data, providing comprehensive earnings statistics for Northern Ireland.
+
+Update Frequency: Annual publications released in October each year, covering earnings data
+for the reference period of April. The dataset provides the most comprehensive and official
+source of employee earnings statistics for Northern Ireland, updated once per year with
+historical revisions as necessary.
+
 Data Coverage:
     - Weekly Earnings: 1997 - Present (annual, full-time/part-time/all)
     - Hourly Earnings: 1997 - Present (annual, excluding overtime)

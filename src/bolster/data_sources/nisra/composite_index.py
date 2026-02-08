@@ -10,6 +10,15 @@ The NICEI tracks five key sectors of the NI economy:
 - Agriculture
 - Public Sector
 
+Data Source: Northern Ireland Statistics and Research Agency provides the Northern Ireland
+Composite Economic Index through their Economic Output statistics at https://www.nisra.gov.uk/statistics.
+The NICEI is an experimental quarterly indicator that combines official statistics across five
+key economic sectors to provide an overall measure of economic performance for Northern Ireland.
+
+Update Frequency: Quarterly publications are released approximately 3 months after the end of
+each quarter. The NICEI data is published as part of NISRA's Economic Output statistics series
+by the Economic & Labour Market Statistics Branch, with data updated four times per year.
+
 Data Coverage:
     - Quarterly time series from Q1 2006 to present
     - Indices and sector contributions to quarterly change
