@@ -34,9 +34,9 @@ jobs:
               if: github.event_name == 'push' && github.ref == 'refs/heads/main'
               run: |
                   set +e  # Don't exit on errors - we want to process all PRs
-                  echo "Updating all open PRs (including drafts) with latest main..."
+                  echo "Updating all PRs with latest main (including drafts and failing CI)..."
 
-                  # Get all open PRs that need updating (including drafts and unstable)
+                  # Get all open PRs that need updating (including drafts and failing CI)
                   gh pr list --state open --json number,isDraft,mergeStateStatus \
                     --jq '.[] | select(.mergeStateStatus == "DIRTY" or .mergeStateStatus == "UNSTABLE") | .number' | \
                   while read -r pr; do
