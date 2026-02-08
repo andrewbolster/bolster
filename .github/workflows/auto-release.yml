@@ -151,6 +151,11 @@ jobs:
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
+    - name: Constitutional compliance check
+      run: |
+        echo "🏛️  Validating constitutional compliance before release..."
+        uv run scripts/constitutional_check.py
+
     - name: Run tests before release
       run: uv run pytest tests/ -v
 

@@ -61,10 +61,10 @@ jobs:
             labelsToAdd.push('data-source');
           }
 
-          // Check for breaking changes
+          // Check for breaking changes (constitutional review required)
           if (prBody.includes('BREAKING CHANGE') || prTitle.includes('!:') ||
               prBody.includes('💥 Breaking change')) {
-            labelsToAdd.push('version:major', 'breaking-change');
+            labelsToAdd.push('version:major', 'breaking-change', 'constitutional-review');
           }
           // Check for new features
           else if (prTitle.match(/^feat(\(.*\))?:/) || prBody.includes('✨ New feature')) {
