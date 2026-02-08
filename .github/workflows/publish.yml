@@ -1,23 +1,47 @@
-name: Publish to PyPI
+# Legacy manual publishing workflow - kept for emergency use
+# Primary publishing now handled by auto-release.yml
+
+name: Manual Publish to PyPI
+
 on:
     push:
         tags:
             - "v*.*.*"
+    workflow_dispatch:
+        inputs:
+            tag:
+                description: 'Git tag to publish (e.g., v1.2.3)'
+                required: true
+                type: string
+
 env:
-  python-version: 3.13
+    python-version: 3.11
+
 jobs:
     publish:
         name: Publish to PyPI
         runs-on: ubuntu-latest
+        environment: release
         permissions:
             id-token: write
+            contents: read
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v4
               with:
                   fetch-depth: 0
-                  ref: ${{ github.head_ref }}
+                  ref: ${{ github.event.inputs.tag || github.ref }}
+
+            - name: Verify tag format
+              run: |
+                if [[ "${{ github.event.inputs.tag || github.ref_name }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                  echo "Valid version tag format"
+                else
+                  echo "Invalid version tag format. Expected: v1.2.3"
+                  exit 1
+                fi
+
             - name: Install uv and set the python version
-              uses: astral-sh/setup-uv@v7
+              uses: astral-sh/setup-uv@v4
               with:
                 python-version: ${{ env.python-version }}
                 enable-cache: true
@@ -26,7 +50,37 @@ jobs:
             - name: Install the project
               run: uv sync --all-extras
 
-            - name: Build and publish to pypi
+            - name: Run tests before publishing
+              run: uv run pytest tests/ -v
+
+            - name: Build package
+              run: uv build
+
+            - name: Verify package contents
               run: |
-                    uv build
-                    uv publish
+                uv run twine check dist/*
+                uv run python -m zipfile -l dist/*.whl
+
+            - name: Publish to PyPI with attestations
+              uses: pypa/gh-action-pypi-publish@release/v1
+              with:
+                attestations: true
+                print-hash: true
+
+            - name: Create GitHub Release (if manual)
+              if: github.event_name == 'workflow_dispatch'
+              uses: softprops/action-gh-release@v2
+              with:
+                tag_name: ${{ github.event.inputs.tag }}
+                name: Release ${{ github.event.inputs.tag }}
+                body: |
+                  Manual release of ${{ github.event.inputs.tag }}
+
+                  ## Installation
+
+                  ```bash
+                  pip install bolster==${{ github.event.inputs.tag }}
+                  ```
+                draft: false
+                prerelease: false
+                files: dist/*

@@ -1,0 +1,165 @@
+name: PR Auto-Labeling
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  label-pr:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Auto-label PR based on changes
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { owner, repo, number } = context.issue;
+
+          // Get PR details
+          const pr = await github.rest.pulls.get({
+            owner,
+            repo,
+            pull_number: number
+          });
+
+          // Get changed files
+          const files = await github.rest.pulls.listFiles({
+            owner,
+            repo,
+            pull_number: number
+          });
+
+          const changedFiles = files.data.map(f => f.filename);
+          const prBody = pr.data.body || '';
+          const prTitle = pr.data.title || '';
+
+          console.log('Changed files:', changedFiles);
+
+          // Determine labels based on changes
+          const labelsToAdd = [];
+          const labelsToRemove = [];
+
+          // Auto-detect type based on files and conventional commits
+          if (changedFiles.some(f => f.startsWith('docs/') || f === 'README.md')) {
+            labelsToAdd.push('documentation');
+          }
+
+          if (changedFiles.some(f => f.startsWith('tests/'))) {
+            labelsToAdd.push('tests');
+          }
+
+          if (changedFiles.some(f => f.startsWith('.github/workflows/'))) {
+            labelsToAdd.push('ci');
+          }
+
+          if (changedFiles.some(f => f.startsWith('src/bolster/data_sources/'))) {
+            labelsToAdd.push('data-source');
+          }
+
+          // Check for breaking changes
+          if (prBody.includes('BREAKING CHANGE') || prTitle.includes('!:') ||
+              prBody.includes('💥 Breaking change')) {
+            labelsToAdd.push('version:major', 'breaking-change');
+          }
+          // Check for new features
+          else if (prTitle.match(/^feat(\(.*\))?:/) || prBody.includes('✨ New feature')) {
+            labelsToAdd.push('version:minor', 'enhancement');
+          }
+          // Check for bug fixes
+          else if (prTitle.match(/^fix(\(.*\))?:/) || prBody.includes('🐛 Bug fix')) {
+            labelsToAdd.push('version:patch', 'bug');
+          }
+          // Check for docs/maintenance only
+          else if (prTitle.match(/^(docs?|chore|ci|style|test)(\(.*\))?:/) ||
+                   prBody.includes('📚 Documentation update') ||
+                   prBody.includes('🔧 Maintenance')) {
+            labelsToAdd.push('version:skip');
+          }
+
+          // Remove conflicting version labels first
+          const existingLabels = await github.rest.issues.listLabelsOnIssue({
+            owner,
+            repo,
+            issue_number: number
+          });
+
+          const versionLabels = existingLabels.data
+            .map(l => l.name)
+            .filter(name => name.startsWith('version:'));
+
+          // If adding a new version label, remove others
+          const newVersionLabel = labelsToAdd.find(l => l.startsWith('version:'));
+          if (newVersionLabel) {
+            for (const existingVersion of versionLabels) {
+              if (existingVersion !== newVersionLabel) {
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner,
+                    repo,
+                    issue_number: number,
+                    name: existingVersion
+                  });
+                  console.log(`Removed label: ${existingVersion}`);
+                } catch (error) {
+                  console.log(`Label ${existingVersion} not found to remove`);
+                }
+              }
+            }
+          }
+
+          // Add new labels
+          if (labelsToAdd.length > 0) {
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number: number,
+              labels: labelsToAdd
+            });
+            console.log('Added labels:', labelsToAdd);
+          }
+
+  create-labels:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'opened'
+    steps:
+    - name: Create standard labels if they don't exist
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const labels = [
+            { name: 'version:major', color: 'd73a4a', description: 'Breaking changes - major version bump' },
+            { name: 'version:minor', color: 'a2eeef', description: 'New features - minor version bump' },
+            { name: 'version:patch', color: '0075ca', description: 'Bug fixes - patch version bump' },
+            { name: 'version:skip', color: 'e4e669', description: 'Skip release - no version bump' },
+            { name: 'breaking-change', color: 'd73a4a', description: 'Breaking changes' },
+            { name: 'enhancement', color: 'a2eeef', description: 'New features' },
+            { name: 'bug', color: 'd73a4a', description: 'Bug fixes' },
+            { name: 'documentation', color: '0075ca', description: 'Documentation updates' },
+            { name: 'tests', color: 'fbca04', description: 'Test updates' },
+            { name: 'ci', color: 'c5def5', description: 'CI/CD updates' },
+            { name: 'data-source', color: '7057ff', description: 'Data source modules' }
+          ];
+
+          const { owner, repo } = context.repo;
+
+          for (const label of labels) {
+            try {
+              await github.rest.issues.createLabel({
+                owner,
+                repo,
+                ...label
+              });
+              console.log(`Created label: ${label.name}`);
+            } catch (error) {
+              if (error.status === 422) {
+                console.log(`Label ${label.name} already exists`);
+              } else {
+                console.error(`Error creating label ${label.name}:`, error.message);
+              }
+            }
+          }
