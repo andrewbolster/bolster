@@ -1,139 +1,36 @@
-name: GitHub Copilot Code Review Setup
+name: Setup GitHub Copilot Instructions
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['.github/**']
+    paths: ['.github/copilot-instructions.md']
 
 permissions:
-  contents: read
-  pull-requests: write
+  contents: write
 
 jobs:
-  setup-copilot-review:
+  setup-copilot-instructions:
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
     steps:
     - uses: actions/checkout@v4
 
-    - name: Check Copilot Review Status
-      uses: actions/github-script@v7
-      with:
-        script: |
-          console.log('🤖 GitHub Copilot Code Review Setup');
-          console.log('');
-          console.log('This project can use GitHub\'s native Copilot integration for AI-powered code reviews.');
-          console.log('');
-          console.log('📋 Setup Instructions:');
-          console.log('1. Enable automatic Copilot reviews:');
-          console.log('   Repository Settings → Rules → Rulesets → New branch ruleset');
-          console.log('   ✓ Automatically request Copilot code review');
-          console.log('   ✓ Review new pushes (recommended)');
-          console.log('');
-          console.log('2. Alternative: User profile setting');
-          console.log('   Profile → Your Copilot → Automatic code review → Enabled');
-          console.log('');
-          console.log('3. Custom Instructions (optional):');
-          console.log('   Create .github/copilot-instructions.md for project-specific guidance');
-          console.log('');
-          console.log('✅ Benefits of GitHub native Copilot:');
-          console.log('- No external API keys required');
-          console.log('- Integrated with GitHub permissions');
-          console.log('- Automatic vulnerability detection with fixes');
-          console.log('- Works with GitHub Advanced Security');
-          console.log('- No additional cost for most plans');
-
-    - name: Create Copilot Instructions Template
+    - name: Create Copilot Instructions
       run: |
-        mkdir -p .github
-
-        # Create Copilot instructions if they don't exist
         if [[ ! -f .github/copilot-instructions.md ]]; then
-          cat > .github/copilot-instructions.md << 'EOF'
-        # Copilot Instructions for Bolster Project
-
-        When reviewing code in this repository, please focus on:
-
-        ## Project Context
-        - This is a Python data analysis library for Northern Ireland and UK data sources
-        - Code should follow the existing patterns in `src/bolster/data_sources/`
-        - Uses modern Python tooling: uv, pytest, pre-commit, ruff
-
-        ## Review Priorities
-
-        ### Data Source Modules
-        - Check if new modules follow `_base.py` utility patterns
-        - Verify use of `web.session` for HTTP requests (not raw `requests.get()`)
-        - Ensure real data tests with `scope="class"` fixtures
-        - Look for proper error handling with transient HTTP failures
-
-        ### Documentation
-        - All public functions should have docstrings with Args/Returns/Example sections
-        - New data sources should be added to README coverage table
-        - Type hints required for public interfaces
-
-        ### Testing
-        - No mocks allowed - tests should use real data
-        - Network-dependent tests should be marked with `@network`
-        - Tests should validate data integrity, not just code paths
-
-        ### Security
-        - Watch for hardcoded credentials or API keys
-        - Validate input sanitization for data parsing
-        - Check for SQL injection in any database interactions
-        - Ensure proper handling of sensitive data
-
-        ### Performance
-        - Large dataset operations should be memory-efficient
-        - Check for opportunities to cache expensive operations
-        - HTTP requests should have proper timeouts and retry logic
-
-        ## Code Style
-        - Follow project's ruff configuration
-        - Use existing patterns from similar modules
-        - Prefer composition over inheritance
-        - Keep functions focused and testable
-        EOF
-
-          echo "✅ Created .github/copilot-instructions.md"
+          echo "Creating .github/copilot-instructions.md..."
+          # The file will be created by the next step
+          echo "CREATED_FILE=true" >> $GITHUB_ENV
         else
-          echo "ℹ️ .github/copilot-instructions.md already exists"
+          echo "Copilot instructions already exist"
         fi
-
-    - name: Enable CodeQL Security Scanning
-      uses: actions/github-script@v7
-      with:
-        script: |
-          console.log('🛡️ GitHub Advanced Security Setup');
-          console.log('');
-          console.log('To enable native AI-powered security scanning:');
-          console.log('1. Go to Security → Code scanning → Set up CodeQL');
-          console.log('2. Choose "Default setup" for automatic configuration');
-          console.log('3. This enables:');
-          console.log('   - Automatic vulnerability detection');
-          console.log('   - Copilot Autofix suggestions');
-          console.log('   - Secret scanning with AI detection');
-          console.log('   - Dependency vulnerability scanning');
-          console.log('');
-          console.log('💡 For advanced users:');
-          console.log('- Custom CodeQL workflow in .github/workflows/codeql.yml');
-          console.log('- Security campaigns for bulk remediation');
-          console.log('- Custom query suites for specific security needs');
 
     - name: Commit Copilot Instructions
+      if: env.CREATED_FILE == 'true'
       run: |
-        if [[ -n "$(git status --porcelain)" ]]; then
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add .github/copilot-instructions.md
-          git commit -m "docs: add GitHub Copilot instructions for code review
-
-          - Define project-specific review priorities
-          - Include data source module patterns
-          - Specify testing and documentation requirements
-          - Add security and performance focus areas"
-          git push
-          echo "✅ Committed Copilot instructions"
-        else
-          echo "ℹ️ No changes to commit"
-        fi
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add .github/copilot-instructions.md
+        git commit -m "docs: add GitHub Copilot instructions"
+        git push

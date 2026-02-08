@@ -127,51 +127,16 @@ jobs:
           echo "No new modules detected that require README updates." >> doc_report.md
         fi
 
-    - name: GitHub Copilot documentation guidance
+    - name: Add GitHub Copilot recommendations
       if: env.DOC_ISSUES == 'true'
       run: |
-        echo "## 🤖 GitHub Copilot Documentation Guidance" >> doc_report.md
         echo "" >> doc_report.md
-
-        echo "### 📝 Automated Documentation Solutions" >> doc_report.md
+        echo "## 💡 Documentation Assistance Available" >> doc_report.md
         echo "" >> doc_report.md
-        echo "**Recommended**: Enable [GitHub Copilot automatic reviews](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/request-a-code-review/configure-automatic-review) for AI-powered documentation feedback." >> doc_report.md
+        echo "**Enable GitHub Copilot automatic reviews** for AI-powered documentation suggestions:" >> doc_report.md
+        echo "- Repository Settings → Rules → Rulesets → ✓ Automatically request Copilot code review" >> doc_report.md
         echo "" >> doc_report.md
-        echo "**Setup Options**:" >> doc_report.md
-        echo "1. **Repository Rulesets** (Recommended)" >> doc_report.md
-        echo "   - Go to Settings → Rules → Rulesets → New branch ruleset" >> doc_report.md
-        echo "   - ✓ Automatically request Copilot code review" >> doc_report.md
-        echo "   - ✓ Review new pushes" >> doc_report.md
-        echo "" >> doc_report.md
-        echo "2. **User Profile Setting**" >> doc_report.md
-        echo "   - Profile → Your Copilot → Automatic code review → Enabled" >> doc_report.md
-        echo "" >> doc_report.md
-        echo "3. **Custom Instructions**" >> doc_report.md
-        echo "   - Add \`.github/copilot-instructions.md\` for project-specific guidance" >> doc_report.md
-        echo "   - Run the GitHub Copilot Setup workflow in this repository" >> doc_report.md
-        echo "" >> doc_report.md
-
-        # Get changed Python files for specific guidance
-        CHANGED_PYTHON_FILES=$(git diff --name-only main...HEAD -- '*.py' 'src/**/*.py' 2>/dev/null | head -3)
-
-        if [[ -n "$CHANGED_PYTHON_FILES" ]]; then
-          echo "### 🔧 For This PR" >> doc_report.md
-          echo "" >> doc_report.md
-          echo "Use GitHub Copilot in your editor to generate docstrings:" >> doc_report.md
-          for file in $CHANGED_PYTHON_FILES; do
-            if [[ -f "$file" ]]; then
-              echo "- **$file**: Place cursor after function definition, type \`\"\"\"\` and accept Copilot suggestions" >> doc_report.md
-            fi
-          done
-          echo "" >> doc_report.md
-        fi
-
-        echo "**Benefits of GitHub Native AI**:" >> doc_report.md
-        echo "- ✅ No external API keys required" >> doc_report.md
-        echo "- ✅ Integrated with GitHub permissions" >> doc_report.md
-        echo "- ✅ Automatic vulnerability detection" >> doc_report.md
-        echo "- ✅ Real-time suggestions in your editor" >> doc_report.md
-        echo "- ✅ No additional cost for most plans" >> doc_report.md
+        echo "**In your editor**: Place cursor after function definition, type \`\"\"\"\` for Copilot docstring suggestions" >> doc_report.md
 
     - name: Post PR comment with documentation report
       if: github.event_name == 'pull_request'
