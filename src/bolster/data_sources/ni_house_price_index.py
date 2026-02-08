@@ -43,7 +43,6 @@ from urllib.parse import urlparse
 
 import bs4
 import pandas as pd
-import requests
 
 from bolster.utils.web import session
 
@@ -132,7 +131,7 @@ def _download_file(url: str, cache_ttl_hours: int = 24, force_refresh: bool = Fa
         logger.info(f"Saved to {cache_path}")
         return cache_path
 
-    except requests.RequestException as e:
+    except Exception as e:
         raise NIHPIDataNotFoundError(f"Failed to download {url}: {e}")
 
 
@@ -159,7 +158,7 @@ def get_source_url(base_url=DEFAULT_URL) -> Text:
     try:
         response = session.get(base_url, timeout=30)
         response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NIHPIDataNotFoundError(f"Failed to fetch publication page: {e}")
 
     base_soup = bs4.BeautifulSoup(response.content, features="html.parser")

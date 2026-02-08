@@ -3,7 +3,8 @@ import datetime
 import dateparser
 import numpy as np
 import pandas as pd
-import requests
+
+from bolster.utils.web import session
 
 
 def get_ni_executive_basic_table() -> pd.DataFrame:
@@ -35,7 +36,7 @@ def get_ni_executive_basic_table() -> pd.DataFrame:
         "User-Agent": "Bolster Data Science Library/0.3.4 (https://github.com/andrewbolster/bolster; andrew.bolster@gmail.com)"
     }
     url = "https://en.wikipedia.org/wiki/Northern_Ireland_Executive"
-    response = requests.get(url, headers=headers)
+    response = session.get(url, headers=headers)
     response.raise_for_status()
     tables = pd.read_html(response.text)
     tables[4].columns = range(len(tables[4].columns))

@@ -44,14 +44,14 @@ def resilient_get(url: str, **kwargs) -> requests.Response:
     """
 
     try:
-        res = requests.get(url, **kwargs)
+        res = session.get(url, **kwargs)
         res.raise_for_status()
-    except requests.HTTPError as outer_err:
+    except Exception as outer_err:
         try:
             last_valid = get_last_valid(url)
         except exceptions.NoCDXRecordFound as inner_err:
             raise outer_err from inner_err
-        res = requests.get(last_valid, **kwargs)
+        res = session.get(last_valid, **kwargs)
         res.raise_for_status()
         logging.warning(f"Failed to get {url} directly, successfully used waybackmachine to get {last_valid}")
     return res
@@ -65,7 +65,7 @@ def get_excel_dataframe(
     if read_kwargs is None:
         read_kwargs = {}
 
-    with requests.get(file_url, **requests_kwargs) as response:
+    with session.get(file_url, **requests_kwargs) as response:
         response.raise_for_status()
         data = BytesIO(response.content)
         df = pd.read_excel(data, **read_kwargs)

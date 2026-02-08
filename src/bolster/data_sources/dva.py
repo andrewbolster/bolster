@@ -43,7 +43,6 @@ from pathlib import Path
 from typing import Dict, Optional, Tuple, Union
 
 import pandas as pd
-import requests
 from bs4 import BeautifulSoup
 
 from bolster.utils.web import session
@@ -111,7 +110,7 @@ def _download_file(url: str, cache_ttl_hours: int = 24, force_refresh: bool = Fa
         cache_path.write_bytes(response.content)
         logger.info(f"Saved to {cache_path}")
         return cache_path
-    except requests.RequestException as e:
+    except Exception as e:
         raise DVADataNotFoundError(f"Failed to download {url}: {e}")
 
 
@@ -191,7 +190,7 @@ def get_latest_dva_publication_url() -> Tuple[str, str, datetime]:
                     logger.info(f"Found DVA Excel file: {excel_url}")
                     return excel_url, pub_title, pub_date
 
-        except requests.RequestException as e:
+        except Exception as e:
             logger.debug(f"Failed to fetch {pub_url}: {e}")
             continue
 

@@ -47,7 +47,6 @@ from datetime import datetime
 from typing import Dict, List, Literal, Optional
 
 import pandas as pd
-import requests
 
 from bolster.utils.web import session
 
@@ -218,7 +217,7 @@ def _get_available_datasets() -> List[Dict]:
         datasets.sort(key=lambda x: x["year"], reverse=True)
         return datasets
 
-    except requests.RequestException as e:
+    except Exception as e:
         raise PSNIDataNotFoundError(f"Failed to fetch dataset list: {e}") from e
 
 
