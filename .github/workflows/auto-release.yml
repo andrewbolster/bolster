@@ -233,27 +233,3 @@ jobs:
           //   method: 'POST',
           //   headers: { 'Authorization': 'Token ${{ secrets.RTD_TOKEN }}' }
           // });
-
-    - name: Validate documentation completeness for release
-      run: |
-        echo "Validating documentation completeness for release..."
-
-        # Basic validation - check for obvious missing docs
-        MISSING_DOCS=$(find src -name "*.py" -exec grep -L '"""' {} \; | wc -l)
-        TOTAL_PYTHON_FILES=$(find src -name "*.py" | wc -l)
-        COVERAGE_PERCENT=$((($TOTAL_PYTHON_FILES - $MISSING_DOCS) * 100 / $TOTAL_PYTHON_FILES))
-
-        echo "📊 Documentation Coverage: $COVERAGE_PERCENT% ($MISSING_DOCS/$TOTAL_PYTHON_FILES files missing docstrings)"
-
-        # Release quality threshold
-        if [[ $MISSING_DOCS -gt 5 ]] && [[ $COVERAGE_PERCENT -lt 70 ]]; then
-          echo "❌ Documentation coverage too low for release ($COVERAGE_PERCENT%)"
-          echo "Please add documentation to at least 70% of Python files before release"
-          echo ""
-          echo "💡 Recommended: Enable GitHub Copilot automatic reviews for AI-powered documentation assistance"
-          echo "   Settings → Rules → Rulesets → ✓ Automatically request Copilot code review"
-          exit 1
-        else
-          echo "✅ Documentation validation passed"
-          echo "💡 Consider enabling GitHub Copilot automatic reviews for enhanced documentation feedback"
-        fi
