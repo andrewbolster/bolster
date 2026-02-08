@@ -1,17 +1,34 @@
 """
-Working with Election Office NI Data
+Northern Ireland Electoral Office (EONI) Election Data Integration
 
-The bits that we can; this module is primarily concerned with the ingestion of NI Assembly election results from 2003
-onwards (where possible in a vaguely reliable automated way)
+Data Source: The Electoral Office for Northern Ireland provides official election results
+and data through their website at https://www.eoni.org.uk. This module accesses NI Assembly
+election results from 2003 onwards, including constituency-level results, candidate information,
+and vote tallies for all electoral areas in Northern Ireland.
 
-Hitlist:
-[X] 2022
-[X] 2017
-[X] 2016
-[ ] 2011
-[ ] 2007
-[ ] 2003
+Update Frequency: Electoral data is updated after each election cycle. NI Assembly elections
+typically occur every 4-5 years, with the most recent elections in 2022, 2017, and 2016.
+Historical data remains static once published, with occasional corrections or clarifications.
 
+Example:
+    Retrieve election results for specific years and constituencies:
+
+        >>> from bolster.data_sources import eoni
+        >>> # Get available election results
+        >>> results_2022 = eoni.get_election_results(2022)
+        >>> print(f"Found {len(results_2022)} constituency results for 2022")
+
+        >>> # Get specific constituency data
+        >>> belfast_east = eoni.get_constituency_results("Belfast East", 2022)
+        >>> for candidate in belfast_east['candidates']:
+        ...     print(f"{candidate['name']}: {candidate['votes']} votes")
+
+The module supports automated ingestion of NI Assembly election results with constituency-level
+detail and candidate performance data.
+
+Implementation Status:
+✅ 2022, 2017, 2016 elections supported
+⏳ 2011, 2007, 2003 elections (planned)
 """
 
 import datetime

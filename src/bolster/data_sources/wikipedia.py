@@ -1,3 +1,38 @@
+"""
+Wikipedia Northern Ireland Data Integration
+
+Data Source: Wikipedia provides publicly edited information about Northern Ireland institutions
+and governance through structured tables at https://en.wikipedia.org/wiki/Northern_Ireland_Executive.
+This module accesses historical composition data for the Northern Ireland Executive, including
+formation dates, dissolution dates, and leadership appointments since devolution began in 1999.
+
+Update Frequency: Wikipedia content is updated continuously by volunteer editors as political
+events occur. Executive composition changes are typically reflected within days of official
+announcements. The module specifically parses the "Historical composition of the Northern Ireland
+Executive" table which maintains a comprehensive record of all executives since devolution.
+
+Example:
+    Extract NI Executive historical data and analyze political stability:
+
+        >>> from bolster.data_sources import wikipedia
+        >>> # Get complete Executive composition history
+        >>> executives = wikipedia.get_ni_executive_basic_table()
+        >>> print(f"Found {len(executives)} executives since devolution")
+
+        >>> # Analyze Executive stability over time
+        >>> avg_duration = executives['Duration'].mean()
+        >>> print(f"Average Executive duration: {avg_duration}")
+
+        >>> # Find longest and shortest serving executives
+        >>> longest = executives.loc[executives['Duration'].idxmax()]
+        >>> shortest = executives.loc[executives['Duration'].idxmin()]
+        >>> print(f"Longest serving: {longest.name} ({longest['Duration']})")
+        >>> print(f"Shortest serving: {shortest.name} ({shortest['Duration']})")
+
+This module provides utilities for analyzing Northern Ireland's political history and executive
+stability patterns since the establishment of devolved government.
+"""
+
 import datetime
 import logging
 

@@ -1,3 +1,34 @@
+"""
+UK Companies House Data Integration
+
+Data Source: UK Companies House provides comprehensive company registration data through
+their bulk download service at http://download.companieshouse.gov.uk/en_output.html.
+The service provides complete company information including names, addresses, status,
+and registration details for all active and dissolved companies in the UK.
+
+Update Frequency: The Companies House bulk data is updated monthly, typically available
+by the first week of each month. The data reflects the state of company registrations
+as of the snapshot date.
+
+Example:
+    Basic usage for querying company data:
+
+        >>> from bolster.data_sources import companies_house
+        >>> # Get all companies (warning: this is very large!)
+        >>> for company in companies_house.query_basic_company_data():
+        ...     print(company['CompanyName'], company['CompanyNumber'])
+        ...     break  # Just show first result
+
+        >>> # Query companies that might be associated with Farset Labs
+        >>> farset_companies = list(companies_house.query_basic_company_data(
+        ...     companies_house.companies_house_record_might_be_farset
+        ... ))
+        >>> print(f"Found {len(farset_companies)} potential Farset-related companies")
+
+The module provides utilities for downloading and parsing the complete UK company registry,
+with built-in filtering capabilities for targeted analysis.
+"""
+
 import csv
 import logging
 from typing import Callable, Dict, Iterator, List, Text

@@ -1,9 +1,38 @@
 """
-This script fetches weather data from the Met Office API, processes it, and generates an image suitable for epaper display, and might be useful for other
-applications as well. It uses the Pillow library for image processing and the requests library for API calls.
+UK Met Office Weather Data and Map Images Integration
 
-See [here](https://datahub.metoffice.gov.uk/docs/f/category/map-images/type/map-images/api-documentation) for more information on the API.
+Data Source: The UK Met Office provides weather data and map images through their DataHub API
+at https://data.hub.api.metoffice.gov.uk/. This module accesses weather forecast data including
+precipitation, temperature, pressure, and land cover information. The API provides high-resolution
+weather map images suitable for visualization and analysis applications.
 
+Update Frequency: Weather forecast data is updated multiple times daily, typically every 3-6 hours
+depending on the forecast model. Map images are generated continuously as new forecast data becomes
+available. Historical data snapshots are preserved for analysis and comparison purposes.
+
+Example:
+    Generate weather images and access forecast data:
+
+        >>> import os
+        >>> # Set required API key (requires Met Office DataHub account)
+        >>> os.environ['MET_OFFICE_API_KEY'] = 'your-api-key'
+        >>> os.environ['MAP_IMAGES_ORDER_NAME'] = 'your-order-name'
+
+        >>> from bolster.data_sources import metoffice
+        >>> # Get UK precipitation forecast image
+        >>> image = metoffice.get_uk_precipitation('your-order')
+        >>> image.save('uk_precipitation_forecast.png')
+
+        >>> # Access weather data validation
+        >>> weather_data = {'date': '2024-01-01', 'blocks': [...]}
+        >>> is_valid = metoffice.validate_weather_data(weather_data)
+        >>> print(f"Weather data valid: {is_valid}")
+
+This module provides utilities for fetching weather data from the Met Office API, processing
+forecast information, and generating visualization-ready weather map images.
+
+See the Met Office DataHub documentation for API details:
+https://datahub.metoffice.gov.uk/docs/f/category/map-images/type/map-images/api-documentation
 """
 
 import logging

@@ -1,13 +1,35 @@
 """
-Working with Northern Ireland Water Quality Data
+Northern Ireland Water Quality Data Integration
 
-Updated to use modern OpenDataNI data sources after the original
-NIWater API endpoints were deprecated.
+Data Source: Northern Ireland Water provides public water quality data through the OpenDataNI
+portal at https://admin.opendatani.gov.uk/. The service offers water quality test results from
+customer tap supply points across Northern Ireland, including chemical analysis, pH levels,
+hardness classifications, and safety parameters. Additionally, postcode-to-water-zone mapping
+is available for geographic analysis.
 
-Current data sources:
-- Water quality results: Static CSV data from OpenDataNI
-- Zone mapping: Legacy postcode to zone lookup (still available)
+Update Frequency: Water quality data is published annually, typically reflecting the previous
+calendar year's test results. The dataset includes comprehensive testing from customer tap
+supply points across all water zones in Northern Ireland. Postcode mapping data is updated
+as required when zone boundaries change.
 
+Example:
+    Access water quality data and zone information:
+
+        >>> from bolster.data_sources import ni_water
+        >>> # Get water quality data for all zones
+        >>> quality_data = ni_water.get_water_quality()
+        >>> print(f"Water quality data for {len(quality_data)} supply points")
+
+        >>> # Check hardness classification distribution
+        >>> hardness_counts = quality_data['NI Hardness Classification'].value_counts()
+        >>> print(hardness_counts)
+
+        >>> # Get water quality for a specific zone
+        >>> belfast_data = ni_water.get_water_quality_by_zone('BALM')
+        >>> print(f"Belfast area hardness: {belfast_data['NI Hardness Classification']}")
+
+The module provides utilities for analyzing water quality across Northern Ireland's supply zones,
+with support for both current quality data and historical zone mapping.
 """
 
 import csv
