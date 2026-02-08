@@ -127,74 +127,51 @@ jobs:
           echo "No new modules detected that require README updates." >> doc_report.md
         fi
 
-    - name: AI-powered documentation review
-      if: env.DOC_ISSUES == 'true' || env.README_ISSUES == 'true'
-      env:
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    - name: GitHub Copilot documentation guidance
+      if: env.DOC_ISSUES == 'true'
       run: |
-        echo "## AI-Powered Documentation Review" >> doc_report.md
+        echo "## 🤖 GitHub Copilot Documentation Guidance" >> doc_report.md
         echo "" >> doc_report.md
 
-        # Check if AI integration is available
-        if [[ -z "$OPENAI_API_KEY" && -z "$ANTHROPIC_API_KEY" ]]; then
-          echo "❌ **AI Review Failed**: No API keys configured" >> doc_report.md
-          echo "To enable AI-powered documentation review:" >> doc_report.md
-          echo "1. Add OPENAI_API_KEY or ANTHROPIC_API_KEY to repository secrets" >> doc_report.md
-          echo "2. The AI will automatically generate docstring suggestions" >> doc_report.md
-          echo "" >> doc_report.md
-          echo "AI_REVIEW_FAILED=true" >> $GITHUB_ENV
-          exit 1
-        fi
+        echo "### 📝 Automated Documentation Solutions" >> doc_report.md
+        echo "" >> doc_report.md
+        echo "**Recommended**: Enable [GitHub Copilot automatic reviews](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/request-a-code-review/configure-automatic-review) for AI-powered documentation feedback." >> doc_report.md
+        echo "" >> doc_report.md
+        echo "**Setup Options**:" >> doc_report.md
+        echo "1. **Repository Rulesets** (Recommended)" >> doc_report.md
+        echo "   - Go to Settings → Rules → Rulesets → New branch ruleset" >> doc_report.md
+        echo "   - ✓ Automatically request Copilot code review" >> doc_report.md
+        echo "   - ✓ Review new pushes" >> doc_report.md
+        echo "" >> doc_report.md
+        echo "2. **User Profile Setting**" >> doc_report.md
+        echo "   - Profile → Your Copilot → Automatic code review → Enabled" >> doc_report.md
+        echo "" >> doc_report.md
+        echo "3. **Custom Instructions**" >> doc_report.md
+        echo "   - Add \`.github/copilot-instructions.md\` for project-specific guidance" >> doc_report.md
+        echo "   - Run the GitHub Copilot Setup workflow in this repository" >> doc_report.md
+        echo "" >> doc_report.md
 
-        # Get the diff for AI analysis
-        CHANGED_PYTHON_FILES=$(git diff --name-only main...HEAD -- '*.py' 'src/**/*.py' 2>/dev/null | head -5)
+        # Get changed Python files for specific guidance
+        CHANGED_PYTHON_FILES=$(git diff --name-only main...HEAD -- '*.py' 'src/**/*.py' 2>/dev/null | head -3)
 
         if [[ -n "$CHANGED_PYTHON_FILES" ]]; then
-          echo "Analyzing changed Python files with AI..." >> doc_report.md
-
-          # Generate AI-powered suggestions (using Claude as preference)
-          if [[ -n "$ANTHROPIC_API_KEY" ]]; then
-            echo "🤖 Using Claude AI for documentation analysis..." >> doc_report.md
-
-            # Create a focused diff of Python files for analysis
-            git diff main...HEAD -- $CHANGED_PYTHON_FILES > python_changes.diff
-
-            # Call Claude API for analysis
-            ANALYSIS=$(curl -s -X POST https://api.anthropic.com/v1/messages \
-              -H "Content-Type: application/json" \
-              -H "x-api-key: $ANTHROPIC_API_KEY" \
-              -H "anthropic-version: 2023-06-01" \
-              -d '{
-                "model": "claude-3-haiku-20240307",
-                "max_tokens": 1000,
-                "system": "You are a documentation expert. Analyze the Python code changes and suggest specific docstrings for any functions missing documentation. Focus on Args, Returns, and Example sections. Be concise and practical.",
-                "messages": [
-                  {
-                    "role": "user",
-                    "content": "Analyze these Python code changes and suggest docstrings for any functions missing documentation:\n\n'"$(cat python_changes.diff | head -100 | sed 's/"/\\"/g')"'"
-                  }
-                ]
-              }' | jq -r '.content[0].text' 2>/dev/null || echo "AI analysis failed")
-
-            if [[ "$ANALYSIS" != "AI analysis failed" && -n "$ANALYSIS" ]]; then
-              echo "### 🤖 Claude AI Suggestions" >> doc_report.md
-              echo "" >> doc_report.md
-              echo "$ANALYSIS" >> doc_report.md
-              echo "" >> doc_report.md
-            else
-              echo "❌ Claude AI analysis failed - check API key and quotas" >> doc_report.md
-              echo "AI_REVIEW_FAILED=true" >> $GITHUB_ENV
+          echo "### 🔧 For This PR" >> doc_report.md
+          echo "" >> doc_report.md
+          echo "Use GitHub Copilot in your editor to generate docstrings:" >> doc_report.md
+          for file in $CHANGED_PYTHON_FILES; do
+            if [[ -f "$file" ]]; then
+              echo "- **$file**: Place cursor after function definition, type \`\"\"\"\` and accept Copilot suggestions" >> doc_report.md
             fi
-
-          elif [[ -n "$OPENAI_API_KEY" ]]; then
-            echo "🤖 Using OpenAI for documentation analysis..." >> doc_report.md
-            echo "OpenAI integration not yet implemented - defaulting to failure" >> doc_report.md
-            echo "AI_REVIEW_FAILED=true" >> $GITHUB_ENV
-          fi
-        else
-          echo "No Python files changed - AI review not needed" >> doc_report.md
+          done
+          echo "" >> doc_report.md
         fi
+
+        echo "**Benefits of GitHub Native AI**:" >> doc_report.md
+        echo "- ✅ No external API keys required" >> doc_report.md
+        echo "- ✅ Integrated with GitHub permissions" >> doc_report.md
+        echo "- ✅ Automatic vulnerability detection" >> doc_report.md
+        echo "- ✅ Real-time suggestions in your editor" >> doc_report.md
+        echo "- ✅ No additional cost for most plans" >> doc_report.md
 
     - name: Post PR comment with documentation report
       if: github.event_name == 'pull_request'
