@@ -12,7 +12,7 @@ Registrations represent when the event was registered, not when the ceremony occ
 The data is published monthly with provisional figures for the current year and final figures for
 previous years.
 
-Data Sources:
+Data Source:
     **Marriages Mother Page**: https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/marriages
     **Civil Partnerships Page**: https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/civil-partnerships
 

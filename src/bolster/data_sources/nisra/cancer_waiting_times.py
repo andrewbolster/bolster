@@ -34,7 +34,7 @@ of each quarter. Cancer waiting times statistics are published by the Department
 as part of their healthcare performance monitoring, with data updated four times per year
 to track progress against key cancer treatment targets.
 
-Examples:
+Example:
     >>> from bolster.data_sources.nisra import cancer_waiting_times as cwt
     >>> # Get latest 31-day waiting times by HSC Trust
     >>> df = cwt.get_latest_31_day_by_trust()

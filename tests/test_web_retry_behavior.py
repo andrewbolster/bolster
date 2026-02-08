@@ -14,9 +14,9 @@ class TestRetryConfiguration:
 
     def test_retry_configuration(self):
         """Test that retry strategy is configured correctly."""
-        assert _retry_strategy.total == 3
+        assert _retry_strategy.total == 4  # Updated for enhanced rate limit handling
         assert _retry_strategy.backoff_factor == 1
-        assert _retry_strategy.status_forcelist == [500, 502, 503, 504]
+        assert _retry_strategy.status_forcelist == [429, 500, 502, 503, 504]  # Added 429 for rate limiting
         assert _retry_strategy.allowed_methods == ["HEAD", "GET", "OPTIONS"]
         assert _retry_strategy.raise_on_status is True  # Critical fix
 
@@ -81,8 +81,8 @@ class TestNetworkResilience:
 
     def test_status_forcelist_contains_server_errors(self):
         """Test that retry strategy targets appropriate server errors."""
-        # These are the status codes that should trigger retries
-        expected_status_codes = {500, 502, 503, 504}
+        # These are the status codes that should trigger retries (including rate limiting)
+        expected_status_codes = {429, 500, 502, 503, 504}  # Added 429 for rate limiting
         actual_status_codes = set(_retry_strategy.status_forcelist)
         assert actual_status_codes == expected_status_codes
 

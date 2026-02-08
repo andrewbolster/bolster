@@ -11,13 +11,21 @@ Data Coverage:
     - Theory Tests: April 2014 - Present
     - Test breakdowns by category and test centre
 
+Data Source: Department for Infrastructure Northern Ireland provides Driver & Vehicle Agency
+statistics through their publications portal at https://www.infrastructure-ni.gov.uk/publications?f%5B0%5D=type%3Astatisticalreports.
+The DVA publishes monthly test statistics covering vehicle tests, driver tests, and theory tests
+conducted across Northern Ireland, providing comprehensive data on driving and vehicle testing performance.
+
+Update Frequency: Monthly publications are released covering the previous month's test statistics.
+DVA data is published by the Department for Infrastructure Analytics Branch approximately 4-6 weeks
+after the reference month ends, providing consistent monthly updates on driving test performance
+and vehicle testing statistics across Northern Ireland.
+
 Publication Details:
-    - Frequency: Monthly
     - Published by: Department for Infrastructure (DfI) - Analytics Branch
     - Data Source: DVA Business & Regulatory Statistics
-    - Publication Page: https://www.infrastructure-ni.gov.uk/publications/type/statistics
 
-Examples:
+Example:
     >>> from bolster.data_sources import dva
     >>> # Get latest vehicle test statistics
     >>> df = dva.get_latest_vehicle_tests()

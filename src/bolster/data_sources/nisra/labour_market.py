@@ -21,6 +21,12 @@ Data Source:
     This ensures the module always retrieves the most recent data without hardcoding dates
     or quarters.
 
+Update Frequency: Quarterly publications covering 3-month rolling periods are released
+approximately 6-8 weeks after the reference period ends. Labour Force Survey data is
+published four times per year with additional annual publications containing Local Government
+District breakdowns. Data is updated as part of NISRA's regular labour market statistics
+programme following ONS Labour Force Survey methodology.
+
 Architecture:
     - Automatically discovers latest quarterly LFS publication from NISRA mother page
     - Downloads quarterly Labour Force Survey Excel files
