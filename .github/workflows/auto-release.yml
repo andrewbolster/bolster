@@ -144,6 +144,13 @@ jobs:
             }
           }
 
+          // Major versions require explicit workflow_dispatch - never auto-release
+          if (versionBump === 'major') {
+            console.log('Breaking change detected - major version requires manual release via workflow_dispatch');
+            core.setOutput('should_release', 'false');
+            return;
+          }
+
           // Generate changelog
           const changelog = releaseCommits
             .map(commit => `- ${commit}`)
