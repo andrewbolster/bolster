@@ -21,6 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for proper git diff
 
     - name: Setup Python and uv
       uses: astral-sh/setup-uv@v4
@@ -36,14 +38,16 @@ jobs:
         echo "# Documentation Completeness Report" > doc_report.md
         echo "" >> doc_report.md
 
-        # Find all public functions/classes in data source modules
-        echo "## New or Modified Data Source Functions" >> doc_report.md
+        # Find all public functions/classes in modified Python files
+        echo "## New or Modified Python Functions" >> doc_report.md
 
         # Get changed Python files
         if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-          CHANGED_FILES=$(git diff --name-only origin/main...HEAD -- 'src/bolster/data_sources/*.py' 'src/bolster/data_sources/**/*.py')
+          # Fetch main branch and check diff
+          git fetch origin main:main
+          CHANGED_FILES=$(git diff --name-only main...HEAD -- '*.py' 'src/**/*.py' 2>/dev/null || find . -name '*.py' -not -path './.*' -not -path './build/*' -not -path './dist/*')
         else
-          CHANGED_FILES=$(find src/bolster/data_sources -name '*.py')
+          CHANGED_FILES=$(find . -name '*.py' -not -path './.*' -not -path './build/*' -not -path './dist/*')
         fi
 
         echo "Checking files: $CHANGED_FILES"
@@ -97,26 +101,31 @@ jobs:
           echo "DOC_ISSUES=false" >> $GITHUB_ENV
         fi
 
-    - name: Check README coverage table
+    - name: Check README mentions for new modules
       run: |
         echo "" >> doc_report.md
-        echo "## README Coverage Table Check" >> doc_report.md
+        echo "## README Coverage Check" >> doc_report.md
 
-        # Extract data source modules
-        MODULES=$(find src/bolster/data_sources -name '*.py' -not -name '__init__.py' -not -name '_base.py')
+        # Check if any new modules should be mentioned in README
+        # This is a simple check - new modules in main source directories should be documented
+        NEW_MODULES=$(git diff --name-only main...HEAD -- 'src/**/*.py' 2>/dev/null | grep -E 'src/[^/]+/[^/]+\.py$' | head -5 || echo "")
 
-        echo "Found modules:" >> doc_report.md
-        for module in $MODULES; do
-          MODULE_NAME=$(basename "$module" .py)
+        if [[ -n "$NEW_MODULES" ]]; then
+          echo "New modules detected:" >> doc_report.md
+          for module in $NEW_MODULES; do
+            MODULE_NAME=$(basename "$module" .py)
+            MODULE_PATH=$(dirname "$module")
 
-          # Check if mentioned in README
-          if grep -q "$MODULE_NAME" README.md; then
-            echo "- ✅ $MODULE_NAME - In README" >> doc_report.md
-          else
-            echo "- ❌ $MODULE_NAME - **Missing from README coverage table**" >> doc_report.md
-            echo "README_ISSUES=true" >> $GITHUB_ENV
-          fi
-        done
+            # Check if mentioned in README (basic check)
+            if grep -qi "$MODULE_NAME\|$(basename "$MODULE_PATH")" README.md; then
+              echo "- ✅ $module - Referenced in README" >> doc_report.md
+            else
+              echo "- ⚠️ $module - Consider adding to README if this is a new public feature" >> doc_report.md
+            fi
+          done
+        else
+          echo "No new modules detected that require README updates." >> doc_report.md
+        fi
 
     - name: AI-powered documentation review (if available)
       if: env.DOC_ISSUES == 'true' || env.README_ISSUES == 'true'

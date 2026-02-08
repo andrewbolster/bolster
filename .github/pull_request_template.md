@@ -35,19 +35,26 @@ To override automatic detection, add one of these labels:
 - \[ \] New functionality has tests
 - \[ \] Documentation updated (if applicable)
 
-## Data Source Checklist
+## Additional Checklists
 
-<!-- For new data source modules only -->
+### For New Data Source Modules
+
+<!-- Only complete if adding a new data source module -->
 
 - \[ \] Module follows existing patterns (check similar modules)
 - \[ \] Uses shared utilities from `_base.py`
 - \[ \] Uses `web.session` for HTTP requests (not raw `requests.get()`)
-- \[ \] Type hints on public functions
-- \[ \] Docstrings with Args/Returns/Example sections
 - \[ \] Real data tests with `scope="class"` fixtures
 - \[ \] CLI command added and working
 - \[ \] README coverage table updated
 - \[ \] Includes 2-3 example insights from the data
+
+### For All Code Changes
+
+- \[ \] Type hints on public functions
+- \[ \] Docstrings with Args/Returns/Example sections (for public functions)
+- \[ \] Code follows existing project patterns
+- \[ \] README updated if adding user-facing features
 
 ## Breaking Changes
 
