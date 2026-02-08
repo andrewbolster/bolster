@@ -9,6 +9,16 @@ The report covers four main areas of individual wellbeing:
 - Self-efficacy: Belief in one's capabilities
 - Locus of Control: Perceived control over life events
 
+Data Source: Northern Ireland Statistics and Research Agency provides individual wellbeing
+statistics through their Wellbeing section at https://www.nisra.gov.uk/statistics/wellbeing/individual-wellbeing-northern-ireland.
+The data measures subjective wellbeing using the ONS4 personal wellbeing questions alongside
+additional measures of loneliness, self-efficacy, and locus of control for adults in Northern Ireland.
+
+Update Frequency: Annual publications released in January each year, covering the financial
+year period from April to March. The wellbeing statistics provide the official measure of
+subjective wellbeing for Northern Ireland, with data updated once per year as part of NISRA's
+social statistics programme.
+
 Data Coverage:
     - Personal Wellbeing (ONS4): 2014/15 - Present (annual, mean scores 0-10)
     - Loneliness: 2017/18 - Present (annual, proportions)

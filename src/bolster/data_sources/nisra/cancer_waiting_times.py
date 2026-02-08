@@ -24,6 +24,16 @@ Tumour Sites:
     - Lung Cancer, Other, Skin Cancers, Upper Gastrointestinal Cancer,
     - Urological Cancer
 
+Data Source: Department of Health Northern Ireland provides cancer waiting times statistics
+through their health publications at https://www.health-ni.gov.uk/articles/cancer-waiting-times.
+The data tracks performance against cancer treatment targets across Health and Social Care Trusts
+and by tumour site, providing comprehensive monitoring of cancer care pathways in Northern Ireland.
+
+Update Frequency: Quarterly publications are released approximately 3 months after the end
+of each quarter. Cancer waiting times statistics are published by the Department of Health
+as part of their healthcare performance monitoring, with data updated four times per year
+to track progress against key cancer treatment targets.
+
 Examples:
     >>> from bolster.data_sources.nisra import cancer_waiting_times as cwt
     >>> # Get latest 31-day waiting times by HSC Trust
