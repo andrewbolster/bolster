@@ -80,14 +80,13 @@ def get_latest_visitor_statistics_publication_url() -> Tuple[str, str]:
     Raises:
         NISRADataNotFoundError: If publication or file not found
     """
-    import requests
     from bs4 import BeautifulSoup
 
     try:
         # Use shared session with retry logic for resilient requests
         response = session.get(TOURISM_PUBLICATIONS_URL, timeout=30)
         response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch tourism publications page: {e}")
 
     soup = BeautifulSoup(response.content, "html.parser")

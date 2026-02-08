@@ -73,7 +73,6 @@ def get_latest_hotel_occupancy_publication_url() -> Tuple[str, str]:
     Raises:
         NISRADataNotFoundError: If publication or file not found
     """
-    import requests
     from bs4 import BeautifulSoup
 
     mother_page = OCCUPANCY_BASE_URL
@@ -82,7 +81,7 @@ def get_latest_hotel_occupancy_publication_url() -> Tuple[str, str]:
         # Use shared session with retry logic for resilient requests
         response = session.get(mother_page, timeout=30)
         response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch occupancy surveys page: {e}")
 
     soup = BeautifulSoup(response.content, "html.parser")
@@ -120,7 +119,7 @@ def get_latest_hotel_occupancy_publication_url() -> Tuple[str, str]:
     try:
         pub_response = session.get(pub_link, timeout=30)
         pub_response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}")
 
     pub_soup = BeautifulSoup(pub_response.content, "html.parser")
@@ -163,7 +162,6 @@ def get_latest_ssa_occupancy_publication_url() -> Tuple[str, str]:
     Raises:
         NISRADataNotFoundError: If publication or file not found
     """
-    import requests
     from bs4 import BeautifulSoup
 
     mother_page = OCCUPANCY_BASE_URL
@@ -172,7 +170,7 @@ def get_latest_ssa_occupancy_publication_url() -> Tuple[str, str]:
         # Use shared session with retry logic for resilient requests
         response = session.get(mother_page, timeout=30)
         response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch occupancy surveys page: {e}")
 
     soup = BeautifulSoup(response.content, "html.parser")
@@ -209,7 +207,7 @@ def get_latest_ssa_occupancy_publication_url() -> Tuple[str, str]:
     try:
         pub_response = session.get(pub_link, timeout=30)
         pub_response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch SSA publication page: {e}")
 
     pub_soup = BeautifulSoup(pub_response.content, "html.parser")

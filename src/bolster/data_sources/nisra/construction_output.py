@@ -48,6 +48,8 @@ from typing import Dict, Optional, Tuple, Union
 
 import pandas as pd
 
+from bolster.utils.web import session
+
 from ._base import NISRADataNotFoundError, download_file
 
 logger = logging.getLogger(__name__)
@@ -71,15 +73,14 @@ def get_latest_construction_publication_url() -> Tuple[str, datetime]:
         >>> url, pub_date = get_latest_construction_publication_url()
         >>> print(f"Latest published: {pub_date.strftime('%Y-%m-%d')}")
     """
-    import requests
     from bs4 import BeautifulSoup
 
     logger.info("Fetching latest Construction Output publication URL...")
 
     try:
-        response = requests.get(CONSTRUCTION_BASE_URL, timeout=30)
+        response = session.get(CONSTRUCTION_BASE_URL, timeout=30)
         response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch Construction Output page: {e}")
 
     soup = BeautifulSoup(response.content, "html.parser")
@@ -97,9 +98,9 @@ def get_latest_construction_publication_url() -> Tuple[str, datetime]:
 
             # Get the Excel file URL from the publication page
             try:
-                pub_response = requests.get(pub_url, timeout=30)
+                pub_response = session.get(pub_url, timeout=30)
                 pub_response.raise_for_status()
-            except requests.RequestException as e:
+            except Exception as e:
                 raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}")
 
             pub_soup = BeautifulSoup(pub_response.content, "html.parser")

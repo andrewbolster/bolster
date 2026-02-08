@@ -15,8 +15,6 @@ Example usage:
 from datetime import date
 from typing import Any, Dict, List
 
-import requests
-
 from ..utils.web import session
 
 
@@ -32,7 +30,7 @@ def get_cinema_listings(site_code: int = 117, screening_date: date = date.today(
         dict: A dictionary containing the cinema listings.
 
     Raises:
-        requests.exceptions.RequestException: If there was an error making the API request.
+        Exception: If there was an error making the API request.
 
     >>> cinema_listings = get_cinema_listings(117)
     >>> set(cinema_listings[0].keys()).issuperset({'id', 'name','link','weight','releaseYear','releaseDate','attributeIds','date','site_code'})
@@ -60,5 +58,5 @@ def get_cinema_listings(site_code: int = 117, screening_date: date = date.today(
             list["date"] = screening_date
             list["site_code"] = site_code
         return listings
-    except requests.exceptions.RequestException as e:
+    except Exception as e:
         raise e

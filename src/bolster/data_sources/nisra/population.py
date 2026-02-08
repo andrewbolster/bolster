@@ -40,6 +40,8 @@ from typing import Literal, Optional, Tuple, Union
 
 import pandas as pd
 
+from bolster.utils.web import session
+
 from ._base import NISRADataNotFoundError, NISRAValidationError, download_file
 
 logger = logging.getLogger(__name__)
@@ -62,15 +64,14 @@ def get_latest_population_publication_url() -> Tuple[str, int]:
     Raises:
         NISRADataNotFoundError: If publication or file not found
     """
-    import requests
     from bs4 import BeautifulSoup
 
     mother_page = POPULATION_BASE_URL
 
     try:
-        response = requests.get(mother_page, timeout=30)
+        response = session.get(mother_page, timeout=30)
         response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch population mother page: {e}")
 
     soup = BeautifulSoup(response.content, "html.parser")
@@ -104,9 +105,9 @@ def get_latest_population_publication_url() -> Tuple[str, int]:
 
     # Scrape the publication page for age bands Excel file
     try:
-        pub_response = requests.get(pub_link, timeout=30)
+        pub_response = session.get(pub_link, timeout=30)
         pub_response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}")
 
     pub_soup = BeautifulSoup(pub_response.content, "html.parser")

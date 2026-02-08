@@ -52,6 +52,8 @@ from typing import Tuple, Union
 
 import pandas as pd
 
+from bolster.utils.web import session
+
 from ._base import NISRADataNotFoundError, download_file
 
 logger = logging.getLogger(__name__)
@@ -76,15 +78,14 @@ def get_latest_nicei_publication_url() -> Tuple[str, int, str]:
         >>> url, year, quarter = get_latest_nicei_publication_url()
         >>> print(f"Latest NICEI: Q{quarter} {year}")
     """
-    import requests
     from bs4 import BeautifulSoup
 
     logger.info("Fetching latest NICEI publication URL...")
 
     try:
-        response = requests.get(NICEI_STATS_URL, timeout=30)
+        response = session.get(NICEI_STATS_URL, timeout=30)
         response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch NICEI page: {e}")
 
     soup = BeautifulSoup(response.content, "html.parser")
@@ -115,9 +116,9 @@ def get_latest_nicei_publication_url() -> Tuple[str, int, str]:
 
                 # Get the Excel file URL from the publication page
                 try:
-                    pub_response = requests.get(pub_url, timeout=30)
+                    pub_response = session.get(pub_url, timeout=30)
                     pub_response.raise_for_status()
-                except requests.RequestException as e:
+                except Exception as e:
                     logger.warning(f"Failed to fetch publication page {pub_url}: {e}")
                     continue
 

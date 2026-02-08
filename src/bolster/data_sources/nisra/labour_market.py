@@ -81,6 +81,7 @@ from bolster.data_sources.nisra._base import (
     safe_float,
     safe_int,
 )
+from bolster.utils.web import session
 
 logger = logging.getLogger(__name__)
 
@@ -490,14 +491,13 @@ def get_latest_lfs_publication_url() -> Tuple[str, str, str]:
         >>> url, year, quarter = get_latest_lfs_publication_url()
         >>> print(f"Latest data: {quarter} {year}")
     """
-    import requests
     from bs4 import BeautifulSoup
 
     # Mother page listing all labour market publications
     mother_page = "https://www.nisra.gov.uk/statistics/labour-market-and-social-welfare"
 
     try:
-        response = requests.get(mother_page, timeout=30)
+        response = session.get(mother_page, timeout=30)
         response.raise_for_status()
         soup = BeautifulSoup(response.content, "html.parser")
 
@@ -520,7 +520,7 @@ def get_latest_lfs_publication_url() -> Tuple[str, str, str]:
         logger.info(f"Found latest LFS publication: {latest_pub['text']}")
 
         # Now fetch the publication page to get the Excel file
-        pub_response = requests.get(latest_pub["url"], timeout=30)
+        pub_response = session.get(latest_pub["url"], timeout=30)
         pub_response.raise_for_status()
         pub_soup = BeautifulSoup(pub_response.content, "html.parser")
 
@@ -609,7 +609,7 @@ def get_latest_lfs_publication_url() -> Tuple[str, str, str]:
 
         raise NISRADataNotFoundError("Could not extract quarter and year from publication")
 
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch LFS publication list: {e}")
 
 
@@ -734,8 +734,6 @@ def get_latest_lgd_employment_url() -> Tuple[str, int]:
     """
     from datetime import datetime
 
-    import requests
-
     logger.info("Fetching latest LFS LGD employment publication URL...")
 
     # The LGD tables follow a predictable URL pattern
@@ -749,7 +747,7 @@ def get_latest_lgd_employment_url() -> Tuple[str, int]:
         pub_url = f"{LFS_BASE_URL}/publications/labour-force-survey-tables-local-government-districts-2009-{year}"
 
         try:
-            response = requests.get(pub_url, timeout=30)
+            response = session.get(pub_url, timeout=30)
             if response.status_code == 200:
                 # Found the publication page, now find the Excel file
                 from bs4 import BeautifulSoup
@@ -767,7 +765,7 @@ def get_latest_lgd_employment_url() -> Tuple[str, int]:
                         logger.info(f"Found latest LFS LGD tables: {year} at {excel_url}")
                         return excel_url, year
 
-        except requests.RequestException:
+        except Exception:
             continue
 
     # If all attempts fail, return the known 2024 file URL as fallback

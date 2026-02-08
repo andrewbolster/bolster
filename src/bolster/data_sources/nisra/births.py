@@ -44,6 +44,8 @@ from typing import Dict, Literal, Union
 import pandas as pd
 from openpyxl import load_workbook
 
+from bolster.utils.web import session
+
 from ._base import (
     NISRADataNotFoundError,
     NISRAValidationError,
@@ -71,15 +73,14 @@ def get_latest_births_publication_url() -> str:
     Raises:
         NISRADataNotFoundError: If publication or file not found
     """
-    import requests
     from bs4 import BeautifulSoup
 
     mother_page = BIRTHS_BASE_URL
 
     try:
-        response = requests.get(mother_page, timeout=30)
+        response = session.get(mother_page, timeout=30)
         response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch births mother page: {e}")
 
     soup = BeautifulSoup(response.content, "html.parser")
@@ -101,9 +102,9 @@ def get_latest_births_publication_url() -> str:
 
     # Scrape the publication page for Excel file
     try:
-        pub_response = requests.get(pub_link, timeout=30)
+        pub_response = session.get(pub_link, timeout=30)
         pub_response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}")
 
     pub_soup = BeautifulSoup(pub_response.content, "html.parser")

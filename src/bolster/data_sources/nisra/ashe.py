@@ -45,6 +45,8 @@ from typing import Tuple, Union
 
 import pandas as pd
 
+from bolster.utils.web import session
+
 from ._base import NISRADataNotFoundError, download_file
 
 logger = logging.getLogger(__name__)
@@ -68,15 +70,14 @@ def get_latest_ashe_publication_url() -> Tuple[str, int]:
         >>> url, year = get_latest_ashe_publication_url()
         >>> print(f"Latest ASHE: {year} at {url}")
     """
-    import requests
     from bs4 import BeautifulSoup
 
     logger.info("Fetching latest ASHE publication URL...")
 
     try:
-        response = requests.get(ASHE_BASE_URL, timeout=30)
+        response = session.get(ASHE_BASE_URL, timeout=30)
         response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch ASHE page: {e}")
 
     soup = BeautifulSoup(response.content, "html.parser")
