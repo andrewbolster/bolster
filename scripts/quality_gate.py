@@ -73,24 +73,24 @@ class QualityReporter:
             return {"tool": "ruff", "passed": False, "error": f"Failed to run ruff: {e}", "exit_code": 1}
 
     def run_coverage_check(self) -> dict:
-        """Run test coverage analysis and return results."""
+        """Check test coverage using existing coverage data."""
         print("📊 Running test coverage analysis...")
 
         try:
-            # Run pytest with coverage
-            result = subprocess.run(
-                ["uv", "run", "pytest", "--cov=src/bolster", "--cov-report=json", "--cov-report=term"],
-                capture_output=True,
-                text=True,
-                cwd=self.project_root,
-            )
-
-            # Parse coverage JSON report
+            # Use existing coverage data (don't run pytest - too slow for CI)
             coverage_file = self.project_root / "coverage.json"
             coverage_data = {}
-            if coverage_file.exists():
-                with open(coverage_file) as f:
-                    coverage_data = json.load(f)
+
+            if not coverage_file.exists():
+                return {
+                    "tool": "coverage",
+                    "passed": False,
+                    "error": "No coverage.json found. Run 'pytest --cov' to generate coverage data.",
+                    "exit_code": 1
+                }
+
+            with open(coverage_file) as f:
+                coverage_data = json.load(f)
 
             # Extract key metrics
             summary = coverage_data.get("totals", {})
