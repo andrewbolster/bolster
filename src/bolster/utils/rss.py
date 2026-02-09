@@ -10,8 +10,9 @@ from datetime import datetime
 from typing import Dict, List, Optional, Union
 
 import feedparser
-import requests
 from dateutil import parser as date_parser
+
+from .web import session
 
 logger = logging.getLogger(__name__)
 
@@ -173,7 +174,7 @@ def parse_rss_feed(feed_url: str, timeout: int = 30) -> Feed:
         Feed object containing parsed feed data
 
     Raises:
-        requests.RequestException: If the feed cannot be fetched
+        Exception: If the feed cannot be fetched
         ValueError: If the feed cannot be parsed
 
     Example:
@@ -184,9 +185,9 @@ def parse_rss_feed(feed_url: str, timeout: int = 30) -> Feed:
     """
     # Fetch the feed
     try:
-        response = requests.get(feed_url, timeout=timeout)
+        response = session.get(feed_url, timeout=timeout)
         response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         logger.error(f"Failed to fetch feed from {feed_url}: {e}")
         raise
 

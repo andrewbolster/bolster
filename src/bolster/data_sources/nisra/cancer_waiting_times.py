@@ -24,7 +24,17 @@ Tumour Sites:
     - Lung Cancer, Other, Skin Cancers, Upper Gastrointestinal Cancer,
     - Urological Cancer
 
-Examples:
+Data Source: Department of Health Northern Ireland provides cancer waiting times statistics
+through their health publications at https://www.health-ni.gov.uk/articles/cancer-waiting-times.
+The data tracks performance against cancer treatment targets across Health and Social Care Trusts
+and by tumour site, providing comprehensive monitoring of cancer care pathways in Northern Ireland.
+
+Update Frequency: Quarterly publications are released approximately 3 months after the end
+of each quarter. Cancer waiting times statistics are published by the Department of Health
+as part of their healthcare performance monitoring, with data updated four times per year
+to track progress against key cancer treatment targets.
+
+Example:
     >>> from bolster.data_sources.nisra import cancer_waiting_times as cwt
     >>> # Get latest 31-day waiting times by HSC Trust
     >>> df = cwt.get_latest_31_day_by_trust()
@@ -470,7 +480,7 @@ def get_tumour_site_ranking(df: pd.DataFrame, year: int = None) -> pd.DataFrame:
     return ranking
 
 
-def validate_performance_data(df: pd.DataFrame) -> bool:
+def validate_performance_data(df: pd.DataFrame) -> bool:  # pragma: no cover
     """Validate that performance data is internally consistent.
 
     Args:

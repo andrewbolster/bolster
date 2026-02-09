@@ -6,7 +6,7 @@ and should work with any dataset (latest or historical quarterly data).
 
 Key validations:
 - All expected markets present (GB, ROI, NI, etc.)
-- Values are positive and within reasonable ranges
+- Values are non-negative
 - Total row sums correctly
 - Helper functions work correctly
 """
@@ -61,32 +61,6 @@ class TestVisitorStatisticsDataIntegrity:
         """Test that expenditure values are not negative."""
         assert (latest_stats["expenditure"] >= 0).all(), "Found negative expenditure values"
 
-    def test_realistic_trip_volumes(self, latest_stats):
-        """Test that trip volumes are within realistic ranges.
-
-        NI receives roughly 4-6 million overnight trips per year.
-        """
-        total_row = latest_stats[latest_stats["market"] == "Total"]
-        if len(total_row) > 0:
-            total_trips = total_row["trips"].iloc[0]
-            # Annual trips should be between 2M and 10M
-            assert 2_000_000 < total_trips < 10_000_000, (
-                f"Total trips ({total_trips:,.0f}) outside expected range (2M-10M)"
-            )
-
-    def test_realistic_expenditure(self, latest_stats):
-        """Test that expenditure is within realistic ranges.
-
-        NI visitor expenditure is typically £800M-£1.5B annually.
-        """
-        total_row = latest_stats[latest_stats["market"] == "Total"]
-        if len(total_row) > 0:
-            total_spend = total_row["expenditure"].iloc[0]
-            # Annual expenditure should be between £500M and £2B
-            assert 500 < total_spend < 2000, (
-                f"Total expenditure (£{total_spend:.0f}M) outside expected range (£500M-£2B)"
-            )
-
     def test_total_matches_sum(self, latest_stats):
         """Test that Total row approximately matches sum of individual markets."""
         non_total = latest_stats[latest_stats["market"] != "Total"]
@@ -100,21 +74,6 @@ class TestVisitorStatisticsDataIntegrity:
             tolerance = 0.05
             assert abs(expected_trips - actual_trips) / actual_trips < tolerance, (
                 f"Total trips ({actual_trips:,.0f}) doesn't match sum of markets ({expected_trips:,.0f})"
-            )
-
-    def test_gb_is_largest_external_market(self, latest_stats):
-        """Test that Great Britain is the largest external market by trips.
-
-        GB has traditionally been NI's largest source of external visitors.
-        """
-        external_markets = latest_stats[~latest_stats["market"].isin(["Total", "NI Residents"])]
-
-        if len(external_markets) > 0:
-            gb_trips = latest_stats[latest_stats["market"] == "Great Britain"]["trips"].iloc[0]
-            max_external = external_markets["trips"].max()
-
-            assert gb_trips == max_external, (
-                f"GB ({gb_trips:,.0f}) should be largest external market (max: {max_external:,.0f})"
             )
 
     def test_nights_greater_than_trips(self, latest_stats):

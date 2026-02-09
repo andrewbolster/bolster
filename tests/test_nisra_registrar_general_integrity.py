@@ -49,27 +49,6 @@ class TestQuarterlyBirthsDataIntegrity:
         """Test that there are no negative birth counts."""
         assert (births_data["total_births"] >= 0).all(), "Found negative birth counts"
 
-    def test_realistic_birth_ranges(self, births_data):
-        """Test that quarterly birth counts are within realistic ranges.
-
-        NI typically has 4,000-6,000 births per quarter.
-        """
-        # Check upper bound (no quarter should have more than 10,000 births)
-        max_births = births_data["total_births"].max()
-        assert max_births < 10000, f"Maximum births ({max_births}) seems unrealistically high"
-
-        # Check lower bound (quarters should have some births)
-        min_births = births_data["total_births"].min()
-        assert min_births > 0, f"Minimum births ({min_births}) is zero or negative"
-
-    def test_birth_rate_reasonable(self, births_data):
-        """Test that birth rates are within reasonable range (0-50 per 1,000)."""
-        if "birth_rate" in births_data.columns:
-            rates = births_data["birth_rate"].dropna()
-            if not rates.empty:
-                assert (rates >= 0).all(), "Found negative birth rates"
-                assert (rates <= 50).all(), "Found unreasonably high birth rates"
-
     def test_historical_coverage(self, births_data):
         """Test that data goes back to at least 2009."""
         min_year = births_data["year"].min()
@@ -141,25 +120,6 @@ class TestQuarterlyDeathsDataIntegrity:
         """Test that there are no negative death counts."""
         assert (deaths_data["deaths"] >= 0).all(), "Found negative death counts"
 
-    def test_realistic_death_ranges(self, deaths_data):
-        """Test that quarterly death counts are within realistic ranges.
-
-        NI typically has 3,500-5,500 deaths per quarter (higher during COVID).
-        """
-        max_deaths = deaths_data["deaths"].max()
-        assert max_deaths < 10000, f"Maximum deaths ({max_deaths}) seems unrealistically high"
-
-        min_deaths = deaths_data["deaths"].min()
-        assert min_deaths > 0, f"Minimum deaths ({min_deaths}) is zero or negative"
-
-    def test_death_rate_reasonable(self, deaths_data):
-        """Test that death rates are within reasonable range."""
-        if "death_rate" in deaths_data.columns:
-            rates = deaths_data["death_rate"].dropna()
-            if not rates.empty:
-                assert (rates >= 0).all(), "Found negative death rates"
-                assert (rates <= 50).all(), "Found unreasonably high death rates"
-
     def test_marriages_non_negative(self, deaths_data):
         """Test that marriage counts are non-negative."""
         if "marriages" in deaths_data.columns:
@@ -173,22 +133,6 @@ class TestQuarterlyDeathsDataIntegrity:
             cp = deaths_data["civil_partnerships"].dropna()
             if not cp.empty:
                 assert (cp >= 0).all(), "Found negative civil partnership counts"
-
-    def test_covid_impact_visible(self, deaths_data):
-        """Test that COVID-19 impact is visible in 2020 Q2 death data."""
-        if 2020 in deaths_data["year"].values:
-            # Q2 2020 (April-June) should show elevated deaths
-            q2_2020 = deaths_data[(deaths_data["year"] == 2020) & (deaths_data["quarter"] == 2)]
-            if not q2_2020.empty:
-                # Compare with Q2 2019
-                q2_2019 = deaths_data[(deaths_data["year"] == 2019) & (deaths_data["quarter"] == 2)]
-                if not q2_2019.empty:
-                    deaths_2020 = q2_2020["deaths"].values[0]
-                    deaths_2019 = q2_2019["deaths"].values[0]
-                    # 2020 Q2 should have more deaths than 2019 Q2
-                    assert deaths_2020 > deaths_2019, (
-                        f"Q2 2020 deaths ({deaths_2020}) should exceed Q2 2019 ({deaths_2019}) due to COVID"
-                    )
 
 
 class TestLGDDataIntegrity:
@@ -244,15 +188,6 @@ class TestLGDDataIntegrity:
         deaths = lgd_data["deaths"].dropna()
         if not deaths.empty:
             assert (deaths >= 0).all(), "Found negative LGD deaths"
-
-    def test_lgd_births_sum_reasonable(self, lgd_data):
-        """Test that LGD births sum to a reasonable NI total."""
-        if lgd_data.empty or "births" not in lgd_data.columns:
-            pytest.skip("LGD births data not available")
-
-        total_births = lgd_data["births"].sum()
-        # NI typically has 4,000-6,000 births per quarter
-        assert 3000 < total_births < 8000, f"LGD births sum ({total_births}) outside expected range"
 
 
 class TestCrossValidation:

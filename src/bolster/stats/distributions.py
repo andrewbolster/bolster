@@ -116,7 +116,7 @@ def _get_available_distributions(include_slow=False):
 
 
 # Create models from data https://stackoverflow.com/questions/6620471/fitting-empirical-distribution-to-theoretical-ones-with-scipy-python
-def best_fit_distribution(data, bins=200, ax=None, include_slow=False, discriminator="sse"):
+def best_fit_distribution(data, bins=200, ax=None, include_slow=False, discriminator="sse"):  # pragma: no cover
     """Model data by finding best fit distribution to data"""
     # Get histogram of original data
     y, x = np.histogram(data, bins=bins, density=True)

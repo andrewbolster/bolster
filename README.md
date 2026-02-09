@@ -210,6 +210,20 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Security Situation Statistics | - | Planned |
 | Road Traffic Collisions | `psni.road_traffic_collisions` | ✅ |
 
+#### Infrastructure NI Publication Discovery
+
+The [Infrastructure NI publications portal](https://www.infrastructure-ni.gov.uk/publications) provides advanced filtering capabilities beyond basic publication types. Analysis of the sidebar filtering system reveals additional organizational dimensions that could enhance data source discovery:
+
+**Next Steps Analysis Directions:**
+
+- **Topic categorization**: Publications span transport, environment, planning, and infrastructure domains
+- **Geographic filtering**: Regional breakdown capabilities for localized analysis
+- **Date range analysis**: Historical publication patterns and frequency tracking
+- **Document format analysis**: Structured data availability vs. narrative reports
+- **Cross-departmental integration**: Links with other NI government department publications
+
+This systematic analysis could identify gaps in current DVA coverage and reveal additional structured datasets suitable for bolster integration.
+
 ## ☁️ Cloud Services
 
 ### AWS Integration

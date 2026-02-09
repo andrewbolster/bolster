@@ -8,6 +8,17 @@ This module provides access to Northern Ireland's earnings statistics:
 
 Data is published annually in October by NISRA's Economic & Labour Market Statistics Branch.
 
+Data Source: Northern Ireland Statistics and Research Agency provides Annual Survey of Hours
+and Earnings statistics through their Work, Pay and Benefits section at
+https://www.nisra.gov.uk/statistics/work-pay-and-benefits/annual-survey-hours-and-earnings.
+ASHE data covers employee earnings across all sectors based on a sample survey of payroll
+records from HMRC PAYE data, providing comprehensive earnings statistics for Northern Ireland.
+
+Update Frequency: Annual publications released in October each year, covering earnings data
+for the reference period of April. The dataset provides the most comprehensive and official
+source of employee earnings statistics for Northern Ireland, updated once per year with
+historical revisions as necessary.
+
 Data Coverage:
     - Weekly Earnings: 1997 - Present (annual, full-time/part-time/all)
     - Hourly Earnings: 1997 - Present (annual, excluding overtime)
@@ -45,6 +56,8 @@ from typing import Tuple, Union
 
 import pandas as pd
 
+from bolster.utils.web import session
+
 from ._base import NISRADataNotFoundError, download_file
 
 logger = logging.getLogger(__name__)
@@ -68,15 +81,14 @@ def get_latest_ashe_publication_url() -> Tuple[str, int]:
         >>> url, year = get_latest_ashe_publication_url()
         >>> print(f"Latest ASHE: {year} at {url}")
     """
-    import requests
     from bs4 import BeautifulSoup
 
     logger.info("Fetching latest ASHE publication URL...")
 
     try:
-        response = requests.get(ASHE_BASE_URL, timeout=30)
+        response = session.get(ASHE_BASE_URL, timeout=30)
         response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch ASHE page: {e}")
 
     soup = BeautifulSoup(response.content, "html.parser")
@@ -539,3 +551,26 @@ def get_gender_pay_gap(df_weekly: pd.DataFrame) -> pd.DataFrame:
     """
     # Placeholder - would need gender-specific data from linked tables
     raise NotImplementedError("Gender pay gap calculation requires gender-specific data from linked tables file")
+
+
+def validate_ashe_data(df: pd.DataFrame) -> bool:  # pragma: no cover
+    """Validate ASHE earnings data integrity.
+
+    Args:
+        df: DataFrame from ASHE functions
+
+    Returns:
+        True if validation passes, False otherwise
+    """
+    if df.empty:
+        logger.warning("ASHE data is empty")
+        return False
+
+    # Check for earnings-related columns
+    earnings_indicators = ["earnings", "salary", "pay", "gross", "hourly"]
+    has_earnings_data = any(indicator in " ".join(df.columns).lower() for indicator in earnings_indicators)
+    if not has_earnings_data:
+        logger.warning("No earnings indicators found in ASHE data")
+        return False
+
+    return True

@@ -11,13 +11,21 @@ Data Coverage:
     - Theory Tests: April 2014 - Present
     - Test breakdowns by category and test centre
 
+Data Source: Department for Infrastructure Northern Ireland provides Driver & Vehicle Agency
+statistics through their publications portal at https://www.infrastructure-ni.gov.uk/publications?f%5B0%5D=type%3Astatisticalreports.
+The DVA publishes monthly test statistics covering vehicle tests, driver tests, and theory tests
+conducted across Northern Ireland, providing comprehensive data on driving and vehicle testing performance.
+
+Update Frequency: Monthly publications are released covering the previous month's test statistics.
+DVA data is published by the Department for Infrastructure Analytics Branch approximately 4-6 weeks
+after the reference month ends, providing consistent monthly updates on driving test performance
+and vehicle testing statistics across Northern Ireland.
+
 Publication Details:
-    - Frequency: Monthly
     - Published by: Department for Infrastructure (DfI) - Analytics Branch
     - Data Source: DVA Business & Regulatory Statistics
-    - Publication Page: https://www.infrastructure-ni.gov.uk/publications/type/statistics
 
-Examples:
+Example:
     >>> from bolster.data_sources import dva
     >>> # Get latest vehicle test statistics
     >>> df = dva.get_latest_vehicle_tests()
@@ -43,8 +51,9 @@ from pathlib import Path
 from typing import Dict, Optional, Tuple, Union
 
 import pandas as pd
-import requests
 from bs4 import BeautifulSoup
+
+from bolster.utils.web import session
 
 logger = logging.getLogger(__name__)
 
@@ -104,12 +113,12 @@ def _download_file(url: str, cache_ttl_hours: int = 24, force_refresh: bool = Fa
     # Download
     try:
         logger.info(f"Downloading {url}")
-        response = requests.get(url, timeout=60)
+        response = session.get(url, timeout=60)
         response.raise_for_status()
         cache_path.write_bytes(response.content)
         logger.info(f"Saved to {cache_path}")
         return cache_path
-    except requests.RequestException as e:
+    except Exception as e:
         raise DVADataNotFoundError(f"Failed to download {url}: {e}")
 
 
@@ -167,7 +176,7 @@ def get_latest_dva_publication_url() -> Tuple[str, str, datetime]:
         logger.info(f"Trying publication URL: {pub_url}")
 
         try:
-            response = requests.get(pub_url, timeout=30)
+            response = session.get(pub_url, timeout=30)
             if response.status_code == 200:
                 logger.info(f"Found publication for {month_name.title()} {year}")
 
@@ -189,7 +198,7 @@ def get_latest_dva_publication_url() -> Tuple[str, str, datetime]:
                     logger.info(f"Found DVA Excel file: {excel_url}")
                     return excel_url, pub_title, pub_date
 
-        except requests.RequestException as e:
+        except Exception as e:
             logger.debug(f"Failed to fetch {pub_url}: {e}")
             continue
 
@@ -678,3 +687,36 @@ def get_summary_statistics(df: pd.DataFrame, start_year: Optional[int] = None, e
         "monthly_max": int(filtered["tests_conducted"].max()),
         "months_count": len(filtered),
     }
+
+
+def validate_dva_test_data(df: pd.DataFrame) -> bool:  # pragma: no cover
+    """Validate DVA test statistics data integrity.
+
+    Args:
+        df: DataFrame from DVA test functions (vehicle, driver, or theory tests)
+
+    Returns:
+        True if validation passes, False otherwise
+    """
+    if df.empty:
+        logging.warning("DVA test data is empty")
+        return False
+
+    required_cols = {"month", "tests_conducted"}
+    if not required_cols.issubset(df.columns):
+        missing = required_cols - set(df.columns)
+        logging.warning(f"Missing required DVA columns: {missing}")
+        return False
+
+    # Check for non-negative test counts
+    if (df["tests_conducted"] < 0).any():
+        logging.warning("Found negative test counts in DVA data")
+        return False
+
+    # Check for reasonable monthly test volumes
+    # Vehicle tests typically range from 40,000 to 100,000 per month in NI
+    if df["tests_conducted"].max() > 200000:  # Allow for variation but catch obvious errors
+        logging.warning("Unreasonably high test counts found")
+        return False
+
+    return True

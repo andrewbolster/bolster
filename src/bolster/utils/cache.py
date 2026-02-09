@@ -20,8 +20,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-import requests
-
 from .web import session as web_session
 
 logger = logging.getLogger(__name__)
@@ -143,7 +141,7 @@ class CachedDownloader:
             logger.info(f"Saved to {cache_path} ({size_mb:.1f} MB)")
             return cache_path
 
-        except requests.RequestException as e:
+        except Exception as e:
             raise DownloadError(f"Failed to download {url}: {e}")
 
     def clear(self, pattern: Optional[str] = None) -> int:

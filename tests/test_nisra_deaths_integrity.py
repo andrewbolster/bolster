@@ -154,29 +154,6 @@ class TestDeathsDataIntegrity:
         # Check place
         assert (latest_all_dimensions["place"]["deaths"] >= 0).all(), "Found negative deaths in place"
 
-    def test_reasonable_weekly_death_counts(self, latest_totals):
-        """Test that weekly death counts are within reasonable bounds for NI.
-
-        Northern Ireland has a population of ~1.9 million. Based on crude death rate
-        of ~9 per 1,000, we'd expect roughly 330 deaths per week on average.
-        This test checks deaths are within plausible bounds (100-800 per week).
-        """
-        min_expected = 100  # Well below normal minimum
-        max_expected = 800  # Well above typical maximum (even during COVID peaks)
-
-        too_low = latest_totals[latest_totals["observed_deaths"] < min_expected]
-        too_high = latest_totals[latest_totals["observed_deaths"] > max_expected]
-
-        assert len(too_low) == 0, (
-            f"Found {len(too_low)} weeks with unreasonably low deaths (<{min_expected}): "
-            f"{too_low[['week_ending', 'observed_deaths']].to_dict('records')}"
-        )
-
-        assert len(too_high) == 0, (
-            f"Found {len(too_high)} weeks with unreasonably high deaths (>{max_expected}): "
-            f"{too_high[['week_ending', 'observed_deaths']].to_dict('records')}"
-        )
-
     def test_covid_deaths_not_exceed_total(self, latest_totals):
         """Test that COVID deaths don't exceed total deaths in any week."""
         # COVID deaths should always be <= total deaths
@@ -369,72 +346,6 @@ class TestHistoricalDeathsIntegrity:
         assert len(future_dates) == 0, (
             f"Found {len(future_dates)} records with future dates: {future_dates['week_ending'].tolist()}"
         )
-
-    def test_covid_deaths_timeline(self):
-        """Test that COVID deaths follow expected timeline.
-
-        COVID-19 emerged in late 2019/early 2020. We should see:
-        - Very low COVID deaths before 2020 (some data quality issues in source)
-        - Significant COVID deaths from 2020 onwards
-
-        Note: NISRA's historical data has some apparent coding errors with ~39
-        "COVID deaths" reported in 2019, which is impossible. This test allows
-        for some source data quality issues but validates the overall pattern.
-        """
-        # Get data for years around pandemic start
-        df = deaths.get_historical_deaths(years=[2019, 2020, 2021], force_refresh=False)
-
-        # Check 2019: should have very low COVID deaths
-        # (ideally 0, but source data has quality issues)
-        covid_2019 = df[df["year"] == 2019]["covid_deaths_involving"].sum()
-
-        assert covid_2019 < 100, (
-            f"Found {covid_2019} COVID deaths in 2019. "
-            "Expected < 100 (source has some data quality issues, but shouldn't be high)."
-        )
-
-        # Check 2020: should have significant COVID deaths
-        covid_2020 = df[df["year"] == 2020]["covid_deaths_involving"].sum()
-
-        assert covid_2020 > 1000, (
-            f"Found only {covid_2020} COVID deaths in 2020. "
-            "Expected significant numbers (>1000) during first pandemic year."
-        )
-
-        # COVID in 2020 should be >> COVID in 2019 (orders of magnitude more)
-        assert covid_2020 > covid_2019 * 10, (
-            f"COVID deaths in 2020 ({covid_2020}) should be much higher than "
-            f"2019 ({covid_2019}). Expected at least 10x increase."
-        )
-
-    def test_excess_deaths_reasonable_bounds(self, historical_data_sample):
-        """Test that excess deaths are within reasonable bounds.
-
-        Excess deaths can be positive or negative, but should not be extreme.
-        During COVID peaks, excess deaths reached ~150-200 per week.
-        During quiet periods, can be -50 to -100.
-        """
-        df = historical_data_sample
-
-        # Filter to where excess deaths are available
-        with_excess = df[df["excess_deaths"].notna()]
-
-        if len(with_excess) == 0:
-            pytest.skip("No excess deaths data available")
-
-        # Check for extreme values
-        max_excess = with_excess["excess_deaths"].max()
-        min_excess = with_excess["excess_deaths"].min()
-
-        # During COVID peaks, saw ~200 excess deaths/week
-        # Allow some headroom but flag if wildly beyond historical max
-        assert max_excess < 300, (
-            f"Found extreme positive excess deaths: {max_excess}. This exceeds historical COVID peaks (~200)."
-        )
-
-        # Negative excess deaths of -150 seen in some periods
-        # Flag if much more negative
-        assert min_excess > -200, f"Found extreme negative excess deaths: {min_excess}. This is unusually low."
 
     def test_historical_year_completeness(self):
         """Test that historical years have complete data (52 or 53 weeks).

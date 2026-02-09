@@ -40,6 +40,8 @@ from typing import Dict, List, Literal, Optional, Union
 import pandas as pd
 from openpyxl import load_workbook
 
+from bolster.utils.web import session
+
 from ._base import (
     NISRADataNotFoundError,
     NISRAValidationError,
@@ -78,14 +80,13 @@ def get_latest_weekly_deaths_url() -> str:
     """
     import re
 
-    import requests
     from bs4 import BeautifulSoup
 
     # Start at the mother page
     mother_page = WEEKLY_DEATHS_BASE_URL
 
     try:
-        response = requests.get(mother_page, timeout=30)
+        response = session.get(mother_page, timeout=30)
         response.raise_for_status()
         soup = BeautifulSoup(response.content, "html.parser")
 
@@ -111,7 +112,7 @@ def get_latest_weekly_deaths_url() -> str:
             logger.info(f"Mother page scrape failed, trying direct URL: {pub_link}")
 
         # Now scrape the publication page for Excel files
-        pub_response = requests.get(pub_link, timeout=30)
+        pub_response = session.get(pub_link, timeout=30)
         pub_response.raise_for_status()
         pub_soup = BeautifulSoup(pub_response.content, "html.parser")
 
@@ -159,7 +160,7 @@ def get_latest_weekly_deaths_url() -> str:
         logger.info(f"Found weekly deaths file: {latest['text']}")
         return latest["url"]
 
-    except requests.RequestException as e:
+    except Exception as e:
         # Final fallback: Try the old method using scrape_download_links
         logger.warning(f"Mother page scraping failed ({e}), falling back to simple scraping")
         current_year = datetime.now().year
@@ -917,3 +918,36 @@ def _validate_place(df: pd.DataFrame):
         logger.warning(f"Missing expected places: {missing}")
 
     logger.info(f"Place validation passed ({len(places)} places found)")
+
+
+def validate_deaths_data(df: pd.DataFrame) -> bool:  # pragma: no cover
+    """Validate NISRA deaths data integrity.
+
+    Args:
+        df: DataFrame from get_latest_deaths or parse_deaths_file
+
+    Returns:
+        True if validation passes, False otherwise
+    """
+    if df.empty:
+        logger.warning("Deaths data is empty")
+        return False
+
+    required_cols = {"month", "deaths_total", "place"}
+    if not required_cols.issubset(df.columns):
+        missing = required_cols - set(df.columns)
+        logger.warning(f"Missing required death data columns: {missing}")
+        return False
+
+    # Check for non-negative death counts
+    if (df["deaths_total"] < 0).any():
+        logger.warning("Found negative death counts")
+        return False
+
+    # Check for reasonable monthly ranges (Northern Ireland context)
+    monthly_max = df["deaths_total"].max()
+    if monthly_max > 2000:  # Unreasonably high for NI
+        logger.warning(f"Unreasonably high monthly deaths: {monthly_max}")
+        return False
+
+    return True

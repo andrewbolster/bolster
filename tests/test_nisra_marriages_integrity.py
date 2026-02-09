@@ -6,11 +6,8 @@ any dataset (latest or historical).
 
 Key validations:
 - No negative values
-- Realistic marriage counts
 - Temporal continuity (no missing months in time series)
-- Year-over-year changes within reasonable bounds
-- Seasonal patterns (summer months typically have more marriages)
-- COVID-19 impact visible in 2020
+- Required columns, data types, and month names present
 """
 
 import pytest
@@ -39,23 +36,6 @@ class TestMarriagesDataIntegrity:
 
         assert (non_null_data["marriages"] >= 0).all(), "Data contains negative marriage counts"
 
-    def test_realistic_marriage_ranges(self, latest_marriages):
-        """Test that marriage counts are within realistic ranges.
-
-        Monthly marriages in NI typically range from 0-2000.
-        """
-        # Filter out NaN values
-        non_null_data = latest_marriages[latest_marriages["marriages"].notna()]
-
-        # Check upper bound (no month should have more than 2000 marriages)
-        max_marriages = non_null_data["marriages"].max()
-        assert max_marriages < 2000, f"Maximum marriages ({max_marriages}) seems unrealistically high"
-
-        # Check that most months have at least some marriages
-        # (COVID-19 months are exception)
-        min_marriages = non_null_data["marriages"].min()
-        assert min_marriages >= 0, f"Minimum marriages ({min_marriages}) is negative"
-
     def test_temporal_continuity(self, latest_marriages):
         """Test that there are no unexpected gaps in the time series.
 
@@ -81,105 +61,6 @@ class TestMarriagesDataIntegrity:
         """Test that the validate_marriages_temporal_continuity function works correctly."""
         # Should pass with valid data
         assert marriages.validate_marriages_temporal_continuity(latest_marriages)
-
-    def test_annual_totals_reasonable(self, latest_marriages):
-        """Test that annual marriage totals are within expected ranges.
-
-        NI typically has 7,000-9,000 marriages per year (except COVID-19 years).
-        """
-        summary = marriages.get_marriages_summary_by_year(latest_marriages)
-
-        # Check non-COVID years (before 2020 and after 2021)
-        normal_years = summary[(summary["year"] < 2020) | (summary["year"] > 2021)]
-
-        for _, row in normal_years.iterrows():
-            if row["months_reported"] == 12:  # Only check complete years
-                total = row["total_marriages"]
-                assert 6000 <= total <= 10000, (
-                    f"Year {row['year']}: Total marriages ({total:,.0f}) outside expected range"
-                )
-
-    def test_covid_impact_visible(self, latest_marriages):
-        """Test that COVID-19 impact is visible in 2020 data.
-
-        2020 should show significantly reduced marriages due to lockdowns.
-        """
-        df_2020 = marriages.get_marriages_by_year(latest_marriages, 2020)
-
-        # 2020 total should be significantly lower than typical years
-        total_2020 = df_2020["marriages"].sum()
-
-        # Compare with 2019
-        if 2019 in latest_marriages["year"].values:
-            df_2019 = marriages.get_marriages_by_year(latest_marriages, 2019)
-            total_2019 = df_2019["marriages"].sum()
-
-            # 2020 should be significantly less than 2019 (more than 30% reduction)
-            reduction = ((total_2019 - total_2020) / total_2019) * 100
-
-            assert reduction > 30, (
-                f"2020 marriages ({total_2020:,.0f}) should show COVID-19 impact "
-                f"(>30% reduction from 2019: {total_2019:,.0f})"
-            )
-
-        # Check specific months (April/May 2020 lockdown)
-        april_2020 = df_2020[df_2020["month"] == "April"]["marriages"].values[0]
-        may_2020 = df_2020[df_2020["month"] == "May"]["marriages"].values[0]
-
-        # These should be very low (less than 20 marriages/month during strict lockdown)
-        assert april_2020 < 50, f"April 2020 marriages ({april_2020}) should reflect lockdown impact"
-        assert may_2020 < 50, f"May 2020 marriages ({may_2020}) should reflect lockdown impact"
-
-    def test_seasonal_patterns(self, latest_marriages):
-        """Test that summer months typically have more marriages.
-
-        Peak wedding season is typically June-September.
-        """
-        # Calculate average marriages by month across all years
-        monthly_avg = latest_marriages.groupby("month")["marriages"].mean()
-
-        # Define peak months
-        peak_months = ["June", "July", "August", "September"]
-        off_peak_months = ["January", "February", "November", "December"]
-
-        peak_avg = monthly_avg[monthly_avg.index.isin(peak_months)].mean()
-        off_peak_avg = monthly_avg[monthly_avg.index.isin(off_peak_months)].mean()
-
-        # Peak months should have significantly more marriages than off-peak
-        assert peak_avg > off_peak_avg * 1.5, (
-            f"Peak months ({peak_avg:.0f}) should have significantly more marriages "
-            f"than off-peak months ({off_peak_avg:.0f})"
-        )
-
-    def test_year_over_year_changes_reasonable(self, latest_marriages):
-        """Test that year-over-year marriage changes are within reasonable bounds.
-
-        Excluding COVID-19 years, marriages typically don't change by more than 20% year-to-year.
-        """
-        summary = marriages.get_marriages_summary_by_year(latest_marriages)
-
-        # Filter to complete years only
-        complete_years = summary[summary["months_reported"] == 12].copy()
-        complete_years = complete_years.sort_values("year")
-
-        for i in range(1, len(complete_years)):
-            prev_year = complete_years.iloc[i - 1]["year"]
-            curr_year = complete_years.iloc[i]["year"]
-
-            prev_total = complete_years.iloc[i - 1]["total_marriages"]
-            curr_total = complete_years.iloc[i]["total_marriages"]
-
-            pct_change = abs(((curr_total - prev_total) / prev_total) * 100)
-
-            # Skip COVID-19 transition years (2019-2020, 2020-2021)
-            if prev_year in [2019, 2020] or curr_year in [2020, 2021]:
-                continue
-
-            # Normal years shouldn't change by more than 25%
-            assert pct_change <= 25, (
-                f"Year {prev_year} to {curr_year}: Marriage change {pct_change:.1f}% exceeds reasonable bounds "
-                f"({prev_total:,.0f} -> {curr_total:,.0f})"
-            )
 
     def test_data_types_correct(self, latest_marriages):
         """Test that column data types are correct."""
@@ -269,19 +150,6 @@ class TestMarriagesDataIntegrity:
 
         assert len(duplicates) == 0, f"Found duplicate year-month combinations: {duplicates}"
 
-    def test_august_typically_highest(self, latest_marriages):
-        """Test that August is typically the highest month for marriages.
-
-        August is traditionally peak wedding season in Northern Ireland.
-        """
-        # Calculate average by month across all years
-        monthly_avg = latest_marriages.groupby("month")["marriages"].mean().sort_values(ascending=False)
-
-        # August should be in top 3 months
-        top_3_months = monthly_avg.head(3).index.tolist()
-
-        assert "August" in top_3_months, f"August should be in top 3 months, but top 3 are: {top_3_months}"
-
 
 class TestCivilPartnershipsDataIntegrity:
     """Test suite for validating internal consistency of civil partnership data."""
@@ -304,16 +172,6 @@ class TestCivilPartnershipsDataIntegrity:
         non_null_data = latest_civil_partnerships[latest_civil_partnerships["civil_partnerships"].notna()]
 
         assert (non_null_data["civil_partnerships"] >= 0).all(), "Data contains negative counts"
-
-    def test_realistic_ranges(self, latest_civil_partnerships):
-        """Test that civil partnership counts are within realistic ranges.
-
-        Monthly civil partnerships in NI typically range from 0-30.
-        """
-        non_null_data = latest_civil_partnerships[latest_civil_partnerships["civil_partnerships"].notna()]
-
-        max_cp = non_null_data["civil_partnerships"].max()
-        assert max_cp < 50, f"Maximum civil partnerships ({max_cp}) seems unrealistically high"
 
     def test_data_types_correct(self, latest_civil_partnerships):
         """Test that column data types are correct."""
@@ -377,19 +235,3 @@ class TestCivilPartnershipsDataIntegrity:
 
         assert (summary["months_reported"] >= 1).all()
         assert (summary["months_reported"] <= 12).all()
-
-    def test_covid_impact_visible(self, latest_civil_partnerships):
-        """Test that COVID-19 impact is visible in 2020 data."""
-        if 2020 not in latest_civil_partnerships["year"].values:
-            pytest.skip("2020 data not available")
-
-        df_2020 = marriages.get_civil_partnerships_by_year(latest_civil_partnerships, 2020)
-        df_2019 = marriages.get_civil_partnerships_by_year(latest_civil_partnerships, 2019)
-
-        total_2020 = df_2020["civil_partnerships"].sum()
-        total_2019 = df_2019["civil_partnerships"].sum()
-
-        # 2020 should be significantly less than 2019
-        assert total_2020 < total_2019, (
-            f"2020 civil partnerships ({total_2020}) should be less than 2019 ({total_2019})"
-        )

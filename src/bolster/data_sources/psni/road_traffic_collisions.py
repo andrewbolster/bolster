@@ -47,7 +47,8 @@ from datetime import datetime
 from typing import Dict, List, Literal, Optional
 
 import pandas as pd
-import requests
+
+from bolster.utils.web import session
 
 from ._base import (
     PSNIDataNotFoundError,
@@ -176,7 +177,7 @@ def _get_available_datasets() -> List[Dict]:
         PSNIDataNotFoundError: If API request fails
     """
     try:
-        resp = requests.get(
+        resp = session.get(
             f"{OPENDATANI_API}/package_search",
             params={"q": "police recorded injury road traffic collision northern ireland", "rows": 50},
             headers={"User-Agent": "bolster/1.0"},
@@ -216,7 +217,7 @@ def _get_available_datasets() -> List[Dict]:
         datasets.sort(key=lambda x: x["year"], reverse=True)
         return datasets
 
-    except requests.RequestException as e:
+    except Exception as e:
         raise PSNIDataNotFoundError(f"Failed to fetch dataset list: {e}") from e
 
 

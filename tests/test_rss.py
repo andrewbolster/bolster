@@ -136,7 +136,7 @@ def test_filter_entries_by_category():
     assert all("health" in e.categories for e in filtered)
 
 
-@patch("bolster.utils.rss.requests.get")
+@patch("bolster.utils.rss.session.get")
 def test_parse_rss_feed_success(mock_get):
     """Test successful RSS feed parsing."""
     # Mock response with minimal valid RSS
@@ -166,7 +166,7 @@ def test_parse_rss_feed_success(mock_get):
     assert feed.entries[0].title == "Test Entry"
 
 
-@patch("bolster.utils.rss.requests.get")
+@patch("bolster.utils.rss.session.get")
 def test_parse_rss_feed_atom_format(mock_get):
     """Test parsing Atom feeds."""
     # Mock response with minimal valid Atom feed
@@ -191,7 +191,7 @@ def test_parse_rss_feed_atom_format(mock_get):
     assert len(feed.entries) == 1
 
 
-@patch("bolster.utils.rss.requests.get")
+@patch("bolster.utils.rss.session.get")
 def test_parse_rss_feed_network_error(mock_get):
     """Test handling of network errors."""
     import requests
@@ -202,7 +202,7 @@ def test_parse_rss_feed_network_error(mock_get):
         parse_rss_feed("https://example.com/feed.xml")
 
 
-@patch("bolster.utils.rss.requests.get")
+@patch("bolster.utils.rss.session.get")
 def test_parse_rss_feed_malformed(mock_get):
     """Test handling of malformed feeds."""
     mock_response = Mock()

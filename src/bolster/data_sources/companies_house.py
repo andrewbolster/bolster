@@ -1,12 +1,45 @@
+"""
+UK Companies House Data Integration
+
+Data Source: UK Companies House provides comprehensive company registration data through
+their bulk download service at http://download.companieshouse.gov.uk/en_output.html.
+The service provides complete company information including names, addresses, status,
+and registration details for all active and dissolved companies in the UK.
+
+Update Frequency: The Companies House bulk data is updated monthly, typically available
+by the first week of each month. The data reflects the state of company registrations
+as of the snapshot date.
+
+Example:
+    Basic usage for querying company data:
+
+        >>> from bolster.data_sources import companies_house
+        >>> # Get all companies (warning: this is very large!)
+        >>> for company in companies_house.query_basic_company_data():
+        ...     print(company['CompanyName'], company['CompanyNumber'])
+        ...     break  # Just show first result
+
+        >>> # Query companies that might be associated with Farset Labs
+        >>> farset_companies = list(companies_house.query_basic_company_data(
+        ...     companies_house.companies_house_record_might_be_farset
+        ... ))
+        >>> print(f"Found {len(farset_companies)} potential Farset-related companies")
+
+The module provides utilities for downloading and parsing the complete UK company registry,
+with built-in filtering capabilities for targeted analysis.
+"""
+
 import csv
-from typing import Callable, Dict, Iterator, Text
+import logging
+from typing import Callable, Dict, Iterator, List, Text
 
 import bs4
-import requests
 from tqdm.auto import tqdm
 
 from .. import always, dict_concat_safe
-from ..utils.web import download_extract_zip
+from ..utils.web import download_extract_zip, session
+
+logger = logging.getLogger(__name__)
 
 
 def get_basic_company_data_url() -> Text:
@@ -17,7 +50,7 @@ def get_basic_company_data_url() -> Text:
     """
     base_url = "http://download.companieshouse.gov.uk/en_output.html"
     # TODO: Network integration testing - requires active Companies House website
-    s = bs4.BeautifulSoup(requests.get(base_url).content)  # pragma: no cover
+    s = bs4.BeautifulSoup(session.get(base_url).content)  # pragma: no cover
     for a in s.find_all("a"):  # pragma: no cover
         if a.get("href").startswith("BasicCompanyDataAsOneFile"):  # pragma: no cover
             url = f"http://download.companieshouse.gov.uk/{a.get('href')}"  # pragma: no cover
@@ -78,3 +111,38 @@ def companies_house_record_might_be_farset(r: Dict) -> bool:
 def get_companies_house_records_that_might_be_in_farset() -> Iterator[Dict]:
     # TODO: Network integration testing - requires Companies House data download
     yield from query_basic_company_data(companies_house_record_might_be_farset)  # pragma: no cover
+
+
+def validate_companies_house_data(records: List[Dict]) -> bool:  # pragma: no cover
+    """Validate Companies House data integrity.
+
+    Args:
+        records: List of company records from Companies House
+
+    Returns:
+        True if validation passes, False otherwise
+    """
+    if not records:
+        logger.warning("Companies House data is empty")
+        return False
+
+    # Check for required fields in first record
+    required_fields = {"CompanyName", "CompanyNumber", "RegAddress.PostCode"}
+    first_record = records[0]
+
+    if not required_fields.issubset(first_record.keys()):
+        missing = required_fields - set(first_record.keys())
+        logger.warning(f"Missing required fields: {missing}")
+        return False
+
+    # Check for reasonable data
+    valid_count = 0
+    for record in records:
+        if record.get("CompanyName") and record.get("CompanyNumber"):
+            valid_count += 1
+
+    if valid_count < len(records) * 0.8:  # At least 80% should have basic data
+        logger.warning(f"Only {valid_count}/{len(records)} records have valid company data")
+        return False
+
+    return True

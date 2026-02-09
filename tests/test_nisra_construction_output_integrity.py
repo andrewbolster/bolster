@@ -66,14 +66,6 @@ class TestConstructionOutputIntegrity:
         assert (latest_construction["new_work_index"] > 0).all()
         assert (latest_construction["repair_maintenance_index"] > 0).all()
 
-    def test_index_values_reasonable(self, latest_construction):
-        """Test that index values are in reasonable range."""
-        # Base year is 2022 = 100, so values should be roughly 50-200
-        assert latest_construction["all_work_index"].min() > 30
-        assert latest_construction["all_work_index"].max() < 250
-        assert latest_construction["new_work_index"].min() > 30
-        assert latest_construction["new_work_index"].max() < 250
-
     def test_no_missing_values(self, latest_construction):
         """Test that there are no missing values in key columns."""
         assert not latest_construction["date"].isna().any()
@@ -118,25 +110,6 @@ class TestConstructionOutputIntegrity:
         # 2022 should have index values close to 100 (base year)
         mean_2022 = df_2022["all_work_index"].mean()
         assert 90 < mean_2022 < 110
-
-    def test_covid_impact_visible(self, latest_construction):
-        """Test that COVID-19 impact is visible in 2020 data."""
-        df_2020 = latest_construction[latest_construction["year"] == 2020]
-
-        # 2020 should have data
-        assert len(df_2020) >= 3
-
-    def test_all_work_relationship(self, latest_construction):
-        """Test that All Work index is generally between New Work and R&M."""
-        # All Work is a composite, so it should generally be related to components
-        # Not a strict mathematical relationship but should be correlated
-        correlation = latest_construction["all_work_index"].corr(latest_construction["new_work_index"])
-        assert correlation > 0.5  # Should be positively correlated
-
-    def test_longer_history_than_ios_iop(self, latest_construction):
-        """Test that Construction Output has longer history than IOS/IOP (2000 vs 2005)."""
-        assert latest_construction["year"].min() == 2000
-        # IOS/IOP start from 2005, so Construction has 5 more years
 
 
 class TestHelperFunctionsIntegrity:

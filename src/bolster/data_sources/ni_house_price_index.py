@@ -43,7 +43,8 @@ from urllib.parse import urlparse
 
 import bs4
 import pandas as pd
-import requests
+
+from bolster.utils.web import session
 
 logger = logging.getLogger(__name__)
 
@@ -123,14 +124,14 @@ def _download_file(url: str, cache_ttl_hours: int = 24, force_refresh: bool = Fa
 
     try:
         logger.info(f"Downloading {url}")
-        response = requests.get(url, timeout=60)
+        response = session.get(url, timeout=60)
         response.raise_for_status()
 
         cache_path.write_bytes(response.content)
         logger.info(f"Saved to {cache_path}")
         return cache_path
 
-    except requests.RequestException as e:
+    except Exception as e:
         raise NIHPIDataNotFoundError(f"Failed to download {url}: {e}")
 
 
@@ -155,9 +156,9 @@ def get_source_url(base_url=DEFAULT_URL) -> Text:
         NIHPIDataNotFoundError: If no Excel file found
     """
     try:
-        response = requests.get(base_url, timeout=30)
+        response = session.get(base_url, timeout=30)
         response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NIHPIDataNotFoundError(f"Failed to fetch publication page: {e}")
 
     base_soup = bs4.BeautifulSoup(response.content, features="html.parser")
@@ -761,3 +762,26 @@ def build() -> Dict[Text, pd.DataFrame]:
         stacklevel=2,
     )
     return get_all_tables()
+
+
+def validate_house_price_data(df: pd.DataFrame) -> bool:  # pragma: no cover
+    """Validate house price index data integrity.
+
+    Args:
+        df: DataFrame from house price index functions
+
+    Returns:
+        True if validation passes, False otherwise
+    """
+    if df.empty:
+        logger.warning("House price data is empty")
+        return False
+
+    # Check for price-related columns
+    price_indicators = ["price", "index", "value", "average"]
+    has_price_data = any(indicator in " ".join(df.columns).lower() for indicator in price_indicators)
+    if not has_price_data:
+        logger.warning("No price indicators found in house price data")
+        return False
+
+    return True

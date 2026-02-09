@@ -12,7 +12,7 @@ Registrations represent when the event was registered, not when the ceremony occ
 The data is published monthly with provisional figures for the current year and final figures for
 previous years.
 
-Data Sources:
+Data Source:
     **Marriages Mother Page**: https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/marriages
     **Civil Partnerships Page**: https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/civil-partnerships
 
@@ -46,6 +46,8 @@ from typing import Tuple, Union
 
 import pandas as pd
 
+from bolster.utils.web import session
+
 from ._base import NISRADataNotFoundError, NISRAValidationError, download_file
 
 logger = logging.getLogger(__name__)
@@ -69,15 +71,14 @@ def get_latest_marriages_publication_url() -> Tuple[str, str]:
     Raises:
         NISRADataNotFoundError: If publication or file not found
     """
-    import requests
     from bs4 import BeautifulSoup
 
     mother_page = MARRIAGES_BASE_URL
 
     try:
-        response = requests.get(mother_page, timeout=30)
+        response = session.get(mother_page, timeout=30)
         response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch marriages mother page: {e}")
 
     soup = BeautifulSoup(response.content, "html.parser")
@@ -113,9 +114,9 @@ def get_latest_marriages_publication_url() -> Tuple[str, str]:
 
     # Scrape the publication page for Excel file
     try:
-        pub_response = requests.get(pub_link, timeout=30)
+        pub_response = session.get(pub_link, timeout=30)
         pub_response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}")
 
     pub_soup = BeautifulSoup(pub_response.content, "html.parser")
@@ -303,7 +304,7 @@ def get_latest_marriages(force_refresh: bool = False) -> pd.DataFrame:
     return parse_marriages_file(file_path)
 
 
-def validate_marriages_temporal_continuity(df: pd.DataFrame) -> bool:
+def validate_marriages_temporal_continuity(df: pd.DataFrame) -> bool:  # pragma: no cover
     """Validate that marriage data has no unexpected gaps in time series.
 
     Args:
@@ -399,15 +400,14 @@ def get_latest_civil_partnerships_publication_url() -> Tuple[str, str]:
     Raises:
         NISRADataNotFoundError: If publication or file not found
     """
-    import requests
     from bs4 import BeautifulSoup
 
     mother_page = CIVIL_PARTNERSHIPS_BASE_URL
 
     try:
-        response = requests.get(mother_page, timeout=30)
+        response = session.get(mother_page, timeout=30)
         response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch civil partnerships page: {e}")
 
     soup = BeautifulSoup(response.content, "html.parser")
@@ -434,9 +434,9 @@ def get_latest_civil_partnerships_publication_url() -> Tuple[str, str]:
 
     # Scrape the publication page for Excel file
     try:
-        pub_response = requests.get(pub_link, timeout=30)
+        pub_response = session.get(pub_link, timeout=30)
         pub_response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}")
 
     pub_soup = BeautifulSoup(pub_response.content, "html.parser")

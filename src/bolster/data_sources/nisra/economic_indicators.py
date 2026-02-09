@@ -6,12 +6,23 @@ This module provides access to Northern Ireland's quarterly economic output indi
 
 Both indices are published quarterly by NISRA's Economic & Labour Market Statistics Branch.
 
+Data Source: Northern Ireland Statistics and Research Agency provides quarterly economic output
+statistics through their Economic Output section at https://www.nisra.gov.uk/statistics/economic-output.
+This module accesses both the Index of Services at https://www.nisra.gov.uk/statistics/economic-output/index-services
+and Index of Production at https://www.nisra.gov.uk/statistics/economic-output/index-production.
+Both datasets provide quarterly measures of economic performance with historical data from Q1 2005.
+
+Update Frequency: Quarterly publications are released approximately 3 months after the end of
+each quarter. Index of Services and Index of Production data are published simultaneously with
+detailed breakdowns and UK comparator statistics. The datasets are updated four times per year
+following the standard quarterly release schedule.
+
 Data Coverage:
     - Index of Services: Q1 2005 - Present (quarterly)
     - Index of Production: Q1 2005 - Present (quarterly)
     - Both include NI and UK comparator data
 
-Examples:
+Example:
     >>> from bolster.data_sources.nisra import economic_indicators
     >>> # Get latest Index of Services data
     >>> ios_df = economic_indicators.get_latest_index_of_services()
@@ -44,6 +55,8 @@ from typing import Dict, Optional, Tuple, Union
 
 import pandas as pd
 
+from bolster.utils.web import session
+
 from ._base import NISRADataNotFoundError, download_file
 
 logger = logging.getLogger(__name__)
@@ -69,15 +82,14 @@ def get_latest_ios_publication_url() -> Tuple[str, datetime]:
         >>> print(f"Latest IOS published: {pub_date.strftime('%Y-%m-%d')}")
         >>> print(f"Data URL: {url}")
     """
-    import requests
     from bs4 import BeautifulSoup
 
     logger.info("Fetching latest Index of Services publication URL...")
 
     try:
-        response = requests.get(IOS_BASE_URL, timeout=30)
+        response = session.get(IOS_BASE_URL, timeout=30)
         response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch IOS page: {e}")
 
     soup = BeautifulSoup(response.content, "html.parser")
@@ -95,9 +107,9 @@ def get_latest_ios_publication_url() -> Tuple[str, datetime]:
 
             # Get the Excel file URL from the publication page
             try:
-                pub_response = requests.get(pub_url, timeout=30)
+                pub_response = session.get(pub_url, timeout=30)
                 pub_response.raise_for_status()
-            except requests.RequestException as e:
+            except Exception as e:
                 raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}")
 
             pub_soup = BeautifulSoup(pub_response.content, "html.parser")
@@ -137,15 +149,14 @@ def get_latest_iop_publication_url() -> Tuple[str, datetime]:
         >>> url, pub_date = get_latest_iop_publication_url()
         >>> print(f"Latest IOP published: {pub_date.strftime('%Y-%m-%d')}")
     """
-    import requests
     from bs4 import BeautifulSoup
 
     logger.info("Fetching latest Index of Production publication URL...")
 
     try:
-        response = requests.get(IOP_BASE_URL, timeout=30)
+        response = session.get(IOP_BASE_URL, timeout=30)
         response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch IOP page: {e}")
 
     soup = BeautifulSoup(response.content, "html.parser")
@@ -162,9 +173,9 @@ def get_latest_iop_publication_url() -> Tuple[str, datetime]:
 
             # Get the Excel file URL from the publication page
             try:
-                pub_response = requests.get(pub_url, timeout=30)
+                pub_response = session.get(pub_url, timeout=30)
                 pub_response.raise_for_status()
-            except requests.RequestException as e:
+            except Exception as e:
                 raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}")
 
             pub_soup = BeautifulSoup(pub_response.content, "html.parser")
@@ -551,3 +562,33 @@ def get_iop_summary_statistics(
         "uk_max": float(filtered["uk_index"].max()),
         "quarters_count": len(filtered),
     }
+
+
+def validate_economic_indicators_data(df: pd.DataFrame) -> bool:  # pragma: no cover
+    """Validate economic indicators data integrity.
+
+    Args:
+        df: DataFrame from economic indicators functions
+
+    Returns:
+        True if validation passes, False otherwise
+    """
+    if df.empty:
+        logger.warning("Economic indicators data is empty")
+        return False
+
+    # Check for time series structure
+    time_cols = ["quarter", "year", "date", "period"]
+    has_time_data = any(col in df.columns for col in time_cols)
+    if not has_time_data:
+        logger.warning("No time series columns found in economic indicators data")
+        return False
+
+    # Check for economic index columns
+    index_indicators = ["index", "gdp", "gva", "economic"]
+    has_economic_data = any(indicator in " ".join(df.columns).lower() for indicator in index_indicators)
+    if not has_economic_data:
+        logger.warning("No economic index indicators found")
+        return False
+
+    return True

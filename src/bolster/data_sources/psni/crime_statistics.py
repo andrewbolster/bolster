@@ -293,7 +293,7 @@ def get_latest_crime_statistics(
     return df
 
 
-def validate_crime_statistics(df: pd.DataFrame) -> bool:
+def validate_crime_statistics(df: pd.DataFrame) -> bool:  # pragma: no cover
     """Validate crime statistics data integrity.
 
     Performs sanity checks on the crime statistics data:

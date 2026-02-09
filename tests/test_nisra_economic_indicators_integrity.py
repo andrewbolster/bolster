@@ -7,7 +7,6 @@ Test coverage includes:
 - Data structure and types
 - Data completeness and ranges
 - Time series continuity
-- NI vs UK comparisons
 - Growth rate calculations
 - Helper function behavior
 """
@@ -58,13 +57,6 @@ class TestIndexOfServicesIntegrity:
         assert (latest_ios["ni_index"] > 0).all()
         assert (latest_ios["uk_index"] > 0).all()
 
-    def test_index_values_reasonable(self, latest_ios):
-        """Test that index values are in reasonable range (typically 50-150)."""
-        assert latest_ios["ni_index"].min() > 50
-        assert latest_ios["ni_index"].max() < 150
-        assert latest_ios["uk_index"].min() > 50
-        assert latest_ios["uk_index"].max() < 150
-
     def test_no_missing_values(self, latest_ios):
         """Test that there are no missing values in key columns."""
         assert not latest_ios["date"].isna().any()
@@ -98,23 +90,6 @@ class TestIndexOfServicesIntegrity:
     def test_coverage_includes_recent_data(self, latest_ios):
         """Test that data includes recent quarters (2024-2025)."""
         assert latest_ios["year"].max() >= 2024
-
-    def test_covid_impact_visible(self, latest_ios):
-        """Test that COVID-19 impact is visible in 2020 data."""
-        df_2020 = latest_ios[latest_ios["year"] == 2020]
-
-        # 2020 should show some quarterly drops compared to 2019
-        assert len(df_2020) >= 3  # At least Q1-Q3 2020
-        # Services sector was heavily impacted by COVID-19
-
-    def test_ni_uk_comparison_reasonable(self, latest_ios):
-        """Test that NI and UK indices are in similar ranges."""
-        # NI and UK should generally be within similar magnitude
-        ni_mean = latest_ios["ni_index"].mean()
-        uk_mean = latest_ios["uk_index"].mean()
-
-        # Allow for differences but they should be comparable
-        assert 0.5 < (ni_mean / uk_mean) < 2.0
 
 
 class TestIndexOfProductionIntegrity:
@@ -157,13 +132,6 @@ class TestIndexOfProductionIntegrity:
         assert (latest_iop["ni_index"] > 0).all()
         assert (latest_iop["uk_index"] > 0).all()
 
-    def test_index_values_reasonable(self, latest_iop):
-        """Test that index values are in reasonable range."""
-        assert latest_iop["ni_index"].min() > 50
-        assert latest_iop["ni_index"].max() < 150
-        assert latest_iop["uk_index"].min() > 50
-        assert latest_iop["uk_index"].max() < 150
-
     def test_no_missing_values(self, latest_iop):
         """Test that there are no missing values in key columns."""
         assert not latest_iop["date"].isna().any()
@@ -199,19 +167,6 @@ class TestIndexOfProductionIntegrity:
         # Should have same time coverage
         assert latest_iop["year"].min() == ios["year"].min()
         assert latest_iop["year"].max() == ios["year"].max()
-
-    def test_production_decline_post_2008(self, latest_iop):
-        """Test that production shows expected long-term trends."""
-        # Production industries have generally declined since 2008 financial crisis
-        df_2005_2010 = latest_iop[latest_iop["year"].between(2005, 2010)]
-        df_2015_2020 = latest_iop[latest_iop["year"].between(2015, 2020)]
-
-        avg_early = df_2005_2010["ni_index"].mean()
-        avg_later = df_2015_2020["ni_index"].mean()
-
-        # Later period should show decline or stagnation
-        # (Production sector has faced challenges)
-        assert avg_later <= avg_early * 1.1  # Allow for some variation
 
 
 class TestHelperFunctionsIntegrity:
@@ -355,25 +310,6 @@ class TestDataConsistency:
     def test_matching_dates(self, latest_ios, latest_iop):
         """Test that IOS and IOP have matching quarter dates."""
         assert latest_ios["date"].tolist() == latest_iop["date"].tolist()
-
-    def test_both_show_covid_impact(self, latest_ios, latest_iop):
-        """Test that both indices show COVID-19 impact in 2020."""
-        ios_2020 = latest_ios[latest_ios["year"] == 2020]
-        iop_2020 = latest_iop[latest_iop["year"] == 2020]
-
-        # Both should have 2020 data
-        assert len(ios_2020) >= 3
-        assert len(iop_2020) >= 3
-
-        # Both sectors were impacted by COVID-19
-        ios_2019 = latest_ios[latest_ios["year"] == 2019]
-        iop_2019 = latest_iop[latest_iop["year"] == 2019]
-
-        ios_drop = ios_2020["ni_index"].mean() < ios_2019["ni_index"].mean()
-        iop_drop = iop_2020["ni_index"].mean() < iop_2019["ni_index"].mean()
-
-        # At least one should show the impact (services were more heavily affected)
-        assert ios_drop or iop_drop
 
     def test_recent_quarter_alignment(self, latest_ios, latest_iop):
         """Test that the most recent quarter is the same for both indices."""

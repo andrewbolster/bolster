@@ -1,0 +1,59 @@
+name: Setup Release Environment
+
+# This workflow creates the 'release' environment if it doesn't exist
+# and configures necessary protection rules
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  setup-environment:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Setup Release Environment
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const { owner, repo } = context.repo;
+
+          try {
+            // Check if release environment exists
+            await github.rest.repos.getEnvironment({
+              owner,
+              repo,
+              environment_name: 'release'
+            });
+            console.log('Release environment already exists');
+          } catch (error) {
+            if (error.status === 404) {
+              console.log('Creating release environment...');
+
+              // Create release environment with protection rules
+              await github.rest.repos.createOrUpdateEnvironment({
+                owner,
+                repo,
+                environment_name: 'release',
+                wait_timer: 0,  // No delay
+                reviewers: [],  // No required reviewers for automated releases
+                deployment_branch_policy: {
+                  protected_branches: true,
+                  custom_branch_policies: false
+                }
+              });
+
+              console.log('Release environment created successfully');
+            } else {
+              throw error;
+            }
+          }
+
+          // Log instructions for manual setup if needed
+          console.log('To complete setup manually if needed:');
+          console.log('1. Go to Settings > Environments');
+          console.log('2. Create "release" environment');
+          console.log('3. Set deployment branches to "Protected branches only"');
+          console.log('4. No reviewers needed for automated releases');

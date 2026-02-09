@@ -21,6 +21,12 @@ Data Source:
     This ensures the module always retrieves the most recent data without hardcoding dates
     or quarters.
 
+Update Frequency: Quarterly publications covering 3-month rolling periods are released
+approximately 6-8 weeks after the reference period ends. Labour Force Survey data is
+published four times per year with additional annual publications containing Local Government
+District breakdowns. Data is updated as part of NISRA's regular labour market statistics
+programme following ONS Labour Force Survey methodology.
+
 Architecture:
     - Automatically discovers latest quarterly LFS publication from NISRA mother page
     - Downloads quarterly Labour Force Survey Excel files
@@ -81,6 +87,7 @@ from bolster.data_sources.nisra._base import (
     safe_float,
     safe_int,
 )
+from bolster.utils.web import session
 
 logger = logging.getLogger(__name__)
 
@@ -490,14 +497,13 @@ def get_latest_lfs_publication_url() -> Tuple[str, str, str]:
         >>> url, year, quarter = get_latest_lfs_publication_url()
         >>> print(f"Latest data: {quarter} {year}")
     """
-    import requests
     from bs4 import BeautifulSoup
 
     # Mother page listing all labour market publications
     mother_page = "https://www.nisra.gov.uk/statistics/labour-market-and-social-welfare"
 
     try:
-        response = requests.get(mother_page, timeout=30)
+        response = session.get(mother_page, timeout=30)
         response.raise_for_status()
         soup = BeautifulSoup(response.content, "html.parser")
 
@@ -520,7 +526,7 @@ def get_latest_lfs_publication_url() -> Tuple[str, str, str]:
         logger.info(f"Found latest LFS publication: {latest_pub['text']}")
 
         # Now fetch the publication page to get the Excel file
-        pub_response = requests.get(latest_pub["url"], timeout=30)
+        pub_response = session.get(latest_pub["url"], timeout=30)
         pub_response.raise_for_status()
         pub_soup = BeautifulSoup(pub_response.content, "html.parser")
 
@@ -609,7 +615,7 @@ def get_latest_lfs_publication_url() -> Tuple[str, str, str]:
 
         raise NISRADataNotFoundError("Could not extract quarter and year from publication")
 
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch LFS publication list: {e}")
 
 
@@ -734,8 +740,6 @@ def get_latest_lgd_employment_url() -> Tuple[str, int]:
     """
     from datetime import datetime
 
-    import requests
-
     logger.info("Fetching latest LFS LGD employment publication URL...")
 
     # The LGD tables follow a predictable URL pattern
@@ -749,7 +753,7 @@ def get_latest_lgd_employment_url() -> Tuple[str, int]:
         pub_url = f"{LFS_BASE_URL}/publications/labour-force-survey-tables-local-government-districts-2009-{year}"
 
         try:
-            response = requests.get(pub_url, timeout=30)
+            response = session.get(pub_url, timeout=30)
             if response.status_code == 200:
                 # Found the publication page, now find the Excel file
                 from bs4 import BeautifulSoup
@@ -767,7 +771,7 @@ def get_latest_lgd_employment_url() -> Tuple[str, int]:
                         logger.info(f"Found latest LFS LGD tables: {year} at {excel_url}")
                         return excel_url, year
 
-        except requests.RequestException:
+        except Exception:
             continue
 
     # If all attempts fail, return the known 2024 file URL as fallback
@@ -895,3 +899,35 @@ def get_latest_employment_by_lgd(force_refresh: bool = False) -> pd.DataFrame:
     file_path = download_file(excel_url, cache_ttl_hours=180 * 24, force_refresh=force_refresh)
 
     return parse_employment_by_lgd(file_path, year=year)
+
+
+def validate_labour_market_data(df: pd.DataFrame) -> bool:  # pragma: no cover
+    """Validate labour market data integrity.
+
+    Args:
+        df: DataFrame from labour market functions
+
+    Returns:
+        True if validation passes, False otherwise
+    """
+    if df.empty:
+        logger.warning("Labour market data is empty")
+        return False
+
+    # Check for employment-related columns
+    employment_indicators = ["employed", "unemployed", "rate", "count", "percentage"]
+    has_employment_data = any(indicator in " ".join(df.columns).lower() for indicator in employment_indicators)
+
+    if not has_employment_data:
+        logger.warning("No employment indicators found in labour market data")
+        return False
+
+    # Check for reasonable employment rates/percentages
+    rate_cols = [col for col in df.columns if "rate" in col.lower() or "percentage" in col.lower()]
+    for col in rate_cols:
+        if col in df.columns and df[col].dtype in ["float64", "int64"]:
+            if (df[col] < 0).any() or (df[col] > 100).any():
+                logger.warning(f"Employment rates out of range in column {col}")
+                return False
+
+    return True

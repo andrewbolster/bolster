@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 import pandas as pd
-import requests
 from bs4 import BeautifulSoup
 
 from bolster.utils.cache import CachedDownloader, DownloadError
@@ -71,7 +70,7 @@ def scrape_download_links(page_url: str, file_extension: str = ".xlsx") -> List[
     try:
         response = session.get(page_url, timeout=30)
         response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataError(f"Failed to fetch page {page_url}: {e}")
 
     soup = BeautifulSoup(response.content, "html.parser")

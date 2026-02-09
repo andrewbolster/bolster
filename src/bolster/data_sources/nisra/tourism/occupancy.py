@@ -73,7 +73,6 @@ def get_latest_hotel_occupancy_publication_url() -> Tuple[str, str]:
     Raises:
         NISRADataNotFoundError: If publication or file not found
     """
-    import requests
     from bs4 import BeautifulSoup
 
     mother_page = OCCUPANCY_BASE_URL
@@ -82,7 +81,7 @@ def get_latest_hotel_occupancy_publication_url() -> Tuple[str, str]:
         # Use shared session with retry logic for resilient requests
         response = session.get(mother_page, timeout=30)
         response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch occupancy surveys page: {e}")
 
     soup = BeautifulSoup(response.content, "html.parser")
@@ -120,7 +119,7 @@ def get_latest_hotel_occupancy_publication_url() -> Tuple[str, str]:
     try:
         pub_response = session.get(pub_link, timeout=30)
         pub_response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}")
 
     pub_soup = BeautifulSoup(pub_response.content, "html.parser")
@@ -163,7 +162,6 @@ def get_latest_ssa_occupancy_publication_url() -> Tuple[str, str]:
     Raises:
         NISRADataNotFoundError: If publication or file not found
     """
-    import requests
     from bs4 import BeautifulSoup
 
     mother_page = OCCUPANCY_BASE_URL
@@ -172,7 +170,7 @@ def get_latest_ssa_occupancy_publication_url() -> Tuple[str, str]:
         # Use shared session with retry logic for resilient requests
         response = session.get(mother_page, timeout=30)
         response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch occupancy surveys page: {e}")
 
     soup = BeautifulSoup(response.content, "html.parser")
@@ -209,7 +207,7 @@ def get_latest_ssa_occupancy_publication_url() -> Tuple[str, str]:
     try:
         pub_response = session.get(pub_link, timeout=30)
         pub_response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch SSA publication page: {e}")
 
     pub_soup = BeautifulSoup(pub_response.content, "html.parser")
@@ -1101,3 +1099,33 @@ def get_seasonal_patterns(df: pd.DataFrame) -> pd.DataFrame:
     summary = summary.sort_values("month").reset_index(drop=True)
 
     return summary
+
+
+def validate_occupancy_data(df: pd.DataFrame) -> bool:  # pragma: no cover
+    """Validate tourism occupancy data integrity.
+
+    Args:
+        df: DataFrame from get_latest_occupancy_data
+
+    Returns:
+        True if validation passes, False otherwise
+    """
+    if df.empty:
+        logger.warning("Occupancy data is empty")
+        return False
+
+    required_cols = {"month", "accommodation_type"}
+    if not required_cols.issubset(df.columns):
+        missing = required_cols - set(df.columns)
+        logger.warning(f"Missing required occupancy columns: {missing}")
+        return False
+
+    # Check for reasonable occupancy percentages
+    percentage_cols = [col for col in df.columns if "occupancy" in col.lower() and col != "accommodation_type"]
+    for col in percentage_cols:
+        if col in df.columns:
+            if (df[col] < 0).any() or (df[col] > 100).any():
+                logger.warning(f"Occupancy percentages out of range in column {col}")
+                return False
+
+    return True

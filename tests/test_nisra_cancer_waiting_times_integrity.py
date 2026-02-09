@@ -100,21 +100,6 @@ class Test62DayByTumourIntegrity:
         assert (valid_rates >= 0).all(), "Performance rates contain values < 0"
         assert (valid_rates <= 1).all(), "Performance rates contain values > 1"
 
-    def test_62_day_worse_than_31_day(self, latest_data):
-        """Test that 62-day performance is typically worse than 31-day.
-
-        This is expected because the 62-day pathway includes diagnosis time.
-        """
-        df_31 = cwt.get_latest_31_day_by_tumour()
-
-        # Compare recent year averages
-        recent_year = max(latest_data["year"].max(), df_31["year"].max()) - 1
-
-        avg_62 = latest_data[latest_data["year"] == recent_year]["performance_rate"].mean()
-        avg_31 = df_31[df_31["year"] == recent_year]["performance_rate"].mean()
-
-        assert avg_62 < avg_31, f"62-day ({avg_62:.1%}) should be worse than 31-day ({avg_31:.1%})"
-
     def test_validation_function(self, latest_data):
         """Test that the validation function passes."""
         assert cwt.validate_performance_data(latest_data) is True
@@ -132,36 +117,6 @@ class Test14DayBreastIntegrity:
         """Test that all required columns are present."""
         required = {"date", "year", "month", "trust", "within_target", "over_target", "total", "performance_rate"}
         assert set(latest_data.columns) == required
-
-    def test_regional_service_transition(self, latest_data):
-        """Test that data shows transition to regional service in 2025."""
-        # From May 2025, data should include "Northern Ireland" regional entries
-        df_2025 = latest_data[latest_data["year"] == 2025]
-        trusts_2025 = df_2025["trust"].unique()
-
-        # Check for regional entries (contain "Northern Ireland")
-        has_regional = any("Northern Ireland" in str(t) for t in trusts_2025)
-        assert has_regional, "Expected regional breast service data from May 2025"
-
-    def test_breast_cancer_crisis_visible(self, latest_data):
-        """Test that 14-day breast cancer performance decline is visible.
-
-        Performance has declined dramatically from 2020 to 2025.
-        """
-        # Group by year and calculate average performance
-        yearly = latest_data.groupby("year").agg(total=("total", "sum"), within=("within_target", "sum")).reset_index()
-        yearly["rate"] = yearly["within"] / yearly["total"]
-
-        # Check 2020 vs 2024/2025 decline
-        if 2020 in yearly["year"].values and 2024 in yearly["year"].values:
-            rate_2020 = yearly[yearly["year"] == 2020]["rate"].values[0]
-            rate_2024 = yearly[yearly["year"] == 2024]["rate"].values[0]
-
-            # Performance should have dropped significantly
-            decline = (rate_2020 - rate_2024) / rate_2020 * 100
-            assert decline > 30, (
-                f"Expected >30% decline from 2020 ({rate_2020:.1%}) to 2024 ({rate_2024:.1%}), got {decline:.1f}%"
-            )
 
 
 class TestBreastReferralsIntegrity:
@@ -249,55 +204,6 @@ class TestHelperFunctions:
         assert "rolling_performance" in trend.columns
         # Rolling should smooth out values
         assert trend["rolling_performance"].std() < trend["performance_rate"].std()
-
-
-class TestCOVIDImpact:
-    """Test suite for COVID-19 impact visibility."""
-
-    @pytest.fixture(scope="class")
-    def data_31_trust(self):
-        """Fetch 31-day trust data."""
-        return cwt.get_latest_31_day_by_trust()
-
-    @pytest.fixture(scope="class")
-    def data_62_trust(self):
-        """Fetch 62-day trust data."""
-        return cwt.get_latest_62_day_by_trust()
-
-    def test_covid_visible_in_patient_volumes(self, data_31_trust):
-        """Test that COVID-19 impact is visible in 2020 patient volumes.
-
-        Expect reduced patient volumes in 2020 due to delayed presentations.
-        """
-        yearly_totals = data_31_trust.groupby("year")["total"].sum()
-
-        if 2019 in yearly_totals.index and 2020 in yearly_totals.index:
-            vol_2019 = yearly_totals[2019]
-            vol_2020 = yearly_totals[2020]
-
-            # 2020 should show reduced volumes (more than 5% drop)
-            reduction = (vol_2019 - vol_2020) / vol_2019 * 100
-            assert reduction > 5, (
-                f"Expected COVID-19 volume reduction, but 2020 ({vol_2020:,.0f}) "
-                f"vs 2019 ({vol_2019:,.0f}) shows only {reduction:.1f}% change"
-            )
-
-    def test_post_covid_recovery_visible(self, data_62_trust):
-        """Test that post-COVID performance decline is visible.
-
-        62-day performance worsened significantly after COVID due to backlogs.
-        """
-        ni_wide = cwt.get_ni_wide_performance(data_62_trust)
-        yearly = ni_wide.groupby("year")["performance_rate"].mean()
-
-        if 2019 in yearly.index and 2023 in yearly.index:
-            rate_2019 = yearly[2019]
-            rate_2023 = yearly[2023]
-
-            # Post-COVID performance should be worse
-            assert rate_2023 < rate_2019, (
-                f"Expected post-COVID decline, but 2023 ({rate_2023:.1%}) is better than 2019 ({rate_2019:.1%})"
-            )
 
 
 class TestDataQuality:

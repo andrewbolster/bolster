@@ -7,6 +7,16 @@ This module provides access to Northern Ireland's quarterly construction output 
 
 Data is published quarterly by NISRA's Economic & Labour Market Statistics Branch.
 
+Data Source: Northern Ireland Statistics and Research Agency provides quarterly construction
+output statistics through their Economic Output section at https://www.nisra.gov.uk/statistics/economic-output/construction-output-statistics.
+The data tracks construction activity across all sectors using a chained volume measure
+approach to provide comparable time series data for construction output analysis.
+
+Update Frequency: Quarterly publications are released approximately 3 months after the end
+of each quarter. Construction output statistics are published as part of NISRA's Economic
+Output series, providing the official measure of construction sector performance in Northern
+Ireland with data updated four times per year.
+
 Data Coverage:
     - All Work: Q1 2000 - Present (quarterly, non-seasonally adjusted)
     - New Work: Q1 2000 - Present (quarterly, non-seasonally adjusted)
@@ -48,6 +58,8 @@ from typing import Dict, Optional, Tuple, Union
 
 import pandas as pd
 
+from bolster.utils.web import session
+
 from ._base import NISRADataNotFoundError, download_file
 
 logger = logging.getLogger(__name__)
@@ -71,15 +83,14 @@ def get_latest_construction_publication_url() -> Tuple[str, datetime]:
         >>> url, pub_date = get_latest_construction_publication_url()
         >>> print(f"Latest published: {pub_date.strftime('%Y-%m-%d')}")
     """
-    import requests
     from bs4 import BeautifulSoup
 
     logger.info("Fetching latest Construction Output publication URL...")
 
     try:
-        response = requests.get(CONSTRUCTION_BASE_URL, timeout=30)
+        response = session.get(CONSTRUCTION_BASE_URL, timeout=30)
         response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch Construction Output page: {e}")
 
     soup = BeautifulSoup(response.content, "html.parser")
@@ -97,9 +108,9 @@ def get_latest_construction_publication_url() -> Tuple[str, datetime]:
 
             # Get the Excel file URL from the publication page
             try:
-                pub_response = requests.get(pub_url, timeout=30)
+                pub_response = session.get(pub_url, timeout=30)
                 pub_response.raise_for_status()
-            except requests.RequestException as e:
+            except Exception as e:
                 raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}")
 
             pub_soup = BeautifulSoup(pub_response.content, "html.parser")
@@ -364,3 +375,26 @@ def get_summary_statistics(df: pd.DataFrame, start_year: Optional[int] = None, e
         "repair_maintenance_max": float(filtered["repair_maintenance_index"].max()),
         "quarters_count": len(filtered),
     }
+
+
+def validate_construction_data(df: pd.DataFrame) -> bool:  # pragma: no cover
+    """Validate construction output data integrity.
+
+    Args:
+        df: DataFrame from construction output functions
+
+    Returns:
+        True if validation passes, False otherwise
+    """
+    if df.empty:
+        logger.warning("Construction data is empty")
+        return False
+
+    # Check for time series structure
+    time_cols = ["quarter", "year", "date", "period"]
+    has_time_data = any(col in df.columns for col in time_cols)
+    if not has_time_data:
+        logger.warning("No time series columns found in construction data")
+        return False
+
+    return True

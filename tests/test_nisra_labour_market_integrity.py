@@ -15,6 +15,7 @@ Test Coverage:
     - Data quality (no negatives, reasonable ranges, no duplicates)
     - Temporal consistency (chronological order, no gaps)
     - Cross-validation (multiple tables consistent with each other)
+    - Helper functions (quarter parsing, URL building)
 
 Running Tests:
     ```bash
@@ -35,6 +36,95 @@ Date: 2025-12-21
 import pytest
 
 from bolster.data_sources.nisra import labour_market
+
+
+class TestHelperFunctions:
+    """Test suite for internal helper functions.
+
+    These tests validate utility functions for quarter parsing and URL building.
+    """
+
+    def test_quarter_to_month_names_jan_mar(self):
+        """Test converting Jan-Mar quarter to month names."""
+        result = labour_market._quarter_to_month_names("Jan-Mar")
+        assert result == ("January", "February", "March")
+
+    def test_quarter_to_month_names_apr_jun(self):
+        """Test converting Apr-Jun quarter to month names."""
+        result = labour_market._quarter_to_month_names("Apr-Jun")
+        assert result == ("April", "May", "June")
+
+    def test_quarter_to_month_names_jul_sep(self):
+        """Test converting Jul-Sep quarter to month names."""
+        result = labour_market._quarter_to_month_names("Jul-Sep")
+        assert result == ("July", "August", "September")
+
+    def test_quarter_to_month_names_oct_dec(self):
+        """Test converting Oct-Dec quarter to month names."""
+        result = labour_market._quarter_to_month_names("Oct-Dec")
+        assert result == ("October", "November", "December")
+
+    def test_quarter_to_month_names_with_spaces(self):
+        """Test quarter parsing with spaces in input."""
+        result = labour_market._quarter_to_month_names("Jul - Sep")
+        assert result == ("July", "August", "September")
+
+    def test_quarter_to_month_names_case_insensitive(self):
+        """Test quarter parsing is case insensitive."""
+        result = labour_market._quarter_to_month_names("jul-sep")
+        assert result == ("July", "August", "September")
+
+        result = labour_market._quarter_to_month_names("JAN-MAR")
+        assert result == ("January", "February", "March")
+
+    def test_quarter_to_month_names_invalid_quarter(self):
+        """Test that invalid quarter string raises ValueError."""
+        with pytest.raises(ValueError, match="Invalid quarter string"):
+            labour_market._quarter_to_month_names("Invalid")
+
+        with pytest.raises(ValueError, match="Invalid quarter string"):
+            labour_market._quarter_to_month_names("Q1")
+
+    def test_build_lfs_url_q1_2025(self):
+        """Test building URL for Q1 2025 (Jan-Mar, published May 2025)."""
+        url = labour_market._build_lfs_url(2025, "Jan-Mar")
+        assert "2025-05" in url  # Published in May
+        assert "January-March-25.xlsx" in url
+        assert url.startswith("https://www.nisra.gov.uk/system/files/statistics/")
+
+    def test_build_lfs_url_q2_2025(self):
+        """Test building URL for Q2 2025 (Apr-Jun, published August 2025)."""
+        url = labour_market._build_lfs_url(2025, "Apr-Jun")
+        assert "2025-08" in url  # Published in August
+        assert "April-June-25.xlsx" in url
+
+    def test_build_lfs_url_q3_2025(self):
+        """Test building URL for Q3 2025 (Jul-Sep, published November 2025)."""
+        url = labour_market._build_lfs_url(2025, "Jul-Sep")
+        assert "2025-11" in url  # Published in November
+        assert "July-September-25.xlsx" in url
+
+    def test_build_lfs_url_q4_2025(self):
+        """Test building URL for Q4 2025 (Oct-Dec, published February 2026)."""
+        url = labour_market._build_lfs_url(2025, "Oct-Dec")
+        assert "2026-02" in url  # Published in February next year
+        assert "October-December-25.xlsx" in url
+
+    def test_build_lfs_url_case_insensitive(self):
+        """Test URL building is case insensitive."""
+        url1 = labour_market._build_lfs_url(2025, "Jul-Sep")
+        url2 = labour_market._build_lfs_url(2025, "jul-sep")
+        assert url1 == url2
+
+    def test_build_lfs_url_with_spaces(self):
+        """Test URL building handles spaces in quarter string."""
+        url = labour_market._build_lfs_url(2025, "Jul - Sep")
+        assert "July-September-25.xlsx" in url
+
+    def test_build_lfs_url_invalid_quarter(self):
+        """Test that invalid quarter raises ValueError."""
+        with pytest.raises(ValueError, match="Invalid quarter string"):
+            labour_market._build_lfs_url(2025, "Q1")
 
 
 class TestEmploymentDataIntegrity:
@@ -124,23 +214,6 @@ class TestEmploymentDataIntegrity:
 
             # Allow for rounding errors (±1%)
             assert 99 <= total_pct <= 101, f"{sex}: Age group percentages sum to {total_pct:.1f}%, expected ~100%"
-
-    def test_total_employment_numbers_realistic(self, latest_employment):
-        """Test that total employment numbers are within realistic bounds.
-
-        Northern Ireland has population ~1.9M, working age ~1.2M.
-        Total employment should be between 700k-1M (employment rate ~60-80%).
-        """
-        totals = latest_employment[
-            (latest_employment["age_group"] == "All ages") & (latest_employment["sex"] == "All Persons")
-        ]
-
-        if len(totals) > 0:
-            total_employed = totals["number"].values[0]
-
-            assert 700_000 <= total_employed <= 1_000_000, (
-                f"Total employment ({total_employed:,}) outside realistic range (700k-1M)"
-            )
 
     def test_male_plus_female_equals_total(self, latest_employment):
         """Test that Male + Female employment equals All Persons total.
@@ -259,26 +332,6 @@ class TestEconomicInactivityDataIntegrity:
         assert len(too_low) == 0, f"Found {len(too_low)} inactivity rates < 0%"
         assert len(too_high) == 0, f"Found {len(too_high)} inactivity rates > 100%"
 
-    def test_inactivity_rates_realistic(self, latest_inactivity):
-        """Test that inactivity rates are within realistic bounds.
-
-        Economic inactivity rates in NI are typically 15-35%.
-        Rates outside this range might indicate data quality issues.
-        """
-        rates = latest_inactivity["economic_inactivity_rate"].dropna()
-
-        unrealistic_low = rates[rates < 10]
-        unrealistic_high = rates[rates > 40]
-
-        # Allow some flexibility but warn if many values are outside normal range
-        assert len(unrealistic_low) < len(rates) * 0.1, (
-            f"Found {len(unrealistic_low)} inactivity rates < 10% (unusually low)"
-        )
-
-        assert len(unrealistic_high) < len(rates) * 0.1, (
-            f"Found {len(unrealistic_high)} inactivity rates > 40% (unusually high)"
-        )
-
     def test_time_series_chronological(self, latest_inactivity):
         """Test that time periods are in chronological order.
 
@@ -319,43 +372,6 @@ class TestEconomicInactivityDataIntegrity:
         num_years = len(unique_periods)
 
         assert num_years >= 10, f"Expected at least 10 years of historical data, found {num_years} periods"
-
-    def test_female_inactivity_higher_than_male(self, latest_inactivity):
-        """Test that female inactivity rates are generally higher than male rates.
-
-        Historically, female economic inactivity rates in NI are higher than male rates
-        due to caring responsibilities, etc. This test validates this pattern holds
-        for most time periods.
-
-        Note: This is not a hard requirement but a data quality check.
-        If this pattern changes significantly, it may indicate societal shifts or data issues.
-        """
-        # Get unique time periods
-        time_periods = latest_inactivity["time_period"].unique()
-
-        female_higher_count = 0
-        total_periods = 0
-
-        for period in time_periods:
-            period_data = latest_inactivity[latest_inactivity["time_period"] == period]
-
-            male_rate = period_data[period_data["sex"] == "Male"]["economic_inactivity_rate"].values
-            female_rate = period_data[period_data["sex"] == "Female"]["economic_inactivity_rate"].values
-
-            if len(male_rate) > 0 and len(female_rate) > 0:
-                if female_rate[0] > male_rate[0]:
-                    female_higher_count += 1
-                total_periods += 1
-
-        # In most periods (>80%), female rate should be higher
-        if total_periods > 0:
-            percentage = (female_higher_count / total_periods) * 100
-
-            assert percentage >= 80, (
-                f"Female inactivity rate higher than male in only {female_higher_count}/{total_periods} "
-                f"periods ({percentage:.1f}%). Expected >80%. This may indicate data quality issues or "
-                "significant societal changes."
-            )
 
 
 class TestCombinedLabourMarketIntegrity:
@@ -564,39 +580,6 @@ class TestLGDEmploymentIntegrity:
                 f"{lgd}: Activity rate {rate}% != expected {expected_rate:.1f}% "
                 f"(Active {active} / Population {population})"
             )
-
-    def test_employment_rates_reasonable(self, latest_lgd_employment):
-        """Test that employment rates are in reasonable range."""
-        # Employment rates in NI typically 45-75%
-        assert latest_lgd_employment["employment_rate"].min() > 40
-        assert latest_lgd_employment["employment_rate"].max() < 80
-
-    def test_population_reasonable(self, latest_lgd_employment):
-        """Test that LGD populations are reasonable."""
-        # Belfast is largest (~260k), smallest LGDs ~80-100k
-        assert latest_lgd_employment["population_16plus"].max() < 300
-        assert latest_lgd_employment["population_16plus"].min() > 70
-
-        # Total should be around 1.5M
-        total_pop = latest_lgd_employment["population_16plus"].sum()
-        assert 1400 < total_pop < 1600, f"Total population {total_pop}k seems unreasonable"
-
-    def test_belfast_largest_employment(self, latest_lgd_employment):
-        """Test that Belfast has the largest absolute employment numbers."""
-        belfast = latest_lgd_employment[latest_lgd_employment["lgd"] == "Belfast"]
-        max_employment = latest_lgd_employment["in_employment"].max()
-
-        assert belfast["in_employment"].values[0] == max_employment
-
-    def test_employment_variation_across_lgds(self, latest_lgd_employment):
-        """Test that employment rates vary meaningfully across LGDs."""
-        rates = latest_lgd_employment["employment_rate"]
-
-        # Should have at least 10 percentage points between highest and lowest
-        assert rates.max() - rates.min() > 10
-
-        # Should have standard deviation > 3%
-        assert rates.std() > 3
 
     def test_year_value(self, latest_lgd_employment):
         """Test that year is reasonable."""

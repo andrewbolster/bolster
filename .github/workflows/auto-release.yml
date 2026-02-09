@@ -1,0 +1,284 @@
+name: Automated Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Version bump type (patch, minor, major)'
+        required: false
+        default: 'auto'
+        type: choice
+        options:
+        - auto
+        - patch
+        - minor
+        - major
+
+permissions:
+  contents: write
+  pull-requests: read
+  id-token: write  # Required for trusted publishing to PyPI
+
+jobs:
+  analyze-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.analyze.outputs.should_release }}
+      version_bump: ${{ steps.analyze.outputs.version_bump }}
+      changelog: ${{ steps.analyze.outputs.changelog }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Python and uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        python-version: "3.11"
+
+    - name: Analyze changes and determine version bump
+      id: analyze
+      uses: actions/github-script@v7
+      with:
+        script: |
+          // Get commits since last tag
+          const { execSync } = require('child_process');
+
+          // Get last tag
+          let lastTag;
+          try {
+            lastTag = execSync('git describe --tags --abbrev=0', { encoding: 'utf-8' }).trim();
+          } catch (e) {
+            lastTag = 'v0.0.0'; // If no tags exist
+          }
+
+          console.log(`Last tag: ${lastTag}`);
+
+          // Get commits since last tag
+          const commits = execSync(`git log ${lastTag}..HEAD --pretty=format:"%s"`, { encoding: 'utf-8' })
+            .split('\n')
+            .filter(line => line.trim());
+
+          console.log(`Commits since ${lastTag}:`, commits);
+
+          // Skip release if only docs/CI changes
+          const skipPatterns = [
+            /^docs?(\(.*\))?:/,
+            /^ci(\(.*\))?:/,
+            /^chore(\(.*\))?:/,
+            /^style(\(.*\))?:/,
+            /^test(\(.*\))?:/,
+            /Merge pull request/,
+            /Update.*dependabot/i
+          ];
+
+          const releaseCommits = commits.filter(commit =>
+            !skipPatterns.some(pattern => pattern.test(commit))
+          );
+
+          // Manual override from workflow_dispatch
+          if (context.eventName === 'workflow_dispatch' && context.payload.inputs?.version_bump !== 'auto') {
+            core.setOutput('should_release', 'true');
+            core.setOutput('version_bump', context.payload.inputs.version_bump);
+            core.setOutput('changelog', 'Manual release triggered');
+            return;
+          }
+
+          // Check for version:* label on the merged PR (label overrides commit analysis)
+          let labelOverride = null;
+          try {
+            const headSha = execSync('git rev-parse HEAD', { encoding: 'utf-8' }).trim();
+            const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: headSha,
+            });
+            for (const pr of prs.data) {
+              const versionLabel = pr.labels.map(l => l.name).find(n => n.startsWith('version:'));
+              if (versionLabel) {
+                labelOverride = versionLabel.replace('version:', '');
+                console.log(`PR #${pr.number} label override: ${labelOverride}`);
+                break;
+              }
+            }
+          } catch (e) {
+            console.log(`Could not check PR labels: ${e.message}`);
+          }
+
+          if (labelOverride === 'skip') {
+            console.log('PR label version:skip - skipping release');
+            core.setOutput('should_release', 'false');
+            return;
+          }
+
+          // Skip if no meaningful changes (and no label forcing a release)
+          if (releaseCommits.length === 0 && !labelOverride) {
+            console.log('No release-worthy changes found');
+            core.setOutput('should_release', 'false');
+            return;
+          }
+
+          // Determine version bump: label takes priority over commit analysis
+          let versionBump = labelOverride || 'patch';
+
+          if (!labelOverride) {
+            let hasBreaking = false;
+            let hasFeatures = false;
+
+            for (const commit of releaseCommits) {
+              if (commit.includes('BREAKING CHANGE') || commit.includes('!:')) {
+                hasBreaking = true;
+                break;
+              }
+              if (commit.match(/^feat(\(.*\))?:/)) {
+                hasFeatures = true;
+              }
+            }
+
+            if (hasBreaking) {
+              versionBump = 'major';
+            } else if (hasFeatures) {
+              versionBump = 'minor';
+            }
+          }
+
+          // Major versions require explicit workflow_dispatch - never auto-release
+          if (versionBump === 'major') {
+            console.log('Breaking change detected - major version requires manual release via workflow_dispatch');
+            core.setOutput('should_release', 'false');
+            return;
+          }
+
+          // Generate changelog
+          const changelog = releaseCommits
+            .map(commit => `- ${commit}`)
+            .join('\n');
+
+          core.setOutput('should_release', 'true');
+          core.setOutput('version_bump', versionBump);
+          core.setOutput('changelog', changelog);
+
+          console.log(`Release decision: ${versionBump} version bump`);
+
+  release:
+    needs: analyze-changes
+    if: needs.analyze-changes.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Setup Python and uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        python-version: "3.11"
+
+    - name: Install dependencies
+      run: uv sync --dev
+
+    - name: Configure git
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Constitutional compliance check
+      run: |
+        echo "🏛️  Validating constitutional compliance before release..."
+        uv run scripts/constitutional_check.py
+
+    - name: Run tests before release
+      run: uv run pytest tests/ -v
+
+    - name: Lint check
+      run: uv run pre-commit run --all-files
+
+    - name: Bump version
+      run: |
+        uv run bump-my-version bump ${{ needs.analyze-changes.outputs.version_bump }}
+        NEW_VERSION=$(grep "current_version" pyproject.toml | cut -d'"' -f2)
+        echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+
+    - name: Generate changelog entry
+      env:
+        CHANGELOG_ENTRY: ${{ needs.analyze-changes.outputs.changelog }}
+      run: |
+        python3 - <<'PYEOF'
+        import os
+        from datetime import date
+        from pathlib import Path
+
+        version = os.environ["NEW_VERSION"]
+        entry_text = os.environ["CHANGELOG_ENTRY"]
+        entry = f"\n## [{version}] - {date.today()}\n\n{entry_text}\n"
+
+        path = Path("CHANGELOG.md")
+        content = path.read_text()
+        # Insert new entry after the first heading line (newest at top)
+        lines = content.split("\n")
+        for i, line in enumerate(lines):
+            if line.startswith("# "):
+                lines.insert(i + 1, entry)
+                break
+        path.write_text("\n".join(lines))
+        PYEOF
+
+    - name: Commit version bump
+      run: |
+        git add .
+        git commit -m "chore: bump version to $NEW_VERSION"
+        git tag "v$NEW_VERSION"
+        git push origin main --tags
+
+    - name: Build package
+      run: uv build
+
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        attestations: true
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ env.NEW_VERSION }}
+        name: Release ${{ env.NEW_VERSION }}
+        body: |
+          ## Changes in this release
+
+          ${{ needs.analyze-changes.outputs.changelog }}
+
+          ## Installation
+
+          ```bash
+          pip install bolster==${{ env.NEW_VERSION }}
+          ```
+
+          ## Documentation
+
+          - [Documentation](https://bolster.readthedocs.io/en/v${{ env.NEW_VERSION }}/)
+          - [PyPI Package](https://pypi.org/project/bolster/${{ env.NEW_VERSION }}/)
+        draft: false
+        prerelease: false
+        files: dist/*
+
+  trigger-docs:
+    needs: [release]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Trigger ReadTheDocs build
+      uses: actions/github-script@v7
+      with:
+        script: |
+          // Trigger ReadTheDocs webhook if configured
+          console.log('Documentation will be automatically rebuilt by ReadTheDocs');
+
+          // Could also trigger manual webhook here if needed:
+          // await fetch('https://readthedocs.org/api/v2/webhook/bolster/123456/', {
+          //   method: 'POST',
+          //   headers: { 'Authorization': 'Token ${{ secrets.RTD_TOKEN }}' }
+          // });

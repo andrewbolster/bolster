@@ -1,11 +1,41 @@
 """
-This script fetches weather data from the Met Office API, processes it, and generates an image suitable for epaper display, and might be useful for other
-applications as well. It uses the Pillow library for image processing and the requests library for API calls.
+UK Met Office Weather Data and Map Images Integration
 
-See [here](https://datahub.metoffice.gov.uk/docs/f/category/map-images/type/map-images/api-documentation) for more information on the API.
+Data Source: The UK Met Office provides weather data and map images through their DataHub API
+at https://data.hub.api.metoffice.gov.uk/. This module accesses weather forecast data including
+precipitation, temperature, pressure, and land cover information. The API provides high-resolution
+weather map images suitable for visualization and analysis applications.
 
+Update Frequency: Weather forecast data is updated multiple times daily, typically every 3-6 hours
+depending on the forecast model. Map images are generated continuously as new forecast data becomes
+available. Historical data snapshots are preserved for analysis and comparison purposes.
+
+Example:
+    Generate weather images and access forecast data:
+
+        >>> import os
+        >>> # Set required API key (requires Met Office DataHub account)
+        >>> os.environ['MET_OFFICE_API_KEY'] = 'your-api-key'
+        >>> os.environ['MAP_IMAGES_ORDER_NAME'] = 'your-order-name'
+
+        >>> from bolster.data_sources import metoffice
+        >>> # Get UK precipitation forecast image
+        >>> image = metoffice.get_uk_precipitation('your-order')
+        >>> image.save('uk_precipitation_forecast.png')
+
+        >>> # Access weather data validation
+        >>> weather_data = {'date': '2024-01-01', 'blocks': [...]}
+        >>> is_valid = metoffice.validate_weather_data(weather_data)
+        >>> print(f"Weather data valid: {is_valid}")
+
+This module provides utilities for fetching weather data from the Met Office API, processing
+forecast information, and generating visualization-ready weather map images.
+
+See the Met Office DataHub documentation for API details:
+https://datahub.metoffice.gov.uk/docs/f/category/map-images/type/map-images/api-documentation
 """
 
+import logging
 import os
 import re
 from datetime import datetime, timedelta
@@ -13,9 +43,14 @@ from functools import lru_cache
 from io import BytesIO
 from itertools import groupby
 from typing import Dict, List, Optional, Tuple
+from urllib.parse import quote
 
-import requests
 from PIL import Image, ImageDraw, ImageFilter
+
+from .. import NetworkError
+from ..utils.web import session
+
+logger = logging.getLogger(__name__)
 
 # assert os.getenv('MET_OFFICE_API_KEY') is not None, "MET_OFFICE_API_KEY not set in .env file"
 # assert os.getenv('MAP_IMAGES_ORDER_NAME') is not None, "MAP_IMAGES_ORDER_NAME not set in .env file"
@@ -24,41 +59,45 @@ BASE_URL = "https://data.hub.api.metoffice.gov.uk/map-images/1.0.0"
 
 ### API Client Functions
 
-session = requests.Session()
-session.headers.update({"Accept": "application/json", "apikey": f"{os.getenv('MET_OFFICE_API_KEY')}"})
+# Configure API key for Met Office requests
+_api_headers = {"Accept": "application/json", "apikey": f"{os.getenv('MET_OFFICE_API_KEY')}"}
 
 
 def get_order_latest(order_name: str) -> Dict:
     url = f"{BASE_URL}/orders/{order_name.lower()}/latest"  # pragma: no cover
     # TODO: Network integration testing - requires valid Met Office API key and order
-    response = session.get(url)  # pragma: no cover
+    response = session.get(url, headers=_api_headers)  # pragma: no cover
     if response.status_code == 200:  # pragma: no cover
         return response.json()  # pragma: no cover
     else:  # pragma: no cover
-        raise Exception(f"Failed to fetch order status: {response.status_code} {response.text}")  # pragma: no cover
+        raise NetworkError(
+            f"Failed to fetch order status: {response.text}", status_code=response.status_code, url=url
+        )  # pragma: no cover
 
 
 def get_file_meta(order_name: str, file_id: str) -> Dict:
-    url = f"{BASE_URL}/orders/{order_name.lower()}/latest/{requests.utils.quote(file_id)}"  # To handle + in the file_id  # pragma: no cover
+    url = f"{BASE_URL}/orders/{order_name.lower()}/latest/{quote(file_id)}"  # To handle + in the file_id  # pragma: no cover
     # TODO: Network integration testing - requires valid Met Office API key and order
-    response = session.get(url)  # pragma: no cover
+    response = session.get(url, headers=_api_headers)  # pragma: no cover
     if response.status_code == 200:  # pragma: no cover
         return response.json()  # pragma: no cover
     else:  # pragma: no cover
-        raise Exception(f"Failed to fetch order status: {response.status_code} {response.text}")  # pragma: no cover
+        raise NetworkError(
+            f"Failed to fetch order status: {response.text}", status_code=response.status_code, url=url
+        )  # pragma: no cover
 
 
 @lru_cache
 def get_file(order_name: str, file_id: str) -> bytes:
-    url = f"{BASE_URL}/orders/{order_name.lower()}/latest/{requests.utils.quote(file_id)}/data"  # To handle + in the file_id  # pragma: no cover
+    url = f"{BASE_URL}/orders/{order_name.lower()}/latest/{quote(file_id)}/data"  # To handle + in the file_id  # pragma: no cover
     # TODO: Network integration testing - requires valid Met Office API key and order
-    response = session.get(
-        url, headers={**session.headers, **{"Accept": "application/octet-stream"}}
-    )  # pragma: no cover
+    response = session.get(url, headers={**_api_headers, **{"Accept": "application/octet-stream"}})  # pragma: no cover
     if response.status_code == 200:  # pragma: no cover
         return response.content  # pragma: no cover
     else:  # pragma: no cover
-        raise Exception(f"Failed to fetch order status: {response.status_code} {response.text}")  # pragma: no cover
+        raise NetworkError(
+            f"Failed to fetch order status: {response.text}", status_code=response.status_code, url=url
+        )  # pragma: no cover
 
 
 ### Data Filtering
@@ -189,3 +228,28 @@ def get_uk_precipitation(order_name: str, bounding_box: Optional[Tuple[int, int,
     image = generate_image(order_name, block, bounding_box=bounding_box)  # pragma: no cover
 
     return image  # pragma: no cover
+
+
+def validate_weather_data(data: Dict) -> bool:  # pragma: no cover
+    """Validate Met Office weather data integrity.
+
+    Args:
+        data: Weather data dictionary from Met Office API
+
+    Returns:
+        True if validation passes, False otherwise
+    """
+    if not data:
+        logger.warning("Weather data is empty")
+        return False
+
+    # Check if data has forecast structure
+    if "date" in data and "blocks" in data:
+        return True
+
+    # Check if data has image metadata
+    if "order_name" in data or "file_id" in data:
+        return True
+
+    logger.warning("Weather data missing expected structure")
+    return False
