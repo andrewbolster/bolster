@@ -14,4 +14,3 @@ jobs:
           - uses: astral-sh/ruff-action@v3
             with:
               src: "./src"  # Only check src directory, not examples/docs
-              args: --diff  # Show differences, don't just fail
