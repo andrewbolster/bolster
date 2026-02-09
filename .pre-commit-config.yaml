@@ -13,9 +13,13 @@ repos:
           - id: ruff
             types_or: [python, pyi]
             args: [--fix]
+            # Limit to src/ directory to match CI scope
+            files: ^src/.*\.py$
           # Run the formatter.
           - id: ruff-format
             types_or: [python, pyi]
+            # Limit to src/ directory to match CI scope
+            files: ^src/.*\.py$
     - repo: https://github.com/pre-commit/pre-commit-hooks
       rev: v4.4.0
       hooks:
