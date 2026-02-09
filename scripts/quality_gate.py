@@ -76,19 +76,18 @@ class QualityReporter:
         """Check test coverage using existing coverage data."""
         print("📊 Running test coverage analysis...")
 
+        # Use existing coverage data (don't run pytest - too slow for CI)
+        coverage_file = self.project_root / "coverage.json"
+
+        if not coverage_file.exists():
+            return {
+                "tool": "coverage",
+                "passed": False,
+                "error": "No coverage.json found. Run 'pytest --cov' to generate coverage data.",
+                "exit_code": 1  # Operation failed - no data to check
+            }
+
         try:
-            # Use existing coverage data (don't run pytest - too slow for CI)
-            coverage_file = self.project_root / "coverage.json"
-            coverage_data = {}
-
-            if not coverage_file.exists():
-                return {
-                    "tool": "coverage",
-                    "passed": False,
-                    "error": "No coverage.json found. Run 'pytest --cov' to generate coverage data.",
-                    "exit_code": 1
-                }
-
             with open(coverage_file) as f:
                 coverage_data = json.load(f)
 
@@ -104,11 +103,16 @@ class QualityReporter:
                 "covered_lines": summary.get("covered_lines", 0),
                 "total_lines": summary.get("num_statements", 0),
                 "files": coverage_data.get("files", {}),
-                "exit_code": result.returncode,
+                "exit_code": 0,  # Operation succeeded - we got coverage data
             }
 
         except Exception as e:
-            return {"tool": "coverage", "passed": False, "error": f"Failed to run coverage: {e}", "exit_code": 1}
+            return {
+                "tool": "coverage",
+                "passed": False,
+                "error": f"Failed to parse coverage data: {e}",
+                "exit_code": 1  # Operation failed - couldn't parse data
+            }
 
     def run_custom_checks(self) -> dict:
         """Run custom domain-specific checks that ruff can't handle."""
