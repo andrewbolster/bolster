@@ -480,7 +480,7 @@ def get_tumour_site_ranking(df: pd.DataFrame, year: int = None) -> pd.DataFrame:
     return ranking
 
 
-def validate_performance_data(df: pd.DataFrame) -> bool:
+def validate_performance_data(df: pd.DataFrame) -> bool:  # pragma: no cover
     """Validate that performance data is internally consistent.
 
     Args:

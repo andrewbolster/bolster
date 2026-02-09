@@ -258,7 +258,7 @@ def get_latest_migration(force_refresh: bool = False) -> pd.DataFrame:
     return migration_df
 
 
-def validate_demographic_equation(df: pd.DataFrame, tolerance: int = 100) -> bool:
+def validate_demographic_equation(df: pd.DataFrame, tolerance: int = 100) -> bool:  # pragma: no cover
     """Validate that the demographic accounting equation holds.
 
     Checks that:

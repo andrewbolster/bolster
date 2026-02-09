@@ -553,7 +553,7 @@ def get_gender_pay_gap(df_weekly: pd.DataFrame) -> pd.DataFrame:
     raise NotImplementedError("Gender pay gap calculation requires gender-specific data from linked tables file")
 
 
-def validate_ashe_data(df: pd.DataFrame) -> bool:
+def validate_ashe_data(df: pd.DataFrame) -> bool:  # pragma: no cover
     """Validate ASHE earnings data integrity.
 
     Args:

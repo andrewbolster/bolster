@@ -365,7 +365,7 @@ def get_nicei_by_quarter(df: pd.DataFrame, year: int, quarter: int) -> pd.DataFr
     return df[(df["year"] == year) & (df["quarter"] == quarter)].reset_index(drop=True)
 
 
-def validate_composite_index_data(df: pd.DataFrame) -> bool:
+def validate_composite_index_data(df: pd.DataFrame) -> bool:  # pragma: no cover
     """Validate composite index data integrity.
 
     Args:

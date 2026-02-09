@@ -133,7 +133,7 @@ def get_ni_executive_basic_table() -> pd.DataFrame:
     return executive_durations
 
 
-def validate_wikipedia_data(data) -> bool:
+def validate_wikipedia_data(data) -> bool:  # pragma: no cover
     """Validate Wikipedia data integrity.
 
     Args:

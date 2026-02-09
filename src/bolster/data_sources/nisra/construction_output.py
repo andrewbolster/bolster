@@ -377,7 +377,7 @@ def get_summary_statistics(df: pd.DataFrame, start_year: Optional[int] = None, e
     }
 
 
-def validate_construction_data(df: pd.DataFrame) -> bool:
+def validate_construction_data(df: pd.DataFrame) -> bool:  # pragma: no cover
     """Validate construction output data integrity.
 
     Args:

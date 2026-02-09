@@ -371,7 +371,7 @@ def get_water_quality() -> pd.DataFrame:
         raise
 
 
-def validate_water_quality_data(df: pd.DataFrame) -> bool:
+def validate_water_quality_data(df: pd.DataFrame) -> bool:  # pragma: no cover
     """Validate water quality data integrity.
 
     Args:

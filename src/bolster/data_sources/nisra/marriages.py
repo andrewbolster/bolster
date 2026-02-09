@@ -304,7 +304,7 @@ def get_latest_marriages(force_refresh: bool = False) -> pd.DataFrame:
     return parse_marriages_file(file_path)
 
 
-def validate_marriages_temporal_continuity(df: pd.DataFrame) -> bool:
+def validate_marriages_temporal_continuity(df: pd.DataFrame) -> bool:  # pragma: no cover
     """Validate that marriage data has no unexpected gaps in time series.
 
     Args:

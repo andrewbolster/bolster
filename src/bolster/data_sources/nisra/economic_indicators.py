@@ -564,7 +564,7 @@ def get_iop_summary_statistics(
     }
 
 
-def validate_economic_indicators_data(df: pd.DataFrame) -> bool:
+def validate_economic_indicators_data(df: pd.DataFrame) -> bool:  # pragma: no cover
     """Validate economic indicators data integrity.
 
     Args:

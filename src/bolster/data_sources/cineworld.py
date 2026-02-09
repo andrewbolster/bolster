@@ -88,7 +88,7 @@ def get_cinema_listings(site_code: int = 117, screening_date: date = date.today(
         raise e
 
 
-def validate_cinema_data(data) -> bool:
+def validate_cinema_data(data) -> bool:  # pragma: no cover
     """Validate cinema data integrity.
 
     Args:

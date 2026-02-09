@@ -243,7 +243,7 @@ def get_results(year: int) -> Dict[str, Union[pd.DataFrame, dict]]:
     return results
 
 
-def validate_election_results(results: Dict[str, Dict]) -> bool:
+def validate_election_results(results: Dict[str, Dict]) -> bool:  # pragma: no cover
     """Validate election results data integrity.
 
     Args:

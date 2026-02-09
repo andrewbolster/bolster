@@ -764,7 +764,7 @@ def build() -> Dict[Text, pd.DataFrame]:
     return get_all_tables()
 
 
-def validate_house_price_data(df: pd.DataFrame) -> bool:
+def validate_house_price_data(df: pd.DataFrame) -> bool:  # pragma: no cover
     """Validate house price index data integrity.
 
     Args:

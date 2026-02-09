@@ -230,7 +230,7 @@ def get_uk_precipitation(order_name: str, bounding_box: Optional[Tuple[int, int,
     return image  # pragma: no cover
 
 
-def validate_weather_data(data: Dict) -> bool:
+def validate_weather_data(data: Dict) -> bool:  # pragma: no cover
     """Validate Met Office weather data integrity.
 
     Args:

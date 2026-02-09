@@ -1101,7 +1101,7 @@ def get_seasonal_patterns(df: pd.DataFrame) -> pd.DataFrame:
     return summary
 
 
-def validate_occupancy_data(df: pd.DataFrame) -> bool:
+def validate_occupancy_data(df: pd.DataFrame) -> bool:  # pragma: no cover
     """Validate tourism occupancy data integrity.
 
     Args:

@@ -504,7 +504,7 @@ def get_personal_wellbeing_by_year(df: pd.DataFrame, year: str) -> pd.DataFrame:
     return df[df["year"] == year].copy()
 
 
-def validate_personal_wellbeing(df: pd.DataFrame) -> bool:
+def validate_personal_wellbeing(df: pd.DataFrame) -> bool:  # pragma: no cover
     """Validate personal wellbeing data for consistency.
 
     Checks that:

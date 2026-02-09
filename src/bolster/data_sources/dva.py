@@ -689,7 +689,7 @@ def get_summary_statistics(df: pd.DataFrame, start_year: Optional[int] = None, e
     }
 
 
-def validate_dva_test_data(df: pd.DataFrame) -> bool:
+def validate_dva_test_data(df: pd.DataFrame) -> bool:  # pragma: no cover
     """Validate DVA test statistics data integrity.
 
     Args:

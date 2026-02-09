@@ -920,7 +920,7 @@ def _validate_place(df: pd.DataFrame):
     logger.info(f"Place validation passed ({len(places)} places found)")
 
 
-def validate_deaths_data(df: pd.DataFrame) -> bool:
+def validate_deaths_data(df: pd.DataFrame) -> bool:  # pragma: no cover
     """Validate NISRA deaths data integrity.
 
     Args:

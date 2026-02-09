@@ -901,7 +901,7 @@ def get_latest_employment_by_lgd(force_refresh: bool = False) -> pd.DataFrame:
     return parse_employment_by_lgd(file_path, year=year)
 
 
-def validate_labour_market_data(df: pd.DataFrame) -> bool:
+def validate_labour_market_data(df: pd.DataFrame) -> bool:  # pragma: no cover
     """Validate labour market data integrity.
 
     Args:

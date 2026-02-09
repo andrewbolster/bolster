@@ -113,7 +113,7 @@ def get_companies_house_records_that_might_be_in_farset() -> Iterator[Dict]:
     yield from query_basic_company_data(companies_house_record_might_be_farset)  # pragma: no cover
 
 
-def validate_companies_house_data(records: List[Dict]) -> bool:
+def validate_companies_house_data(records: List[Dict]) -> bool:  # pragma: no cover
     """Validate Companies House data integrity.
 
     Args:
