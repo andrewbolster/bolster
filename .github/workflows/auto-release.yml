@@ -29,18 +29,18 @@ jobs:
       version_bump: ${{ steps.analyze.outputs.version_bump }}
       changelog: ${{ steps.analyze.outputs.changelog }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0
 
     - name: Setup Python and uv
-      uses: astral-sh/setup-uv@v4
+      uses: astral-sh/setup-uv@v7
       with:
         python-version: "3.11"
 
     - name: Analyze changes and determine version bump
       id: analyze
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       with:
         script: |
           // Get commits since last tag
@@ -168,13 +168,13 @@ jobs:
     runs-on: ubuntu-latest
     environment: release
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0
         token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Setup Python and uv
-      uses: astral-sh/setup-uv@v4
+      uses: astral-sh/setup-uv@v7
       with:
         python-version: "3.11"
 
@@ -271,7 +271,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Trigger ReadTheDocs build
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       with:
         script: |
           // Trigger ReadTheDocs webhook if configured
