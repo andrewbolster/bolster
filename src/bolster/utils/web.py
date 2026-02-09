@@ -78,12 +78,13 @@ session.mount("https://", _adapter)
 
 
 def get_last_valid(url: str) -> str:
+    """Get the last valid URL from Wayback Machine."""
     return WaybackMachineCDXServerAPI(url).oldest().archive_url
 
 
 def resilient_get(url: str, **kwargs) -> requests.Response:
-    """
-    Attempt a get, but if it fails, try using the wayback machine to get the last valid version and get that.
+    """Attempt a get, but if it fails, try using the wayback machine to get the last valid version and get that.
+
     If all else fails, raise a HTTPError from the inner "NoCDXRecordFound" exception.
     """
     try:
@@ -103,6 +104,7 @@ def resilient_get(url: str, **kwargs) -> requests.Response:
 def get_excel_dataframe(
     file_url: str, requests_kwargs: Optional[dict] = None, read_kwargs: Optional[dict] = None
 ) -> pd.DataFrame:
+    """Download and read Excel file into pandas DataFrame."""
     if requests_kwargs is None:
         requests_kwargs = {}
     if read_kwargs is None:
@@ -115,9 +117,9 @@ def get_excel_dataframe(
 
 
 def download_extract_zip(url: str) -> Generator[tuple[str, io.BufferedReader], None, None]:
-    """
-    Download a ZIP file and extract its contents in memory
-    yields (filename, file-like object) pairs.
+    """Download a ZIP file and extract its contents in memory.
+
+    Yields (filename, file-like object) pairs.
     """
     with session.get(url, stream=True) as response:
         response.raise_for_status()

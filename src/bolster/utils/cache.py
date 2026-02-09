@@ -75,6 +75,12 @@ class CachedDownloader:
     """
 
     def __init__(self, namespace: str, timeout: int = 60):
+        """Initialize CachedDownloader with namespace and timeout.
+
+        Args:
+            namespace: Cache namespace for organizing files
+            timeout: Timeout for HTTP requests in seconds
+        """
         self.namespace = namespace
         self.timeout = timeout
         self.cache_dir = CACHE_BASE / namespace

@@ -50,13 +50,9 @@ from typing import (
     Any,
     AnyStr,
     Callable,
-    Dict,
-    List,
     Optional,
-    Set,
     SupportsFloat,
     SupportsInt,
-    Tuple,
     Union,
 )
 from urllib.error import HTTPError, URLError
@@ -77,10 +73,8 @@ def _dumb_passthrough(x, **kwargs) -> Any:
     """Pointless passthrough replacement for tqdm (and similar) fallback.
 
     Args:
-      x: return:
-
-    Returns:
-
+        x: Value to pass through
+        **kwargs: Additional arguments (ignored)
     """
     return x
 
@@ -105,20 +99,21 @@ def poolmap(
     progress: Callable = None,
     **kwargs,
 ) -> dict:
-    """Helper function to encapsulate a ThreadPoolExecutor mapped function workflow
+    """Helper function to encapsulate a ThreadPoolExecutor mapped function workflow.
+
     Accepts (assumed to be `tqdm` style) progress monitor callback.
 
     `kwargs` are passed identically to all `f(i)` calls for each i in `iterable`
 
     Args:
-      f: function to map across
-      iterable:
-      max_workers: (Default value = None)
-      progress: (Default value = None)
-      **kwargs: passed as arguments to f
+        f: function to map across
+        iterable: Sequence of items to process
+        max_workers: Maximum number of worker threads (Default value = None)
+        progress: Progress callback function (Default value = None)
+        **kwargs: passed as arguments to f
 
     Returns:
-
+        dict: Dictionary mapping from input items to their results
     """
     futures = {}
     results = {}
@@ -141,12 +136,15 @@ def batch(seq: Sequence, n: int = 1) -> Generator[Iterable, None, None]:
     """Split a sequence into n-length batches (is still iterable, not list).
 
     Args:
-      seq:
-      n:  (Default value = 1)
+        seq: Sequence to split into batches
+        n: Size of each batch (default: 1)
 
     Returns:
-    >>> next((b for b in batch(range(10), 2)))
-    range(0, 2)
+        Generator yielding batches of the sequence
+
+    Examples:
+        >>> next((b for b in batch(range(10), 2)))
+        range(0, 2)
     >>> [b for b in batch(list(range(10)), 2)]
     [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]
     """
@@ -178,10 +176,10 @@ def arg_exception_logger(func: Callable) -> Callable:
     """Helper Decorator to provide info on the arguments that cause the exception of a wrapped function.
 
     Args:
-      func:
+        func: Function to wrap with exception logging
 
     Returns:
-
+        Callable: Wrapped function with exception argument logging
     """
 
     # noinspection PyMissingOrEmptyDocstring
@@ -219,9 +217,6 @@ def backoff(
       backoff: backoff multiplier e.g. value of 2 will double the delay
     each retry (Default value = 2)
       logger: logger to use. If None, print (Default value = local utils logger)
-
-    Returns:
-
     """
 
     # noinspection PyMissingOrEmptyDocstring
@@ -251,8 +246,9 @@ def backoff(
 
 
 class MultipleErrors(BaseException):
-    """Exception Class to enable the capturing of multiple exceptions without interrupting control flow, i.e. catch
-    the exception, but carry on and report the exceptions at the end.
+    """Exception Class to enable the capturing of multiple exceptions without interrupting control flow.
+
+    I.e. catch the exception, but carry on and report the exceptions at the end.
 
     E.g.
 
@@ -284,6 +280,7 @@ class MultipleErrors(BaseException):
     """
 
     def __init__(self, errors=None):
+        """Initialize MultipleErrors with optional list of existing errors."""
         self.errors = errors or []
 
     @classmethod
@@ -292,6 +289,7 @@ class MultipleErrors(BaseException):
         return "".join(traceback.format_exception(*exc_info))
 
     def __str__(self):
+        """Return formatted string representation of all captured exceptions."""
         tracebacks = "\n\n".join(self._traceback_for(exc_info) for exc_info in self.errors)
         parts = ("See the following exception tracebacks:", "=" * 78, tracebacks)
         return "\n".join(parts)
@@ -307,19 +305,18 @@ class MultipleErrors(BaseException):
 
 
 def tag_gen(seq: Iterator[dict], **kwargs) -> Iterator[dict]:
-    """Generator stream that adds a kwargs to each entry yielded.
-
-    The below example shows the creation of an empty dict generator where
-    tag_gen is used to insert a new key/value (k=1) in each item on the fly
-
-    >>> all([i['k'] == 1 for i in tag_gen(({} for _ in range(4)), k=1)])
-    True
+    """Generator stream that adds kwargs to each entry yielded.
 
     Args:
-      seq: param kwargs:
-      seq: Iterator[Dict]:
-      **kwargs:
+        seq: Iterator of dictionaries to tag
+        **kwargs: Additional key-value pairs to add to each dictionary
 
+    Examples:
+        The below example shows the creation of an empty dict generator where
+        tag_gen is used to insert a new key/value (k=1) in each item on the fly
+
+        >>> all([i['k'] == 1 for i in tag_gen(({} for _ in range(4)), k=1)])
+        True
     """
     for item in seq:
         new_item = item
@@ -681,6 +678,7 @@ def leaves(d: dict) -> Iterator[Any]:
 
 
 def leaf_paths(d: dict, path: Optional[list[Hashable]] = None) -> Iterator[tuple[list[Hashable], Any]]:
+    """Get all leaf paths in a nested dictionary structure."""
     if path is None:
         path = []
     if isinstance(d, dict):
@@ -691,6 +689,7 @@ def leaf_paths(d: dict, path: Optional[list[Hashable]] = None) -> Iterator[tuple
 
 
 def flatten_dict(d: dict, head: str = "", sep: str = ":") -> dict[str, Any]:
+    """Flatten a nested dictionary using separator for key names."""
     new_d = {}
     for k, v in d.items():
         if isinstance(v, dict):
@@ -707,6 +706,7 @@ def flatten_dict(d: dict, head: str = "", sep: str = ":") -> dict[str, Any]:
 
 
 def uncollect_object(d: dict) -> dict[Hashable, Any]:
+    """Convert flat dictionary back to nested structure using path tuples."""
     new_d = {}
     for k, v in d.items():
         if isinstance(v, (defaultdict, Counter)):

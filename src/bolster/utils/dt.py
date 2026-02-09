@@ -37,10 +37,10 @@ def round_to_month(dt: Union[datetime, date]) -> date:
 
 
 def utc_midnight_on(dt: datetime) -> datetime:
-    """Some services don't like timezones, so this helper function converts `datetime.date` and
-    `datetime.datetime` objects to a `datetime.datetime` object corresponding to UTC Midnight
-    on that date.
+    """Some services don't like timezones, so this helper function converts datetime objects to UTC midnight.
 
+    Converts `datetime.date` and `datetime.datetime` objects to a `datetime.datetime`
+    object corresponding to UTC Midnight on that date.
 
     Pays primary attention to the actual Date of the input, regardless of if the combination
     of given-time and timezone would roll over into another date.
