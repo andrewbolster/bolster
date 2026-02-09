@@ -186,7 +186,7 @@ def parse_population_file(
     expected_cols = {"area", "area_code", "area_name", "year", "sex", "age_5", "age_band", "age_broad", "MYE"}
     if not expected_cols.issubset(df.columns):
         missing = expected_cols - set(df.columns)
-        raise NISRAValidationError(f"Missing expected columns: {missing}") from e
+        raise NISRAValidationError(f"Missing expected columns: {missing}")
 
     # Rename MYE to population for clarity
     df = df.rename(columns={"MYE": "population"})

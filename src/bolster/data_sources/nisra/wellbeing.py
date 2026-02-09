@@ -223,10 +223,10 @@ def parse_personal_wellbeing(file_path: Union[str, Path]) -> pd.DataFrame:
 
     # Merge all metrics on year
     if not results:
-        raise NISRADataNotFoundError("Could not parse any personal wellbeing metrics") from e
+        raise NISRADataNotFoundError("Could not parse any personal wellbeing metrics")
 
     df = None
-    for metric, df_metric in results.items():
+    for _metric, df_metric in results.items():
         df = df_metric if df is None else df.merge(df_metric, on="year", how="outer")
 
     # Sort by year

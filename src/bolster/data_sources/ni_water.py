@@ -351,7 +351,7 @@ def get_water_quality() -> pd.DataFrame:
                     continue
 
         if not site_series_list:
-            raise RuntimeError("No valid water quality data could be processed") from e
+            raise RuntimeError("No valid water quality data could be processed")
 
         # Combine all series into a DataFrame
         df = pd.DataFrame(site_series_list)

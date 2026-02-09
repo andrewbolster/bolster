@@ -203,7 +203,7 @@ def get_latest_dva_publication_url() -> tuple[str, str, datetime]:
             logger.debug(f"Failed to fetch {pub_url}: {e}")
             continue
 
-    raise DVADataNotFoundError("Could not find any DVA monthly tests publications in the last 6 months") from e
+    raise DVADataNotFoundError("Could not find any DVA monthly tests publications in the last 6 months")
 
 
 def _parse_month_year(date_str: str) -> Optional[datetime]:
