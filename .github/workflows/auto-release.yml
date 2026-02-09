@@ -186,10 +186,10 @@ jobs:
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
-    - name: Constitutional compliance check
+    - name: Quality gate validation
       run: |
-        echo "🏛️  Validating constitutional compliance before release..."
-        uv run scripts/constitutional_check.py
+        echo "🏗️  Running quality gate validation before release..."
+        uv run scripts/quality_gate.py --format github
 
     - name: Run tests before release
       run: uv run pytest tests/ -v
