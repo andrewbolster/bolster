@@ -15,6 +15,7 @@ Test Coverage:
     - Data quality (no negatives, reasonable ranges, no duplicates)
     - Temporal consistency (chronological order, no gaps)
     - Cross-validation (multiple tables consistent with each other)
+    - Helper functions (quarter parsing, URL building)
 
 Running Tests:
     ```bash
@@ -35,6 +36,95 @@ Date: 2025-12-21
 import pytest
 
 from bolster.data_sources.nisra import labour_market
+
+
+class TestHelperFunctions:
+    """Test suite for internal helper functions.
+
+    These tests validate utility functions for quarter parsing and URL building.
+    """
+
+    def test_quarter_to_month_names_jan_mar(self):
+        """Test converting Jan-Mar quarter to month names."""
+        result = labour_market._quarter_to_month_names("Jan-Mar")
+        assert result == ("January", "February", "March")
+
+    def test_quarter_to_month_names_apr_jun(self):
+        """Test converting Apr-Jun quarter to month names."""
+        result = labour_market._quarter_to_month_names("Apr-Jun")
+        assert result == ("April", "May", "June")
+
+    def test_quarter_to_month_names_jul_sep(self):
+        """Test converting Jul-Sep quarter to month names."""
+        result = labour_market._quarter_to_month_names("Jul-Sep")
+        assert result == ("July", "August", "September")
+
+    def test_quarter_to_month_names_oct_dec(self):
+        """Test converting Oct-Dec quarter to month names."""
+        result = labour_market._quarter_to_month_names("Oct-Dec")
+        assert result == ("October", "November", "December")
+
+    def test_quarter_to_month_names_with_spaces(self):
+        """Test quarter parsing with spaces in input."""
+        result = labour_market._quarter_to_month_names("Jul - Sep")
+        assert result == ("July", "August", "September")
+
+    def test_quarter_to_month_names_case_insensitive(self):
+        """Test quarter parsing is case insensitive."""
+        result = labour_market._quarter_to_month_names("jul-sep")
+        assert result == ("July", "August", "September")
+
+        result = labour_market._quarter_to_month_names("JAN-MAR")
+        assert result == ("January", "February", "March")
+
+    def test_quarter_to_month_names_invalid_quarter(self):
+        """Test that invalid quarter string raises ValueError."""
+        with pytest.raises(ValueError, match="Invalid quarter string"):
+            labour_market._quarter_to_month_names("Invalid")
+
+        with pytest.raises(ValueError, match="Invalid quarter string"):
+            labour_market._quarter_to_month_names("Q1")
+
+    def test_build_lfs_url_q1_2025(self):
+        """Test building URL for Q1 2025 (Jan-Mar, published May 2025)."""
+        url = labour_market._build_lfs_url(2025, "Jan-Mar")
+        assert "2025-05" in url  # Published in May
+        assert "January-March-25.xlsx" in url
+        assert url.startswith("https://www.nisra.gov.uk/system/files/statistics/")
+
+    def test_build_lfs_url_q2_2025(self):
+        """Test building URL for Q2 2025 (Apr-Jun, published August 2025)."""
+        url = labour_market._build_lfs_url(2025, "Apr-Jun")
+        assert "2025-08" in url  # Published in August
+        assert "April-June-25.xlsx" in url
+
+    def test_build_lfs_url_q3_2025(self):
+        """Test building URL for Q3 2025 (Jul-Sep, published November 2025)."""
+        url = labour_market._build_lfs_url(2025, "Jul-Sep")
+        assert "2025-11" in url  # Published in November
+        assert "July-September-25.xlsx" in url
+
+    def test_build_lfs_url_q4_2025(self):
+        """Test building URL for Q4 2025 (Oct-Dec, published February 2026)."""
+        url = labour_market._build_lfs_url(2025, "Oct-Dec")
+        assert "2026-02" in url  # Published in February next year
+        assert "October-December-25.xlsx" in url
+
+    def test_build_lfs_url_case_insensitive(self):
+        """Test URL building is case insensitive."""
+        url1 = labour_market._build_lfs_url(2025, "Jul-Sep")
+        url2 = labour_market._build_lfs_url(2025, "jul-sep")
+        assert url1 == url2
+
+    def test_build_lfs_url_with_spaces(self):
+        """Test URL building handles spaces in quarter string."""
+        url = labour_market._build_lfs_url(2025, "Jul - Sep")
+        assert "July-September-25.xlsx" in url
+
+    def test_build_lfs_url_invalid_quarter(self):
+        """Test that invalid quarter raises ValueError."""
+        with pytest.raises(ValueError, match="Invalid quarter string"):
+            labour_market._build_lfs_url(2025, "Q1")
 
 
 class TestEmploymentDataIntegrity:
