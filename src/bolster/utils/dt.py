@@ -3,14 +3,13 @@ from typing import Union
 
 
 def round_to_week(dt: Union[datetime, date]) -> date:
-    """Return a date for the Monday before the given date
+    """Return a date for the Monday before the given date.
 
     Args:
       dt: return:
       dt: datetime:
 
     Returns:
-
     >>> round_to_week(datetime(2018,8,9,12,1))
     datetime.date(2018, 8, 6)
     >>> round_to_week(date(2018,8,9))
@@ -20,14 +19,13 @@ def round_to_week(dt: Union[datetime, date]) -> date:
 
 
 def round_to_month(dt: Union[datetime, date]) -> date:
-    """Return a date for the first day of the month of a given date
+    """Return a date for the first day of the month of a given date.
 
     Args:
       dt: return:
       dt: datetime:
 
     Returns:
-
     >>> round_to_month(datetime(2018,8,9,12,1))
     datetime.date(2018, 8, 1)
     >>> round_to_month(date(2018,8,9))

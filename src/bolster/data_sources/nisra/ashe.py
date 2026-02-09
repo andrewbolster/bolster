@@ -52,7 +52,7 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Tuple, Union
+from typing import Union
 
 import pandas as pd
 
@@ -66,7 +66,7 @@ logger = logging.getLogger(__name__)
 ASHE_BASE_URL = "https://www.nisra.gov.uk/statistics/work-pay-and-benefits/annual-survey-hours-and-earnings"
 
 
-def get_latest_ashe_publication_url() -> Tuple[str, int]:
+def get_latest_ashe_publication_url() -> tuple[str, int]:
     """Get the URL of the latest ASHE publication and its year.
 
     Scrapes the NISRA ASHE page to find the most recent publication.
@@ -89,7 +89,7 @@ def get_latest_ashe_publication_url() -> Tuple[str, int]:
         response = session.get(ASHE_BASE_URL, timeout=30)
         response.raise_for_status()
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch ASHE page: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch ASHE page: {e}") from e
 
     soup = BeautifulSoup(response.content, "html.parser")
 
@@ -294,10 +294,7 @@ def parse_ashe_geography(file_path: Union[str, Path], basis: str = "workplace", 
     if year is None:
         # Try to extract from filename
         match = re.search(r"ASHE-(\d{4})-linked", str(file_path))
-        if match:
-            year = int(match.group(1))
-        else:
-            year = datetime.now().year
+        year = int(match.group(1)) if match else datetime.now().year
 
     # Add metadata columns
     df["year"] = year
@@ -408,12 +405,11 @@ def get_latest_ashe_timeseries(metric: str = "weekly", force_refresh: bool = Fal
 
     if metric == "weekly":
         return parse_ashe_timeseries_weekly(file_path)
-    elif metric == "hourly":
+    if metric == "hourly":
         return parse_ashe_timeseries_hourly(file_path)
-    elif metric == "annual":
+    if metric == "annual":
         return parse_ashe_timeseries_annual(file_path)
-    else:
-        raise ValueError(f"Unknown metric: {metric}. Use 'weekly', 'hourly', or 'annual'")
+    raise ValueError(f"Unknown metric: {metric}. Use 'weekly', 'hourly', or 'annual'")
 
 
 def get_latest_ashe_geography(basis: str = "workplace", force_refresh: bool = False) -> pd.DataFrame:

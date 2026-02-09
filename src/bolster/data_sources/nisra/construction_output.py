@@ -54,7 +54,7 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Union
+from typing import Optional, Union
 
 import pandas as pd
 
@@ -68,7 +68,7 @@ logger = logging.getLogger(__name__)
 CONSTRUCTION_BASE_URL = "https://www.nisra.gov.uk/statistics/economic-output/construction-output-statistics"
 
 
-def get_latest_construction_publication_url() -> Tuple[str, datetime]:
+def get_latest_construction_publication_url() -> tuple[str, datetime]:
     """Get the URL of the latest Construction Output publication.
 
     Scrapes the NISRA Construction Output page to find the most recent publication.
@@ -91,7 +91,7 @@ def get_latest_construction_publication_url() -> Tuple[str, datetime]:
         response = session.get(CONSTRUCTION_BASE_URL, timeout=30)
         response.raise_for_status()
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch Construction Output page: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch Construction Output page: {e}") from e
 
     soup = BeautifulSoup(response.content, "html.parser")
 
@@ -111,7 +111,7 @@ def get_latest_construction_publication_url() -> Tuple[str, datetime]:
                 pub_response = session.get(pub_url, timeout=30)
                 pub_response.raise_for_status()
             except Exception as e:
-                raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}")
+                raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}") from e
 
             pub_soup = BeautifulSoup(pub_response.content, "html.parser")
 
@@ -332,7 +332,7 @@ def calculate_growth_rates(df: pd.DataFrame, periods: int = 4) -> pd.DataFrame:
     return result
 
 
-def get_summary_statistics(df: pd.DataFrame, start_year: Optional[int] = None, end_year: Optional[int] = None) -> Dict:
+def get_summary_statistics(df: pd.DataFrame, start_year: Optional[int] = None, end_year: Optional[int] = None) -> dict:
     """Calculate summary statistics for Construction Output.
 
     Args:

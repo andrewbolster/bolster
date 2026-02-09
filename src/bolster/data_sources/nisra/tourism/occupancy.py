@@ -45,13 +45,12 @@ Example:
 import logging
 import re
 from pathlib import Path
-from typing import Literal, Tuple, Union
+from typing import Literal, Union
 
 import pandas as pd
 
+from bolster.data_sources.nisra._base import NISRADataNotFoundError, NISRAValidationError, download_file
 from bolster.utils.web import session
-
-from .._base import NISRADataNotFoundError, NISRAValidationError, download_file
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +58,7 @@ logger = logging.getLogger(__name__)
 OCCUPANCY_BASE_URL = "https://www.nisra.gov.uk/statistics/tourism/occupancy-surveys"
 
 
-def get_latest_hotel_occupancy_publication_url() -> Tuple[str, str]:
+def get_latest_hotel_occupancy_publication_url() -> tuple[str, str]:
     """Scrape NISRA occupancy surveys page to find the latest hotel occupancy file.
 
     Navigates the publication structure:
@@ -82,7 +81,7 @@ def get_latest_hotel_occupancy_publication_url() -> Tuple[str, str]:
         response = session.get(mother_page, timeout=30)
         response.raise_for_status()
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch occupancy surveys page: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch occupancy surveys page: {e}") from e
 
     soup = BeautifulSoup(response.content, "html.parser")
 
@@ -120,7 +119,7 @@ def get_latest_hotel_occupancy_publication_url() -> Tuple[str, str]:
         pub_response = session.get(pub_link, timeout=30)
         pub_response.raise_for_status()
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}") from e
 
     pub_soup = BeautifulSoup(pub_response.content, "html.parser")
 
@@ -146,7 +145,7 @@ def get_latest_hotel_occupancy_publication_url() -> Tuple[str, str]:
     return excel_url, pub_date or "Unknown"
 
 
-def get_latest_ssa_occupancy_publication_url() -> Tuple[str, str]:
+def get_latest_ssa_occupancy_publication_url() -> tuple[str, str]:
     """Scrape NISRA occupancy surveys page to find the latest SSA file.
 
     SSA = Small Service Accommodation (B&Bs, guest houses, etc.)
@@ -171,7 +170,7 @@ def get_latest_ssa_occupancy_publication_url() -> Tuple[str, str]:
         response = session.get(mother_page, timeout=30)
         response.raise_for_status()
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch occupancy surveys page: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch occupancy surveys page: {e}") from e
 
     soup = BeautifulSoup(response.content, "html.parser")
 
@@ -208,7 +207,7 @@ def get_latest_ssa_occupancy_publication_url() -> Tuple[str, str]:
         pub_response = session.get(pub_link, timeout=30)
         pub_response.raise_for_status()
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch SSA publication page: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch SSA publication page: {e}") from e
 
     pub_soup = BeautifulSoup(pub_response.content, "html.parser")
 
@@ -298,7 +297,7 @@ def parse_hotel_occupancy_rates(file_path: Union[str, Path]) -> pd.DataFrame:
             nrows=13,  # Read header + 12 months
         )
     except Exception as e:
-        raise NISRAValidationError(f"Failed to read hotel occupancy file: {e}")
+        raise NISRAValidationError(f"Failed to read hotel occupancy file: {e}") from e
 
     # First row contains headers
     headers = df_raw.iloc[0].tolist()
@@ -427,7 +426,7 @@ def parse_rooms_beds_sold(file_path: Union[str, Path]) -> pd.DataFrame:
             nrows=13,  # Read header + 12 months
         )
     except Exception as e:
-        raise NISRAValidationError(f"Failed to read hotel occupancy file: {e}")
+        raise NISRAValidationError(f"Failed to read hotel occupancy file: {e}") from e
 
     # First row contains headers
     headers = df_raw.iloc[0].tolist()
@@ -639,7 +638,7 @@ def parse_ssa_occupancy_rates(file_path: Union[str, Path]) -> pd.DataFrame:
     except NISRAValidationError:
         raise
     except Exception as e:
-        raise NISRAValidationError(f"Failed to read SSA occupancy file: {e}")
+        raise NISRAValidationError(f"Failed to read SSA occupancy file: {e}") from e
 
     # First row contains headers
     headers = df_raw.iloc[0].tolist()
@@ -764,7 +763,7 @@ def parse_ssa_rooms_beds_sold(file_path: Union[str, Path]) -> pd.DataFrame:
             nrows=13,  # Read header + 12 months
         )
     except Exception as e:
-        raise NISRAValidationError(f"Failed to read SSA occupancy file: {e}")
+        raise NISRAValidationError(f"Failed to read SSA occupancy file: {e}") from e
 
     # First row contains headers
     headers = df_raw.iloc[0].tolist()
@@ -1038,7 +1037,7 @@ def get_occupancy_summary_by_year(df: pd.DataFrame) -> pd.DataFrame:
             - avg_bed_occupancy: float
             - months_reported: int
     """
-    summary = (
+    return (
         df.groupby("year")
         .agg(
             avg_room_occupancy=("room_occupancy", "mean"),
@@ -1047,8 +1046,6 @@ def get_occupancy_summary_by_year(df: pd.DataFrame) -> pd.DataFrame:
         )
         .reset_index()
     )
-
-    return summary
 
 
 def get_seasonal_patterns(df: pd.DataFrame) -> pd.DataFrame:
@@ -1096,9 +1093,7 @@ def get_seasonal_patterns(df: pd.DataFrame) -> pd.DataFrame:
 
     # Sort by month order
     summary["month"] = pd.Categorical(summary["month"], categories=month_order, ordered=True)
-    summary = summary.sort_values("month").reset_index(drop=True)
-
-    return summary
+    return summary.sort_values("month").reset_index(drop=True)
 
 
 def validate_occupancy_data(df: pd.DataFrame) -> bool:  # pragma: no cover
@@ -1123,9 +1118,8 @@ def validate_occupancy_data(df: pd.DataFrame) -> bool:  # pragma: no cover
     # Check for reasonable occupancy percentages
     percentage_cols = [col for col in df.columns if "occupancy" in col.lower() and col != "accommodation_type"]
     for col in percentage_cols:
-        if col in df.columns:
-            if (df[col] < 0).any() or (df[col] > 100).any():
-                logger.warning(f"Occupancy percentages out of range in column {col}")
-                return False
+        if col in df.columns and ((df[col] < 0).any() or (df[col] > 100).any()):
+            logger.warning(f"Occupancy percentages out of range in column {col}")
+            return False
 
     return True

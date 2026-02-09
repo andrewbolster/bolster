@@ -1,5 +1,5 @@
 """
-Northern Ireland Water Quality Data Integration
+Northern Ireland Water Quality Data Integration.
 
 Data Source: Northern Ireland Water provides public water quality data through the OpenDataNI
 portal at https://admin.opendatani.gov.uk/. The service offers water quality test results from
@@ -34,7 +34,7 @@ with support for both current quality data and historical zone mapping.
 
 import csv
 import logging
-from typing import Dict, Optional
+from typing import Optional
 from urllib.error import HTTPError
 
 import pandas as pd
@@ -201,9 +201,9 @@ def _create_legacy_format_series(site_data: pd.DataFrame, zone_code: str) -> pd.
 
 
 @backoff((HTTPError, RuntimeError))
-def get_postcode_to_water_supply_zone() -> Dict[str, str]:
+def get_postcode_to_water_supply_zone() -> dict[str, str]:
     """
-    Using data from OpenDataNI to generate a map from NI Postcodes to Water Supply Zone
+    Using data from OpenDataNI to generate a map from NI Postcodes to Water Supply Zone.
 
     >>> zones = get_postcode_to_water_supply_zone()
     >>> len(zones)
@@ -222,12 +222,11 @@ def get_postcode_to_water_supply_zone() -> Dict[str, str]:
     97
 
     """
-
     with session.get(POSTCODE_DATASET_URL, stream=True) as r:
         lines = (line.decode("utf-8") for line in r.iter_lines())
         reader = csv.DictReader(lines)
         keys = reader.fieldnames[:2]  # Take POSTCODE and first year
-        zones = dict(([row[k] for k in keys] for row in reader))
+        zones = dict([row[k] for k in keys] for row in reader)
         if not zones:
             raise RuntimeError("No data found")
 
@@ -283,9 +282,8 @@ def get_water_quality_by_zone(zone_code: str, strict=False) -> pd.Series:
             # No data found for this zone
             if strict:
                 raise ValueError(f"Potentially invalid Water Supply Zone {zone_code}")
-            else:
-                logging.warning(f"Potentially invalid Water Supply Zone {zone_code}")
-                return pd.Series(name=zone_code)
+            logging.warning(f"Potentially invalid Water Supply Zone {zone_code}")
+            return pd.Series(name=zone_code)
 
         # Convert to legacy format
         return _create_legacy_format_series(site_data, zone_code)
@@ -294,9 +292,8 @@ def get_water_quality_by_zone(zone_code: str, strict=False) -> pd.Series:
         # Handle data source errors
         if strict:
             raise ValueError(f"Unable to retrieve data for Water Supply Zone {zone_code}") from err
-        else:
-            logging.warning(f"Unable to retrieve data for Water Supply Zone {zone_code}: {err}")
-            return pd.Series(name=zone_code)
+        logging.warning(f"Unable to retrieve data for Water Supply Zone {zone_code}: {err}")
+        return pd.Series(name=zone_code)
 
 
 def get_water_quality() -> pd.DataFrame:
@@ -354,7 +351,7 @@ def get_water_quality() -> pd.DataFrame:
                     continue
 
         if not site_series_list:
-            raise RuntimeError("No valid water quality data could be processed")
+            raise RuntimeError("No valid water quality data could be processed") from e
 
         # Combine all series into a DataFrame
         df = pd.DataFrame(site_series_list)
@@ -390,9 +387,8 @@ def validate_water_quality_data(df: pd.DataFrame) -> bool:  # pragma: no cover
         return False
 
     # Check for hardness classification column if present
-    if "NI Hardness Classification" in df.columns:
-        if df["NI Hardness Classification"].isna().all():
-            logging.warning("All hardness classification values are missing")
-            return False
+    if "NI Hardness Classification" in df.columns and df["NI Hardness Classification"].isna().all():
+        logging.warning("All hardness classification values are missing")
+        return False
 
     return True

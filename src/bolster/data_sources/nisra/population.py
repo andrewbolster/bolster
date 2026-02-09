@@ -36,7 +36,7 @@ Example:
 import logging
 import re
 from pathlib import Path
-from typing import Literal, Optional, Tuple, Union
+from typing import Literal, Optional, Union
 
 import pandas as pd
 
@@ -50,7 +50,7 @@ logger = logging.getLogger(__name__)
 POPULATION_BASE_URL = "https://www.nisra.gov.uk/statistics/people-and-communities/population"
 
 
-def get_latest_population_publication_url() -> Tuple[str, int]:
+def get_latest_population_publication_url() -> tuple[str, int]:
     """Scrape NISRA population mother page to find the latest MYE age bands file.
 
     Navigates the publication structure:
@@ -72,7 +72,7 @@ def get_latest_population_publication_url() -> Tuple[str, int]:
         response = session.get(mother_page, timeout=30)
         response.raise_for_status()
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch population mother page: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch population mother page: {e}") from e
 
     soup = BeautifulSoup(response.content, "html.parser")
 
@@ -108,7 +108,7 @@ def get_latest_population_publication_url() -> Tuple[str, int]:
         pub_response = session.get(pub_link, timeout=30)
         pub_response.raise_for_status()
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}") from e
 
     pub_soup = BeautifulSoup(pub_response.content, "html.parser")
 
@@ -180,13 +180,13 @@ def parse_population_file(
         # Read the Flat sheet - it's already in perfect long format
         df = pd.read_excel(file_path, sheet_name="Flat")
     except Exception as e:
-        raise NISRAValidationError(f"Failed to read population file: {e}")
+        raise NISRAValidationError(f"Failed to read population file: {e}") from e
 
     # Validate expected columns
     expected_cols = {"area", "area_code", "area_name", "year", "sex", "age_5", "age_band", "age_broad", "MYE"}
     if not expected_cols.issubset(df.columns):
         missing = expected_cols - set(df.columns)
-        raise NISRAValidationError(f"Missing expected columns: {missing}")
+        raise NISRAValidationError(f"Missing expected columns: {missing}") from e
 
     # Rename MYE to population for clarity
     df = df.rename(columns={"MYE": "population"})
@@ -211,9 +211,7 @@ def parse_population_file(
             raise NISRAValidationError(f"No data found for area: {area}")
 
     # Sort for consistent output
-    df = df.sort_values(["area", "year", "sex", "age_5"]).reset_index(drop=True)
-
-    return df
+    return df.sort_values(["area", "year", "sex", "age_5"]).reset_index(drop=True)
 
 
 def get_latest_population(
@@ -378,6 +376,4 @@ def get_population_pyramid_data(
     pyramid = males.merge(females, on="age_5", how="outer")
 
     # Sort by age band
-    pyramid = pyramid.sort_values("age_5").reset_index(drop=True)
-
-    return pyramid
+    return pyramid.sort_values("age_5").reset_index(drop=True)

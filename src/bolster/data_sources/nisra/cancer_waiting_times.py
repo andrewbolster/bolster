@@ -57,7 +57,7 @@ Publication Details:
 import logging
 import re
 from pathlib import Path
-from typing import Tuple, Union
+from typing import Union
 
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -82,7 +82,7 @@ SHEET_14_DAY_HISTORIC = "14 d Wait - Breast Historic"
 SHEET_BREAST_REFERRALS = "Breast Cancer Referrals"
 
 
-def get_latest_publication_url() -> Tuple[str, str]:
+def get_latest_publication_url() -> tuple[str, str]:
     """Find the latest cancer waiting times publication URL.
 
     Scrapes the Department of Health cancer waiting times page to find the
@@ -100,7 +100,7 @@ def get_latest_publication_url() -> Tuple[str, str]:
         response = session.get(DOH_CANCER_PAGE, timeout=30)
         response.raise_for_status()
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch cancer waiting times page: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch cancer waiting times page: {e}") from e
 
     soup = BeautifulSoup(response.content, "html.parser")
 
@@ -136,7 +136,7 @@ def get_latest_publication_url() -> Tuple[str, str]:
         pub_response = session.get(pub_url, timeout=30)
         pub_response.raise_for_status()
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}") from e
 
     pub_soup = BeautifulSoup(pub_response.content, "html.parser")
 

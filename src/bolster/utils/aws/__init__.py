@@ -1,6 +1,5 @@
-# coding=utf-8
 """
-AWS based Asset handling
+AWS based Asset handling.
 
 Includes S3, Kinesis, SSM, SQS, Lambda self-invocation and Redshift querying helpers
 """
@@ -13,8 +12,9 @@ import logging
 import random
 import time
 from collections import Counter
+from collections.abc import Generator, Iterator, Sequence
 from gzip import GzipFile
-from typing import Any, AnyStr, Callable, Dict, Generator, Iterator, List, Optional, Sequence, SupportsInt, Union
+from typing import Any, AnyStr, Callable, Dict, List, Optional, SupportsInt, Union
 
 import boto3
 import botocore.config
@@ -55,7 +55,7 @@ def start_session(*args, restart=False, **kwargs) -> boto3.Session:
 
 def get_s3_client():
     start_session()
-    s3 = session.client(
+    return session.client(
         "s3",
         session.region_name,
         config=botocore.config.Config(
@@ -65,11 +65,10 @@ def get_s3_client():
             max_pool_connections=100,
         ),
     )
-    return s3
 
 
 def put_s3(
-    obj: Union[Sequence[Dict], io.StringIO],
+    obj: Union[Sequence[dict], io.StringIO],
     key: str,
     bucket: str,
     keys=None,
@@ -77,7 +76,7 @@ def put_s3(
     client=None,
 ) -> dict:
     """Take either a list of dicts (and dump them as csv to s3) or a
-    StringIO buffer (and dump-as-is to s3)
+    StringIO buffer (and dump-as-is to s3).
 
     Args:
       obj: List of records to be written to CSV (or StringIO for direct upload):
@@ -96,7 +95,7 @@ def put_s3(
     if isinstance(obj, list):
         buffer = io.StringIO()
         if keys is None:  # Use keys inferred (i.e. no given ordering)
-            keys = set([k for d in obj for k in d])
+            keys = {k for d in obj for k in d}
         w = csv.DictWriter(buffer, list(keys), extrasaction="ignore")
         w.writeheader()
         for row in obj:
@@ -144,10 +143,7 @@ def get_s3(key: str, bucket: str, gzip: bool = True, log_exception=True, client=
         elif key.endswith(".gz") and not gzip:
             gzip = True
         obj = client.get_object(Bucket=bucket, Key=key)
-        if gzip:
-            got_text = GzipFile(None, "r", fileobj=io.BytesIO(obj["Body"].read()))
-        else:
-            got_text = obj["Body"]
+        got_text = GzipFile(None, "r", fileobj=io.BytesIO(obj["Body"].read())) if gzip else obj["Body"]
         return io.StringIO(got_text.read().decode("utf-8"))
     except Exception as e:
         if log_exception:
@@ -156,7 +152,7 @@ def get_s3(key: str, bucket: str, gzip: bool = True, log_exception=True, client=
 
 
 def check_s3(key: str, bucket: str, client=None) -> bool:
-    """https://www.peterbe.com/plog/fastest-way-to-find-out-if-a-file-exists-in-s3
+    """https://www.peterbe.com/plog/fastest-way-to-find-out-if-a-file-exists-in-s3.
 
     Args:
       key: str:
@@ -168,11 +164,7 @@ def check_s3(key: str, bucket: str, client=None) -> bool:
         client = get_s3_client()
 
     response = client.list_objects_v2(Bucket=bucket, Prefix=key)
-    for obj in response.get("Contents", []):
-        if obj["Key"] == key:
-            return True
-    else:
-        return False
+    return any(obj["Key"] == key for obj in response.get("Contents", []))
 
 
 def get_matching_s3_objects(bucket: AnyStr, prefix="", suffix="", client=None) -> Iterator:
@@ -224,7 +216,7 @@ def get_matching_s3_objects(bucket: AnyStr, prefix="", suffix="", client=None) -
 def get_matching_s3_keys(bucket: AnyStr, **kwargs) -> Iterator:
     """
     Generate the keys in an S3 bucket.
-    https://alexwlchan.net/2018/01/listing-s3-keys-redux/
+    https://alexwlchan.net/2018/01/listing-s3-keys-redux/.
 
     :param bucket: Name of the S3 bucket.
     :param prefix: Only fetch keys that start with this prefix (optional).
@@ -234,7 +226,7 @@ def get_matching_s3_keys(bucket: AnyStr, **kwargs) -> Iterator:
         yield obj["Key"]
 
 
-def select_from_csv(bucket, key, fields, client=None) -> List:
+def select_from_csv(bucket, key, fields, client=None) -> list:
     if client is None:
         client = get_s3_client()
 
@@ -264,7 +256,7 @@ def select_from_csv(bucket, key, fields, client=None) -> List:
 
 def get_latest_key(prefix: str, bucket: str, key: Optional[Callable] = None, client=None) -> str:
     """Walk a given S3 bucket for the lexicographically highest item in the given bucket (defaults to the analysis store
-    defined in utils.env)
+    defined in utils.env).
 
     Accepts a `key` callable that can be used to decide how the candidate keys are sorted.
 
@@ -288,8 +280,7 @@ def get_latest_key(prefix: str, bucket: str, key: Optional[Callable] = None, cli
         key=key,
         reverse=True,
     )
-    latest = versions[0]
-    return latest
+    return versions[0]
 
 
 ###
@@ -297,16 +288,15 @@ def get_latest_key(prefix: str, bucket: str, key: Optional[Callable] = None, cli
 ###
 def get_sqs_client():
     start_session()
-    sqs = session.client(
+    return session.client(
         "sqs",
         endpoint_url=f"https://sqs.{session.region_name}.amazonaws.com",
         config=botocore.config.Config(connect_timeout=2, read_timeout=5, retries={"max_attempts": 2}),
     )
-    return sqs
 
 
 def send_to_sqs(records: Iterator, queue: str, chunksize: int = 1, client=None) -> None:
-    """Send `records` in chunks of `chunksize` for a given sqs queue in json-serialised format
+    """Send `records` in chunks of `chunksize` for a given sqs queue in json-serialised format.
 
     Args:
       records: param queue:
@@ -338,7 +328,7 @@ _ssm_params = {}
 
 def get_ssm_client():
     start_session()
-    ssm_client = session.client(
+    return session.client(
         "ssm",
         config=botocore.config.Config(
             connect_timeout=2,
@@ -347,12 +337,11 @@ def get_ssm_client():
             max_pool_connections=100,
         ),
     )
-    return ssm_client
 
 
 def get_ssm_param(param_name: str, client=None) -> str:
     """Locally memoized getter for configuration parameters stored in the AWS "Simple Systems Manager" (now just
-    systems manager) Parameter Store
+    systems manager) Parameter Store.
 
     Args:
       param_name: return:
@@ -368,15 +357,13 @@ def get_ssm_param(param_name: str, client=None) -> str:
 
         _ssm_params[param_name] = param["Parameter"]["Value"]
 
-    value = _ssm_params[param_name]
-
-    return value
+    return _ssm_params[param_name]
 
 
 ###
 # Kinesis/Firehose Helpers
 ###
-def fh_json_decode(content: AnyStr) -> Iterator[Union[Dict, List]]:
+def fh_json_decode(content: AnyStr) -> Iterator[Union[dict, list]]:
     """Customised JSON Decoder for consuming Firehose batched records;
 
     Firehose doesn't include entry separators between entries, so we intercept the raw_decoder
@@ -387,7 +374,6 @@ def fh_json_decode(content: AnyStr) -> Iterator[Union[Dict, List]]:
       content: AnyStr:
 
     Returns:
-
     >>> list(fh_json_decode('{"test":"value"}{"test":"othervalue"}'))
     [{'test': 'value'}, {'test': 'othervalue'}]
     """
@@ -404,8 +390,8 @@ def fh_json_decode(content: AnyStr) -> Iterator[Union[Dict, List]]:
             decode_index += 1
 
 
-def decapsulate_kinesis_payloads(event: Dict) -> List[Dict]:
-    """Decapsulate base64 encoded kinesis data records to a list
+def decapsulate_kinesis_payloads(event: dict) -> list[dict]:
+    """Decapsulate base64 encoded kinesis data records to a list.
 
     Args:
       event: Dict:
@@ -423,8 +409,8 @@ def decapsulate_kinesis_payloads(event: Dict) -> List[Dict]:
     return records
 
 
-def iterate_kinesis_payloads(event: Dict) -> Generator[Dict, None, None]:
-    """Iterate over a base64 encoded kinesis data record, yielding entries
+def iterate_kinesis_payloads(event: dict) -> Generator[dict, None, None]:
+    """Iterate over a base64 encoded kinesis data record, yielding entries.
 
     Args:
       event: return:
@@ -441,13 +427,11 @@ def iterate_kinesis_payloads(event: Dict) -> Generator[Dict, None, None]:
             logger.exception(f"FAILED {record}")
 
 
-class KinesisLoader(object):
-    """Kinesis batchwise insertion handler with chunking and retry"""
+class KinesisLoader:
+    """Kinesis batchwise insertion handler with chunking and retry."""
 
     def __init__(self, batch_size: int = 500, maximum_records: int = None, stream: str = None):
-        """
-        The default batch_size here is to match the maximum allowed by Kinesis in a PutRecords request
-        """
+        """The default batch_size here is to match the maximum allowed by Kinesis in a PutRecords request."""
         start_session()
         self.batch_size = min(batch_size, 500)
         self.maximum_records = maximum_records
@@ -465,7 +449,7 @@ class KinesisLoader(object):
         self.stream = stream
 
     def generate_and_submit(self, items: Iterator, partition_key: str = None) -> SupportsInt:
-        """Submit batches of items to the configured stream
+        """Submit batches of items to the configured stream.
 
         Args:
           items: param partition_key:
@@ -477,7 +461,7 @@ class KinesisLoader(object):
         """
         counter = 0
         # Simple cutoff here - guaranteed to not send in more than maximum_records, with single batch granularity
-        for i, batched_items in enumerate(chunks(items, self.batch_size)):
+        for _i, batched_items in enumerate(chunks(items, self.batch_size)):
             records_batch = [
                 {
                     "Data": json.dumps(item).encode("utf-8"),
@@ -492,12 +476,12 @@ class KinesisLoader(object):
 
             counter += len(records_batch)
             if counter > 1:
-                logger.info("Batch inserted. Total records: {}".format(str(counter)))
+                logger.info(f"Batch inserted. Total records: {str(counter)}")
 
         return counter
 
-    def submit_batch_until_successful(self, this_batch: List, response: Dict):
-        """If needed, retry a batch of records, backing off exponentially until it goes through
+    def submit_batch_until_successful(self, this_batch: list, response: dict):
+        """If needed, retry a batch of records, backing off exponentially until it goes through.
 
         Args:
           this_batch: List:
@@ -515,9 +499,7 @@ class KinesisLoader(object):
             # Failed records don't contain the original contents - we have to correlate with the input by position
             failed_records = [this_batch[i] for i, record in enumerate(response["Records"]) if "ErrorCode" in record]
 
-            logger.info(
-                "Incrementing exponential back off and retrying {} failed records".format(str(len(failed_records)))
-            )
+            logger.info(f"Incrementing exponential back off and retrying {str(len(failed_records))} failed records")
             retry_interval = min(retry_interval * 2, 4)
             request = {"Records": failed_records, "StreamName": self.stream}
             result = self.kinesis_client.put_records(**request)
@@ -525,7 +507,7 @@ class KinesisLoader(object):
 
 
 def send_to_kinesis(records: Iterator[Sequence], stream: str, partition_key: str = None) -> int:
-    """Accessory function for the KinesisLoader class
+    """Accessory function for the KinesisLoader class.
 
     Args:
       records: Iterator[Sequence]:
@@ -541,17 +523,16 @@ def send_to_kinesis(records: Iterator[Sequence], stream: str, partition_key: str
 
 def get_sns_client():
     start_session()
-    sns = session.client(
+    return session.client(
         "sns",
         session.region_name,
         config=botocore.config.Config(connect_timeout=5, retries={"max_attempts": 2}, max_pool_connections=100),
     )
-    return sns
 
 
-def invoke_self_async(event: Dict, context: Any):
+def invoke_self_async(event: dict, context: Any):
     """Have the Lambda invoke itself asynchronously, passing the same event it received originally,
-    and tagging the event as 'async' so it's actually processed
+    and tagging the event as 'async' so it's actually processed.
 
     THIS DOES NOT WORK FROM WITHIN A VPC! (There is no lambda-invoke endpoint accessible without poking
     lots of holes in the VPC.
@@ -572,8 +553,8 @@ def invoke_self_async(event: Dict, context: Any):
     )
 
 
-def query(q: str, redshift_conn_dict: dict, named_cursor="bolster_query_cursor", **kwargs) -> Iterator[Dict]:
-    """Helper for making queries to redshift (or any postgres compatible backend)
+def query(q: str, redshift_conn_dict: dict, named_cursor="bolster_query_cursor", **kwargs) -> Iterator[dict]:
+    """Helper for making queries to redshift (or any postgres compatible backend).
 
     .. code-block:: json
 
@@ -635,9 +616,11 @@ def SQSWrapper(  # noqa: C901
     maxmessages=1,
     raise_exceptions=True,
     deduplicate=False,
-    fkwargs={},
+    fkwargs=None,
     client=None,
 ):
+    if fkwargs is None:
+        fkwargs = {}
     if client is None:
         client = get_sqs_client()
     try:
@@ -654,7 +637,7 @@ def SQSWrapper(  # noqa: C901
             if not len(sqs_item.get("Messages", [])):
                 if n == 0:
                     logger.debug(f"No messages in {sqs_item}")
-                return  # EXIT PATH
+                return None  # EXIT PATH
 
             for message in sqs_item["Messages"]:
                 receipt_handle = message["ReceiptHandle"]

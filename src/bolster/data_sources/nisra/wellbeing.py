@@ -54,7 +54,7 @@ Publication Details:
 import logging
 import re
 from pathlib import Path
-from typing import Tuple, Union
+from typing import Union
 
 import pandas as pd
 
@@ -68,7 +68,7 @@ EXEC_OFFICE_TOPIC_URL = "https://www.executiveoffice-ni.gov.uk/topics/individual
 EXEC_OFFICE_BASE_URL = "https://www.executiveoffice-ni.gov.uk"
 
 
-def get_latest_wellbeing_publication_url() -> Tuple[str, str]:
+def get_latest_wellbeing_publication_url() -> tuple[str, str]:
     """Get the URL of the latest Individual Wellbeing publication and its year.
 
     Scrapes the Executive Office topic page to find the most recent publication.
@@ -93,7 +93,7 @@ def get_latest_wellbeing_publication_url() -> Tuple[str, str]:
         response = session.get(EXEC_OFFICE_TOPIC_URL, timeout=30)
         response.raise_for_status()
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch wellbeing page: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch wellbeing page: {e}") from e
 
     soup = BeautifulSoup(response.content, "html.parser")
 
@@ -223,14 +223,11 @@ def parse_personal_wellbeing(file_path: Union[str, Path]) -> pd.DataFrame:
 
     # Merge all metrics on year
     if not results:
-        raise NISRADataNotFoundError("Could not parse any personal wellbeing metrics")
+        raise NISRADataNotFoundError("Could not parse any personal wellbeing metrics") from e
 
     df = None
     for metric, df_metric in results.items():
-        if df is None:
-            df = df_metric
-        else:
-            df = df.merge(df_metric, on="year", how="outer")
+        df = df_metric if df is None else df.merge(df_metric, on="year", how="outer")
 
     # Sort by year
     df = df.sort_values("year").reset_index(drop=True)
@@ -527,9 +524,8 @@ def validate_personal_wellbeing(df: pd.DataFrame) -> bool:  # pragma: no cover
 
     # Check score ranges (0-10 for ONS4 measures)
     for col in ["life_satisfaction", "worthwhile", "happiness", "anxiety"]:
-        if col in df.columns:
-            if df[col].min() < 0 or df[col].max() > 10:
-                raise ValueError(f"{col} scores outside valid range 0-10")
+        if col in df.columns and (df[col].min() < 0 or df[col].max() > 10):
+            raise ValueError(f"{col} scores outside valid range 0-10")
 
     # Check for duplicates
     if df["year"].duplicated().any():

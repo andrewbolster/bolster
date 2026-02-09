@@ -57,7 +57,7 @@ Date: 2025-12-22
 
 import logging
 from pathlib import Path
-from typing import Tuple, Union
+from typing import Union
 
 import pandas as pd
 
@@ -72,7 +72,7 @@ NICEI_BASE_URL = "https://www.nisra.gov.uk"
 NICEI_STATS_URL = "https://www.nisra.gov.uk/statistics/economic-output-statistics/ni-composite-economic-index"
 
 
-def get_latest_nicei_publication_url() -> Tuple[str, int, str]:
+def get_latest_nicei_publication_url() -> tuple[str, int, str]:
     """Get the URL of the latest NICEI publication.
 
     Scrapes the NISRA NICEI statistics page to find the most recent quarterly publication.
@@ -95,7 +95,7 @@ def get_latest_nicei_publication_url() -> Tuple[str, int, str]:
         response = session.get(NICEI_STATS_URL, timeout=30)
         response.raise_for_status()
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch NICEI page: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch NICEI page: {e}") from e
 
     soup = BeautifulSoup(response.content, "html.parser")
 

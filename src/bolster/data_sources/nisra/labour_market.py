@@ -75,7 +75,7 @@ Date: 2025-12-21
 import logging
 import re
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Optional, Union
 
 import pandas as pd
 from openpyxl import load_workbook
@@ -99,7 +99,7 @@ LFS_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 LFS_BASE_URL = "https://www.nisra.gov.uk"
 
 
-def _quarter_to_month_names(quarter_str: str) -> Tuple[str, str, str]:
+def _quarter_to_month_names(quarter_str: str) -> tuple[str, str, str]:
     """Convert quarter string to month names.
 
     Args:
@@ -173,19 +173,14 @@ def _build_lfs_url(year: int, quarter: str) -> str:
         raise ValueError(f"Could not determine publication month for quarter: {quarter}")
 
     # For Oct-Dec quarter, publication is in February of next year
-    if pub_month == "02":
-        pub_year = year + 1
-    else:
-        pub_year = year
+    pub_year = year + 1 if pub_month == "02" else year
 
     # Build filename: lmr-labour-force-survey-quarterly-tables-July-September-25.xlsx
     year_short = str(year)[-2:]  # Last 2 digits
     filename = f"lmr-labour-force-survey-quarterly-tables-{first_month}-{third_month}-{year_short}.xlsx"
 
     # Build full URL
-    url = f"{LFS_BASE_URL}/system/files/statistics/{pub_year}-{pub_month}/{filename}"
-
-    return url
+    return f"{LFS_BASE_URL}/system/files/statistics/{pub_year}-{pub_month}/{filename}"
 
 
 def download_quarterly_lfs(year: int, quarter: str, force_refresh: bool = False, cache_ttl_days: int = 90) -> Path:
@@ -216,8 +211,7 @@ def download_quarterly_lfs(year: int, quarter: str, force_refresh: bool = False,
     cache_ttl_hours = cache_ttl_days * 24
 
     try:
-        file_path = download_file(url, cache_ttl_hours=cache_ttl_hours, force_refresh=force_refresh)
-        return file_path
+        return download_file(url, cache_ttl_hours=cache_ttl_hours, force_refresh=force_refresh)
     except Exception as e:
         raise NISRADataNotFoundError(f"Failed to download LFS quarterly data for {year} {quarter}: {e}") from e
 
@@ -361,9 +355,7 @@ def parse_employment_by_age_sex(file_path: Union[str, Path]) -> pd.DataFrame:
 
     # Return both as separate info or merged smartly
     # For now, let's add the total numbers as additional rows
-    result = pd.concat([df_pct, df_num], ignore_index=True)
-
-    return result
+    return pd.concat([df_pct, df_num], ignore_index=True)
 
 
 def parse_economic_inactivity(file_path: Union[str, Path]) -> pd.DataFrame:
@@ -473,12 +465,10 @@ def parse_economic_inactivity(file_path: Union[str, Path]) -> pd.DataFrame:
                 }
             )
 
-    result = pd.DataFrame(records)
-
-    return result
+    return pd.DataFrame(records)
 
 
-def get_latest_lfs_publication_url() -> Tuple[str, str, str]:
+def get_latest_lfs_publication_url() -> tuple[str, str, str]:
     """Find the latest Labour Force Survey quarterly tables publication.
 
     Scrapes the NISRA Labour Market statistics mother page to find the most recent
@@ -535,10 +525,7 @@ def get_latest_lfs_publication_url() -> Tuple[str, str, str]:
         for link in pub_soup.find_all("a", href=True):
             href = link["href"]
             if "lmr-labour-force-survey-quarterly-tables" in href.lower() and href.endswith(".xlsx"):
-                if href.startswith("/"):
-                    excel_url = f"https://www.nisra.gov.uk{href}"
-                else:
-                    excel_url = href
+                excel_url = f"https://www.nisra.gov.uk{href}" if href.startswith("/") else href
                 break
 
         if not excel_url:
@@ -616,7 +603,7 @@ def get_latest_lfs_publication_url() -> Tuple[str, str, str]:
         raise NISRADataNotFoundError("Could not extract quarter and year from publication")
 
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch LFS publication list: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch LFS publication list: {e}") from e
 
 
 def get_latest_employment(force_refresh: bool = False) -> pd.DataFrame:
@@ -680,8 +667,8 @@ def get_latest_economic_inactivity(force_refresh: bool = False) -> pd.DataFrame:
 
 
 def get_quarterly_data(
-    year: int, quarter: str, tables: Optional[List[str]] = None, force_refresh: bool = False
-) -> Dict[str, pd.DataFrame]:
+    year: int, quarter: str, tables: Optional[list[str]] = None, force_refresh: bool = False
+) -> dict[str, pd.DataFrame]:
     """Get Labour Force Survey data for a specific quarter.
 
     Args:
@@ -722,7 +709,7 @@ def get_quarterly_data(
 # ============================================================================
 
 
-def get_latest_lgd_employment_url() -> Tuple[str, int]:
+def get_latest_lgd_employment_url() -> tuple[str, int]:
     """Get the URL of the latest LFS Local Government District tables publication.
 
     Uses known URL pattern to construct the file URL. The LGD tables are published

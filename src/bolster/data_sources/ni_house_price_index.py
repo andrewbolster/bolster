@@ -38,7 +38,7 @@ import warnings
 from datetime import datetime
 from functools import partial
 from pathlib import Path
-from typing import Dict, Optional, Text
+from typing import Optional
 from urllib.parse import urlparse
 
 import bs4
@@ -132,7 +132,7 @@ def _download_file(url: str, cache_ttl_hours: int = 24, force_refresh: bool = Fa
         return cache_path
 
     except Exception as e:
-        raise NIHPIDataNotFoundError(f"Failed to download {url}: {e}")
+        raise NIHPIDataNotFoundError(f"Failed to download {url}: {e}") from e
 
 
 def clear_cache():
@@ -143,7 +143,7 @@ def clear_cache():
             logger.info(f"Deleted {file}")
 
 
-def get_source_url(base_url=DEFAULT_URL) -> Text:
+def get_source_url(base_url=DEFAULT_URL) -> str:
     """Find the URL of the latest HPI Excel file from the publication page.
 
     Args:
@@ -159,7 +159,7 @@ def get_source_url(base_url=DEFAULT_URL) -> Text:
         response = session.get(base_url, timeout=30)
         response.raise_for_status()
     except Exception as e:
-        raise NIHPIDataNotFoundError(f"Failed to fetch publication page: {e}")
+        raise NIHPIDataNotFoundError(f"Failed to fetch publication page: {e}") from e
 
     base_soup = bs4.BeautifulSoup(response.content, features="html.parser")
 
@@ -178,7 +178,7 @@ def pull_sources(
     base_url: str = DEFAULT_URL,
     force_refresh: bool = False,
     cache_ttl_hours: int = 24 * 7,  # Weekly cache (quarterly data)
-) -> Dict[Text, pd.DataFrame]:
+) -> dict[str, pd.DataFrame]:
     """Pull raw NI House Price Index Excel from finance-ni.gov.uk.
 
     Downloads the latest HPI Excel file and returns all worksheets as a dictionary
@@ -273,9 +273,7 @@ def basic_cleanup(df: pd.DataFrame, offset=1) -> pd.DataFrame:
 
     # reset index, try to fix dtypes, etc, (this should be the last
     # operation before returning!
-    df = df.reset_index(drop=True).infer_objects()
-
-    return df
+    return df.reset_index(drop=True).infer_objects()
 
 
 def cleanup_contents(df: pd.DataFrame) -> pd.DataFrame:
@@ -294,9 +292,7 @@ def cleanup_contents(df: pd.DataFrame) -> pd.DataFrame:
     df = df[1:].copy()
     df.columns = [*new_header[:-1], "Title"]
     # df['Worksheet Name'] = df['Worksheet Name'].str.replace('Figure', 'Fig')
-    df = df[df["Worksheet Name"].str.startswith("Table")]
-
-    return df
+    return df[df["Worksheet Name"].str.startswith("Table")]
 
 
 TABLE_TRANSFORMATION_MAP["Contents"] = cleanup_contents
@@ -385,8 +381,7 @@ def cleanup_with_munged_quarters_and_total_rows(df: pd.DataFrame, offset=3) -> p
     with pd.option_context("mode.chained_assignment", None):
         df.iloc[:, 0] = df.iloc[:, 0].astype(str).str.replace("\n", "")
 
-    df = basic_cleanup(df, offset=offset)
-    return df
+    return basic_cleanup(df, offset=offset)
 
 
 TABLE_TRANSFORMATION_MAP["Table 3c"] = partial(cleanup_with_munged_quarters_and_total_rows, offset=4)
@@ -483,9 +478,7 @@ def cleanup_combined_year_quarter(df: pd.DataFrame, offset: int = 2) -> pd.DataF
     df = df.drop(columns=[yq_col])
 
     # Reset index and infer types
-    df = df.reset_index(drop=True).infer_objects()
-
-    return df
+    return df.reset_index(drop=True).infer_objects()
 
 
 # Table 5a: Number of Verified Residential Property Sales by Local Government District (offset=2)
@@ -511,8 +504,7 @@ def cleanup_missing_year_quarter(df: pd.DataFrame, offset: int = 1) -> pd.DataFr
     df = df.copy()
     df.iloc[offset, 0] = "Year"
     df.iloc[offset, 1] = "Quarter"
-    df = basic_cleanup(df, offset=offset)
-    return df
+    return basic_cleanup(df, offset=offset)
 
 
 # Table 7: Standardised House Price & Index for Rural Areas by drive times (offset=1)
@@ -531,7 +523,7 @@ TABLE_TRANSFORMATION_MAP[re.compile("Table 9[a-z]")] = partial(cleanup_missing_y
 TABLE_TRANSFORMATION_MAP[re.compile("Table 10[a-z]")] = partial(cleanup_combined_year_quarter, offset=2)
 
 
-def transform_sources(source_df: Dict[Text, pd.DataFrame]) -> Dict[Text, pd.DataFrame]:
+def transform_sources(source_df: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
     """Transform all raw tables using registered transformation functions.
 
     Args:
@@ -565,7 +557,7 @@ def transform_sources(source_df: Dict[Text, pd.DataFrame]) -> Dict[Text, pd.Data
 # =============================================================================
 
 
-def get_all_tables(force_refresh: bool = False) -> Dict[Text, pd.DataFrame]:
+def get_all_tables(force_refresh: bool = False) -> dict[str, pd.DataFrame]:
     """Get all HPI tables as a dictionary of DataFrames.
 
     This is the main entry point for accessing NI House Price Index data.
@@ -747,7 +739,7 @@ def get_hpi_by_property_type(force_refresh: bool = False) -> pd.DataFrame:
 # =============================================================================
 
 
-def build() -> Dict[Text, pd.DataFrame]:
+def build() -> dict[str, pd.DataFrame]:
     """Pulls and cleans up the latest NI House Price Index Data.
 
     .. deprecated::

@@ -107,9 +107,7 @@ def calculate_annual_population(population_df: pd.DataFrame) -> pd.DataFrame:
             - population: int (mid-year population estimate)
     """
     # Filter for 'All persons' and aggregate by year
-    annual = population_df[population_df["sex"] == "All persons"].groupby("year")["population"].sum().reset_index()
-
-    return annual
+    return population_df[population_df["sex"] == "All persons"].groupby("year")["population"].sum().reset_index()
 
 
 def derive_migration(
@@ -253,9 +251,7 @@ def get_latest_migration(force_refresh: bool = False) -> pd.DataFrame:
     deaths_df = deaths.get_historical_deaths(force_refresh=force_refresh)
 
     # Derive migration from demographic components
-    migration_df = derive_migration(pop_df, births_df, deaths_df)
-
-    return migration_df
+    return derive_migration(pop_df, births_df, deaths_df)
 
 
 def validate_demographic_equation(df: pd.DataFrame, tolerance: int = 100) -> bool:  # pragma: no cover

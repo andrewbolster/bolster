@@ -1,5 +1,5 @@
 """
-Wikipedia Northern Ireland Data Integration
+Wikipedia Northern Ireland Data Integration.
 
 Data Source: Wikipedia provides publicly edited information about Northern Ireland institutions
 and governance through structured tables at https://en.wikipedia.org/wiki/Northern_Ireland_Executive.

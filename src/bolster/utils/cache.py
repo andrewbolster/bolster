@@ -142,7 +142,7 @@ class CachedDownloader:
             return cache_path
 
         except Exception as e:
-            raise DownloadError(f"Failed to download {url}: {e}")
+            raise DownloadError(f"Failed to download {url}: {e}") from e
 
     def clear(self, pattern: Optional[str] = None) -> int:
         """Clear cached files.
@@ -153,10 +153,7 @@ class CachedDownloader:
         Returns:
             Number of files deleted
         """
-        if pattern:
-            files = list(self.cache_dir.glob(pattern))
-        else:
-            files = list(self.cache_dir.glob("*"))
+        files = list(self.cache_dir.glob(pattern)) if pattern else list(self.cache_dir.glob("*"))
 
         deleted = 0
         for file in files:

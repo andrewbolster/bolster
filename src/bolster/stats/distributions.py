@@ -117,7 +117,7 @@ def _get_available_distributions(include_slow=False):
 
 # Create models from data https://stackoverflow.com/questions/6620471/fitting-empirical-distribution-to-theoretical-ones-with-scipy-python
 def best_fit_distribution(data, bins=200, ax=None, include_slow=False, discriminator="sse"):  # pragma: no cover
-    """Model data by finding best fit distribution to data"""
+    """Model data by finding best fit distribution to data."""
     # Get histogram of original data
     y, x = np.histogram(data, bins=bins, density=True)
     x = (x + np.roll(x, -1))[:-1] / 2.0
@@ -142,10 +142,8 @@ def best_fit_distribution(data, bins=200, ax=None, include_slow=False, discrimin
 
                 # fit dist to data
                 start = time()
-                print(distribution.name, end=" ")
                 params = distribution.fit(data)
                 times[distribution.name] = time() - start
-                print(f"took {int(times[distribution.name])}")
 
                 # Separate parts of parameters
                 arg = params[:-2]
@@ -171,7 +169,6 @@ def best_fit_distribution(data, bins=200, ax=None, include_slow=False, discrimin
                     best_distribution = distribution
                     best_params = params
                     best_discriminator_value = discriminator_value
-                    print(f"New best, {distribution.name} and got an sse of {discriminator_value}")
 
         except Exception:
             pass

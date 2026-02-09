@@ -27,7 +27,7 @@ version_no = f"{(datetime.date.today() - datetime.date(1988, 5, 17)).total_secon
 class TqdmLoggingHandler(logging.Handler):
     """
     Custom logging handler that uses tqdm to display log messages.
-    i.e. `logging.getLogger().addHandler(TqdmLoggingHandler())`
+    i.e. `logging.getLogger().addHandler(TqdmLoggingHandler())`.
     """
 
     def __init__(self, level=logging.NOTSET):

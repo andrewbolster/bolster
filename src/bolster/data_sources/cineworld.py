@@ -1,4 +1,4 @@
-"""Cineworld Cinema Listings Data Integration
+"""Cineworld Cinema Listings Data Integration.
 
 This module provides access to current cinema listings and film showtimes from Cineworld cinemas
 across the UK through their public API. The data includes film information, screening times,
@@ -37,14 +37,14 @@ Site Code 117 maps to Belfast, you're on your own for the rest.
 
 import logging
 from datetime import date
-from typing import Any, Dict, List
+from typing import Any
 
-from ..utils.web import session
+from bolster.utils.web import session
 
 logger = logging.getLogger(__name__)
 
 
-def get_cinema_listings(site_code: int = 117, screening_date: date = date.today()) -> List[Dict[str, Any]]:
+def get_cinema_listings(site_code: int = 117, screening_date: date = date.today()) -> list[dict[str, Any]]:
     """
     Get cinema listings from the Cineworld API.
 

@@ -41,7 +41,7 @@ from .utils.rss import filter_entries, get_nisra_statistics_feed, parse_rss_feed
 @click.version_option(version=__version__, prog_name="bolster")
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 def cli(verbose, args=None):
-    """
+    r"""
     Bolster - A comprehensive Python utility library for Northern Ireland and UK data sources.
 
     \b
@@ -466,7 +466,7 @@ def ni_house_prices(output_format, save):
 @click.option("--save", help="Save data to file (specify filename)")
 @click.option("--summary", is_flag=True, help="Show summary dashboard only")
 def dva_cmd(latest, test_type, year, output_format, force_refresh, save, summary):
-    """
+    r"""
     DVA (Driver & Vehicle Agency) Monthly Test Statistics.
 
     Retrieves monthly test statistics from the NI Driver & Vehicle Agency including:
@@ -630,7 +630,7 @@ def dva_cmd(latest, test_type, year, output_format, force_refresh, save, summary
         console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @cli.command()
@@ -884,7 +884,7 @@ def rss():
 @click.option("--before-date", "-b", help="Show entries published before this date (YYYY-MM-DD)")
 @click.option("--format", "-f", type=click.Choice(["rich", "json", "csv"]), default="rich", help="Output format")
 def rss_read(feed_url, limit, title_filter, after_date, before_date, format):
-    """
+    r"""
     Read and display RSS/Atom feeds with beautiful formatting.
 
     Fetches and parses RSS or Atom feeds from any URL, displaying entries
@@ -1005,7 +1005,7 @@ def rss_read(feed_url, limit, title_filter, after_date, before_date, format):
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @rss.command(name="nisra-statistics")
@@ -1017,7 +1017,7 @@ def rss_read(feed_url, limit, title_filter, after_date, before_date, format):
 )
 @click.option("--format", "-f", type=click.Choice(["rich", "json", "csv"]), default="rich", help="Output format")
 def rss_nisra_statistics(limit, title_filter, after_date, order, format):
-    """
+    r"""
     Browse NISRA (Northern Ireland Statistics and Research Agency) publications.
 
     Fetches and displays recent research and statistics publications from NISRA
@@ -1151,7 +1151,7 @@ def rss_nisra_statistics(limit, title_filter, after_date, order, format):
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @cli.group()
@@ -1182,7 +1182,6 @@ def nisra_feed(limit: int, title_filter: str, days: int, check_coverage: bool):
     Useful for discovering new datasets and checking for updates.
 
     Examples:
-
         bolster nisra feed                    # Recent 20 publications
 
         bolster nisra feed -n 50              # More entries
@@ -1298,8 +1297,8 @@ def nisra_feed(limit: int, title_filter: str, days: int, check_coverage: bool):
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
 def nisra_deaths_cmd(latest, dimension, output_format, force_refresh, save):
-    """
-    NISRA Weekly Deaths Statistics
+    r"""
+    NISRA Weekly Deaths Statistics.
 
     Retrieves weekly death registrations in Northern Ireland with breakdowns by:
     - Totals (COVID-19 deaths, flu/pneumonia deaths, excess deaths)
@@ -1428,7 +1427,7 @@ def nisra_deaths_cmd(latest, dimension, output_format, force_refresh, save):
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
         console.print("   • Visit NISRA website to verify data availability")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="labour-market")
@@ -1449,8 +1448,8 @@ def nisra_deaths_cmd(latest, dimension, output_format, force_refresh, save):
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
 def nisra_labour_market_cmd(latest, table, output_format, force_refresh, save):
-    """
-    NISRA Labour Force Survey Statistics
+    r"""
+    NISRA Labour Force Survey Statistics.
 
     Retrieves Labour Force Survey (LFS) data for Northern Ireland including:
     - Employment by age band and sex (quarterly)
@@ -1624,7 +1623,7 @@ def nisra_labour_market_cmd(latest, table, output_format, force_refresh, save):
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
         console.print("   • Visit NISRA website to verify data availability")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="births")
@@ -1645,8 +1644,8 @@ def nisra_labour_market_cmd(latest, table, output_format, force_refresh, save):
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
 def nisra_births_cmd(latest, event_type, output_format, force_refresh, save):
-    """
-    NISRA Monthly Birth Registrations Statistics
+    r"""
+    NISRA Monthly Birth Registrations Statistics.
 
     Retrieves monthly birth registration data for Northern Ireland including:
     - Births by month of registration (when officially registered)
@@ -1801,7 +1800,7 @@ def nisra_births_cmd(latest, event_type, output_format, force_refresh, save):
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
         console.print("   • Visit NISRA website to verify data availability")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="population")
@@ -1830,8 +1829,8 @@ def nisra_births_cmd(latest, event_type, output_format, force_refresh, save):
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
 def nisra_population_cmd(latest, area, year, output_format, force_refresh, save):
-    """
-    NISRA Mid-Year Population Estimates
+    r"""
+    NISRA Mid-Year Population Estimates.
 
     Retrieves annual mid-year population estimates for Northern Ireland with breakdowns by:
     - Geography (NI overall, Parliamentary Constituencies, Health and Social Care Trusts)
@@ -1955,7 +1954,7 @@ def nisra_population_cmd(latest, area, year, output_format, force_refresh, save)
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
         console.print("   • Visit NISRA website to verify data availability")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="marriages")
@@ -1971,8 +1970,8 @@ def nisra_population_cmd(latest, area, year, output_format, force_refresh, save)
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
 def nisra_marriages_cmd(latest, year, output_format, force_refresh, save):
-    """
-    NISRA Monthly Marriage Registrations Statistics
+    r"""
+    NISRA Monthly Marriage Registrations Statistics.
 
     Retrieves monthly marriage registration data for Northern Ireland.
 
@@ -2093,7 +2092,7 @@ def nisra_marriages_cmd(latest, year, output_format, force_refresh, save):
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
         console.print("   • Visit NISRA website to verify data availability")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="civil-partnerships")
@@ -2110,8 +2109,8 @@ def nisra_marriages_cmd(latest, year, output_format, force_refresh, save):
 @click.option("--save", help="Save data to file (specify filename)")
 @click.option("--summary", is_flag=True, help="Show summary statistics only")
 def nisra_civil_partnerships_cmd(latest, year, output_format, force_refresh, save, summary):
-    """
-    NISRA Monthly Civil Partnership Registrations Statistics
+    r"""
+    NISRA Monthly Civil Partnership Registrations Statistics.
 
     Retrieves monthly civil partnership registration data for Northern Ireland.
 
@@ -2229,7 +2228,7 @@ def nisra_civil_partnerships_cmd(latest, year, output_format, force_refresh, sav
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
         console.print("   • Visit NISRA website to verify data availability")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="occupancy")
@@ -2259,8 +2258,8 @@ def nisra_civil_partnerships_cmd(latest, year, output_format, force_refresh, sav
 @click.option("--summary", is_flag=True, help="Show summary statistics only")
 @click.option("--compare", is_flag=True, help="Compare hotel vs SSA occupancy by year")
 def nisra_occupancy_cmd(latest, year, accommodation, data_type, output_format, force_refresh, save, summary, compare):
-    """
-    NISRA Monthly Accommodation Occupancy Statistics
+    r"""
+    NISRA Monthly Accommodation Occupancy Statistics.
 
     Retrieves monthly occupancy data for Northern Ireland from the Tourism
     Statistics Branch. Supports both hotel and SSA (Small Service Accommodation
@@ -2506,7 +2505,7 @@ def nisra_occupancy_cmd(latest, year, accommodation, data_type, output_format, f
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
         console.print("   • Visit NISRA website to verify data availability")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="visitors")
@@ -2532,8 +2531,8 @@ def nisra_occupancy_cmd(latest, year, accommodation, data_type, output_format, f
 @click.option("--summary", is_flag=True, help="Show market summary with derived metrics")
 @click.option("--compare", is_flag=True, help="Compare domestic vs external visitors")
 def nisra_visitors_cmd(latest, market, output_format, force_refresh, save, summary, compare):
-    """
-    NISRA Quarterly Visitor Statistics (Trips, Nights, Expenditure)
+    r"""
+    NISRA Quarterly Visitor Statistics (Trips, Nights, Expenditure).
 
     Retrieves quarterly visitor statistics for Northern Ireland from NISRA,
     showing overnight trips, nights spent, and visitor expenditure by market origin.
@@ -2719,7 +2718,7 @@ def nisra_visitors_cmd(latest, market, output_format, force_refresh, save, summa
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
         console.print("   • Visit NISRA website to verify data availability")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="migration")
@@ -2738,8 +2737,8 @@ def nisra_visitors_cmd(latest, market, output_format, force_refresh, save, summa
 @click.option("--save", help="Save data to file (specify filename)")
 @click.option("--summary", is_flag=True, help="Show summary statistics only")
 def nisra_migration_cmd(latest, year, start_year, end_year, output_format, force_refresh, save, summary):
-    """
-    NISRA Migration Estimates (Derived from Demographic Components)
+    r"""
+    NISRA Migration Estimates (Derived from Demographic Components).
 
     Calculates net migration using the demographic accounting equation:
         Net Migration = Population Change - Natural Change
@@ -2885,7 +2884,7 @@ def nisra_migration_cmd(latest, year, start_year, end_year, output_format, force
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
         console.print("   • Ensure births, deaths, and population data are available")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="index-of-services")
@@ -2908,8 +2907,8 @@ def nisra_migration_cmd(latest, year, start_year, end_year, output_format, force
 def nisra_index_of_services_cmd(
     latest, year, quarter, start_year, end_year, output_format, force_refresh, save, summary, growth
 ):
-    """
-    NISRA Index of Services (IOS) - Quarterly Economic Indicator
+    r"""
+    NISRA Index of Services (IOS) - Quarterly Economic Indicator.
 
     Measures output in Northern Ireland's services sector, including business services,
     wholesale/retail trade, transport, and other services. Seasonally adjusted quarterly
@@ -3033,7 +3032,7 @@ def nisra_index_of_services_cmd(
         console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="index-of-production")
@@ -3056,8 +3055,8 @@ def nisra_index_of_services_cmd(
 def nisra_index_of_production_cmd(
     latest, year, quarter, start_year, end_year, output_format, force_refresh, save, summary, growth
 ):
-    """
-    NISRA Index of Production (IOP) - Quarterly Economic Indicator
+    r"""
+    NISRA Index of Production (IOP) - Quarterly Economic Indicator.
 
     Measures output in Northern Ireland's production industries, including manufacturing,
     mining, and utilities. Seasonally adjusted quarterly data from Q1 2005 to present.
@@ -3177,7 +3176,7 @@ def nisra_index_of_production_cmd(
         console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="construction-output")
@@ -3200,8 +3199,8 @@ def nisra_index_of_production_cmd(
 def nisra_construction_output_cmd(
     latest, year, quarter, start_year, end_year, output_format, force_refresh, save, summary, growth
 ):
-    """
-    NISRA Construction Output Statistics - Quarterly Economic Indicator
+    r"""
+    NISRA Construction Output Statistics - Quarterly Economic Indicator.
 
     Measures volume and value of construction output in Northern Ireland across
     all work, new work, and repair & maintenance. Chained volume measure data
@@ -3329,7 +3328,7 @@ def nisra_construction_output_cmd(
         console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="ashe")
@@ -3363,8 +3362,8 @@ def nisra_construction_output_cmd(
 @click.option("--save", help="Save data to file (specify filename)")
 @click.option("--growth", is_flag=True, help="Include year-on-year growth rates (timeseries only)")
 def nisra_ashe_cmd(latest, metric, dimension, basis, year, output_format, force_refresh, save, growth):
-    """
-    NISRA Annual Survey of Hours and Earnings (ASHE) - Employee Earnings Statistics
+    r"""
+    NISRA Annual Survey of Hours and Earnings (ASHE) - Employee Earnings Statistics.
 
     Annual survey measuring employee earnings in Northern Ireland across multiple dimensions
     including employment type, sector, geography, occupation, and industry. Data from April
@@ -3511,7 +3510,7 @@ def nisra_ashe_cmd(latest, metric, dimension, basis, year, output_format, force_
         console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="composite-index")
@@ -3534,8 +3533,8 @@ def nisra_ashe_cmd(latest, metric, dimension, basis, year, output_format, force_
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
 def nisra_composite_index_cmd(latest, table, year, quarter, output_format, force_refresh, save):
-    """
-    NISRA Northern Ireland Composite Economic Index (NICEI) - Experimental Economic Indicator
+    r"""
+    NISRA Northern Ireland Composite Economic Index (NICEI) - Experimental Economic Indicator.
 
     Quarterly measure of NI economic performance tracking five key sectors:
     Services, Production, Construction, Agriculture, and Public Sector.
@@ -3698,7 +3697,7 @@ def nisra_composite_index_cmd(latest, table, year, quarter, output_format, force
         console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="wellbeing")
@@ -3720,8 +3719,8 @@ def nisra_composite_index_cmd(latest, table, year, quarter, output_format, force
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
 def nisra_wellbeing_cmd(latest, metric, year, output_format, force_refresh, save):
-    """
-    NISRA Individual Wellbeing Statistics
+    r"""
+    NISRA Individual Wellbeing Statistics.
 
     Retrieves individual wellbeing statistics for Northern Ireland, measuring
     subjective wellbeing across the population aged 16 and over.
@@ -3861,7 +3860,7 @@ def nisra_wellbeing_cmd(latest, metric, year, output_format, force_refresh, save
         console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="cancer-waiting-times")
@@ -3890,8 +3889,8 @@ def nisra_wellbeing_cmd(latest, metric, year, output_format, force_refresh, save
 @click.option("--save", help="Save data to file (specify filename)")
 @click.option("--summary", is_flag=True, help="Show NI-wide summary instead of raw data")
 def nisra_cancer_cmd(latest, target, dimension, year, output_format, force_refresh, save, summary):
-    """
-    NISRA Cancer Waiting Times Statistics
+    r"""
+    NISRA Cancer Waiting Times Statistics.
 
     Retrieves cancer waiting times performance data for Northern Ireland from the
     Department of Health, tracking progress against ministerial targets.
@@ -4055,7 +4054,7 @@ def nisra_cancer_cmd(latest, target, dimension, year, output_format, force_refre
         console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="registrar-general")
@@ -4083,8 +4082,8 @@ def nisra_cancer_cmd(latest, target, dimension, year, output_format, force_refre
 def nisra_registrar_general_cmd(
     latest, quarterly, lgd, validate, table, year, quarter, output_format, force_refresh, save
 ):
-    """
-    NISRA Registrar General Quarterly Tables
+    r"""
+    NISRA Registrar General Quarterly Tables.
 
     Quarterly vital statistics for Northern Ireland including births, deaths,
     marriages, civil partnerships, and LGD-level breakdowns. Data available
@@ -4339,7 +4338,7 @@ def nisra_registrar_general_cmd(
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
         console.print("   • Visit NISRA website to verify data availability")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @cli.group()
@@ -4380,8 +4379,8 @@ def psni():
 @click.option("--save", help="Save data to file (specify filename)")
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 def psni_rtc_cmd(year, data_type, by, output_format, save, force_refresh):
-    """
-    PSNI Road Traffic Collision Statistics
+    r"""
+    PSNI Road Traffic Collision Statistics.
 
     Retrieves police-recorded injury road traffic collision data including:
     - Collision records with date, location, road conditions
@@ -4486,7 +4485,7 @@ def psni_rtc_cmd(year, data_type, by, output_format, save, force_refresh):
 
     except Exception as e:
         console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @cli.command()
