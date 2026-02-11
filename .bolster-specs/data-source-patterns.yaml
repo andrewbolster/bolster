@@ -1,0 +1,133 @@
+# Bolster Data Source Pattern Specifications
+# Persistent validation rules based on .claude/constitution.md observations
+
+name: "Bolster Data Source Validation"
+version: "1.0.0"
+description: "Validates code patterns for data source modules based on observed codebase standards"
+
+# Module classification for applying different rules
+module_types:
+  data_source:
+    patterns: ["src/bolster/data_sources/**/*.py"]
+    exemptions: ["*/_base.py", "*/__init__.py", "*/validation.py"]
+    description: "Primary data access modules"
+
+  base_module:
+    patterns: ["src/bolster/data_sources/**/_base.py", "src/bolster/data_sources/**/__init__.py"]
+    description: "Shared utility and initialization modules"
+
+  utility:
+    patterns: ["src/bolster/utils/**/*.py"]
+    description: "Cross-cutting utility modules"
+
+  test:
+    patterns: ["tests/**/*.py"]
+    description: "Test modules"
+
+# Global exemptions that apply to all rules
+global_exemptions:
+  - pattern: "**/__pycache__/**"
+    reason: "Compiled Python files"
+  - pattern: "**/*.pyc"
+    reason: "Compiled Python cache files"
+
+# Validation rules based on constitutional patterns
+validation_rules:
+
+  # Infrastructure patterns from constitution
+  - name: "shared_http_session"
+    category: "infrastructure"
+    description: "Enforce use of shared HTTP session from bolster.utils.web"
+    severity: "error"
+    applies_to: ["data_source", "utility"]
+    checks:
+      - type: "ast_forbidden_pattern"
+        pattern: "import_with_usage"
+        import_name: "requests"
+        forbidden_usage: ["requests.get(", "requests.post(", "requests.put(", "requests.delete("]
+        message: "Use bolster.utils.web.session instead of raw requests"
+        suggestion: "Replace 'requests.get()' with 'session.get()' from bolster.utils.web"
+
+  - name: "shared_download_utilities"
+    category: "infrastructure"
+    description: "Enforce use of download_file() from _base modules"
+    severity: "error"
+    applies_to: ["data_source"]
+    checks:
+      - type: "ast_forbidden_pattern"
+        pattern: "direct_usage"
+        forbidden_calls: ["urllib.request.urlretrieve", "requests.get().content"]
+        message: "Use download_file() from _base module instead of direct HTTP downloads"
+        suggestion: "Use download_file(url, cache_ttl_hours=24) from the module's _base.py"
+
+  # Documentation patterns from constitution
+  - name: "module_docstring_structure"
+    category: "documentation"
+    description: "Require standard docstring sections in data source modules"
+    severity: "warning"
+    applies_to: ["data_source"]
+    checks:
+      - type: "docstring_sections"
+        location: "module"
+        required_sections: ["Data Source", "Update Frequency", "Example"]
+        message: "Module docstring missing required sections"
+        suggestion: "Add missing sections: Data Source, Update Frequency, Geographic Coverage, Example"
+
+  # Function naming patterns from constitution
+  - name: "standard_function_naming"
+    category: "naming"
+    description: "Enforce standard function naming patterns"
+    severity: "warning"
+    applies_to: ["data_source"]
+    checks:
+      - type: "function_naming"
+        required_patterns: ["get_latest_*", "parse_*", "validate_*"]
+        minimum_functions: 1
+        message: "Data source modules should include functions with standard prefixes"
+        suggestion: "Consider adding get_latest_*(), parse_*_file(), or validate_*() functions"
+
+  # Logging patterns from constitution
+  - name: "proper_logging_setup"
+    category: "infrastructure"
+    description: "Require proper logging configuration"
+    severity: "error"
+    applies_to: ["data_source", "utility"]
+    checks:
+      - type: "ast_required_pattern"
+        pattern: "import_with_assignment"
+        import_name: "logging"
+        required_assignment: "logger = logging.getLogger(__name__)"
+        message: "Modules must set up logging with logger = logging.getLogger(__name__)"
+
+  - name: "no_print_in_library"
+    category: "quality"
+    description: "Prohibit print() statements in library code"
+    severity: "warning"
+    applies_to: ["data_source", "utility"]
+    exemptions: ["**/cli.py"]
+    checks:
+      - type: "ast_forbidden_calls"
+        forbidden_functions: ["print"]
+        exemption_contexts: ['if __name__ == "__main__"']
+        message: "Use logger.info/warning/error instead of print() in library code"
+
+  # Error handling patterns from constitution
+  - name: "domain_specific_exceptions"
+    category: "quality"
+    description: "Require domain-specific exceptions instead of bare Exception"
+    severity: "warning"
+    applies_to: ["data_source", "utility"]
+    checks:
+      - type: "ast_forbidden_pattern"
+        pattern: "raise_statement"
+        forbidden_exceptions: ["Exception("]
+        message: "Use domain-specific exceptions from _base module instead of bare Exception"
+        suggestion: "Import appropriate exception (e.g., NISRADataNotFoundError) from _base.py"
+
+# Configuration for validation execution
+execution:
+  parallel: true
+  cache_results: true
+  performance_budget:
+    max_time_seconds: 30
+    max_memory_mb: 200
