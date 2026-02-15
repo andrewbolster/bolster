@@ -85,7 +85,7 @@ Three specialized agents for the data source development lifecycle.
 
 **Workflow**:
 
-1. **Discover** - Fetch RSS feeds, check README coverage table
+1. **Discover** - Use `uv run bolster nisra feed --limit 20` to see recent publications, check README coverage table
 1. **Gap analysis** - Compare feed entries vs implemented modules
 1. **Research** - For each candidate, evaluate accessibility, format, history
 1. **Validate** - Write disposable scripts in `/tmp/` to test assumptions
@@ -230,6 +230,18 @@ class TestValidation:
 ______________________________________________________________________
 
 # RSS Feed Discovery
+
+## CLI Approach (Recommended)
+
+```bash
+# Show recent NISRA publications with formatted table
+uv run bolster nisra feed --limit 20
+
+# Alternative: use the RSS command directly
+uv run bolster rss nisra-statistics --limit 20
+```
+
+## Module Approach (For Programmatic Use)
 
 ```python
 from bolster.utils.rss import get_nisra_statistics_feed
