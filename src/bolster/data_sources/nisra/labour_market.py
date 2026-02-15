@@ -912,9 +912,12 @@ def validate_labour_market_data(df: pd.DataFrame) -> bool:  # pragma: no cover
     # Check for reasonable employment rates/percentages
     rate_cols = [col for col in df.columns if "rate" in col.lower() or "percentage" in col.lower()]
     for col in rate_cols:
-        if col in df.columns and df[col].dtype in ["float64", "int64"]:
-            if (df[col] < 0).any() or (df[col] > 100).any():
-                logger.warning(f"Employment rates out of range in column {col}")
-                return False
+        if (
+            col in df.columns
+            and df[col].dtype in ["float64", "int64"]
+            and ((df[col] < 0).any() or (df[col] > 100).any())
+        ):
+            logger.warning(f"Employment rates out of range in column {col}")
+            return False
 
     return True

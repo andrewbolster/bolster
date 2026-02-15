@@ -1,5 +1,4 @@
-"""
-Basic statistics and data frame helpers.
+"""Basic statistics and data frame helpers.
 
 Simple functions for common data manipulation tasks:
 - add_totals/drop_totals: manage row/column totals in DataFrames
@@ -20,8 +19,7 @@ def add_totals(
     row_total: AnyStr = "total",
     inplace=True,
 ):
-    """
-    Add Row and Column totals to a dataframe (in place).
+    """Add Row and Column totals to a dataframe (in place).
 
     >>> add_totals(pd.DataFrame([[0,1,2],[3,4,5]]))
            0  1  2  total
@@ -63,8 +61,7 @@ def drop_totals(
     row_total: AnyStr = "total",
     inplace=True,
 ) -> pd.DataFrame:
-    """
-    Remove Row and Column totals from a dataframe (in place).
+    """Remove Row and Column totals from a dataframe (in place).
 
     Parameters
     ----------
@@ -105,8 +102,7 @@ def drop_totals(
 
 
 def fix_datetime_tz_columns(df: pd.DataFrame, inplace=True) -> pd.DataFrame:
-    """
-    Strip Timezone information from relevant datetime columns in a dataframe.
+    """Strip Timezone information from relevant datetime columns in a dataframe.
 
     Parameters
     ----------
@@ -128,8 +124,7 @@ def fix_datetime_tz_columns(df: pd.DataFrame, inplace=True) -> pd.DataFrame:
 
 
 def top_n(df: pd.DataFrame, n: int, others: AnyStr = "others") -> pd.DataFrame:
-    """
-    Truncate the DataFrame to the top 'n' rows, summing all subsequent rows into an 'others' row.
+    """Truncate the DataFrame to the top 'n' rows, summing all subsequent rows into an 'others' row.
 
     Parameters
     ----------

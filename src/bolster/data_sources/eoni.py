@@ -1,5 +1,4 @@
-"""
-Northern Ireland Electoral Office (EONI) Election Data Integration.
+"""Northern Ireland Electoral Office (EONI) Election Data Integration.
 
 Data Source: The Electoral Office for Northern Ireland provides official election results
 and data through their website at https://www.eoni.org.uk. This module accesses NI Assembly
@@ -53,8 +52,7 @@ _base_url = "https://www.eoni.org.uk"
 
 
 def get_page(path: AnyStr) -> BeautifulSoup:
-    """
-    For a given path (within EONI.org.uk), get the response as a BeautifulSoup instance.
+    """For a given path (within EONI.org.uk), get the response as a BeautifulSoup instance.
 
     Note:
         EONI is trying to block people from scraping and will return a 403 error if you don't pass a 'conventional' user agent
@@ -70,8 +68,7 @@ def get_page(path: AnyStr) -> BeautifulSoup:
 
 
 def find_xls_links_in_page(page: BeautifulSoup) -> Iterable[AnyStr]:
-    """
-    Walk through a BeautifulSoup page and iterate through '(XLS)' suffixed links.
+    """Walk through a BeautifulSoup page and iterate through '(XLS)' suffixed links.
 
     (Primarily Used for 'Results' pages within given elections)
 
@@ -91,10 +88,9 @@ def find_xls_links_in_page(page: BeautifulSoup) -> Iterable[AnyStr]:
 
 
 def normalise_constituencies(cons_str: str) -> str:
-    """
-    Some constituencies change names or cases etc;
+    """Some constituencies change names or cases etc.
 
-    Use this function to take external/unconventional inputs and project them into a normalised format
+    Use this function to take external/unconventional inputs and project them into a normalised format.
 
     >>> normalise_constituencies('Newry & Armagh')
     'newry and armagh'
@@ -106,8 +102,7 @@ def normalise_constituencies(cons_str: str) -> str:
 def get_metadata_from_df(
     df: pd.DataFrame,
 ) -> dict[str, Union[int, str, datetime.datetime]]:
-    """
-    Extract Ballot metadata from the table header(s) of an XLS formatted result sheet, as output from `get_excel_dataframe`.
+    """Extract Ballot metadata from the table header(s) of an XLS formatted result sheet, as output from `get_excel_dataframe`.
 
     # TODO this could probably be done better as a `dataclass`
 
@@ -168,8 +163,7 @@ def get_stage_transfers_from_df(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def extract_stage_n_votes(df: pd.DataFrame, n: int) -> Optional[pd.Series]:
-    """
-    Extract the votes from a given stage N.
+    """Extract the votes from a given stage N.
 
     Note: This will include trailing, unaligned `Nones` which must be cleaned up at the Ballot level
     """
@@ -186,8 +180,7 @@ def extract_stage_n_votes(df: pd.DataFrame, n: int) -> Optional[pd.Series]:
 
 
 def extract_stage_n_transfers(df: pd.DataFrame, n: int) -> Optional[pd.Series]:
-    """
-    Extract the votes from a given stage N.
+    """Extract the votes from a given stage N.
 
     Note: This will include trailing, unaligned `Nones` which must be cleaned up at the Ballot level
     Stage Transfers are associated with the 'next' stage, i.e. stage 1 has no transfers
@@ -205,6 +198,7 @@ def extract_stage_n_transfers(df: pd.DataFrame, n: int) -> Optional[pd.Series]:
 
 
 def get_results_from_sheet(sheet_url: AnyStr) -> dict[str, Union[pd.DataFrame, dict]]:
+    """Download and parse election results from an Excel sheet URL."""
     df = get_excel_dataframe(sheet_url, requests_kwargs={"headers": _headers})
     metadata = get_metadata_from_df(df)
     candidates = get_candidates_from_df(df)
@@ -220,6 +214,7 @@ def get_results_from_sheet(sheet_url: AnyStr) -> dict[str, Union[pd.DataFrame, d
 
 
 def get_results(year: int) -> dict[str, Union[pd.DataFrame, dict]]:
+    """Get election results for a specific year from EONI website."""
     results_listing_dir = "/results-data/"
     results_listing_path = {
         2022: "ni-assembly-election-2022-results/",

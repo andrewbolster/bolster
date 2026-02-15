@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-"""
-Bolster documentation build configuration file for Sphinx.
+"""Bolster documentation build configuration file for Sphinx.
 
 This configuration file sets up comprehensive documentation generation
 with modern Sphinx extensions and best practices for API documentation,
@@ -103,7 +102,24 @@ language = "en"
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "autoapi/**"]
+
+# -- Options for doctest extension ------------------------------------
+
+# Configure doctest to work properly with our project structure
+doctest_path = [os.path.abspath("../src")]
+
+# Global setup for doctests - import commonly used modules
+doctest_global_setup = """
+import sys
+import os
+sys.path.insert(0, os.path.abspath("../src"))
+import pandas as pd
+import numpy as np
+"""
+
+# Configure doctest to continue on failures for better reporting
+doctest_continue_on_failure = True
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "sphinx"

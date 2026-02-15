@@ -40,76 +40,28 @@ repos:
           - id: trailing-whitespace
 
     # Constitutional compliance checks (critical patterns only)
+    # Logging standards now enforced by ruff LOG rules (LOG001, LOG002, LOG015)
+    # - LOG001: Prevents direct logging.Logger() instantiation
+    # - LOG002: Requires logging.getLogger(__name__) pattern
+    # - LOG015: Prevents root logger usage (logging.info/warning/etc)
+    # This is better than string matching as it uses proper AST analysis
     - repo: local
       hooks:
-          - id: constitutional-logging-check
-            name: Check for proper logging setup
-            entry: python
-            language: python
-            args:
-                - -c
-                - |
-                  import sys
-                  from pathlib import Path
-                  violations = []
-                  for file_path in sys.argv[1:]:
-                      if 'data_sources' in file_path and file_path.endswith('.py'):
-                          if Path(file_path).name not in ['__init__.py', '_base.py']:
-                              content = Path(file_path).read_text()
-                              if 'logger = logging.getLogger(__name__)' not in content:
-                                  violations.append(f'{file_path}: Missing logger setup')
-                  if violations:
-                      print('❌ CONSTITUTIONAL VIOLATION: Missing logger setup')
-                      for v in violations: print(f'  - {v}')
-                      sys.exit(1)
-            files: ^src/bolster/data_sources/.*\.py$
+# Constitutional validation function requirement removed - these were mostly
+          # overkill sanity checks that don't add real value. Keep sophisticated
+          # cross-validation examples in examples/ directory for meaningful data quality checks.
 
-          - id: constitutional-validation-check
-            name: Check for validation functions
-            entry: python
-            language: python
+          - id: import-linter-check
+            name: Check architectural import constraints
+            entry: bash
+            language: system
             args:
                 - -c
-                - |
-                  import sys
-                  from pathlib import Path
-                  violations = []
-                  for file_path in sys.argv[1:]:
-                      if 'data_sources' in file_path and file_path.endswith('.py'):
-                          if Path(file_path).name not in ['__init__.py', '_base.py']:
-                              content = Path(file_path).read_text()
-                              if 'def validate_' not in content:
-                                  violations.append(f'{file_path}: Missing validation function')
-                  if violations:
-                      print('❌ CONSTITUTIONAL VIOLATION: Missing validation functions')
-                      for v in violations: print(f'  - {v}')
-                      sys.exit(1)
-            files: ^src/bolster/data_sources/.*\.py$
-
-          - id: constitutional-http-check
-            name: Check for proper HTTP usage
-            entry: python
-            language: python
-            args:
-                - -c
-                - |
-                  import sys
-                  from pathlib import Path
-                  violations = []
-                  for file_path in sys.argv[1:]:
-                      if file_path.endswith('.py') and 'src/bolster' in file_path:
-                          content = Path(file_path).read_text()
-                          # Allow utils/web.py to import requests
-                          if 'utils/web.py' not in file_path and 'import requests' in content:
-                              violations.append(f'{file_path}: Using raw requests instead of web.session')
-                          if 'requests.get(' in content or 'requests.post(' in content:
-                              if 'utils/web.py' not in file_path:
-                                  violations.append(f'{file_path}: Using raw requests.get/post')
-                  if violations:
-                      print('❌ CONSTITUTIONAL VIOLATION: HTTP centralization violated')
-                      for v in violations: print(f'  - {v}')
-                      sys.exit(1)
-            files: ^src/bolster/.*\.py$
+                - PYTHONPATH=src uv run lint-imports
+            pass_filenames: false
+            types: [python]
+            # Only run on Python files in src/ to match other checks
+            files: ^src/.*\.py$
 
     # - repo: https://github.com/kynan/nbstripout
     #   rev: 0.8.1

@@ -369,6 +369,7 @@ def cleanup_with_munged_quarters_and_total_rows(df: pd.DataFrame, offset=3) -> p
 
     Args:
         df: Raw DataFrame from Excel
+        offset: Number of header rows to skip during cleanup
 
     Returns:
         Cleaned DataFrame
@@ -754,26 +755,3 @@ def build() -> dict[str, pd.DataFrame]:
         stacklevel=2,
     )
     return get_all_tables()
-
-
-def validate_house_price_data(df: pd.DataFrame) -> bool:  # pragma: no cover
-    """Validate house price index data integrity.
-
-    Args:
-        df: DataFrame from house price index functions
-
-    Returns:
-        True if validation passes, False otherwise
-    """
-    if df.empty:
-        logger.warning("House price data is empty")
-        return False
-
-    # Check for price-related columns
-    price_indicators = ["price", "index", "value", "average"]
-    has_price_data = any(indicator in " ".join(df.columns).lower() for indicator in price_indicators)
-    if not has_price_data:
-        logger.warning("No price indicators found in house price data")
-        return False
-
-    return True

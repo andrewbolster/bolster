@@ -1,5 +1,4 @@
-"""
-Northern Ireland Water Quality Data Integration.
+"""Northern Ireland Water Quality Data Integration.
 
 Data Source: Northern Ireland Water provides public water quality data through the OpenDataNI
 portal at https://admin.opendatani.gov.uk/. The service offers water quality test results from
@@ -60,8 +59,7 @@ _water_quality_cache: Optional[pd.DataFrame] = None
 
 @backoff((HTTPError, RuntimeError))
 def get_water_quality_csv_data() -> pd.DataFrame:
-    """
-    Get the latest water quality CSV data from OpenDataNI.
+    """Get the latest water quality CSV data from OpenDataNI.
 
     This function downloads and caches the complete water quality dataset
     which contains all results from customer tap supply points.
@@ -90,7 +88,7 @@ def get_water_quality_csv_data() -> pd.DataFrame:
     if _water_quality_cache is not None:
         return _water_quality_cache
 
-    logging.info(f"Downloading water quality data from {WATER_QUALITY_CSV_URL}")
+    logger.info(f"Downloading water quality data from {WATER_QUALITY_CSV_URL}")
 
     with session.get(WATER_QUALITY_CSV_URL, stream=True) as r:
         r.raise_for_status()
@@ -99,13 +97,12 @@ def get_water_quality_csv_data() -> pd.DataFrame:
         if _water_quality_cache.empty:
             raise RuntimeError("No water quality data found in CSV")
 
-    logging.info(f"Loaded {len(_water_quality_cache)} water quality records")
+    logger.info(f"Loaded {len(_water_quality_cache)} water quality records")
     return _water_quality_cache
 
 
 def _site_code_to_zone_code(site_code: str) -> str:
-    """
-    Convert OpenDataNI site code to legacy zone code format.
+    """Convert OpenDataNI site code to legacy zone code format.
 
     The new CSV data uses site codes like 'BALM' while the legacy API
     used zone codes like 'ZS0101'. This function provides a mapping
@@ -123,8 +120,7 @@ def _site_code_to_zone_code(site_code: str) -> str:
 
 
 def _create_legacy_format_series(site_data: pd.DataFrame, zone_code: str) -> pd.Series:
-    """
-    Convert CSV format data to legacy API format for backward compatibility.
+    """Convert CSV format data to legacy API format for backward compatibility.
 
     The original API returned a pandas Series with specific keys.
     This function recreates that format using the new CSV data.
@@ -194,7 +190,7 @@ def _create_legacy_format_series(site_data: pd.DataFrame, zone_code: str) -> pd.
 
     except (ValueError, KeyError) as e:
         # If we can't calculate derived values, just skip them
-        logging.debug(f"Could not calculate hardness classifications: {e}")
+        logger.debug(f"Could not calculate hardness classifications: {e}")
         pass
 
     return pd.Series(result_data, name=zone_code)
@@ -202,8 +198,7 @@ def _create_legacy_format_series(site_data: pd.DataFrame, zone_code: str) -> pd.
 
 @backoff((HTTPError, RuntimeError))
 def get_postcode_to_water_supply_zone() -> dict[str, str]:
-    """
-    Using data from OpenDataNI to generate a map from NI Postcodes to Water Supply Zone.
+    """Using data from OpenDataNI to generate a map from NI Postcodes to Water Supply Zone.
 
     >>> zones = get_postcode_to_water_supply_zone()
     >>> len(zones)
@@ -234,8 +229,7 @@ def get_postcode_to_water_supply_zone() -> dict[str, str]:
 
 
 def get_water_quality_by_zone(zone_code: str, strict=False) -> pd.Series:
-    """
-    Get the latest Water Quality for a given Water Supply Zone.
+    """Get the latest Water Quality for a given Water Supply Zone.
 
     Now uses modern OpenDataNI CSV data instead of the deprecated HTML API.
     The zone_code can be either a legacy zone code (like 'ZS0101') or a
@@ -282,7 +276,7 @@ def get_water_quality_by_zone(zone_code: str, strict=False) -> pd.Series:
             # No data found for this zone
             if strict:
                 raise ValueError(f"Potentially invalid Water Supply Zone {zone_code}")
-            logging.warning(f"Potentially invalid Water Supply Zone {zone_code}")
+            logger.warning(f"Potentially invalid Water Supply Zone {zone_code}")
             return pd.Series(name=zone_code)
 
         # Convert to legacy format
@@ -292,13 +286,12 @@ def get_water_quality_by_zone(zone_code: str, strict=False) -> pd.Series:
         # Handle data source errors
         if strict:
             raise ValueError(f"Unable to retrieve data for Water Supply Zone {zone_code}") from err
-        logging.warning(f"Unable to retrieve data for Water Supply Zone {zone_code}: {err}")
+        logger.warning(f"Unable to retrieve data for Water Supply Zone {zone_code}: {err}")
         return pd.Series(name=zone_code)
 
 
 def get_water_quality() -> pd.DataFrame:
-    """
-    Get a DataFrame of Water Quality Data from OpenDataNI.
+    """Get a DataFrame of Water Quality Data from OpenDataNI.
 
     This function now uses the modern CSV data source instead of the deprecated
     HTML API. It returns water quality data for all available sites.
@@ -332,7 +325,7 @@ def get_water_quality() -> pd.DataFrame:
         # Get unique site codes (equivalent to the old zone concept)
         unique_sites = water_quality_df["Site Code"].unique()
 
-        logging.info(f"Processing water quality data for {len(unique_sites)} sites")
+        logger.info(f"Processing water quality data for {len(unique_sites)} sites")
 
         # Process each site to create legacy-format series
         site_series_list = []
@@ -347,7 +340,7 @@ def get_water_quality() -> pd.DataFrame:
                     if not series.empty:
                         site_series_list.append(series)
                 except Exception as e:
-                    logging.warning(f"Error processing site {site_code}: {e}")
+                    logger.warning(f"Error processing site {site_code}: {e}")
                     continue
 
         if not site_series_list:
@@ -360,35 +353,9 @@ def get_water_quality() -> pd.DataFrame:
         if "NI Hardness Classification" in df.columns:
             df = df.astype({"NI Hardness Classification": T_HARDNESS})
 
-        logging.info(f"Created water quality DataFrame with {len(df)} sites and {len(df.columns)} parameters")
+        logger.info(f"Created water quality DataFrame with {len(df)} sites and {len(df.columns)} parameters")
         return df
 
     except Exception as e:
-        logging.error(f"Failed to get water quality data: {e}")
+        logger.error(f"Failed to get water quality data: {e}")
         raise
-
-
-def validate_water_quality_data(df: pd.DataFrame) -> bool:  # pragma: no cover
-    """Validate water quality data integrity.
-
-    Args:
-        df: DataFrame from get_water_quality or get_water_quality_csv_data
-
-    Returns:
-        True if validation passes, False otherwise
-    """
-    if df.empty:
-        logging.warning("Water quality data is empty")
-        return False
-
-    # Check for reasonable number of sites
-    if len(df) < 10:
-        logging.warning(f"Very few water quality sites: {len(df)}")
-        return False
-
-    # Check for hardness classification column if present
-    if "NI Hardness Classification" in df.columns and df["NI Hardness Classification"].isna().all():
-        logging.warning("All hardness classification values are missing")
-        return False
-
-    return True

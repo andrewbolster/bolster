@@ -41,6 +41,7 @@ dependencies = [
     "click-log>=0.4.0",
     "dateparser>=1.2.1",
     "feedparser>=6.0.12",
+    "import-linter>=2.0",
     "lxml>=5.3.2",
     "numpy>=1.25.0,<2.0",
     "openpyxl>=3.1.5",
@@ -106,6 +107,7 @@ lint.select = [
     "C4",   # flake8-comprehensions
     "T20",  # flake8-print - catches print() statements
     "RET",  # flake8-return - for return style
+    "LOG",  # flake8-logging - for proper logging patterns
     "SIM",  # flake8-simplify
     "TID",  # flake8-tidy-imports
     "TCH",  # flake8-type-checking
@@ -115,6 +117,7 @@ lint.ignore = [
     "E501",    # Line too long (handled by formatter)
     "D100",    # Missing docstring in public module (too strict initially)
     "D104",    # Missing docstring in public package (too strict initially)
+    "D105",    # Missing docstring in magic method (too pedantic)
     "D203",    # 1 blank line required before class docstring (conflicts with D211)
     "D212",    # Multi-line docstring summary should start at the first line (conflicts with D213)
     "D213",    # Multi-line docstring summary should start at the second line (conflicts with D212)
@@ -173,6 +176,10 @@ exclude_lines = [
 # These are often simple pass/fail checks that don't need coverage
 precision = 2
 
+# Import-linter configuration is in .importlinter file
+# This enforces HTTP centralization - all HTTP requests must go through
+# bolster.utils.web.session instead of raw requests to ensure retry logic
+
 # Configuration for bump-my-version (modern) and legacy bumpversion compatibility
 [tool.bumpversion]
 current_version = "0.4.0"
@@ -212,7 +219,7 @@ dev = [
     "safety>=3.7.0",
 ]
 docs = [
-    "Sphinx>=7.0",
+    "sphinx>=7.0",
     "sphinx-click>=6.0",
     "sphinx-issues>=4.0",
     "nbsphinx>=0.9",

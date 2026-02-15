@@ -1,4 +1,5 @@
-"""AWS based Asset handling.
+"""
+AWS based Asset handling.
 
 Includes S3, Kinesis, SSM, SQS, Lambda self-invocation and Redshift querying helpers
 """
@@ -33,7 +34,6 @@ session: Optional[boto3.Session] = None
 
 
 def start_session(*args, restart=False, **kwargs) -> boto3.Session:
-    """Initialize or return existing AWS session."""
     global session
     if session is None or restart:
         session = boto3.Session(*args, **kwargs)
@@ -54,7 +54,6 @@ def start_session(*args, restart=False, **kwargs) -> boto3.Session:
 
 
 def get_s3_client():
-    """Get configured S3 client with path-style addressing and retry settings."""
     start_session()
     return session.client(
         "s3",
@@ -76,7 +75,8 @@ def put_s3(
     gzip: bool = True,
     client=None,
 ) -> dict:
-    """Take either a list of dicts (and dump them as csv to s3) or a StringIO buffer (and dump-as-is to s3).
+    """Take either a list of dicts (and dump them as csv to s3) or a
+    StringIO buffer (and dump-as-is to s3).
 
     Args:
       obj: List of records to be written to CSV (or StringIO for direct upload):
@@ -85,7 +85,9 @@ def put_s3(
       keys: List of expected keys, can be used to filter or set the order of key entry in the resultant file
        (Default value = None)
       gzip: Compress the object (Default value = True)
-      client: Optional S3 client instance, created automatically if not provided
+
+    Returns:
+
     """
     if client is None:
         client = get_s3_client()
@@ -123,11 +125,14 @@ def get_s3(key: str, bucket: str, gzip: bool = True, log_exception=True, client=
     """Get Object from S3, generally with gzip decompression included.
 
     Args:
+      key: param bucket:
+      gzip: return:
       key: str:
       bucket: str:  (Default value = S3_ANALYSIS_STORE)
       gzip: bool:  (Default value = True)
-      log_exception: Whether to log exceptions that occur during retrieval
-      client: Optional S3 client instance, created automatically if not provided
+
+    Returns:
+
     """
     if client is None:
         client = get_s3_client()
@@ -152,7 +157,8 @@ def check_s3(key: str, bucket: str, client=None) -> bool:
     Args:
       key: str:
       bucket: str:  (Default value = S3_ANALYSIS_STORE)
-      client: Optional S3 client instance, created automatically if not provided
+
+    Returns:
     """
     if client is None:
         client = get_s3_client()
@@ -162,7 +168,8 @@ def check_s3(key: str, bucket: str, client=None) -> bool:
 
 
 def get_matching_s3_objects(bucket: AnyStr, prefix="", suffix="", client=None) -> Iterator:
-    """Generate objects in an S3 bucket.
+    """
+    Generate objects in an S3 bucket.
 
     https://alexwlchan.net/2018/01/listing-s3-keys-redux/
 
@@ -207,8 +214,8 @@ def get_matching_s3_objects(bucket: AnyStr, prefix="", suffix="", client=None) -
 
 
 def get_matching_s3_keys(bucket: AnyStr, **kwargs) -> Iterator:
-    """Generate the keys in an S3 bucket.
-
+    """
+    Generate the keys in an S3 bucket.
     https://alexwlchan.net/2018/01/listing-s3-keys-redux/.
 
     :param bucket: Name of the S3 bucket.
@@ -220,7 +227,6 @@ def get_matching_s3_keys(bucket: AnyStr, **kwargs) -> Iterator:
 
 
 def select_from_csv(bucket, key, fields, client=None) -> list:
-    """Query specific fields from a CSV file in S3 using S3 Select."""
     if client is None:
         client = get_s3_client()
 
@@ -249,19 +255,22 @@ def select_from_csv(bucket, key, fields, client=None) -> list:
 
 
 def get_latest_key(prefix: str, bucket: str, key: Optional[Callable] = None, client=None) -> str:
-    """Walk a given S3 bucket for the lexicographically highest item in the given bucket.
-
-    Defaults to the analysis store defined in utils.env.
+    """Walk a given S3 bucket for the lexicographically highest item in the given bucket (defaults to the analysis store
+    defined in utils.env).
 
     Accepts a `key` callable that can be used to decide how the candidate keys are sorted.
 
     For example, to use loose-versioning, distutils.version.LooseVersion can be passed as the `key` argument
 
     Args:
+      prefix: param bucket:
+      key: return:
       prefix: str:
       bucket: str:  (Default value = S3_ANALYSIS_STORE)
       key: Optional[Callable]:  (Default value = None)
-      client: Optional S3 client instance, created automatically if not provided
+
+    Returns:
+
     """
     if client is None:
         client = get_s3_client()
@@ -278,7 +287,6 @@ def get_latest_key(prefix: str, bucket: str, key: Optional[Callable] = None, cli
 # Queueing / Notification (SQD/SNS) Helpers
 ###
 def get_sqs_client():
-    """Get configured SQS client with timeout and retry settings."""
     start_session()
     return session.client(
         "sqs",
@@ -291,10 +299,14 @@ def send_to_sqs(records: Iterator, queue: str, chunksize: int = 1, client=None) 
     """Send `records` in chunks of `chunksize` for a given sqs queue in json-serialised format.
 
     Args:
+      records: param queue:
+      chunksize: return:
       records: Iterator:
       queue: str:
       chunksize: int:  (Default value = 1)
-      client: Optional SQS client instance, created automatically if not provided
+
+    Returns:
+
     """
     if client is None:
         client = get_sqs_client()
@@ -315,7 +327,6 @@ _ssm_params = {}
 
 
 def get_ssm_client():
-    """Get configured SSM client for parameter store access."""
     start_session()
     return session.client(
         "ssm",
@@ -329,13 +340,15 @@ def get_ssm_client():
 
 
 def get_ssm_param(param_name: str, client=None) -> str:
-    """Locally memoized getter for configuration parameters stored in the AWS "Simple Systems Manager" Parameter Store.
-
-    Now just systems manager.
+    """Locally memoized getter for configuration parameters stored in the AWS "Simple Systems Manager" (now just
+    systems manager) Parameter Store.
 
     Args:
+      param_name: return:
       param_name: str:
-      client: Optional SSM client instance, created automatically if not provided
+
+    Returns:
+
     """
     global _ssm_params
     client = get_ssm_client()
@@ -351,7 +364,7 @@ def get_ssm_param(param_name: str, client=None) -> str:
 # Kinesis/Firehose Helpers
 ###
 def fh_json_decode(content: AnyStr) -> Iterator[Union[dict, list]]:
-    """Customised JSON Decoder for consuming Firehose batched records.
+    """Customised JSON Decoder for consuming Firehose batched records;
 
     Firehose doesn't include entry separators between entries, so we intercept the raw_decoder
     on JSONDecodeError and 'skip' over the 'where is my comma?' issue and continue to parse the
@@ -360,7 +373,7 @@ def fh_json_decode(content: AnyStr) -> Iterator[Union[dict, list]]:
     Args:
       content: AnyStr:
 
-
+    Returns:
     >>> list(fh_json_decode('{"test":"value"}{"test":"othervalue"}'))
     [{'test': 'value'}, {'test': 'othervalue'}]
     """
@@ -383,7 +396,7 @@ def decapsulate_kinesis_payloads(event: dict) -> list[dict]:
     Args:
       event: Dict:
 
-
+    Returns:
 
     """
     records = []
@@ -403,7 +416,7 @@ def iterate_kinesis_payloads(event: dict) -> Generator[dict, None, None]:
       event: return:
       event: Dict:
 
-
+    Returns:
 
     """
     for record in event["Records"]:
@@ -443,7 +456,7 @@ class KinesisLoader:
           items: Iterator:
           partition_key: str:  (Default value = None)
 
-
+        Returns:
 
         """
         counter = 0
@@ -474,7 +487,7 @@ class KinesisLoader:
           this_batch: List:
           response: Dict:
 
-
+        Returns:
 
         """
         retry_interval = 0.25
@@ -501,7 +514,7 @@ def send_to_kinesis(records: Iterator[Sequence], stream: str, partition_key: str
       stream: str:
       partition_key: str:  (Default value = None)
 
-
+    Returns:
 
     """
     loader = KinesisLoader(stream=stream)
@@ -509,7 +522,6 @@ def send_to_kinesis(records: Iterator[Sequence], stream: str, partition_key: str
 
 
 def get_sns_client():
-    """Get configured SNS client for notifications."""
     start_session()
     return session.client(
         "sns",
@@ -519,9 +531,8 @@ def get_sns_client():
 
 
 def invoke_self_async(event: dict, context: Any):
-    """Have the Lambda invoke itself asynchronously, passing the same event it received originally.
-
-    Tags the event as 'async' so it's actually processed.
+    """Have the Lambda invoke itself asynchronously, passing the same event it received originally,
+    and tagging the event as 'async' so it's actually processed.
 
     THIS DOES NOT WORK FROM WITHIN A VPC! (There is no lambda-invoke endpoint accessible without poking
     lots of holes in the VPC.
@@ -529,6 +540,9 @@ def invoke_self_async(event: dict, context: Any):
     Args:
       event: Dict:
       context: Any:
+
+    Returns:
+
     """
     start_session()
     event["async"] = True
@@ -573,16 +587,17 @@ def query(q: str, redshift_conn_dict: dict, named_cursor="bolster_query_cursor",
     https://docs.aws.amazon.com/redshift/latest/dg/pattern-matching-conditions-posix.html)
 
     Args:
+      q: param redshift_conn_dict:
+      kwargs: return:
       q: str:
       redshift_conn_dict: dict:  (Default value = None)
-      named_cursor: Name for the database cursor
-      **kwargs: Additional parameters passed to SQL execution for query substitution
+      **kwargs:
+
+    Returns:
+
     """
     try:
-        with (
-            psycopg2.connect(**redshift_conn_dict) as conn,
-            conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor, name=named_cursor) as cur,
-        ):
+        with psycopg2.connect(**redshift_conn_dict) as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor, name=named_cursor) as cur:
             cur.execute(q, vars=kwargs if kwargs is not None else {})
             yield from cur
     except BaseException:  # todo workout what the likely exceptions being thrown by postgreql are likely to be
@@ -603,7 +618,6 @@ def SQSWrapper(  # noqa: C901
     fkwargs=None,
     client=None,
 ):
-    """Process SQS messages with automatic reinvocation and error handling."""
     if fkwargs is None:
         fkwargs = {}
     if client is None:

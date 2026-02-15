@@ -1,5 +1,4 @@
-"""
-Wikipedia Northern Ireland Data Integration.
+"""Wikipedia Northern Ireland Data Integration.
 
 Data Source: Wikipedia provides publicly edited information about Northern Ireland institutions
 and governance through structured tables at https://en.wikipedia.org/wiki/Northern_Ireland_Executive.
@@ -131,19 +130,3 @@ def get_ni_executive_basic_table() -> pd.DataFrame:
     )
 
     return executive_durations
-
-
-def validate_wikipedia_data(data) -> bool:  # pragma: no cover
-    """Validate Wikipedia data integrity.
-
-    Args:
-        data: Wikipedia data from functions
-
-    Returns:
-        True if validation passes, False otherwise
-    """
-    if not data:
-        logger.warning("Wikipedia data is empty")
-        return False
-
-    return True

@@ -152,7 +152,7 @@ def best_fit_distribution(data, bins=200, ax=None, include_slow=False, discrimin
 
                 if discriminator == "sse":
                     # Calculate fitted PDF and error with fit in distribution
-                    pdf = distribution.pdf(x, loc=loc, scale=scale, *arg)
+                    pdf = distribution.pdf(x, *arg, loc=loc, scale=scale)
                     discriminator_value = np.sum(np.power(y - pdf, 2.0))
                 else:
                     raise RuntimeError("You didn't finish this and you were planning on doing KS discrimination next")

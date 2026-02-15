@@ -1,5 +1,4 @@
-"""
-UK Companies House Data Integration.
+"""UK Companies House Data Integration.
 
 Data Source: UK Companies House provides comprehensive company registration data through
 their bulk download service at http://download.companieshouse.gov.uk/en_output.html.
@@ -44,8 +43,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_basic_company_data_url() -> str:
-    """
-    Parse the companies house website to get the current URL for the 'BasicCompanyData'.
+    """Parse the companies house website to get the current URL for the 'BasicCompanyData'.
 
     Currently uses the 'one file' method but it could be split into the multi files for memory efficiency
     """
@@ -61,9 +59,9 @@ def get_basic_company_data_url() -> str:
 
 
 def query_basic_company_data(query_func: Callable[..., bool] = always) -> Iterator[dict]:
-    """
-    Grab the url for the basic company data, and walk through the CSV files within, and
-    for each row in each CSV file, parse the row data through the given `query_func`
+    """Grab the url for the basic company data, and walk through the CSV files within.
+
+    For each row in each CSV file, parse the row data through the given `query_func`
     such that if `query_func(row)` is True it will be yielded.
     """
     # TODO: Network integration testing - requires Companies House data download
@@ -75,8 +73,8 @@ def query_basic_company_data(query_func: Callable[..., bool] = always) -> Iterat
 
 
 def companies_house_record_might_be_farset(r: dict) -> bool:
-    """
-    A heuristic function for working out if a record in the companies house registry *might* be based in Farset Labs
+    """A heuristic function for working out if a record in the companies house registry *might* be based in Farset Labs.
+
     Almost certainly incomplete and needs more testing/validation.
     """
     if r["RegAddress.PostCode"].lower().replace(" ", "") != "bt125gh":
@@ -103,40 +101,6 @@ def companies_house_record_might_be_farset(r: dict) -> bool:
 
 
 def get_companies_house_records_that_might_be_in_farset() -> Iterator[dict]:
+    """Query Companies House records that might be located at Farset Labs."""
     # TODO: Network integration testing - requires Companies House data download
     yield from query_basic_company_data(companies_house_record_might_be_farset)  # pragma: no cover
-
-
-def validate_companies_house_data(records: list[dict]) -> bool:  # pragma: no cover
-    """Validate Companies House data integrity.
-
-    Args:
-        records: List of company records from Companies House
-
-    Returns:
-        True if validation passes, False otherwise
-    """
-    if not records:
-        logger.warning("Companies House data is empty")
-        return False
-
-    # Check for required fields in first record
-    required_fields = {"CompanyName", "CompanyNumber", "RegAddress.PostCode"}
-    first_record = records[0]
-
-    if not required_fields.issubset(first_record.keys()):
-        missing = required_fields - set(first_record.keys())
-        logger.warning(f"Missing required fields: {missing}")
-        return False
-
-    # Check for reasonable data
-    valid_count = 0
-    for record in records:
-        if record.get("CompanyName") and record.get("CompanyNumber"):
-            valid_count += 1
-
-    if valid_count < len(records) * 0.8:  # At least 80% should have basic data
-        logger.warning(f"Only {valid_count}/{len(records)} records have valid company data")
-        return False
-
-    return True

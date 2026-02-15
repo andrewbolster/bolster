@@ -31,6 +31,7 @@ class DataNotFoundError(DataSourceError):
     """
 
     def __init__(self, message: str, url: str = None, source: str = None):
+        """Initialize DataSourceError with message and optional context."""
         super().__init__(message)
         self.url = url
         self.source = source
@@ -60,6 +61,7 @@ class ValidationError(DataSourceError):
     """
 
     def __init__(self, message: str, data_info: str = None, validation_type: str = None):
+        """Initialize ValidationError with message and optional validation context."""
         super().__init__(message)
         self.data_info = data_info
         self.validation_type = validation_type
@@ -89,6 +91,7 @@ class ParseError(DataSourceError):
     """
 
     def __init__(self, message: str, file_path: str = None, parser_type: str = None):
+        """Initialize ParseError with message and optional parsing context."""
         super().__init__(message)
         self.file_path = file_path
         self.parser_type = parser_type
@@ -119,6 +122,7 @@ class NetworkError(DataSourceError):
     """
 
     def __init__(self, message: str, url: str = None, status_code: int = None, retry_count: int = None):
+        """Initialize NetworkError with message and optional network context."""
         super().__init__(message)
         self.url = url
         self.status_code = status_code

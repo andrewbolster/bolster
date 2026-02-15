@@ -97,7 +97,7 @@ def resilient_get(url: str, **kwargs) -> requests.Response:
             raise outer_err from inner_err
         res = session.get(last_valid, **kwargs)
         res.raise_for_status()
-        logging.warning(f"Failed to get {url} directly, successfully used waybackmachine to get {last_valid}")
+        logger.warning(f"Failed to get {url} directly, successfully used waybackmachine to get {last_valid}")
     return res
 
 

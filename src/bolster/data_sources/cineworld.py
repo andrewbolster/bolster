@@ -44,9 +44,8 @@ from bolster.utils.web import session
 logger = logging.getLogger(__name__)
 
 
-def get_cinema_listings(site_code: int = 117, screening_date: date = date.today()) -> list[dict[str, Any]]:
-    """
-    Get cinema listings from the Cineworld API.
+def get_cinema_listings(site_code: int = 117, screening_date: date = None) -> list[dict[str, Any]]:
+    """Get cinema listings from the Cineworld API.
 
     Args:
         site_code (int): The site code of the cinema. Defaults to 117; Belfast
@@ -86,19 +85,3 @@ def get_cinema_listings(site_code: int = 117, screening_date: date = date.today(
         return listings
     except Exception as e:
         raise e
-
-
-def validate_cinema_data(data) -> bool:  # pragma: no cover
-    """Validate cinema data integrity.
-
-    Args:
-        data: Cinema data from Cineworld functions
-
-    Returns:
-        True if validation passes, False otherwise
-    """
-    if not data:
-        logger.warning("Cinema data is empty")
-        return False
-
-    return True

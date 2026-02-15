@@ -694,24 +694,24 @@ def validate_dva_test_data(df: pd.DataFrame) -> bool:  # pragma: no cover
         True if validation passes, False otherwise
     """
     if df.empty:
-        logging.warning("DVA test data is empty")
+        logger.warning("DVA test data is empty")
         return False
 
     required_cols = {"month", "tests_conducted"}
     if not required_cols.issubset(df.columns):
         missing = required_cols - set(df.columns)
-        logging.warning(f"Missing required DVA columns: {missing}")
+        logger.warning(f"Missing required DVA columns: {missing}")
         return False
 
     # Check for non-negative test counts
     if (df["tests_conducted"] < 0).any():
-        logging.warning("Found negative test counts in DVA data")
+        logger.warning("Found negative test counts in DVA data")
         return False
 
     # Check for reasonable monthly test volumes
     # Vehicle tests typically range from 40,000 to 100,000 per month in NI
     if df["tests_conducted"].max() > 200000:  # Allow for variation but catch obvious errors
-        logging.warning("Unreasonably high test counts found")
+        logger.warning("Unreasonably high test counts found")
         return False
 
     return True

@@ -1,5 +1,4 @@
-"""
-Bolster - A personal collection of Python utilities and data sources.
+"""Bolster - A personal collection of Python utilities and data sources.
 
 A grab bag of handy functions for working with Northern Ireland data,
 basic stats operations, and general data science tasks. Built for personal
@@ -17,7 +16,13 @@ Quick examples:
     >>> quality_data = ni_water.get_water_quality_by_zone('BALM')
 
     >>> from bolster.stats import add_totals
-    >>> add_totals(my_dataframe)  # adds row/column totals
+    >>> import pandas as pd
+    >>> df = pd.DataFrame([[1, 2], [3, 4]])
+    >>> add_totals(df, inplace=False)
+           0  1  total
+    0      1  2      3
+    1      3  4      7
+    total  4  6     10
 
 Author: Andrew Bolster
 """
@@ -336,19 +341,16 @@ def exceptional_executor(futures: Sequence[Future], exception_handler=None, time
 
 
     Args:
-        futures:
-        exception_handler:
-        timeout:
-
-    Returns:
-
+        futures: Sequence of Future objects to process
+        exception_handler: Optional callable to handle exceptions from futures
+        timeout: Optional timeout for waiting for futures to complete
     """
 
     def default_hdl(e: BaseException, f: Future):
         try:
             raise e
         except BaseException:
-            logging.exception(f"Caught exception in a future: {f}")
+            logger.exception(f"Caught exception in a future: {f}")
 
     if exception_handler is None:
         exception_handler = default_hdl
@@ -395,14 +397,12 @@ def compress_for_relay(obj: Union[list, dict]) -> AnyStr:
 
 
 def decompress_from_relay(msg: AnyStr) -> Union[list, dict]:
-    """Uncompress  gzipped base64 string to a json-serializable object
+    """Uncompress  gzipped base64 string to a json-serializable object.
+
     ['test'].
 
     Args:
       msg: AnyStr:
-
-    Returns:
-
     """
     return json.loads(gzip.decompress(base64.b64decode(msg)))
 
@@ -435,6 +435,7 @@ class memoize:
     """
 
     def __init__(self, func):
+        """Initialize the LRU cache decorator with a function."""
         self.func = func
 
     def __get__(self, obj, objtype=None):
@@ -443,6 +444,7 @@ class memoize:
         return partial(self, obj)
 
     def __call__(self, *args, **kw):
+        """Execute the cached function with LRU behavior and hit/miss tracking."""
         obj = args[0]
         try:
             cache = obj.__cache
@@ -461,33 +463,34 @@ class memoize:
 
 
 def pretty_print_request(req, expose_auth=False, authentication_header_blacklist: Optional[Sequence] = None) -> None:
-    """At this point it is completely built and ready
-    to be fired; it is "prepared".
+    """At this point it is completely built and ready to be fired; it is "prepared".
 
     However pay attention at the formatting used in
     this function because it is programmed to be pretty
     printed and may differ from the actual request.
 
     Args:
-      req:
-      expose_auth:  (Default value = False)
-
-    Returns:
-
+      req: HTTP request object to pretty print
+      expose_auth: Whether to expose authentication headers (Default value = False)
+      authentication_header_blacklist: List of header names to redact when expose_auth is False
     """
+    # ruff: noqa: T201
     printable_headers = dict(req.headers.items())
-    if not expose_auth:
+    if not expose_auth and authentication_header_blacklist:
         for header in authentication_header_blacklist:
             if header in printable_headers:
                 printable_headers[header] = "<<REDACTED>>"
+
+    print(f"{req.method} {req.url}")
+    for header, value in printable_headers.items():
+        print(f"{header}: {value}")
+
     if req.body is not None:
-        pass
+        print(f"\n{req.body}")
 
 
 def get_recursively(search_dict: dict, field: str) -> list:
-    """Takes a dict with nested lists and dicts,
-    and searches all dicts for a key of the field
-    provided.
+    """Takes a dict with nested lists and dicts, and searches all dicts for a key of the field provided.
 
     Originally taken from https://stackoverflow.com/a/20254842
 
@@ -521,8 +524,8 @@ def get_recursively(search_dict: dict, field: str) -> list:
 
 
 def transform_(r: dict, rule_keys: dict[AnyStr, Optional[tuple]]) -> dict:
-    """
-    Generic Item-wise transformation function;
+    """Generic Item-wise transformation function.
+
     The values in `r` are updated based on key-matching in `rule_keys`,
     i.e. -> out[k] = rule_keys[k] (r[k]).
 
@@ -571,8 +574,7 @@ def transform_(r: dict, rule_keys: dict[AnyStr, Optional[tuple]]) -> dict:
 
 
 def diff(new: dict, old: dict, excluded_fields: Optional[set] = None) -> dict:
-    """
-    Perform a one-depth diff of a pair of dictionaries.
+    """Perform a one-depth diff of a pair of dictionaries.
 
     #TODO diff needs tests
     """
@@ -592,23 +594,21 @@ def aggregate(
     item_key: AnyStr,
     condition: Optional[Callable] = None,
 ) -> dict[Any, Any]:
-    """
-    Abstracted groupby-sum for lists of dicts
-    operationally equivalent to
-    # TODO aggregate needs tests
+    """Abstracted groupby-sum for lists of dicts.
+
+    Operationally equivalent to:
     ```
     df = pd.DataFrame(base)
     df.where(condition).groupby(group_key)[item_key].sum()
-    ```.
+    ```
+
+    # TODO aggregate needs tests
 
     Args:
-        base:
-        group_key:
-        item_key:
-        condition:
-
-    Returns:
-
+        base: List of dictionaries to group and sum
+        group_key: Key(s) to group by - can be string, tuple, or list of strings
+        item_key: Key to sum values for within each group
+        condition: Optional function to filter records before grouping
     """
     agg_c = Counter()
     if condition is None:
@@ -623,8 +623,7 @@ def aggregate(
 
 
 def breadth(d: dict) -> int:
-    """
-    Get the total 'width' of a tree.
+    """Get the total 'width' of a tree.
 
     > Why was this a thing? No idea
 
@@ -723,8 +722,7 @@ def dict_concat_safe(d: dict, keys: list[Hashable], default: Optional[Any] = Non
 
 
 def build_default_mapping_dict_from_keys(keys: list[str]) -> dict[str, str]:
-    """
-    Constructs a mapping dictionary between (presumably) snakecase keys to 'human-readable' title case.
+    """Constructs a mapping dictionary between (presumably) snakecase keys to 'human-readable' title case.
 
     Intended for easy construction of presentable graphs/tables etc.
 
