@@ -14,7 +14,7 @@ Available modules:
     - economic_indicators: Quarterly Index of Services and Index of Production
     - labour_market: Quarterly Labour Force Survey statistics (employment, economic inactivity)
     - marriages: Monthly marriage registrations
-    - migration: Derived migration estimates from demographic components
+    - migration: Official and derived migration estimates (demographic components)
     - population: Annual mid-year population estimates by age, sex, and geography
     - registrar_general: Registrar General Quarterly Tables (quarterly births, deaths, marriages, LGD breakdowns)
     - tourism: Tourism statistics including occupancy surveys, visitor stats (subpackage)
