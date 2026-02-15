@@ -39,7 +39,7 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Literal, Union
+from typing import Literal, Union
 
 import pandas as pd
 from openpyxl import load_workbook
@@ -81,7 +81,7 @@ def get_latest_births_publication_url() -> str:
         response = session.get(mother_page, timeout=30)
         response.raise_for_status()
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch births mother page: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch births mother page: {e}") from e
 
     soup = BeautifulSoup(response.content, "html.parser")
 
@@ -105,7 +105,7 @@ def get_latest_births_publication_url() -> str:
         pub_response = session.get(pub_link, timeout=30)
         pub_response.raise_for_status()
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}") from e
 
     pub_soup = BeautifulSoup(pub_response.content, "html.parser")
 
@@ -136,7 +136,7 @@ def get_latest_births_publication_url() -> str:
 def parse_births_file(
     file_path: Union[str, Path],
     event_type: Literal["registration", "occurrence", "both"] = "both",
-) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
+) -> Union[pd.DataFrame, dict[str, pd.DataFrame]]:
     """Parse NISRA monthly births Excel file into long-format DataFrames.
 
     The births file contains two main sheets:
@@ -212,8 +212,7 @@ def parse_births_file(
     # Return based on event_type
     if event_type == "both":
         return results
-    else:
-        return results[event_type]
+    return results[event_type]
 
 
 def _parse_births_table(
@@ -318,7 +317,7 @@ def _parse_births_table(
 def get_latest_births(
     event_type: Literal["registration", "occurrence", "both"] = "both",
     force_refresh: bool = False,
-) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
+) -> Union[pd.DataFrame, dict[str, pd.DataFrame]]:
     """Get the latest monthly births data.
 
     Automatically discovers and downloads the most recent monthly births publication

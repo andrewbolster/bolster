@@ -1,6 +1,4 @@
-# coding=utf-8
-"""
-Bolster - A personal collection of Python utilities and data sources.
+"""Bolster - A personal collection of Python utilities and data sources.
 
 A grab bag of handy functions for working with Northern Ireland data,
 basic stats operations, and general data science tasks. Built for personal
@@ -18,7 +16,13 @@ Quick examples:
     >>> quality_data = ni_water.get_water_quality_by_zone('BALM')
 
     >>> from bolster.stats import add_totals
-    >>> add_totals(my_dataframe)  # adds row/column totals
+    >>> import pandas as pd
+    >>> df = pd.DataFrame([[1, 2], [3, 4]])
+    >>> add_totals(df, inplace=False)
+           0  1  total
+    0      1  2      3
+    1      3  4      7
+    total  4  6     10
 
 Author: Andrew Bolster
 """
@@ -41,6 +45,7 @@ import sys
 import time
 import traceback
 from collections import Counter, defaultdict
+from collections.abc import Generator, Hashable, Iterable, Iterator, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from functools import partial, wraps
 from itertools import chain, groupby, islice
@@ -50,18 +55,9 @@ from typing import (
     Any,
     AnyStr,
     Callable,
-    Dict,
-    Generator,
-    Hashable,
-    Iterable,
-    Iterator,
-    List,
     Optional,
-    Sequence,
-    Set,
     SupportsFloat,
     SupportsInt,
-    Tuple,
     Union,
 )
 from urllib.error import HTTPError, URLError
@@ -79,19 +75,17 @@ logger.setLevel(logging.INFO)
 
 
 def _dumb_passthrough(x, **kwargs) -> Any:
-    """Pointless passthrough replacement for tqdm (and similar) fallback
+    """Pointless passthrough replacement for tqdm (and similar) fallback.
 
     Args:
-      x: return:
-
-    Returns:
-
+        x: Value to pass through
+        **kwargs: Additional arguments (ignored)
     """
     return x
 
 
 def always(x, **kwargs) -> bool:
-    """Pointless passthrough replacement for 'always true' filtering
+    """Pointless passthrough replacement for 'always true' filtering.
 
     >>> always('false')
     True
@@ -100,7 +94,6 @@ def always(x, **kwargs) -> bool:
     >>> always(True)
     True
     """
-
     return True
 
 
@@ -110,21 +103,22 @@ def poolmap(
     max_workers: Optional[int] = None,
     progress: Callable = None,
     **kwargs,
-) -> Dict:
-    """Helper function to encapsulate a ThreadPoolExecutor mapped function workflow
-    Accepts (assumed to be `tqdm` style) progress monitor callback
+) -> dict:
+    """Helper function to encapsulate a ThreadPoolExecutor mapped function workflow.
+
+    Accepts (assumed to be `tqdm` style) progress monitor callback.
 
     `kwargs` are passed identically to all `f(i)` calls for each i in `iterable`
 
     Args:
-      f: function to map across
-      iterable:
-      max_workers: (Default value = None)
-      progress: (Default value = None)
-      **kwargs: passed as arguments to f
+        f: function to map across
+        iterable: Sequence of items to process
+        max_workers: Maximum number of worker threads (Default value = None)
+        progress: Progress callback function (Default value = None)
+        **kwargs: passed as arguments to f
 
     Returns:
-
+        dict: Dictionary mapping from input items to their results
     """
     futures = {}
     results = {}
@@ -144,16 +138,18 @@ def poolmap(
 
 
 def batch(seq: Sequence, n: int = 1) -> Generator[Iterable, None, None]:
-    """Split a sequence into n-length batches (is still iterable, not list)
+    """Split a sequence into n-length batches (is still iterable, not list).
 
     Args:
-      seq:
-      n:  (Default value = 1)
+        seq: Sequence to split into batches
+        n: Size of each batch (default: 1)
 
     Returns:
+        Generator yielding batches of the sequence
 
-    >>> next((b for b in batch(range(10), 2)))
-    range(0, 2)
+    Examples:
+        >>> next((b for b in batch(range(10), 2)))
+        range(0, 2)
     >>> [b for b in batch(list(range(10)), 2)]
     [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]
     """
@@ -162,8 +158,8 @@ def batch(seq: Sequence, n: int = 1) -> Generator[Iterable, None, None]:
         yield seq[ndx : min(ndx + n, parent_length)]
 
 
-def chunks(iterable: Iterable, size=10) -> Generator[List, None, None]:
-    """Outputs <list> chunks of size N from an iterable (generator)
+def chunks(iterable: Iterable, size=10) -> Generator[list, None, None]:
+    """Outputs <list> chunks of size N from an iterable (generator).
 
     Args:
       iterable: param size:
@@ -171,26 +167,24 @@ def chunks(iterable: Iterable, size=10) -> Generator[List, None, None]:
       size:  (Default value = 10)
 
     Returns:
-
     >>> next((b for b in chunks(range(10), 2)))
     [0, 1]
     >>> [b for b in chunks(list(range(10)), 2)]
     [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]
     """
-
     iterator = iter(iterable)
     for first in iterator:
         yield list(chain([first], islice(iterator, size - 1)))
 
 
 def arg_exception_logger(func: Callable) -> Callable:
-    """Helper Decorator to provide info on the arguments that cause the exception of a wrapped function
+    """Helper Decorator to provide info on the arguments that cause the exception of a wrapped function.
 
     Args:
-      func:
+        func: Function to wrap with exception logging
 
     Returns:
-
+        Callable: Wrapped function with exception argument logging
     """
 
     # noinspection PyMissingOrEmptyDocstring
@@ -228,9 +222,6 @@ def backoff(
       backoff: backoff multiplier e.g. value of 2 will double the delay
     each retry (Default value = 2)
       logger: logger to use. If None, print (Default value = local utils logger)
-
-    Returns:
-
     """
 
     # noinspection PyMissingOrEmptyDocstring
@@ -248,7 +239,7 @@ def backoff(
                     if logger:
                         logger.warning(msg)
                     else:
-                        print(msg)
+                        pass
                     time.sleep(mdelay)
                     mtries -= 1
                     mdelay *= backoff
@@ -260,8 +251,9 @@ def backoff(
 
 
 class MultipleErrors(BaseException):
-    """Exception Class to enable the capturing of multiple exceptions without interrupting control flow, i.e. catch
-    the exception, but carry on and report the exceptions at the end.
+    """Exception Class to enable the capturing of multiple exceptions without interrupting control flow.
+
+    I.e. catch the exception, but carry on and report the exceptions at the end.
 
     E.g.
 
@@ -293,6 +285,7 @@ class MultipleErrors(BaseException):
     """
 
     def __init__(self, errors=None):
+        """Initialize MultipleErrors with optional list of existing errors."""
         self.errors = errors or []
 
     @classmethod
@@ -301,35 +294,34 @@ class MultipleErrors(BaseException):
         return "".join(traceback.format_exception(*exc_info))
 
     def __str__(self):
+        """Return formatted string representation of all captured exceptions."""
         tracebacks = "\n\n".join(self._traceback_for(exc_info) for exc_info in self.errors)
         parts = ("See the following exception tracebacks:", "=" * 78, tracebacks)
-        msg = "\n".join(parts)
-        return msg
+        return "\n".join(parts)
 
     def capture_current_exception(self):
-        """Gathers exception info from the current context and retains it"""
+        """Gathers exception info from the current context and retains it."""
         self.errors.append(sys.exc_info())
 
     def do_raise(self):
-        """Raises itself if it contains any errors"""
+        """Raises itself if it contains any errors."""
         if self.errors:
             raise self
 
 
-def tag_gen(seq: Iterator[Dict], **kwargs) -> Iterator[Dict]:
-    """Generator stream that adds a kwargs to each entry yielded
-
-    The below example shows the creation of an empty dict generator where
-    tag_gen is used to insert a new key/value (k=1) in each item on the fly
-
-    >>> all([i['k'] == 1 for i in tag_gen(({} for _ in range(4)), k=1)])
-    True
+def tag_gen(seq: Iterator[dict], **kwargs) -> Iterator[dict]:
+    """Generator stream that adds kwargs to each entry yielded.
 
     Args:
-      seq: param kwargs:
-      seq: Iterator[Dict]:
-      **kwargs:
+        seq: Iterator of dictionaries to tag
+        **kwargs: Additional key-value pairs to add to each dictionary
 
+    Examples:
+        The below example shows the creation of an empty dict generator where
+        tag_gen is used to insert a new key/value (k=1) in each item on the fly
+
+        >>> all([i['k'] == 1 for i in tag_gen(({} for _ in range(4)), k=1)])
+        True
     """
     for item in seq:
         new_item = item
@@ -339,7 +331,7 @@ def tag_gen(seq: Iterator[Dict], **kwargs) -> Iterator[Dict]:
 
 
 def exceptional_executor(futures: Sequence[Future], exception_handler=None, timeout=None) -> Iterator:
-    """Generator for concurrent.Futures handling
+    """Generator for concurrent.Futures handling.
 
     When an exception is raised in an executing Future, f.result() called on it's own will raise that
     exception in the parent thread, killing execution and causing loss of 'future local' scope.
@@ -349,19 +341,16 @@ def exceptional_executor(futures: Sequence[Future], exception_handler=None, time
 
 
     Args:
-        futures:
-        exception_handler:
-        timeout:
-
-    Returns:
-
+        futures: Sequence of Future objects to process
+        exception_handler: Optional callable to handle exceptions from futures
+        timeout: Optional timeout for waiting for futures to complete
     """
 
     def default_hdl(e: BaseException, f: Future):
         try:
             raise e
         except BaseException:
-            logging.exception(f"Caught exception in a future: {f}")
+            logger.exception(f"Caught exception in a future: {f}")
 
     if exception_handler is None:
         exception_handler = default_hdl
@@ -390,8 +379,8 @@ def working_directory(path: Union[str, Path]) -> Generator:
         os.chdir(str(prev_cwd.absolute()))
 
 
-def compress_for_relay(obj: Union[List, Dict]) -> AnyStr:
-    """Compress json-serializable object to a gzipped base64 string
+def compress_for_relay(obj: Union[list, dict]) -> AnyStr:
+    """Compress json-serializable object to a gzipped base64 string.
 
     Args:
       obj: return:
@@ -407,21 +396,19 @@ def compress_for_relay(obj: Union[List, Dict]) -> AnyStr:
     return base64.b64encode(gzip.compress(json.dumps(obj).encode("utf-8"), 6)).decode()
 
 
-def decompress_from_relay(msg: AnyStr) -> Union[List, Dict]:
-    """Uncompress  gzipped base64 string to a json-serializable object
-    ['test']
+def decompress_from_relay(msg: AnyStr) -> Union[list, dict]:
+    """Uncompress  gzipped base64 string to a json-serializable object.
+
+    ['test'].
 
     Args:
       msg: AnyStr:
-
-    Returns:
-
     """
     return json.loads(gzip.decompress(base64.b64decode(msg)))
 
 
-class memoize(object):
-    """cache the return value of a method
+class memoize:
+    """cache the return value of a method.
 
     This class is meant to be used as a decorator of methods. The return value
     from a given method invocation will be cached on the instance whose method
@@ -448,6 +435,7 @@ class memoize(object):
     """
 
     def __init__(self, func):
+        """Initialize the LRU cache decorator with a function."""
         self.func = func
 
     def __get__(self, obj, objtype=None):
@@ -456,6 +444,7 @@ class memoize(object):
         return partial(self, obj)
 
     def __call__(self, *args, **kw):
+        """Execute the cached function with LRU behavior and hit/miss tracking."""
         obj = args[0]
         try:
             cache = obj.__cache
@@ -474,37 +463,34 @@ class memoize(object):
 
 
 def pretty_print_request(req, expose_auth=False, authentication_header_blacklist: Optional[Sequence] = None) -> None:
-    """At this point it is completely built and ready
-    to be fired; it is "prepared".
+    """At this point it is completely built and ready to be fired; it is "prepared".
 
     However pay attention at the formatting used in
     this function because it is programmed to be pretty
     printed and may differ from the actual request.
 
     Args:
-      req:
-      expose_auth:  (Default value = False)
-
-    Returns:
-
+      req: HTTP request object to pretty print
+      expose_auth: Whether to expose authentication headers (Default value = False)
+      authentication_header_blacklist: List of header names to redact when expose_auth is False
     """
-    printable_headers = {k: v for k, v in req.headers.items()}
-    if not expose_auth:
+    # ruff: noqa: T201
+    printable_headers = dict(req.headers.items())
+    if not expose_auth and authentication_header_blacklist:
         for header in authentication_header_blacklist:
-            if header in printable_headers.keys():
+            if header in printable_headers:
                 printable_headers[header] = "<<REDACTED>>"
-    print(
-        f"-----------START-----------\n{req.method} {req.url}\n",
-        "\n".join("{}: {}".format(k, v) for k, v in printable_headers.items()),
-    )
+
+    print(f"{req.method} {req.url}")
+    for header, value in printable_headers.items():
+        print(f"{header}: {value}")
+
     if req.body is not None:
-        print(req.body)
+        print(f"\n{req.body}")
 
 
-def get_recursively(search_dict: Dict, field: str) -> List:
-    """Takes a dict with nested lists and dicts,
-    and searches all dicts for a key of the field
-    provided.
+def get_recursively(search_dict: dict, field: str) -> list:
+    """Takes a dict with nested lists and dicts, and searches all dicts for a key of the field provided.
 
     Originally taken from https://stackoverflow.com/a/20254842
 
@@ -513,7 +499,6 @@ def get_recursively(search_dict: Dict, field: str) -> List:
       field: str:
 
     Returns:
-
     >>> get_recursively({'id' : 5,'children' : {'id' : 6,'children' : {'id' : 7,'children' : {}}}}, 'id')
     [5, 6, 7]
     """
@@ -538,11 +523,11 @@ def get_recursively(search_dict: Dict, field: str) -> List:
     return fields_found
 
 
-def transform_(r: Dict, rule_keys: Dict[AnyStr, Optional[Tuple]]) -> Dict:
-    """
-    Generic Item-wise transformation function;
+def transform_(r: dict, rule_keys: dict[AnyStr, Optional[tuple]]) -> dict:
+    """Generic Item-wise transformation function.
+
     The values in `r` are updated based on key-matching in `rule_keys`,
-    i.e. -> out[k] = rule_keys[k] (r[k])
+    i.e. -> out[k] = rule_keys[k] (r[k]).
 
     HOWEVER, this can do more that straight callable mapping; can *also* update
     the key, i.e., for a given rule such that `R = rule_keys[k]`:
@@ -588,92 +573,71 @@ def transform_(r: Dict, rule_keys: Dict[AnyStr, Optional[Tuple]]) -> Dict:
     return out_record
 
 
-def diff(new: Dict, old: Dict, excluded_fields: Optional[set] = None) -> Dict:
-    """
-    Perform a one-depth diff of a pair of dictionaries
+def diff(new: dict, old: dict, excluded_fields: Optional[set] = None) -> dict:
+    """Perform a one-depth diff of a pair of dictionaries.
 
     #TODO diff needs tests
     """
     if excluded_fields is None:
         excluded_fields = set()
 
-    diffed_values = {
-        k: {"old": old.get(k, None), "new": new.get(k, None)}
+    return {
+        k: {"old": old.get(k), "new": new.get(k)}
         for k in set(new.keys()).union(old.keys()) - excluded_fields
-        if old.get(k, None) != new.get(k, None)
+        if old.get(k) != new.get(k)
     }
-    return diffed_values
 
 
 def aggregate(
-    base: List[Dict],
-    group_key: Union[AnyStr, Tuple[AnyStr], List[AnyStr]],
+    base: list[dict],
+    group_key: Union[AnyStr, tuple[AnyStr], list[AnyStr]],
     item_key: AnyStr,
     condition: Optional[Callable] = None,
-) -> Dict[Any, Any]:
-    """
-    Abstracted groupby-sum for lists of dicts
-    operationally equivalent to
-    # TODO aggregate needs tests
+) -> dict[Any, Any]:
+    """Abstracted groupby-sum for lists of dicts.
+
+    Operationally equivalent to:
     ```
     df = pd.DataFrame(base)
     df.where(condition).groupby(group_key)[item_key].sum()
     ```
 
+    # TODO aggregate needs tests
+
     Args:
-        base:
-        group_key:
-        item_key:
-        condition:
-
-    Returns:
-
+        base: List of dictionaries to group and sum
+        group_key: Key(s) to group by - can be string, tuple, or list of strings
+        item_key: Key to sum values for within each group
+        condition: Optional function to filter records before grouping
     """
     agg_c = Counter()
     if condition is None:
         condition = lambda x: True  # noqa: E731
 
-    if isinstance(group_key, (tuple, list)):
-        grouper = itemgetter(*group_key)
-    else:
-        grouper = itemgetter(group_key)
+    grouper = itemgetter(*group_key) if isinstance(group_key, (tuple, list)) else itemgetter(group_key)
 
     for source_key, g in groupby(filter(condition, base), grouper):
         for sig in g:
             agg_c[source_key] += sig[item_key]
-    agg_d = dict(sorted(agg_c.items(), key=itemgetter(1), reverse=True))
-    return agg_d
+    return dict(sorted(agg_c.items(), key=itemgetter(1), reverse=True))
 
 
-def breadth(d: Dict) -> int:
-    """
-    Get the total 'width' of a tree
+def breadth(d: dict) -> int:
+    """Get the total 'width' of a tree.
 
     > Why was this a thing? No idea
 
     """
-    if isinstance(d, dict):
-        width = sum(map(breadth, d.values()))
-    else:
-        width = 1
-    return width
+    return sum(map(breadth, d.values())) if isinstance(d, dict) else 1
 
 
-def depth(d: Dict) -> int:
-    """
-    Get the maximum depth of a tree
-    """
-    if isinstance(d, dict):
-        height = max(map(depth, d.values())) + 1
-    else:
-        height = 0
-    return height
+def depth(d: dict) -> int:
+    """Get the maximum depth of a tree."""
+    return max(map(depth, d.values())) + 1 if isinstance(d, dict) else 0
 
 
-def set_keys(d: Dict) -> Set[Hashable]:
-    """
-    Extract the set of all keys of a nested dict/tree
-    """
+def set_keys(d: dict) -> set[Hashable]:
+    """Extract the set of all keys of a nested dict/tree."""
     keys = set()
     for k, v in d.items():
         if isinstance(v, dict):
@@ -683,10 +647,8 @@ def set_keys(d: Dict) -> Set[Hashable]:
     return keys
 
 
-def keys_at(d: Dict, n: SupportsInt, i: SupportsInt = 0) -> Iterator[Hashable]:
-    """
-    Extract the keys of a tree at a given depth
-    """
+def keys_at(d: dict, n: SupportsInt, i: SupportsInt = 0) -> Iterator[Hashable]:
+    """Extract the keys of a tree at a given depth."""
     if isinstance(d, dict):
         for k, v in d.items():
             if i == n:
@@ -695,10 +657,8 @@ def keys_at(d: Dict, n: SupportsInt, i: SupportsInt = 0) -> Iterator[Hashable]:
                 yield from keys_at(v, n, i + 1)
 
 
-def items_at(d: Dict, n: SupportsInt, i: SupportsInt = 0) -> Iterator[Tuple[Hashable, Any]]:
-    """
-    Extract the elements from a tree at a given depth
-    """
+def items_at(d: dict, n: SupportsInt, i: SupportsInt = 0) -> Iterator[tuple[Hashable, Any]]:
+    """Extract the elements from a tree at a given depth."""
     if isinstance(d, dict):
         for k, v in d.items():
             if i == n:
@@ -707,18 +667,17 @@ def items_at(d: Dict, n: SupportsInt, i: SupportsInt = 0) -> Iterator[Tuple[Hash
                 yield from items_at(v, n, i + 1)
 
 
-def leaves(d: Dict) -> Iterator[Any]:
-    """
-    Iterate on the leaves of a tree
-    """
+def leaves(d: dict) -> Iterator[Any]:
+    """Iterate on the leaves of a tree."""
     if isinstance(d, dict):
-        for k, v in d.items():
+        for _k, v in d.items():
             yield from leaves(v)
     else:
         yield (d)
 
 
-def leaf_paths(d: Dict, path: Optional[List[Hashable]] = None) -> Iterator[Tuple[List[Hashable], Any]]:
+def leaf_paths(d: dict, path: Optional[list[Hashable]] = None) -> Iterator[tuple[list[Hashable], Any]]:
+    """Get all leaf paths in a nested dictionary structure."""
     if path is None:
         path = []
     if isinstance(d, dict):
@@ -728,7 +687,8 @@ def leaf_paths(d: Dict, path: Optional[List[Hashable]] = None) -> Iterator[Tuple
         yield (path, d)
 
 
-def flatten_dict(d: Dict, head: str = "", sep: str = ":") -> Dict[str, Any]:
+def flatten_dict(d: dict, head: str = "", sep: str = ":") -> dict[str, Any]:
+    """Flatten a nested dictionary using separator for key names."""
     new_d = {}
     for k, v in d.items():
         if isinstance(v, dict):
@@ -744,7 +704,8 @@ def flatten_dict(d: Dict, head: str = "", sep: str = ":") -> Dict[str, Any]:
     return new_d
 
 
-def uncollect_object(d: Dict) -> Dict[Hashable, Any]:
+def uncollect_object(d: dict) -> dict[Hashable, Any]:
+    """Convert flat dictionary back to nested structure using path tuples."""
     new_d = {}
     for k, v in d.items():
         if isinstance(v, (defaultdict, Counter)):
@@ -754,21 +715,18 @@ def uncollect_object(d: Dict) -> Dict[Hashable, Any]:
     return new_d
 
 
-def dict_concat_safe(d: Dict, keys: List[Hashable], default: Optional[Any] = None) -> Iterator[Any]:
-    """
-    Really Lazy Func because `dict.get('key',default)` is a pain in the ass for lists
-    """
+def dict_concat_safe(d: dict, keys: list[Hashable], default: Optional[Any] = None) -> Iterator[Any]:
+    """Really Lazy Func because `dict.get('key',default)` is a pain in the ass for lists."""
     for k in keys:
         yield d.get(k, default)
 
 
-def build_default_mapping_dict_from_keys(keys: List[str]) -> Dict[str, str]:
-    """
-    Constructs a mapping dictionary between (presumably) snakecase keys to 'human-readable' title case
+def build_default_mapping_dict_from_keys(keys: list[str]) -> dict[str, str]:
+    """Constructs a mapping dictionary between (presumably) snakecase keys to 'human-readable' title case.
 
     Intended for easy construction of presentable graphs/tables etc.
 
     >>> build_default_mapping_dict_from_keys(['a_b','b_c','c_d'])
     {'a_b': 'A B', 'b_c': 'B C', 'c_d': 'C D'}
     """
-    return dict([(f, f.replace("_", " ").title()) for f in keys])
+    return {f: f.replace("_", " ").title() for f in keys}

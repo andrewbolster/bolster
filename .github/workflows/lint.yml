@@ -12,3 +12,5 @@ jobs:
         steps:
           - uses: actions/checkout@v6
           - uses: astral-sh/ruff-action@v3
+            with:
+              src: "./src"  # Only check src directory to match pre-commit scope

@@ -1,18 +1,14 @@
-"""
-Azure Utils
-"""
+"""Azure Utils."""
 
 from urllib.parse import urlparse
 
 
 def az_file_url_to_query_components(url: str):
-    """
-    Helper function to parse an Azure file URL into its components to then be used by `pandas`/`dask`/`fsspec` etc.
+    """Helper function to parse an Azure file URL into its components to then be used by `pandas`/`dask`/`fsspec` etc.
 
     >>> az_file_url_to_query_components("https://storageaccount.blob.core.windows.net/container/file_path.parquet")
     {'storage_account': 'storageaccount', 'container': 'container', 'file_path': 'file_path.parquet'}
     """
-
     p = urlparse(url)
     assert not p.params, f"Invalid Params: {p.params}"
     assert not p.fragment, f"Invalid Fragment: {p.fragment}"
@@ -34,4 +30,4 @@ def az_file_url_to_query_components(url: str):
     _, container, *paths = p.path.split("/")  # path starts with a / so p.path.split('/')[0] == ''
     file_path = "/".join(paths)
 
-    return dict(storage_account=storage_account, container=container, file_path=file_path)
+    return {"storage_account": storage_account, "container": container, "file_path": file_path}

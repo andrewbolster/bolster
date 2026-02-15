@@ -43,13 +43,12 @@ Example:
 
 import logging
 import re
-from typing import Optional, Tuple
+from typing import Optional
 
 import pandas as pd
 
+from bolster.data_sources.nisra._base import NISRADataNotFoundError, NISRAValidationError, download_file
 from bolster.utils.web import session
-
-from .._base import NISRADataNotFoundError, NISRAValidationError, download_file
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +67,7 @@ MARKET_NAMES = [
 ]
 
 
-def get_latest_visitor_statistics_publication_url() -> Tuple[str, str]:
+def get_latest_visitor_statistics_publication_url() -> tuple[str, str]:
     """Scrape NISRA tourism publications page to find the latest quarterly file.
 
     The publications page directly lists Excel files for each quarter in the format:
@@ -87,7 +86,7 @@ def get_latest_visitor_statistics_publication_url() -> Tuple[str, str]:
         response = session.get(TOURISM_PUBLICATIONS_URL, timeout=30)
         response.raise_for_status()
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch tourism publications page: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch tourism publications page: {e}") from e
 
     soup = BeautifulSoup(response.content, "html.parser")
 
@@ -165,7 +164,7 @@ def _parse_visitor_statistics_file(
             header=None,
         )
     except Exception as e:
-        raise NISRAValidationError(f"Failed to read Table 10 from Excel file: {e}")
+        raise NISRAValidationError(f"Failed to read Table 10 from Excel file: {e}") from e
 
     # Find header row (contains "Variable" or "Overnight Trips")
     header_row_idx = None
@@ -290,8 +289,7 @@ def _parse_visitor_statistics_file(
     if not records:
         raise NISRAValidationError("No visitor statistics data found in Table 10")
 
-    df = pd.DataFrame(records)
-    return df
+    return pd.DataFrame(records)
 
 
 def get_latest_visitor_statistics(
@@ -435,7 +433,7 @@ def get_domestic_vs_external(df: pd.DataFrame) -> pd.DataFrame:
     total_trips = domestic_stats["trips"] + external_total["trips"]
     total_expenditure = domestic_stats["expenditure"] + external_total["expenditure"]
 
-    result = pd.DataFrame(
+    return pd.DataFrame(
         [
             {
                 "category": "Domestic (NI)",
@@ -459,8 +457,6 @@ def get_domestic_vs_external(df: pd.DataFrame) -> pd.DataFrame:
             },
         ]
     )
-
-    return result
 
 
 def get_expenditure_per_trip(df: pd.DataFrame) -> pd.DataFrame:

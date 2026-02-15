@@ -4,10 +4,11 @@ This module provides utilities for parsing and working with RSS/Atom feeds,
 with a focus on government statistics and research publications.
 """
 
+import contextlib
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import Optional, Union
 
 import feedparser
 from dateutil import parser as date_parser
@@ -27,7 +28,7 @@ class FeedEntry:
     updated: Optional[datetime] = None
     summary: Optional[str] = None
     author: Optional[str] = None
-    categories: List[str] = None
+    categories: list[str] = None
     content: Optional[str] = None
     id: Optional[str] = None
 
@@ -36,7 +37,7 @@ class FeedEntry:
         if self.categories is None:
             self.categories = []
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert entry to dictionary representation."""
         return {
             "title": self.title,
@@ -58,7 +59,7 @@ class Feed:
     title: str
     link: str
     description: Optional[str] = None
-    entries: List[FeedEntry] = None
+    entries: list[FeedEntry] = None
     language: Optional[str] = None
     updated: Optional[datetime] = None
 
@@ -67,7 +68,7 @@ class Feed:
         if self.entries is None:
             self.entries = []
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert feed to dictionary representation."""
         return {
             "title": self.title,
@@ -117,19 +118,15 @@ def parse_feed_entry(entry: feedparser.FeedParserDict) -> FeedEntry:
     if hasattr(entry, "updated"):
         updated = parse_date(entry.updated)
     elif hasattr(entry, "updated_parsed") and entry.updated_parsed:
-        try:
+        with contextlib.suppress(TypeError, ValueError):
             updated = datetime(*entry.updated_parsed[:6])
-        except (TypeError, ValueError):
-            pass
 
     published = None
     if hasattr(entry, "published"):
         published = parse_date(entry.published)
     elif hasattr(entry, "published_parsed") and entry.published_parsed:
-        try:
+        with contextlib.suppress(TypeError, ValueError):
             published = datetime(*entry.published_parsed[:6])
-        except (TypeError, ValueError):
-            pass
 
     # Fall back to updated if published is not available
     if published is None and updated is not None:
@@ -210,10 +207,8 @@ def parse_rss_feed(feed_url: str, timeout: int = 30) -> Feed:
     if hasattr(feed_info, "updated"):
         updated = parse_date(feed_info.updated)
     elif hasattr(feed_info, "updated_parsed") and feed_info.updated_parsed:
-        try:
+        with contextlib.suppress(TypeError, ValueError):
             updated = datetime(*feed_info.updated_parsed[:6])
-        except (TypeError, ValueError):
-            pass
 
     # Parse entries
     entries = [parse_feed_entry(entry) for entry in parsed.entries]
@@ -229,12 +224,12 @@ def parse_rss_feed(feed_url: str, timeout: int = 30) -> Feed:
 
 
 def filter_entries(
-    entries: List[FeedEntry],
+    entries: list[FeedEntry],
     title_contains: Optional[str] = None,
     category: Optional[str] = None,
     after_date: Optional[Union[datetime, str]] = None,
     before_date: Optional[Union[datetime, str]] = None,
-) -> List[FeedEntry]:
+) -> list[FeedEntry]:
     """Filter feed entries based on various criteria.
 
     Args:

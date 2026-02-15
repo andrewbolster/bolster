@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -57,7 +57,7 @@ def download_file(url: str, cache_ttl_hours: int = 24, force_refresh: bool = Fal
         raise NISRADataNotFoundError(str(e)) from e
 
 
-def scrape_download_links(page_url: str, file_extension: str = ".xlsx") -> List[dict]:
+def scrape_download_links(page_url: str, file_extension: str = ".xlsx") -> list[dict]:
     """Scrape download links from a NISRA page.
 
     Args:
@@ -71,7 +71,7 @@ def scrape_download_links(page_url: str, file_extension: str = ".xlsx") -> List[
         response = session.get(page_url, timeout=30)
         response.raise_for_status()
     except Exception as e:
-        raise NISRADataError(f"Failed to fetch page {page_url}: {e}")
+        raise NISRADataError(f"Failed to fetch page {page_url}: {e}") from e
 
     soup = BeautifulSoup(response.content, "html.parser")
 
@@ -142,7 +142,7 @@ def safe_float(val) -> Optional[float]:
         return None
 
 
-def find_header_row(sheet, expected_columns: List[str], max_rows: int = 20) -> Optional[int]:
+def find_header_row(sheet, expected_columns: list[str], max_rows: int = 20) -> Optional[int]:
     """Find the row number containing expected column headers in an Excel sheet.
 
     Args:
@@ -178,7 +178,7 @@ def find_header_row(sheet, expected_columns: List[str], max_rows: int = 20) -> O
     return None
 
 
-def extract_column_mapping(sheet, header_row: int, column_names: List[str]) -> Dict[str, int]:
+def extract_column_mapping(sheet, header_row: int, column_names: list[str]) -> dict[str, int]:
     """Extract a mapping of column names to their indices (0-based) from a header row.
 
     Args:
@@ -232,7 +232,7 @@ def make_absolute_url(url: str, base_url: str) -> str:
     """
     if url.startswith("/"):
         return f"{base_url}{url}"
-    elif not url.startswith("http"):
+    if not url.startswith("http"):
         return f"{base_url}/{url}"
     return url
 
@@ -299,7 +299,7 @@ def add_date_columns(df: pd.DataFrame, source_col: str, date_col: str = "date") 
     return df
 
 
-def parse_age_breakdowns(row, age_columns_map: Dict[str, int], start_idx: int = None) -> List[dict]:
+def parse_age_breakdowns(row, age_columns_map: dict[str, int], start_idx: int = None) -> list[dict]:
     """Parse age breakdown columns into a list of age band dictionaries.
 
     This creates a flexible structure that can handle changing age bands across years.

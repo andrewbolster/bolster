@@ -44,7 +44,7 @@ Example:
 
 import logging
 from datetime import datetime
-from typing import Dict, List, Literal, Optional
+from typing import Literal, Optional
 
 import pandas as pd
 
@@ -163,7 +163,7 @@ ROAD_SURFACE_CODES = {
 }
 
 
-def _get_available_datasets() -> List[Dict]:
+def _get_available_datasets() -> list[dict]:
     """Get list of available RTC datasets from OpenDataNI.
 
     Returns:
@@ -221,7 +221,7 @@ def _get_available_datasets() -> List[Dict]:
         raise PSNIDataNotFoundError(f"Failed to fetch dataset list: {e}") from e
 
 
-def get_available_years() -> List[int]:
+def get_available_years() -> list[int]:
     """Get list of years with available RTC data.
 
     Returns:
@@ -502,9 +502,8 @@ def get_vehicles(
     df = df.rename(columns={k: v for k, v in column_mapping.items() if k in df.columns})
 
     # Add decoded values
-    if decode_values:
-        if "vehicle_type_code" in df.columns:
-            df["vehicle_type"] = df["vehicle_type_code"].map(VEHICLE_TYPE_CODES)
+    if decode_values and "vehicle_type_code" in df.columns:
+        df["vehicle_type"] = df["vehicle_type_code"].map(VEHICLE_TYPE_CODES)
 
     logger.info(f"Loaded {len(df):,} vehicles for {year}")
     return df
@@ -560,7 +559,7 @@ def get_casualties_with_collision_details(
 
 
 def get_annual_summary(
-    years: Optional[List[int]] = None,
+    years: Optional[list[int]] = None,
     force_refresh: bool = False,
 ) -> pd.DataFrame:
     """Get annual summary statistics across multiple years.
@@ -753,9 +752,8 @@ def validate_data(df: pd.DataFrame, data_type: Literal["collision", "casualty", 
         if df.duplicated(subset=["year", "ref"]).any():
             raise PSNIValidationError("Duplicate collision records found")
 
-    elif data_type == "casualty":
-        if df.duplicated(subset=["year", "ref", "casualty_id"]).any():
-            raise PSNIValidationError("Duplicate casualty records found")
+    elif data_type == "casualty" and df.duplicated(subset=["year", "ref", "casualty_id"]).any():
+        raise PSNIValidationError("Duplicate casualty records found")
 
     logger.info(f"Validation passed for {len(df):,} {data_type} records")
     return True

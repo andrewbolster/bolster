@@ -1,5 +1,4 @@
-"""
-Data sources - mostly Northern Ireland focused stuff.
+"""Data sources - mostly Northern Ireland focused stuff.
 
 Various scrapers and API wrappers for NI government data:
 - ni_water: Water quality by postcode/zone

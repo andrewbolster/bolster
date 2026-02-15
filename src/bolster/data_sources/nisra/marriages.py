@@ -42,7 +42,7 @@ Example:
 import logging
 import re
 from pathlib import Path
-from typing import Tuple, Union
+from typing import Union
 
 import pandas as pd
 
@@ -57,7 +57,7 @@ MARRIAGES_BASE_URL = "https://www.nisra.gov.uk/statistics/births-deaths-and-marr
 CIVIL_PARTNERSHIPS_BASE_URL = "https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/civil-partnerships"
 
 
-def get_latest_marriages_publication_url() -> Tuple[str, str]:
+def get_latest_marriages_publication_url() -> tuple[str, str]:
     """Scrape NISRA marriages mother page to find the latest monthly marriages file.
 
     Navigates the publication structure:
@@ -79,7 +79,7 @@ def get_latest_marriages_publication_url() -> Tuple[str, str]:
         response = session.get(mother_page, timeout=30)
         response.raise_for_status()
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch marriages mother page: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch marriages mother page: {e}") from e
 
     soup = BeautifulSoup(response.content, "html.parser")
 
@@ -117,7 +117,7 @@ def get_latest_marriages_publication_url() -> Tuple[str, str]:
         pub_response = session.get(pub_link, timeout=30)
         pub_response.raise_for_status()
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}") from e
 
     pub_soup = BeautifulSoup(pub_response.content, "html.parser")
 
@@ -174,7 +174,7 @@ def parse_marriages_file(file_path: Union[str, Path]) -> pd.DataFrame:
             nrows=13,  # Read months + total row (we'll filter out total)
         )
     except Exception as e:
-        raise NISRAValidationError(f"Failed to read marriages file: {e}")
+        raise NISRAValidationError(f"Failed to read marriages file: {e}") from e
 
     # First column should be month names
     if df_raw.iloc[:, 0].name != "Month of \nRegistration":
@@ -391,7 +391,7 @@ def get_marriages_summary_by_year(df: pd.DataFrame) -> pd.DataFrame:
 # ============================================================================
 
 
-def get_latest_civil_partnerships_publication_url() -> Tuple[str, str]:
+def get_latest_civil_partnerships_publication_url() -> tuple[str, str]:
     """Scrape NISRA civil partnerships page to find the latest monthly civil partnerships file.
 
     Returns:
@@ -408,7 +408,7 @@ def get_latest_civil_partnerships_publication_url() -> Tuple[str, str]:
         response = session.get(mother_page, timeout=30)
         response.raise_for_status()
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch civil partnerships page: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch civil partnerships page: {e}") from e
 
     soup = BeautifulSoup(response.content, "html.parser")
 
@@ -437,7 +437,7 @@ def get_latest_civil_partnerships_publication_url() -> Tuple[str, str]:
         pub_response = session.get(pub_link, timeout=30)
         pub_response.raise_for_status()
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}") from e
 
     pub_soup = BeautifulSoup(pub_response.content, "html.parser")
 
@@ -505,7 +505,7 @@ def parse_civil_partnerships_file(file_path: Union[str, Path]) -> pd.DataFrame:
             nrows=13,  # Read header + 12 months
         )
     except Exception as e:
-        raise NISRAValidationError(f"Failed to read civil partnerships file: {e}")
+        raise NISRAValidationError(f"Failed to read civil partnerships file: {e}") from e
 
     # First row is the header
     headers = df_raw.iloc[0].tolist()

@@ -337,7 +337,7 @@ class TestCompaniesHouseRecordStructure:
         ]
 
         # Create a minimal valid record
-        record = {field: "" for field in expected_fields}
+        record = dict.fromkeys(expected_fields, "")
         record["RegAddress.PostCode"] = "BT12 5GH"
         record["RegAddress.AddressLine1"] = "Farset Labs"
 

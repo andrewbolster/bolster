@@ -44,11 +44,12 @@ Example:
     >>> print(data.keys())  # ['vehicle', 'driver', 'theory']
 """
 
+import contextlib
 import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Union
+from typing import Optional, Union
 
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -119,10 +120,10 @@ def _download_file(url: str, cache_ttl_hours: int = 24, force_refresh: bool = Fa
         logger.info(f"Saved to {cache_path}")
         return cache_path
     except Exception as e:
-        raise DVADataNotFoundError(f"Failed to download {url}: {e}")
+        raise DVADataNotFoundError(f"Failed to download {url}: {e}") from e
 
 
-def get_latest_dva_publication_url() -> Tuple[str, str, datetime]:
+def get_latest_dva_publication_url() -> tuple[str, str, datetime]:
     """Get the URL of the latest DVA Monthly Tests publication.
 
     Attempts to find the most recent DVA monthly tests statistics publication
@@ -311,10 +312,8 @@ def parse_vehicle_tests(file_path: Union[str, Path]) -> pd.DataFrame:
         }
 
         if rolling_total:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 record["rolling_12_month_total"] = int(rolling_total)
-            except (ValueError, TypeError):
-                pass
 
         records.append(record)
 
@@ -392,10 +391,8 @@ def parse_driver_tests(file_path: Union[str, Path]) -> pd.DataFrame:
         }
 
         if rolling_total:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 record["rolling_12_month_total"] = int(rolling_total)
-            except (ValueError, TypeError):
-                pass
 
         records.append(record)
 
@@ -473,10 +470,8 @@ def parse_theory_tests(file_path: Union[str, Path]) -> pd.DataFrame:
         }
 
         if rolling_total:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 record["rolling_12_month_total"] = int(rolling_total)
-            except (ValueError, TypeError):
-                pass
 
         records.append(record)
 
@@ -560,7 +555,7 @@ def get_latest_theory_tests(force_refresh: bool = False) -> pd.DataFrame:
     return parse_theory_tests(file_path)
 
 
-def get_latest_all_tests(force_refresh: bool = False) -> Dict[str, pd.DataFrame]:
+def get_latest_all_tests(force_refresh: bool = False) -> dict[str, pd.DataFrame]:
     """Get all test types (vehicle, driver, theory) from the latest publication.
 
     Downloads the file once and parses all three test types.
@@ -650,7 +645,7 @@ def calculate_growth_rates(df: pd.DataFrame, periods: int = 12) -> pd.DataFrame:
     return result
 
 
-def get_summary_statistics(df: pd.DataFrame, start_year: Optional[int] = None, end_year: Optional[int] = None) -> Dict:
+def get_summary_statistics(df: pd.DataFrame, start_year: Optional[int] = None, end_year: Optional[int] = None) -> dict:
     """Calculate summary statistics for test data.
 
     Args:
@@ -699,24 +694,24 @@ def validate_dva_test_data(df: pd.DataFrame) -> bool:  # pragma: no cover
         True if validation passes, False otherwise
     """
     if df.empty:
-        logging.warning("DVA test data is empty")
+        logger.warning("DVA test data is empty")
         return False
 
     required_cols = {"month", "tests_conducted"}
     if not required_cols.issubset(df.columns):
         missing = required_cols - set(df.columns)
-        logging.warning(f"Missing required DVA columns: {missing}")
+        logger.warning(f"Missing required DVA columns: {missing}")
         return False
 
     # Check for non-negative test counts
     if (df["tests_conducted"] < 0).any():
-        logging.warning("Found negative test counts in DVA data")
+        logger.warning("Found negative test counts in DVA data")
         return False
 
     # Check for reasonable monthly test volumes
     # Vehicle tests typically range from 40,000 to 100,000 per month in NI
     if df["tests_conducted"].max() > 200000:  # Allow for variation but catch obvious errors
-        logging.warning("Unreasonably high test counts found")
+        logger.warning("Unreasonably high test counts found")
         return False
 
     return True

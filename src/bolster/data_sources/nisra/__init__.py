@@ -1,5 +1,4 @@
-"""
-NISRA (Northern Ireland Statistics and Research Agency) Data Sources.
+"""NISRA (Northern Ireland Statistics and Research Agency) Data Sources.
 
 This package provides access to various statistical datasets published by NISRA,
 including births, deaths, labour market, population, migration, economic indicators,

@@ -1,0 +1,47 @@
+# Import Linter Configuration
+# =============================
+#
+# This enforces architectural constraints to maintain code quality.
+# Unlike ruff/flake8, import-linter does NOT support inline # noqa-style comments.
+# To add exceptions, update the ignore_imports list below.
+#
+# ADDING EXCEPTIONS:
+# -----------------
+# If a data source needs to do something "strange" and bypass HTTP centralization:
+#
+# 1. Add to ignore_imports list in format: module.path -> forbidden_module
+#    Example: bolster.data_sources.special_case -> requests
+#
+# 2. Document WHY in a comment above the ignore entry
+#    Example:
+#    # Special case: Legacy API requires custom SSL context not supported by shared session
+#    bolster.data_sources.legacy_api -> requests
+#
+# 3. Consider if the "strange" thing should be added to utils.web instead
+#
+# COMMON EXCEPTIONS:
+# -----------------
+# - Testing/debugging: Add specific test modules
+# - Legacy integrations: Document the technical constraint
+# - Performance-critical paths: Explain why centralized session doesn't work
+# - External library integration: When the library expects raw requests
+
+[importlinter]
+root_package = bolster
+include_external_packages = True
+
+[importlinter:contract:http-centralization]
+name = HTTP centralization - prevent scattered HTTP clients
+type = forbidden
+source_modules = bolster
+forbidden_modules =
+    requests
+    httpx
+ignore_imports =
+    # Central HTTP utilities module - allowed to import requests for session creation
+    bolster.utils.web -> requests
+    # Add exceptions here following the format above
+    # Example: bolster.data_sources.special_case -> requests
+
+# Note: urllib.request violations are caught by the existing pre-commit hook
+# since import-linter can't easily handle submodule imports like urllib.request

@@ -40,7 +40,7 @@ Example:
 import logging
 import re
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Union
+from typing import Optional, Union
 
 import pandas as pd
 from openpyxl import load_workbook
@@ -78,7 +78,7 @@ NI_LGDS = [
 ]
 
 
-def get_latest_publication_url() -> Tuple[str, str, int, int]:
+def get_latest_publication_url() -> tuple[str, str, int, int]:
     """Scrape NISRA to find the latest Registrar General Quarterly Tables file.
 
     Navigates the publication structure:
@@ -100,7 +100,7 @@ def get_latest_publication_url() -> Tuple[str, str, int, int]:
         response = session.get(mother_page, timeout=30)
         response.raise_for_status()
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch Registrar General page: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch Registrar General page: {e}") from e
 
     soup = BeautifulSoup(response.content, "html.parser")
 
@@ -139,7 +139,7 @@ def get_latest_publication_url() -> Tuple[str, str, int, int]:
         pub_response = session.get(pub_link, timeout=30)
         pub_response.raise_for_status()
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}") from e
 
     pub_soup = BeautifulSoup(pub_response.content, "html.parser")
 
@@ -436,7 +436,7 @@ def parse_lgd_statistics(sheet) -> pd.DataFrame:
     return df
 
 
-def parse_quarterly_tables(file_path: Union[str, Path]) -> Dict[str, pd.DataFrame]:
+def parse_quarterly_tables(file_path: Union[str, Path]) -> dict[str, pd.DataFrame]:
     """Parse the Registrar General Quarterly Tables Excel file.
 
     The file contains multiple tables:
@@ -503,7 +503,7 @@ def parse_quarterly_tables(file_path: Union[str, Path]) -> Dict[str, pd.DataFram
 
 def get_quarterly_vital_statistics(
     force_refresh: bool = False,
-) -> Dict[str, pd.DataFrame]:
+) -> dict[str, pd.DataFrame]:
     """Get all quarterly vital statistics from the Registrar General Tables.
 
     Automatically discovers and downloads the most recent quarterly tables
@@ -714,7 +714,7 @@ def validate_against_monthly_marriages(
 
 def get_validation_report(
     force_refresh: bool = False,
-) -> Dict[str, pd.DataFrame]:
+) -> dict[str, pd.DataFrame]:
     """Run all cross-validations and return comprehensive report.
 
     Compares quarterly data against monthly data sources to verify consistency.

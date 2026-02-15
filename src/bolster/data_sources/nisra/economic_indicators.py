@@ -51,7 +51,7 @@ Publication Details:
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Union
+from typing import Optional, Union
 
 import pandas as pd
 
@@ -66,7 +66,7 @@ IOS_BASE_URL = "https://www.nisra.gov.uk/statistics/economic-output/index-servic
 IOP_BASE_URL = "https://www.nisra.gov.uk/statistics/economic-output/index-production"
 
 
-def get_latest_ios_publication_url() -> Tuple[str, datetime]:
+def get_latest_ios_publication_url() -> tuple[str, datetime]:
     """Get the URL of the latest Index of Services publication.
 
     Scrapes the NISRA Index of Services page to find the most recent publication.
@@ -90,7 +90,7 @@ def get_latest_ios_publication_url() -> Tuple[str, datetime]:
         response = session.get(IOS_BASE_URL, timeout=30)
         response.raise_for_status()
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch IOS page: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch IOS page: {e}") from e
 
     soup = BeautifulSoup(response.content, "html.parser")
 
@@ -110,7 +110,7 @@ def get_latest_ios_publication_url() -> Tuple[str, datetime]:
                 pub_response = session.get(pub_url, timeout=30)
                 pub_response.raise_for_status()
             except Exception as e:
-                raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}")
+                raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}") from e
 
             pub_soup = BeautifulSoup(pub_response.content, "html.parser")
 
@@ -134,7 +134,7 @@ def get_latest_ios_publication_url() -> Tuple[str, datetime]:
     raise NISRADataNotFoundError("Could not find latest Index of Services publication")
 
 
-def get_latest_iop_publication_url() -> Tuple[str, datetime]:
+def get_latest_iop_publication_url() -> tuple[str, datetime]:
     """Get the URL of the latest Index of Production publication.
 
     Scrapes the NISRA Index of Production page to find the most recent publication.
@@ -157,7 +157,7 @@ def get_latest_iop_publication_url() -> Tuple[str, datetime]:
         response = session.get(IOP_BASE_URL, timeout=30)
         response.raise_for_status()
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch IOP page: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch IOP page: {e}") from e
 
     soup = BeautifulSoup(response.content, "html.parser")
 
@@ -176,7 +176,7 @@ def get_latest_iop_publication_url() -> Tuple[str, datetime]:
                 pub_response = session.get(pub_url, timeout=30)
                 pub_response.raise_for_status()
             except Exception as e:
-                raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}")
+                raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}") from e
 
             pub_soup = BeautifulSoup(pub_response.content, "html.parser")
 
@@ -484,7 +484,7 @@ def calculate_iop_growth_rate(df: pd.DataFrame, periods: int = 4) -> pd.DataFram
 
 def get_ios_summary_statistics(
     df: pd.DataFrame, start_year: Optional[int] = None, end_year: Optional[int] = None
-) -> Dict:
+) -> dict:
     """Calculate summary statistics for Index of Services.
 
     Args:
@@ -529,7 +529,7 @@ def get_ios_summary_statistics(
 
 def get_iop_summary_statistics(
     df: pd.DataFrame, start_year: Optional[int] = None, end_year: Optional[int] = None
-) -> Dict:
+) -> dict:
     """Calculate summary statistics for Index of Production.
 
     Args:

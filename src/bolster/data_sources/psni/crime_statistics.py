@@ -48,7 +48,7 @@ Example:
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import pandas as pd
 
@@ -151,7 +151,7 @@ def parse_crime_statistics_file(
         # Read CSV - it's already clean and well-structured
         df = pd.read_csv(file_path)
     except Exception as e:
-        raise PSNIValidationError(f"Failed to read crime statistics file: {e}")
+        raise PSNIValidationError(f"Failed to read crime statistics file: {e}") from e
 
     # Validate expected columns
     expected_cols = {"Calendar_Year", "Month", "Policing_District", "Crime_Type", "Data_Measure", "Count"}
@@ -369,7 +369,7 @@ def validate_crime_statistics(df: pd.DataFrame) -> bool:  # pragma: no cover
 
 def filter_by_district(
     df: pd.DataFrame,
-    district: Union[str, List[str]],
+    district: Union[str, list[str]],
 ) -> pd.DataFrame:
     """Filter crime statistics to specific policing district(s).
 
@@ -396,7 +396,7 @@ def filter_by_district(
 
 def filter_by_crime_type(
     df: pd.DataFrame,
-    crime_type: Union[str, List[str]],
+    crime_type: Union[str, list[str]],
 ) -> pd.DataFrame:
     """Filter crime statistics to specific crime type(s).
 
@@ -531,9 +531,7 @@ def get_crime_trends(
         (df["crime_type"] == crime_type) & (df["policing_district"] == district) & (df["data_measure"] == measure)
     ].copy()
 
-    result = filtered[["date", "calendar_year", "month", "count"]].sort_values("date").reset_index(drop=True)
-
-    return result
+    return filtered[["date", "calendar_year", "month", "count"]].sort_values("date").reset_index(drop=True)
 
 
 def get_outcome_rates_by_district(
@@ -582,7 +580,7 @@ def get_outcome_rates_by_district(
     return result.sort_values("average_outcome_rate", ascending=False).reset_index(drop=True)
 
 
-def get_available_crime_types(df: pd.DataFrame) -> List[str]:
+def get_available_crime_types(df: pd.DataFrame) -> list[str]:
     """Get list of all crime types in the dataset.
 
     Args:
@@ -600,7 +598,7 @@ def get_available_crime_types(df: pd.DataFrame) -> List[str]:
     return sorted(df["crime_type"].unique().tolist())
 
 
-def get_available_districts(df: pd.DataFrame) -> List[str]:
+def get_available_districts(df: pd.DataFrame) -> list[str]:
     """Get list of all policing districts in the dataset.
 
     Args:

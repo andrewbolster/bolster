@@ -75,6 +75,12 @@ class CachedDownloader:
     """
 
     def __init__(self, namespace: str, timeout: int = 60):
+        """Initialize CachedDownloader with namespace and timeout.
+
+        Args:
+            namespace: Cache namespace for organizing files
+            timeout: Timeout for HTTP requests in seconds
+        """
         self.namespace = namespace
         self.timeout = timeout
         self.cache_dir = CACHE_BASE / namespace
@@ -142,7 +148,7 @@ class CachedDownloader:
             return cache_path
 
         except Exception as e:
-            raise DownloadError(f"Failed to download {url}: {e}")
+            raise DownloadError(f"Failed to download {url}: {e}") from e
 
     def clear(self, pattern: Optional[str] = None) -> int:
         """Clear cached files.
@@ -153,10 +159,7 @@ class CachedDownloader:
         Returns:
             Number of files deleted
         """
-        if pattern:
-            files = list(self.cache_dir.glob(pattern))
-        else:
-            files = list(self.cache_dir.glob("*"))
+        files = list(self.cache_dir.glob(pattern)) if pattern else list(self.cache_dir.glob("*"))
 
         deleted = 0
         for file in files:

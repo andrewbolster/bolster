@@ -1,5 +1,4 @@
-"""
-UK Met Office Weather Data and Map Images Integration
+"""UK Met Office Weather Data and Map Images Integration.
 
 Data Source: The UK Met Office provides weather data and map images through their DataHub API
 at https://data.hub.api.metoffice.gov.uk/. This module accesses weather forecast data including
@@ -42,13 +41,13 @@ from datetime import datetime, timedelta
 from functools import lru_cache
 from io import BytesIO
 from itertools import groupby
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 from urllib.parse import quote
 
 from PIL import Image, ImageDraw, ImageFilter
 
-from .. import NetworkError
-from ..utils.web import session
+from bolster import NetworkError
+from bolster.utils.web import session
 
 logger = logging.getLogger(__name__)
 
@@ -63,41 +62,44 @@ BASE_URL = "https://data.hub.api.metoffice.gov.uk/map-images/1.0.0"
 _api_headers = {"Accept": "application/json", "apikey": f"{os.getenv('MET_OFFICE_API_KEY')}"}
 
 
-def get_order_latest(order_name: str) -> Dict:
+def get_order_latest(order_name: str) -> dict:
+    """Get the latest status for a Met Office data order."""
     url = f"{BASE_URL}/orders/{order_name.lower()}/latest"  # pragma: no cover
     # TODO: Network integration testing - requires valid Met Office API key and order
     response = session.get(url, headers=_api_headers)  # pragma: no cover
     if response.status_code == 200:  # pragma: no cover
         return response.json()  # pragma: no cover
-    else:  # pragma: no cover
-        raise NetworkError(
-            f"Failed to fetch order status: {response.text}", status_code=response.status_code, url=url
-        )  # pragma: no cover
+    # pragma: no cover
+    raise NetworkError(
+        f"Failed to fetch order status: {response.text}", status_code=response.status_code, url=url
+    )  # pragma: no cover
 
 
-def get_file_meta(order_name: str, file_id: str) -> Dict:
+def get_file_meta(order_name: str, file_id: str) -> dict:
+    """Get metadata for a specific file in a Met Office order."""
     url = f"{BASE_URL}/orders/{order_name.lower()}/latest/{quote(file_id)}"  # To handle + in the file_id  # pragma: no cover
     # TODO: Network integration testing - requires valid Met Office API key and order
     response = session.get(url, headers=_api_headers)  # pragma: no cover
     if response.status_code == 200:  # pragma: no cover
         return response.json()  # pragma: no cover
-    else:  # pragma: no cover
-        raise NetworkError(
-            f"Failed to fetch order status: {response.text}", status_code=response.status_code, url=url
-        )  # pragma: no cover
+    # pragma: no cover
+    raise NetworkError(
+        f"Failed to fetch order status: {response.text}", status_code=response.status_code, url=url
+    )  # pragma: no cover
 
 
 @lru_cache
 def get_file(order_name: str, file_id: str) -> bytes:
+    """Download and cache a file from a Met Office order."""
     url = f"{BASE_URL}/orders/{order_name.lower()}/latest/{quote(file_id)}/data"  # To handle + in the file_id  # pragma: no cover
     # TODO: Network integration testing - requires valid Met Office API key and order
     response = session.get(url, headers={**_api_headers, **{"Accept": "application/octet-stream"}})  # pragma: no cover
     if response.status_code == 200:  # pragma: no cover
         return response.content  # pragma: no cover
-    else:  # pragma: no cover
-        raise NetworkError(
-            f"Failed to fetch order status: {response.text}", status_code=response.status_code, url=url
-        )  # pragma: no cover
+    # pragma: no cover
+    raise NetworkError(
+        f"Failed to fetch order status: {response.text}", status_code=response.status_code, url=url
+    )  # pragma: no cover
 
 
 ### Data Filtering
@@ -105,7 +107,8 @@ def get_file(order_name: str, file_id: str) -> bytes:
 is_my_date = re.compile(r".*_\d{10}$")  # Ends with 10 digits
 
 
-def filter_relevant_files(order_status: Dict) -> List[Dict]:
+def filter_relevant_files(order_status: dict) -> list[dict]:
+    """Filter order files to find UK precipitation radar data."""
     relevant_files = []
 
     for file in order_status["orderDetails"]["files"]:
@@ -147,6 +150,7 @@ def filter_relevant_files(order_status: Dict) -> List[Dict]:
 
 
 def make_borders(data: bytes) -> Image.Image:
+    """Create image borders from Met Office geographic data."""
     # Convert to grayscale
     img = Image.open(BytesIO(data))
     img = img.point(lambda i: 255 if i else 0)
@@ -160,6 +164,7 @@ def make_borders(data: bytes) -> Image.Image:
 
 
 def make_isolines(data: bytes) -> Image.Image:
+    """Create weather isolines from Met Office data."""
     # Convert to grayscale
     img = Image.open(BytesIO(data)).convert("L")
     # Apply edge detection filter
@@ -172,6 +177,7 @@ def make_isolines(data: bytes) -> Image.Image:
 
 
 def make_precipitation(data: bytes) -> Image.Image:
+    """Process precipitation radar data into visualization image."""
     # Convert to grayscale
     img = Image.open(BytesIO(data)).convert("L")
     img = img.point(lambda i: 255 - i)
@@ -181,8 +187,9 @@ def make_precipitation(data: bytes) -> Image.Image:
 
 
 def generate_image(
-    order_name: str, block: Dict, bounding_box: Optional[Tuple[int, int, int, int]] = (100, 250, 500, 550)
+    order_name: str, block: dict, bounding_box: Optional[tuple[int, int, int, int]] = (100, 250, 500, 550)
 ) -> Image.Image:
+    """Generate composite weather visualization from Met Office data."""
     # TODO: Network integration testing - requires valid Met Office API key and order
     border = make_borders(get_file(order_name, block["land_cover"]))  # pragma: no cover
     isoline = make_isolines(get_file(order_name, block["mean_sea_level_pressure"]))  # pragma: no cover
@@ -206,10 +213,8 @@ def generate_image(
     return img  # pragma: no cover
 
 
-def get_uk_precipitation(order_name: str, bounding_box: Optional[Tuple[int, int, int, int]] = None) -> Image.Image:
-    """
-    Get the latest UK precipitation forecast from the Met Office API and generate an image suitable for epaper display.
-    """
+def get_uk_precipitation(order_name: str, bounding_box: Optional[tuple[int, int, int, int]] = None) -> Image.Image:
+    """Get the latest UK precipitation forecast from the Met Office API and generate an image suitable for epaper display."""
     # TODO: Network integration testing - requires valid Met Office API key and order
     order_status = get_order_latest(order_name)  # pragma: no cover
     relevant_files = filter_relevant_files(order_status)  # pragma: no cover
@@ -225,31 +230,4 @@ def get_uk_precipitation(order_name: str, bounding_box: Optional[Tuple[int, int,
     block = forecast_blocks[closest_block]  # pragma: no cover
     block["date"] = closest_block  # pragma: no cover
 
-    image = generate_image(order_name, block, bounding_box=bounding_box)  # pragma: no cover
-
-    return image  # pragma: no cover
-
-
-def validate_weather_data(data: Dict) -> bool:  # pragma: no cover
-    """Validate Met Office weather data integrity.
-
-    Args:
-        data: Weather data dictionary from Met Office API
-
-    Returns:
-        True if validation passes, False otherwise
-    """
-    if not data:
-        logger.warning("Weather data is empty")
-        return False
-
-    # Check if data has forecast structure
-    if "date" in data and "blocks" in data:
-        return True
-
-    # Check if data has image metadata
-    if "order_name" in data or "file_id" in data:
-        return True
-
-    logger.warning("Weather data missing expected structure")
-    return False
+    return generate_image(order_name, block, bounding_box=bounding_box)  # pragma: no cover

@@ -41,43 +41,39 @@ from .utils.rss import filter_entries, get_nisra_statistics_feed, parse_rss_feed
 @click.version_option(version=__version__, prog_name="bolster")
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 def cli(verbose, args=None):
-    """
-    Bolster - A comprehensive Python utility library for Northern Ireland and UK data sources.
+    """Bolster - A comprehensive Python utility library for Northern Ireland and UK data sources.
 
-    \b
-    📊 DATA SOURCES
+    DATA SOURCES
+    ============
+
     Weather & Environment:
-        get-precipitation    UK precipitation maps from Met Office
-        water-quality        NI water quality by postcode/zone
+        * get-precipitation    UK precipitation maps from Met Office
+        * water-quality        NI water quality by postcode/zone
 
-    \b
-    🏛️  Government & Politics:
-        ni-executive         NI Executive historical data
-        ni-elections         NI Assembly election results (2016-2022)
-        nisra                NISRA statistics (deaths, labour market, crime)
+    Government & Politics:
+        * ni-executive         NI Executive historical data
+        * ni-elections         NI Assembly election results (2016-2022)
+        * nisra                NISRA statistics (deaths, labour market, crime)
 
-    \b
-    🏢 Business & Property:
-        companies-house      UK Companies House data queries
-        ni-house-prices      NI house price index data
+    Business & Property:
+        * companies-house      UK Companies House data queries
+        * ni-house-prices      NI house price index data
 
-    \b
-    🚗 Transport:
-        dva                  DVA monthly test statistics (vehicle, driver, theory)
+    Transport:
+        * dva                  DVA monthly test statistics (vehicle, driver, theory)
 
-    \b
-    🎬 Entertainment & Lifestyle:
-        cinema-listings      Cineworld movie showtimes
+    Entertainment & Lifestyle:
+        * cinema-listings      Cineworld movie showtimes
 
-    \b
-    🛠️  Utilities:
-        rss                  RSS/Atom feed reader with NISRA integration
-        list-sources         Show all available data sources
-        --version           Show version information
-        --help              Show this help message
+    Utilities:
+        * rss                  RSS/Atom feed reader with NISRA integration
+        * list-sources         Show all available data sources
+        * --version            Show version information
+        * --help               Show this help message
 
-    \b
-    📋 QUICK EXAMPLES
+    QUICK EXAMPLES
+    ==============
+
         bolster water-quality BT1 5GS         # Water quality for postcode
         bolster nisra deaths --latest         # Latest NISRA deaths statistics
         bolster dva --latest --summary        # DVA test statistics summary
@@ -87,8 +83,8 @@ def cli(verbose, args=None):
         bolster list-sources                  # Show all data sources
         bolster --version                     # Show version information
 
-    \b
-    💡 TIP: Use 'bolster <command> --help' for detailed command options
+    Note:
+        Use 'bolster <command> --help' for detailed command options
     """
     if verbose:
         click.echo("Verbose mode enabled")
@@ -112,8 +108,7 @@ def cli(verbose, args=None):
     help="Output filename for the precipitation map image (default: precipitation.png)",
 )
 def get_precipitation(bounding_box, order_name, output):
-    """
-    Download UK precipitation data from the Met Office and save as an image.
+    """Download UK precipitation data from the Met Office and save as an image.
 
     This command retrieves precipitation map data from the UK Met Office API and saves
     it as a PNG image. Requires a Met Office API key and valid order name.
@@ -180,8 +175,7 @@ def get_precipitation(bounding_box, order_name, output):
     help="Output format (default: table)",
 )
 def water_quality(postcode, zone_code, output_format):
-    """
-    Get water quality information for a Northern Ireland postcode or zone.
+    """Get water quality information for a Northern Ireland postcode or zone.
 
     Provides water quality data including hardness classification, chemical parameters,
     and compliance information from Northern Ireland Water.
@@ -261,8 +255,7 @@ def water_quality(postcode, zone_code, output_format):
 )
 @click.option("--save", help="Save data to file (specify filename)")
 def ni_executive(output_format, save):
-    """
-    Get Northern Ireland Executive composition and dissolution data.
+    """Get Northern Ireland Executive composition and dissolution data.
 
     Retrieves historical data about NI Executive periods including establishment
     dates, dissolution dates, duration, and interregnum periods.
@@ -311,8 +304,7 @@ def ni_executive(output_format, save):
     help="Output format (default: table)",
 )
 def cinema_listings(site_code, screening_date, output_format):
-    """
-    Get current movie listings from Cineworld cinema.
+    """Get current movie listings from Cineworld cinema.
 
     Retrieves movie showtimes and information for a specific Cineworld location.
     Default location is Belfast (site code 117).
@@ -399,8 +391,7 @@ def cinema_listings(site_code, screening_date, output_format):
 )
 @click.option("--save", help="Save data to file (specify filename)")
 def ni_house_prices(output_format, save):
-    """
-    Get Northern Ireland house price index data.
+    """Get Northern Ireland house price index data.
 
     Downloads and processes the latest NI house price statistics from official sources,
     including price trends by property type, region, and time period.
@@ -466,26 +457,24 @@ def ni_house_prices(output_format, save):
 @click.option("--save", help="Save data to file (specify filename)")
 @click.option("--summary", is_flag=True, help="Show summary dashboard only")
 def dva_cmd(latest, test_type, year, output_format, force_refresh, save, summary):
-    """
-    DVA (Driver & Vehicle Agency) Monthly Test Statistics.
+    """DVA (Driver & Vehicle Agency) Monthly Test Statistics.
 
     Retrieves monthly test statistics from the NI Driver & Vehicle Agency including:
+
     - Vehicle tests (MOT-style tests)
     - Driver tests (practical driving tests)
     - Theory tests
 
     Data available from April 2014 to present.
 
-    \b
-    EXAMPLES:
+    Examples:
         bolster dva --latest                          # All test types
         bolster dva --latest --test-type vehicle      # Just vehicle tests
         bolster dva --latest --year 2024              # Filter by year
         bolster dva --latest --summary                # Quick summary dashboard
         bolster dva --latest --format json --save tests.json
 
-    \b
-    SOURCE:
+    Source:
         https://www.infrastructure-ni.gov.uk/publications/type/statistics
     """
     console = Console()
@@ -630,7 +619,7 @@ def dva_cmd(latest, test_type, year, output_format, force_refresh, save, summary
         console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @cli.command()
@@ -644,8 +633,7 @@ def dva_cmd(latest, test_type, year, output_format, force_refresh, save, summary
 )
 @click.option("--save", help="Save data to file (specify filename)")
 def companies_house(query, output_format, save):
-    """
-    Query UK Companies House data for company information.
+    """Query UK Companies House data for company information.
 
     Search for companies by name or get information about companies that might be
     associated with Farset Labs (Belfast hackerspace).
@@ -747,8 +735,7 @@ def companies_house(query, output_format, save):
 )
 @click.option("--save", help="Save data to file (specify filename)")
 def ni_elections(election_year, output_format, save):
-    """
-    Get Northern Ireland Assembly election results (2016-2022).
+    """Get Northern Ireland Assembly election results (2016-2022).
 
     Retrieve detailed election results including candidates, parties, constituencies,
     and vote counts for NI Assembly elections.
@@ -867,8 +854,7 @@ def ni_elections(election_year, output_format, save):
 
 @cli.group()
 def rss():
-    """
-    RSS/Atom feed reading commands.
+    """RSS/Atom feed reading commands.
 
     Tools for reading and parsing RSS/Atom feeds with beautiful terminal formatting.
     Includes generic feed reader and specialized commands for NISRA statistics.
@@ -884,14 +870,20 @@ def rss():
 @click.option("--before-date", "-b", help="Show entries published before this date (YYYY-MM-DD)")
 @click.option("--format", "-f", type=click.Choice(["rich", "json", "csv"]), default="rich", help="Output format")
 def rss_read(feed_url, limit, title_filter, after_date, before_date, format):
-    """
-    Read and display RSS/Atom feeds with beautiful formatting.
+    """Read and display RSS/Atom feeds with beautiful formatting.
 
     Fetches and parses RSS or Atom feeds from any URL, displaying entries
     with rich formatting in the terminal. Supports filtering by title and date range.
 
-    \b
-    EXAMPLES:
+    Args:
+        feed_url: URL of the RSS or Atom feed to read
+        limit: Maximum number of entries to display
+        title_filter: Filter entries by title keyword
+        after_date: Show only entries after this date
+        before_date: Show only entries before this date
+        format: Output format (rich, json, csv)
+
+    Examples:
         # Display NISRA statistics feed
         bolster rss-feed "https://www.gov.uk/search/research-and-statistics.atom"
 
@@ -901,15 +893,11 @@ def rss_read(feed_url, limit, title_filter, after_date, before_date, format):
         # Limit to recent entries
         bolster rss-feed URL --limit 10 --after-date 2024-01-01
 
-    \b
-    ARGUMENTS:
-        feed_url    URL of the RSS or Atom feed to read
-
-    \b
-    OUTPUT FORMATS:
-        rich  - Beautiful terminal output with colors and formatting (default)
-        json  - Machine-readable JSON output
-        csv   - Comma-separated values for spreadsheet import
+    Note:
+        Output formats:
+        - rich: Beautiful terminal output with colors and formatting (default)
+        - json: Machine-readable JSON output
+        - csv: Comma-separated values for spreadsheet import
     """
     console = Console()
 
@@ -1005,7 +993,7 @@ def rss_read(feed_url, limit, title_filter, after_date, before_date, format):
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @rss.command(name="nisra-statistics")
@@ -1017,15 +1005,20 @@ def rss_read(feed_url, limit, title_filter, after_date, before_date, format):
 )
 @click.option("--format", "-f", type=click.Choice(["rich", "json", "csv"]), default="rich", help="Output format")
 def rss_nisra_statistics(limit, title_filter, after_date, order, format):
-    """
-    Browse NISRA (Northern Ireland Statistics and Research Agency) publications.
+    """Browse NISRA (Northern Ireland Statistics and Research Agency) publications.
 
     Fetches and displays recent research and statistics publications from NISRA
     via the GOV.UK website. Includes reports on demographics, health, economy,
     labour market, crime, and lifestyle surveys.
 
-    \b
-    EXAMPLES:
+    Args:
+        limit: Maximum number of entries to display
+        title_filter: Filter entries by title keyword
+        after_date: Show only entries after this date
+        order: Sort order for entries (newest, oldest)
+        format: Output format (rich, json, csv)
+
+    Examples:
         # Show recent NISRA publications
         bolster nisra-statistics
 
@@ -1038,20 +1031,19 @@ def rss_nisra_statistics(limit, title_filter, after_date, order, format):
         # Export to CSV
         bolster nisra-statistics --format csv > nisra.csv
 
-    \b
-    PUBLICATION TYPES:
-        • Labour Market Statistics
-        • Population & Demographics
-        • Health & Social Care
-        • Crime & Justice Statistics
-        • Economic Statistics
-        • Lifestyle & Wellbeing Surveys
+    Note:
+        Publication types include:
+        - Labour Market Statistics
+        - Population & Demographics
+        - Health & Social Care
+        - Crime & Justice Statistics
+        - Economic Statistics
+        - Lifestyle & Wellbeing Surveys
 
-    \b
-    OUTPUT FORMATS:
-        rich  - Beautiful terminal output with colors (default)
-        json  - Machine-readable JSON format
-        csv   - Spreadsheet-compatible CSV format
+        Output formats:
+        - rich: Beautiful terminal output with colors (default)
+        - json: Machine-readable JSON format
+        - csv: Spreadsheet-compatible CSV format
     """
     console = Console()
 
@@ -1151,13 +1143,12 @@ def rss_nisra_statistics(limit, title_filter, after_date, order, format):
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @cli.group()
 def nisra():
-    """
-    NISRA (Northern Ireland Statistics and Research Agency) data sources.
+    """NISRA (Northern Ireland Statistics and Research Agency) data sources.
 
     Access official statistics and research publications from NISRA including:
     - Weekly death registrations with demographic breakdowns
@@ -1182,7 +1173,6 @@ def nisra_feed(limit: int, title_filter: str, days: int, check_coverage: bool):
     Useful for discovering new datasets and checking for updates.
 
     Examples:
-
         bolster nisra feed                    # Recent 20 publications
 
         bolster nisra feed -n 50              # More entries
@@ -1298,8 +1288,7 @@ def nisra_feed(limit: int, title_filter: str, days: int, check_coverage: bool):
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
 def nisra_deaths_cmd(latest, dimension, output_format, force_refresh, save):
-    """
-    NISRA Weekly Deaths Statistics
+    """NISRA Weekly Deaths Statistics.
 
     Retrieves weekly death registrations in Northern Ireland with breakdowns by:
     - Totals (COVID-19 deaths, flu/pneumonia deaths, excess deaths)
@@ -1307,43 +1296,53 @@ def nisra_deaths_cmd(latest, dimension, output_format, force_refresh, save):
     - Geography (Local Government Districts)
     - Place of death (hospital, home, care home, etc.)
 
-    \b
-    EXAMPLES:
-        # Get COVID-19 and flu/pneumonia deaths
+    Examples:
+    --------
+    Get COVID-19 and flu/pneumonia deaths::
+
         bolster nisra deaths --latest --dimension totals
 
-        # Get latest demographics breakdown as CSV
+    Get latest demographics breakdown as CSV::
+
         bolster nisra deaths --latest --dimension demographics
 
-        # Get all dimensions as JSON
+    Get all dimensions as JSON::
+
         bolster nisra deaths --latest --dimension all --format json
 
-        # Save totals data to analyze COVID trends
+    Save totals data to analyze COVID trends::
+
         bolster nisra deaths --latest --dimension totals --save deaths_totals.csv
 
-        # Force refresh cached data
+    Force refresh cached data::
+
         bolster nisra deaths --latest --force-refresh
 
-    \b
-    DATA NOTES:
-        - Based on registration date, not death occurrence date
-        - Most deaths registered within 5 days in Northern Ireland
-        - Weekly files are provisional and subject to revision
-        - Dimensions are NOT cross-tabulated in source data
-        - COVID-19/flu deaths are NOT broken down by age/sex in source
-        - Excess deaths calculated using multiple methodologies
+    Notes:
+    -----
+    - Based on registration date, not death occurrence date
+    - Most deaths registered within 5 days in Northern Ireland
+    - Weekly files are provisional and subject to revision
+    - Dimensions are NOT cross-tabulated in source data
+    - COVID-19/flu deaths are NOT broken down by age/sex in source
+    - Excess deaths calculated using multiple methodologies
 
-    \b
-    DIMENSIONS:
-        totals       - Weekly totals with COVID-19, flu/pneumonia, excess deaths
-        demographics - Age and sex breakdown (Total/Male/Female × age ranges)
-        geography    - Local Government Districts (11 LGDs)
-        place        - Place of death (Hospital, Home, Care Home, Hospice, Other)
-        all          - All dimensions (returns separate tables)
+    Dimensions
+    ----------
+    totals
+        Weekly totals with COVID-19, flu/pneumonia, excess deaths
+    demographics
+        Age and sex breakdown (Total/Male/Female × age ranges)
+    geography
+        Local Government Districts (11 LGDs)
+    place
+        Place of death (Hospital, Home, Care Home, Hospice, Other)
+    all
+        All dimensions (returns separate tables)
 
-    \b
-    SOURCE:
-        https://www.nisra.gov.uk/statistics/death-statistics/weekly-death-registrations-northern-ireland
+    Source
+    ------
+    https://www.nisra.gov.uk/statistics/death-statistics/weekly-death-registrations-northern-ireland
     """
     console = Console()
 
@@ -1428,7 +1427,7 @@ def nisra_deaths_cmd(latest, dimension, output_format, force_refresh, save):
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
         console.print("   • Visit NISRA website to verify data availability")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="labour-market")
@@ -1449,8 +1448,7 @@ def nisra_deaths_cmd(latest, dimension, output_format, force_refresh, save):
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
 def nisra_labour_market_cmd(latest, table, output_format, force_refresh, save):
-    """
-    NISRA Labour Force Survey Statistics
+    """NISRA Labour Force Survey Statistics.
 
     Retrieves Labour Force Survey (LFS) data for Northern Ireland including:
     - Employment by age band and sex (quarterly)
@@ -1460,65 +1458,75 @@ def nisra_labour_market_cmd(latest, table, output_format, force_refresh, save):
     The LFS is a sample survey of households providing labour force statistics using
     internationally agreed concepts and definitions.
 
-    \b
-    EXAMPLES:
-        # Get latest employment data by age and sex
+    Examples:
+    --------
+    Get latest employment data by age and sex::
+
         bolster nisra labour-market --latest --table employment
 
-        # Get economic inactivity time series (2012-2025)
+    Get economic inactivity time series (2012-2025)::
+
         bolster nisra labour-market --latest --table economic_inactivity
 
-        # Get employment by Local Government District (annual)
+    Get employment by Local Government District (annual)::
+
         bolster nisra labour-market --latest --table lgd
 
-        # Get all tables as JSON
+    Get all tables as JSON::
+
         bolster nisra labour-market --latest --table all --format json
 
-        # Save employment data to analyze age distribution
+    Save employment data to analyze age distribution::
+
         bolster nisra labour-market --latest --table employment --save employment.csv
 
-        # Force refresh cached data
+    Force refresh cached data::
+
         bolster nisra labour-market --latest --force-refresh
 
-    \b
-    DATA NOTES:
-        - Survey data with sampling variability (see NISRA notes on confidence intervals)
-        - Quarterly publications covering 3-month rolling periods
-        - Some estimates based on small samples (indicated by shading in source)
-        - Estimates <3 suppressed for disclosure control
-        - Not seasonally adjusted
-        - Working age: 16-64 for both males and females
+    Notes:
+    -----
+    - Survey data with sampling variability (see NISRA notes on confidence intervals)
+    - Quarterly publications covering 3-month rolling periods
+    - Some estimates based on small samples (indicated by shading in source)
+    - Estimates <3 suppressed for disclosure control
+    - Not seasonally adjusted
+    - Working age: 16-64 for both males and females
 
-    \b
-    TABLES:
-        employment          - Employment by age band and sex (Table 2.15)
-                             • Percentage distribution across age groups
-                             • Total employment numbers by sex
-                             • Quarterly snapshot data
+    Tables
+    ------
+    employment
+        Employment by age band and sex (Table 2.15)
+        • Percentage distribution across age groups
+        • Total employment numbers by sex
+        • Quarterly snapshot data
+    economic_inactivity
+        Economic inactivity by sex (Table 2.21)
+        • Numbers economically inactive by sex
+        • Economic inactivity rates (percentages)
+        • Historical time series (2012-2025 for same quarter)
+        • Allows year-over-year comparisons
+    lgd
+        Employment by Local Government District (Table 1.16a)
+        • Employment statistics for all 11 NI LGDs
+        • Population 16+, employment rates, economic activity
+        • Annual data only (published separately)
+    all
+        All quarterly tables (excludes LGD annual data)
 
-        economic_inactivity - Economic inactivity by sex (Table 2.21)
-                             • Numbers economically inactive by sex
-                             • Economic inactivity rates (percentages)
-                             • Historical time series (2012-2025 for same quarter)
-                             • Allows year-over-year comparisons
+    Definitions
+    -----------
+    Employed
+        Did ≥1 hour paid work in reference week, or has job temporarily away from
+    Unemployed
+        Not employed, actively seeking work, available to start within 2 weeks
+    Economically Inactive
+        Not employed and not seeking work (students, retired, caring for
+        family, long-term sick/disabled, discouraged workers, etc.)
 
-        lgd                 - Employment by Local Government District (Table 1.16a)
-                             • Employment statistics for all 11 NI LGDs
-                             • Population 16+, employment rates, economic activity
-                             • Annual data only (published separately)
-
-        all                 - All quarterly tables (excludes LGD annual data)
-
-    \b
-    DEFINITIONS:
-        Employed           - Did ≥1 hour paid work in reference week, or has job temporarily away from
-        Unemployed         - Not employed, actively seeking work, available to start within 2 weeks
-        Economically       - Not employed and not seeking work (students, retired, caring for
-        Inactive             family, long-term sick/disabled, discouraged workers, etc.)
-
-    \b
-    SOURCE:
-        https://www.nisra.gov.uk/statistics/labour-market-and-social-welfare
+    Source
+    ------
+    https://www.nisra.gov.uk/statistics/labour-market-and-social-welfare
     """
     console = Console()
 
@@ -1624,7 +1632,7 @@ def nisra_labour_market_cmd(latest, table, output_format, force_refresh, save):
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
         console.print("   • Visit NISRA website to verify data availability")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="births")
@@ -1645,8 +1653,7 @@ def nisra_labour_market_cmd(latest, table, output_format, force_refresh, save):
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
 def nisra_births_cmd(latest, event_type, output_format, force_refresh, save):
-    """
-    NISRA Monthly Birth Registrations Statistics
+    """NISRA Monthly Birth Registrations Statistics.
 
     Retrieves monthly birth registration data for Northern Ireland including:
     - Births by month of registration (when officially registered)
@@ -1656,60 +1663,68 @@ def nisra_births_cmd(latest, event_type, output_format, force_refresh, save):
     Birth registration data are based on mother's residence at time of birth.
     Most births are registered within 42 days in Northern Ireland.
 
-    \b
-    EXAMPLES:
-        # Get latest births by registration date
+    Examples:
+    --------
+    Get latest births by registration date::
+
         bolster nisra births --latest --event-type registration
 
-        # Get latest births by occurrence (actual birth date)
+    Get latest births by occurrence (actual birth date)::
+
         bolster nisra births --latest --event-type occurrence
 
-        # Get both registration and occurrence data
+    Get both registration and occurrence data::
+
         bolster nisra births --latest --event-type both
 
-        # Save registration data to file
+    Save registration data to file::
+
         bolster nisra births --latest --event-type registration --save births_reg.csv
 
-        # Get data as JSON
+    Get data as JSON::
+
         bolster nisra births --latest --event-type both --format json
 
-        # Force refresh cached data
+    Force refresh cached data::
+
         bolster nisra births --latest --force-refresh
 
-    \b
-    DATA NOTES:
-        - Monthly time series from 2006 to present
-        - Final data for years up to and including 2024
-        - Provisional and subject to change for current year
-        - Registration data lags occurrence data by ~1-2 months
-        - COVID-19 Note: April-May 2020 registration data disrupted by lockdown
-          (registration offices closed), but occurrence data remains normal
+    Notes:
+    -----
+    - Monthly time series from 2006 to present
+    - Final data for years up to and including 2024
+    - Provisional and subject to change for current year
+    - Registration data lags occurrence data by ~1-2 months
+    - COVID-19 Note: April-May 2020 registration data disrupted by lockdown
+      (registration offices closed), but occurrence data remains normal
 
-    \b
-    EVENT TYPES:
-        registration - Births by month they were officially registered
-                      • Reflects administrative processing dates
-                      • Can be affected by office closures (e.g., COVID-19)
-                      • Latest data may be 1-2 months more recent than occurrence
+    Event Types
+    -----------
+    registration
+        Births by month they were officially registered
+        • Reflects administrative processing dates
+        • Can be affected by office closures (e.g., COVID-19)
+        • Latest data may be 1-2 months more recent than occurrence
+    occurrence
+        Births by month they actually occurred
+        • Reflects actual birth dates
+        • More stable measure of birth patterns
+        • Limited to births already registered
+    both
+        Returns both registration and occurrence data
+        • Useful for comparing registration patterns vs birth patterns
+        • Helps identify registration delays/backlogs
 
-        occurrence   - Births by month they actually occurred
-                      • Reflects actual birth dates
-                      • More stable measure of birth patterns
-                      • Limited to births already registered
-
-        both         - Returns both registration and occurrence data
-                      • Useful for comparing registration patterns vs birth patterns
-                      • Helps identify registration delays/backlogs
-
-    \b
-    OUTPUT:
+    Returns:
+    -------
+    DataFrame
         - month: First day of month (datetime)
         - sex: Persons (total), Male, or Female
         - births: Number of births
 
-    \b
-    SOURCE:
-        https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/births
+    Source
+    ------
+    https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/births
     """
     console = Console()
 
@@ -1801,7 +1816,7 @@ def nisra_births_cmd(latest, event_type, output_format, force_refresh, save):
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
         console.print("   • Visit NISRA website to verify data availability")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="population")
@@ -1830,8 +1845,7 @@ def nisra_births_cmd(latest, event_type, output_format, force_refresh, save):
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
 def nisra_population_cmd(latest, area, year, output_format, force_refresh, save):
-    """
-    NISRA Mid-Year Population Estimates
+    """NISRA Mid-Year Population Estimates.
 
     Retrieves annual mid-year population estimates for Northern Ireland with breakdowns by:
     - Geography (NI overall, Parliamentary Constituencies, Health and Social Care Trusts)
@@ -1841,48 +1855,55 @@ def nisra_population_cmd(latest, area, year, output_format, force_refresh, save)
 
     Mid-year estimates are referenced to June 30th of each year.
 
-    \b
-    EXAMPLES:
-        # Get latest NI overall population
+    Examples:
+    --------
+    Get latest NI overall population::
+
         bolster nisra population --latest
 
-        # Get all geographic areas
+    Get all geographic areas::
+
         bolster nisra population --latest --area all
 
-        # Get specific year
+    Get specific year::
+
         bolster nisra population --latest --year 2024
 
-        # Get Parliamentary Constituencies
+    Get Parliamentary Constituencies::
+
         bolster nisra population --latest --area "Parliamentary Constituencies (2024)"
 
-        # Save to file
+    Save to file::
+
         bolster nisra population --latest --save population.csv
 
-        # Get as JSON
+    Get as JSON::
+
         bolster nisra population --latest --format json
 
-    \b
-    DATA NOTES:
-        - Published annually ~6 months after reference date
-        - Reference date: June 30th of each year
-        - Historical data for NI overall from 1971
-        - Sub-geography data from 2021 onwards
-        - Age bands: 5-year groups (00-04, 05-09, ..., 85-89, 90+)
-        - Also includes custom age bands and broad age groups
+    Notes:
+    -----
+    - Published annually ~6 months after reference date
+    - Reference date: June 30th of each year
+    - Historical data for NI overall from 1971
+    - Sub-geography data from 2021 onwards
+    - Age bands: 5-year groups (00-04, 05-09, ..., 85-89, 90+)
+    - Also includes custom age bands and broad age groups
 
-    \b
-    GEOGRAPHIC AREAS:
-        Northern Ireland          - NI overall (1971-present)
-        Parliamentary             - 2024 parliamentary constituencies (2021-present)
-        Constituencies (2024)
+    Geographic Areas
+    ----------------
+    Northern Ireland
+        NI overall (1971-present)
+    Parliamentary Constituencies (2024)
+        2024 parliamentary constituencies (2021-present)
+    Health and Social Care Trusts
+        Health & Social Care Trusts (2021-present)
+    all
+        All geographic breakdowns
 
-        Health and Social         - Health & Social Care Trusts (2021-present)
-        Care Trusts
-
-        all                       - All geographic breakdowns
-
-    \b
-    OUTPUT:
+    Returns:
+    -------
+    DataFrame
         - area, area_code, area_name: Geographic identifiers
         - year: Reference year (mid-year estimate as of June 30th)
         - sex: All persons, Males, or Females
@@ -1890,9 +1911,9 @@ def nisra_population_cmd(latest, area, year, output_format, force_refresh, save)
         - age_band, age_broad: Alternative age groupings
         - population: Mid-year estimate
 
-    \b
-    SOURCE:
-        https://www.nisra.gov.uk/statistics/people-and-communities/population
+    Source
+    ------
+    https://www.nisra.gov.uk/statistics/people-and-communities/population
     """
     console = Console()
 
@@ -1955,7 +1976,7 @@ def nisra_population_cmd(latest, area, year, output_format, force_refresh, save)
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
         console.print("   • Visit NISRA website to verify data availability")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="marriages")
@@ -1971,8 +1992,7 @@ def nisra_population_cmd(latest, area, year, output_format, force_refresh, save)
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
 def nisra_marriages_cmd(latest, year, output_format, force_refresh, save):
-    """
-    NISRA Monthly Marriage Registrations Statistics
+    """NISRA Monthly Marriage Registrations Statistics.
 
     Retrieves monthly marriage registration data for Northern Ireland.
 
@@ -1980,48 +2000,54 @@ def nisra_marriages_cmd(latest, year, output_format, force_refresh, save):
     ceremony occurred. The data is published monthly with provisional figures for the
     current year and final figures for previous years.
 
-    \b
-    EXAMPLES:
-        # Get latest marriages data
+    Examples:
+    --------
+    Get latest marriages data::
+
         bolster nisra marriages --latest
 
-        # Filter for a specific year
+    Filter for a specific year::
+
         bolster nisra marriages --latest --year 2024
 
-        # Save to file
+    Save to file::
+
         bolster nisra marriages --latest --save marriages.csv
 
-        # Get data as JSON
+    Get data as JSON::
+
         bolster nisra marriages --latest --format json
 
-        # Force refresh cached data
+    Force refresh cached data::
+
         bolster nisra marriages --latest --force-refresh
 
-    \b
-    DATA NOTES:
-        - Monthly time series from 2006 to present
-        - Final data for years up to and including 2024
-        - Provisional and subject to change for current year
-        - COVID-19 Note: 2020 shows dramatic impact on marriages
-          (April: 14, May: 4 marriages during strict lockdown)
+    Notes:
+    -----
+    - Monthly time series from 2006 to present
+    - Final data for years up to and including 2024
+    - Provisional and subject to change for current year
+    - COVID-19 Note: 2020 shows dramatic impact on marriages
+      (April: 14, May: 4 marriages during strict lockdown)
 
-    \b
-    SEASONAL PATTERNS:
-        Summer months (June-September) are peak wedding season:
-        • August typically has the highest number of marriages
-        • June-September account for ~40% of annual marriages
-        • January-February typically have the lowest numbers
+    Seasonal Patterns
+    -----------------
+    Summer months (June-September) are peak wedding season:
+    • August typically has the highest number of marriages
+    • June-September account for ~40% of annual marriages
+    • January-February typically have the lowest numbers
 
-    \b
-    OUTPUT:
+    Returns:
+    -------
+    DataFrame
         - date: First day of month (datetime)
         - year: Year of registration
         - month: Month name
         - marriages: Number of marriage registrations
 
-    \b
-    SOURCE:
-        https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/marriages
+    Source
+    ------
+    https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/marriages
     """
     console = Console()
 
@@ -2093,7 +2119,7 @@ def nisra_marriages_cmd(latest, year, output_format, force_refresh, save):
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
         console.print("   • Visit NISRA website to verify data availability")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="civil-partnerships")
@@ -2110,8 +2136,7 @@ def nisra_marriages_cmd(latest, year, output_format, force_refresh, save):
 @click.option("--save", help="Save data to file (specify filename)")
 @click.option("--summary", is_flag=True, help="Show summary statistics only")
 def nisra_civil_partnerships_cmd(latest, year, output_format, force_refresh, save, summary):
-    """
-    NISRA Monthly Civil Partnership Registrations Statistics
+    """NISRA Monthly Civil Partnership Registrations Statistics.
 
     Retrieves monthly civil partnership registration data for Northern Ireland.
 
@@ -2119,37 +2144,38 @@ def nisra_civil_partnerships_cmd(latest, year, output_format, force_refresh, sav
     The data is published monthly with provisional figures for the current year
     and final figures for previous years.
 
-    \b
-    EXAMPLES:
-        # Get latest civil partnerships data
-        bolster nisra civil-partnerships --latest
+    Examples:
+        Get latest civil partnerships data::
 
-        # Filter for a specific year
-        bolster nisra civil-partnerships --latest --year 2024
+            bolster nisra civil-partnerships --latest
 
-        # Show annual summary
-        bolster nisra civil-partnerships --latest --summary
+        Filter for a specific year::
 
-        # Save to file
-        bolster nisra civil-partnerships --latest --save civil_partnerships.csv
+            bolster nisra civil-partnerships --latest --year 2024
 
-    \b
-    DATA NOTES:
+        Show annual summary::
+
+            bolster nisra civil-partnerships --latest --summary
+
+        Save to file::
+
+            bolster nisra civil-partnerships --latest --save civil_partnerships.csv
+
+    Data Notes:
         - Monthly time series from 2006 to present
         - Typically 80-120 civil partnerships per year
         - Numbers generally lower than marriages (5-10 per month average)
         - COVID-19 Note: 2020-2021 shows reduced registrations
 
-    \b
-    OUTPUT:
-        - date: First day of month (datetime)
-        - year: Year of registration
-        - month: Month name
-        - civil_partnerships: Number of civil partnership registrations
+    Returns:
+        DataFrame with columns:
+            - date: First day of month (datetime)
+            - year: Year of registration
+            - month: Month name
+            - civil_partnerships: Number of civil partnership registrations
 
-    \b
-    SOURCE:
-        https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/civil-partnerships
+    Note:
+        Source: https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/civil-partnerships
     """
     console = Console()
 
@@ -2229,7 +2255,7 @@ def nisra_civil_partnerships_cmd(latest, year, output_format, force_refresh, sav
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
         console.print("   • Visit NISRA website to verify data availability")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="occupancy")
@@ -2259,85 +2285,90 @@ def nisra_civil_partnerships_cmd(latest, year, output_format, force_refresh, sav
 @click.option("--summary", is_flag=True, help="Show summary statistics only")
 @click.option("--compare", is_flag=True, help="Compare hotel vs SSA occupancy by year")
 def nisra_occupancy_cmd(latest, year, accommodation, data_type, output_format, force_refresh, save, summary, compare):
-    """
-    NISRA Monthly Accommodation Occupancy Statistics
+    """NISRA Monthly Accommodation Occupancy Statistics.
 
     Retrieves monthly occupancy data for Northern Ireland from the Tourism
     Statistics Branch. Supports both hotel and SSA (Small Service Accommodation
     - B&Bs, guest houses) data.
 
-    \b
-    ACCOMMODATION TYPES:
-        hotel     - Hotels (2011-present, ~65% avg occupancy)
-        ssa       - Small Service Accommodation: B&Bs, guest houses (2013-present, ~33% avg)
-        combined  - Both types with accommodation_type column
+    Parameters
+    ----------
+    accommodation : str
+        hotel : Hotels (2011-present, ~65% avg occupancy)
+        ssa : Small Service Accommodation: B&Bs, guest houses (2013-present, ~33% avg)
+        combined : Both types with accommodation_type column
+    data_type : str
+        rates : Room and bed occupancy rates (0-1 scale)
+        sold : Number of rooms and beds sold monthly
 
-    \b
-    DATA TYPES:
-        rates  - Room and bed occupancy rates (0-1 scale)
-        sold   - Number of rooms and beds sold monthly
+    Examples:
+    --------
+    Get latest hotel occupancy rates (default)::
 
-    \b
-    EXAMPLES:
-        # Get latest hotel occupancy rates (default)
         bolster nisra occupancy --latest
 
-        # Get SSA (B&B/guest house) occupancy
+    Get SSA (B&B/guest house) occupancy::
+
         bolster nisra occupancy --latest --accommodation ssa
 
-        # Get combined data with accommodation type
+    Get combined data with accommodation type::
+
         bolster nisra occupancy --latest --accommodation combined
 
-        # Compare hotel vs SSA by year
+    Compare hotel vs SSA by year::
+
         bolster nisra occupancy --compare
 
-        # Get rooms/beds sold data
+    Get rooms/beds sold data::
+
         bolster nisra occupancy --latest --data-type sold
 
-        # Filter for a specific year
+    Filter for a specific year::
+
         bolster nisra occupancy --latest --year 2024
 
-        # Show summary by year
+    Show summary by year::
+
         bolster nisra occupancy --latest --summary
 
-        # Save to file
+    Save to file::
+
         bolster nisra occupancy --latest --save occupancy.csv
 
-    \b
-    DATA NOTES:
-        - Hotel data: 2011-present (~65% average room occupancy)
-        - SSA data: 2013-present (~33% average room occupancy)
-        - Room occupancy is typically higher than bed occupancy
-        - COVID-19 Note: 2020-2021 shows dramatic impact on tourism
-          (all accommodation closed March-July 2020, Oct-Dec 2020, Jan-May 2021)
+    Notes:
+    -----
+    - Hotel data: 2011-present (~65% average room occupancy)
+    - SSA data: 2013-present (~33% average room occupancy)
+    - Room occupancy is typically higher than bed occupancy
+    - COVID-19 Note: 2020-2021 shows dramatic impact on tourism
+      (all accommodation closed March-July 2020, Oct-Dec 2020, Jan-May 2021)
 
-    \b
-    SEASONAL PATTERNS:
-        Summer months (June-September) are peak tourism season:
-        - August typically has the highest occupancy (~80% hotel, ~55% SSA)
-        - July-September are consistently strong
-        - January-February typically have the lowest occupancy
+    Seasonal Patterns
+    -----------------
+    Summer months (June-September) are peak tourism season:
+    - August typically has the highest occupancy (~80% hotel, ~55% SSA)
+    - July-September are consistently strong
+    - January-February typically have the lowest occupancy
 
-    \b
-    OUTPUT (rates):
+    Returns:
+    -------
+    DataFrame (rates)
         - date: First day of month (datetime)
         - year: Year
         - month: Month name
         - room_occupancy: Room occupancy rate (0-1)
         - bed_occupancy: Bed occupancy rate (0-1)
         - accommodation_type: (combined only) 'hotel' or 'ssa'
-
-    \b
-    OUTPUT (sold):
+    DataFrame (sold)
         - date: First day of month (datetime)
         - year: Year
         - month: Month name
         - rooms_sold: Number of rooms sold
         - beds_sold: Number of beds sold
 
-    \b
-    SOURCE:
-        https://www.nisra.gov.uk/statistics/tourism/occupancy-surveys
+    Source
+    ------
+    https://www.nisra.gov.uk/statistics/tourism/occupancy-surveys
     """
     console = Console()
 
@@ -2506,7 +2537,7 @@ def nisra_occupancy_cmd(latest, year, accommodation, data_type, output_format, f
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
         console.print("   • Visit NISRA website to verify data availability")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="visitors")
@@ -2532,51 +2563,60 @@ def nisra_occupancy_cmd(latest, year, accommodation, data_type, output_format, f
 @click.option("--summary", is_flag=True, help="Show market summary with derived metrics")
 @click.option("--compare", is_flag=True, help="Compare domestic vs external visitors")
 def nisra_visitors_cmd(latest, market, output_format, force_refresh, save, summary, compare):
-    """
-    NISRA Quarterly Visitor Statistics (Trips, Nights, Expenditure)
+    """NISRA Quarterly Visitor Statistics (Trips, Nights, Expenditure).
 
     Retrieves quarterly visitor statistics for Northern Ireland from NISRA,
     showing overnight trips, nights spent, and visitor expenditure by market origin.
 
-    \b
-    MARKETS:
-        gb           - Great Britain (largest external market)
-        europe       - Other Europe (excluding GB and ROI)
-        north-america - North America (USA and Canada)
-        overseas     - Other overseas (Asia, Oceania, etc.)
-        roi          - Republic of Ireland
-        ni           - NI Residents (domestic tourism)
-        total        - All markets combined
-        all          - Show all markets (default)
+    Args:
+        latest: Get the most recent visitor statistics data
+        market: Filter by visitor market (gb, europe, north-america, overseas, roi, ni, total, all)
+        output_format: Output format (csv or json)
+        force_refresh: Force re-download even if cached
+        save: Save data to file (specify filename)
+        summary: Show summary statistics only
+        compare: Compare domestic vs external visitors
 
-    \b
-    EXAMPLES:
-        # Get latest visitor statistics
-        bolster nisra visitors --latest
+    Markets:
+        * gb - Great Britain (largest external market)
+        * europe - Other Europe (excluding GB and ROI)
+        * north-america - North America (USA and Canada)
+        * overseas - Other overseas (Asia, Oceania, etc.)
+        * roi - Republic of Ireland
+        * ni - NI Residents (domestic tourism)
+        * total - All markets combined
+        * all - Show all markets (default)
 
-        # Show market summary with per-trip metrics
-        bolster nisra visitors --latest --summary
+    Examples:
+        Get latest visitor statistics::
 
-        # Compare domestic vs external visitors
-        bolster nisra visitors --latest --compare
+            bolster nisra visitors --latest
 
-        # Get Great Britain visitors only
-        bolster nisra visitors --latest --market gb
+        Show market summary with per-trip metrics::
 
-        # Save to file
-        bolster nisra visitors --latest --save visitors.csv
+            bolster nisra visitors --latest --summary
 
-    \b
-    DATA INSIGHTS:
+        Compare domestic vs external visitors::
+
+            bolster nisra visitors --latest --compare
+
+        Get Great Britain visitors only::
+
+            bolster nisra visitors --latest --market gb
+
+        Save to file::
+
+            bolster nisra visitors --latest --save visitors.csv
+
+    Data Insights:
         - GB is typically the largest external market (~30% of trips, ~38% of spend)
         - ROI visitors growing rapidly (up 32% trips, 68% spend YoY in 2025)
         - NI residents account for ~31% of trips but only ~17% of expenditure
         - External visitors spend 2-4x more per trip than NI residents
         - "Other Overseas" (long-haul) has highest spend per trip (~£540)
 
-    \b
-    DATA SOURCE:
-        https://www.nisra.gov.uk/publications/quarterly-tourism-statistics-publications
+    Note:
+        Source: https://www.nisra.gov.uk/publications/quarterly-tourism-statistics-publications
     """
     from rich.console import Console
     from rich.table import Table
@@ -2719,7 +2759,7 @@ def nisra_visitors_cmd(latest, market, output_format, force_refresh, save, summa
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
         console.print("   • Visit NISRA website to verify data availability")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="migration")
@@ -2738,8 +2778,7 @@ def nisra_visitors_cmd(latest, market, output_format, force_refresh, save, summa
 @click.option("--save", help="Save data to file (specify filename)")
 @click.option("--summary", is_flag=True, help="Show summary statistics only")
 def nisra_migration_cmd(latest, year, start_year, end_year, output_format, force_refresh, save, summary):
-    """
-    NISRA Migration Estimates (Derived from Demographic Components)
+    """NISRA Migration Estimates (Derived from Demographic Components).
 
     Calculates net migration using the demographic accounting equation:
         Net Migration = Population Change - Natural Change
@@ -2752,57 +2791,69 @@ def nisra_migration_cmd(latest, year, start_year, end_year, output_format, force
 
     The demographic equation must hold: Pop(t+1) = Pop(t) + Births - Deaths + Migration
 
-    \b
-    EXAMPLES:
-        # Get all migration data
-        bolster nisra migration --latest
+    Args:
+        latest: Get the most recent migration data
+        year: Filter data for specific year
+        start_year: Start year for data range
+        end_year: End year for data range
+        output_format: Output format (csv or json)
+        force_refresh: Force re-download even if cached
+        save: Save data to file (specify filename)
+        summary: Show summary statistics only
 
-        # Filter for specific year
-        bolster nisra migration --latest --year 2024
+    Examples:
+        Get all migration data::
 
-        # Show summary statistics for 2010-2024
-        bolster nisra migration --latest --start-year 2010 --summary
+            bolster nisra migration --latest
 
-        # Save to file
-        bolster nisra migration --latest --save migration.csv
+        Filter for specific year::
 
-        # Get data as JSON
-        bolster nisra migration --latest --format json
+            bolster nisra migration --latest --year 2024
 
-        # Force refresh all source data
-        bolster nisra migration --latest --force-refresh
+        Show summary statistics for 2010-2024::
 
-    \b
-    DATA NOTES:
+            bolster nisra migration --latest --start-year 2010 --summary
+
+        Save to file::
+
+            bolster nisra migration --latest --save migration.csv
+
+        Get data as JSON::
+
+            bolster nisra migration --latest --format json
+
+        Force refresh all source data::
+
+            bolster nisra migration --latest --force-refresh
+
+    Data Notes:
         - Coverage: 2011-2024 (limited by historical deaths data)
         - Derived migration includes net effect of international and internal migration
         - Also captures measurement error and timing differences between sources
         - Demographic equation validated for all years (ΔPop = Births - Deaths + Migration)
 
-    \b
-    KEY FINDINGS:
+    Key Findings:
         - 2023: Highest net immigration (+7,225)
         - 2024: Strong immigration continues (+6,107)
         - 2013: Highest net emigration (-2,124)
         - Average 2011-2024: +2,082 per year
         - 9 years with net immigration, 5 with net emigration
 
-    \b
-    OUTPUT:
-        - year: Year
-        - population_start, population_end: Mid-year population estimates
-        - births, deaths: Annual totals
-        - natural_change: Births - Deaths
-        - population_change: Year-over-year change
-        - net_migration: Derived migration estimate
-        - migration_rate: Per 1,000 population
+    Returns:
+        DataFrame with columns:
+            - year: Year
+            - population_start, population_end: Mid-year population estimates
+            - births, deaths: Annual totals
+            - natural_change: Births - Deaths
+            - population_change: Year-over-year change
+            - net_migration: Derived migration estimate
+            - migration_rate: Per 1,000 population
 
-    \b
-    SOURCE:
+    Note:
         Combines three NISRA data sources:
-        - Population: https://www.nisra.gov.uk/statistics/people-and-communities/population
-        - Births: https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/births
-        - Deaths: https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/deaths
+            - Population: https://www.nisra.gov.uk/statistics/people-and-communities/population
+            - Births: https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/births
+            - Deaths: https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/deaths
     """
     console = Console()
 
@@ -2885,7 +2936,7 @@ def nisra_migration_cmd(latest, year, start_year, end_year, output_format, force
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
         console.print("   • Ensure births, deaths, and population data are available")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="index-of-services")
@@ -2908,57 +2959,68 @@ def nisra_migration_cmd(latest, year, start_year, end_year, output_format, force
 def nisra_index_of_services_cmd(
     latest, year, quarter, start_year, end_year, output_format, force_refresh, save, summary, growth
 ):
-    """
-    NISRA Index of Services (IOS) - Quarterly Economic Indicator
+    """NISRA Index of Services (IOS) - Quarterly Economic Indicator.
 
     Measures output in Northern Ireland's services sector, including business services,
     wholesale/retail trade, transport, and other services. Seasonally adjusted quarterly
     data from Q1 2005 to present.
 
-    \b
-    EXAMPLES:
-        # Get all Index of Services data
-        bolster nisra index-of-services --latest
+    Args:
+        latest: Get latest data only
+        year: Filter by specific year
+        quarter: Filter by specific quarter (Q1, Q2, Q3, Q4)
+        start_year: Start year for filtering
+        end_year: End year for filtering
+        output_format: Output format (csv or json)
+        force_refresh: Force re-download even if cached
+        save: Save data to file (specify filename)
+        summary: Show summary statistics only
+        growth: Include year-on-year growth rates
 
-        # Filter for specific year
-        bolster nisra index-of-services --latest --year 2024
+    Examples:
+        Get all Index of Services data::
 
-        # Get specific quarter
-        bolster nisra index-of-services --latest --year 2025 --quarter Q3
+            bolster nisra index-of-services --latest
 
-        # Show summary statistics for 2020-2025
-        bolster nisra index-of-services --latest --start-year 2020 --summary
+        Filter for specific year::
 
-        # Include year-on-year growth rates
-        bolster nisra index-of-services --latest --growth
+            bolster nisra index-of-services --latest --year 2024
 
-        # Save to file
-        bolster nisra index-of-services --latest --save ios.csv
+        Get specific quarter::
 
-        # Force refresh data
-        bolster nisra index-of-services --latest --force-refresh
+            bolster nisra index-of-services --latest --year 2025 --quarter Q3
 
-    \b
-    DATA NOTES:
+        Show summary statistics for 2020-2025::
+
+            bolster nisra index-of-services --latest --start-year 2020 --summary
+
+        Include year-on-year growth rates::
+
+            bolster nisra index-of-services --latest --growth
+
+        Save to file::
+
+            bolster nisra index-of-services --latest --save ios.csv
+
+    Data Notes:
         - Coverage: Q1 2005 - Q3 2025 (quarterly)
         - Seasonally adjusted values
         - Index values (100 = base period)
         - Includes NI and UK comparator data
         - Published ~3 months after quarter end
 
-    \b
-    OUTPUT:
-        - date: First day of quarter
-        - quarter: Quarter code (Q1, Q2, Q3, Q4)
-        - year: Year
-        - ni_index: Northern Ireland services index value
-        - uk_index: UK services index value
-        - ni_growth_rate: YoY % change (if --growth specified)
-        - uk_growth_rate: YoY % change (if --growth specified)
+    Returns:
+        DataFrame with columns:
+            - date: First day of quarter
+            - quarter: Quarter code (Q1, Q2, Q3, Q4)
+            - year: Year
+            - ni_index: Northern Ireland services index value
+            - uk_index: UK services index value
+            - ni_growth_rate: YoY % change (if --growth specified)
+            - uk_growth_rate: YoY % change (if --growth specified)
 
-    \b
-    SOURCE:
-        NISRA Economic & Labour Market Statistics Branch
+    Note:
+        Source: NISRA Economic & Labour Market Statistics Branch
         https://www.nisra.gov.uk/statistics/economic-output/index-services
     """
     console = Console()
@@ -3033,7 +3095,7 @@ def nisra_index_of_services_cmd(
         console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="index-of-production")
@@ -3056,53 +3118,67 @@ def nisra_index_of_services_cmd(
 def nisra_index_of_production_cmd(
     latest, year, quarter, start_year, end_year, output_format, force_refresh, save, summary, growth
 ):
-    """
-    NISRA Index of Production (IOP) - Quarterly Economic Indicator
+    """NISRA Index of Production (IOP) - Quarterly Economic Indicator.
 
     Measures output in Northern Ireland's production industries, including manufacturing,
     mining, and utilities. Seasonally adjusted quarterly data from Q1 2005 to present.
 
-    \b
-    EXAMPLES:
-        # Get all Index of Production data
-        bolster nisra index-of-production --latest
+    Args:
+        latest: Get the most recent Index of Production data
+        year: Filter data for specific year
+        quarter: Filter data for specific quarter (e.g., 'Q1', 'Q2')
+        start_year: Start year for summary statistics
+        end_year: End year for summary statistics
+        output_format: Output format (csv or json)
+        force_refresh: Force re-download even if cached
+        save: Save data to file (specify filename)
+        summary: Show summary statistics only
+        growth: Include year-on-year growth rates
 
-        # Filter for specific year
-        bolster nisra index-of-production --latest --year 2024
+    Examples:
+        Get all Index of Production data::
 
-        # Get specific quarter
-        bolster nisra index-of-production --latest --year 2025 --quarter Q3
+            bolster nisra index-of-production --latest
 
-        # Show summary statistics
-        bolster nisra index-of-production --latest --start-year 2020 --summary
+        Filter for specific year::
 
-        # Include growth rates
-        bolster nisra index-of-production --latest --growth
+            bolster nisra index-of-production --latest --year 2024
 
-        # Save as JSON
-        bolster nisra index-of-production --latest --format json --save iop.json
+        Get specific quarter::
 
-    \b
-    DATA NOTES:
+            bolster nisra index-of-production --latest --year 2025 --quarter Q3
+
+        Show summary statistics::
+
+            bolster nisra index-of-production --latest --start-year 2020 --summary
+
+        Include growth rates::
+
+            bolster nisra index-of-production --latest --growth
+
+        Save as JSON::
+
+            bolster nisra index-of-production --latest --format json --save iop.json
+
+    Data Notes:
         - Coverage: Q1 2005 - Q3 2025 (quarterly)
         - Seasonally adjusted values
         - Index values (100 = base period)
         - Includes NI and UK comparator data
         - Production industries have faced long-term challenges
 
-    \b
-    OUTPUT:
-        - date: First day of quarter
-        - quarter: Quarter code (Q1, Q2, Q3, Q4)
-        - year: Year
-        - ni_index: Northern Ireland production index value
-        - uk_index: UK production index value
-        - ni_growth_rate: YoY % change (if --growth specified)
-        - uk_growth_rate: YoY % change (if --growth specified)
+    Returns:
+        DataFrame with columns:
+            - date: First day of quarter
+            - quarter: Quarter code (Q1, Q2, Q3, Q4)
+            - year: Year
+            - ni_index: Northern Ireland production index value
+            - uk_index: UK production index value
+            - ni_growth_rate: YoY % change (if --growth specified)
+            - uk_growth_rate: YoY % change (if --growth specified)
 
-    \b
-    SOURCE:
-        NISRA Economic & Labour Market Statistics Branch
+    Note:
+        Source: NISRA Economic & Labour Market Statistics Branch
         https://www.nisra.gov.uk/statistics/economic-output/index-production
     """
     console = Console()
@@ -3177,7 +3253,7 @@ def nisra_index_of_production_cmd(
         console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="construction-output")
@@ -3200,38 +3276,50 @@ def nisra_index_of_production_cmd(
 def nisra_construction_output_cmd(
     latest, year, quarter, start_year, end_year, output_format, force_refresh, save, summary, growth
 ):
-    """
-    NISRA Construction Output Statistics - Quarterly Economic Indicator
+    """NISRA Construction Output Statistics - Quarterly Economic Indicator.
 
     Measures volume and value of construction output in Northern Ireland across
     all work, new work, and repair & maintenance. Chained volume measure data
     (base year 2022=100) from Q2 2000 to present.
 
-    \b
-    EXAMPLES:
-        # Get all Construction Output data
-        bolster nisra construction-output --latest
+    Args:
+        latest: Get the most recent Construction Output data
+        year: Filter data for specific year
+        quarter: Filter data for specific quarter (e.g., 'Q1', 'Q2')
+        start_year: Start year for summary statistics
+        end_year: End year for summary statistics
+        output_format: Output format (csv or json)
+        force_refresh: Force re-download even if cached
+        save: Save data to file (specify filename)
+        summary: Show summary statistics only
+        growth: Include year-on-year growth rates
 
-        # Filter for specific year
-        bolster nisra construction-output --latest --year 2024
+    Examples:
+        Get all Construction Output data::
 
-        # Get specific quarter
-        bolster nisra construction-output --latest --year 2025 --quarter Q2
+            bolster nisra construction-output --latest
 
-        # Show summary statistics for 2020-2025
-        bolster nisra construction-output --latest --start-year 2020 --summary
+        Filter for specific year::
 
-        # Include year-on-year growth rates
-        bolster nisra construction-output --latest --growth
+            bolster nisra construction-output --latest --year 2024
 
-        # Save to file
-        bolster nisra construction-output --latest --save construction.csv
+        Get specific quarter::
 
-        # Force refresh data
-        bolster nisra construction-output --latest --force-refresh
+            bolster nisra construction-output --latest --year 2025 --quarter Q2
 
-    \b
-    DATA NOTES:
+        Show summary statistics for 2020-2025::
+
+            bolster nisra construction-output --latest --start-year 2020 --summary
+
+        Include year-on-year growth rates::
+
+            bolster nisra construction-output --latest --growth
+
+        Save to file::
+
+            bolster nisra construction-output --latest --save construction.csv
+
+    Data Notes:
         - Coverage: Q2 2000 - Q2 2025 (quarterly)
         - Base year: 2022 = 100 (chained volume measure)
         - All Work: Non-seasonally adjusted (NSA)
@@ -3239,19 +3327,18 @@ def nisra_construction_output_cmd(
         - Repair & Maintenance: Seasonally adjusted (SA)
         - Published ~3 months after quarter end
 
-    \b
-    OUTPUT:
-        - date: First day of quarter
-        - quarter: Quarter code (Q1, Q2, Q3, Q4)
-        - year: Year
-        - all_work_index: Total construction output index (NSA)
-        - new_work_index: New construction work index (NSA)
-        - repair_maintenance_index: Repair & maintenance index (SA)
-        - *_yoy_growth: YoY % change (if --growth specified)
+    Returns:
+        DataFrame with columns:
+            - date: First day of quarter
+            - quarter: Quarter code (Q1, Q2, Q3, Q4)
+            - year: Year
+            - all_work_index: Total construction output index (NSA)
+            - new_work_index: New construction work index (NSA)
+            - repair_maintenance_index: Repair & maintenance index (SA)
+            - *_yoy_growth: YoY % change (if --growth specified)
 
-    \b
-    SOURCE:
-        NISRA Economic & Labour Market Statistics Branch
+    Note:
+        Source: NISRA Economic & Labour Market Statistics Branch
         https://www.nisra.gov.uk/statistics/economic-output/construction-output-statistics
     """
     console = Console()
@@ -3329,7 +3416,7 @@ def nisra_construction_output_cmd(
         console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="ashe")
@@ -3363,47 +3450,61 @@ def nisra_construction_output_cmd(
 @click.option("--save", help="Save data to file (specify filename)")
 @click.option("--growth", is_flag=True, help="Include year-on-year growth rates (timeseries only)")
 def nisra_ashe_cmd(latest, metric, dimension, basis, year, output_format, force_refresh, save, growth):
-    """
-    NISRA Annual Survey of Hours and Earnings (ASHE) - Employee Earnings Statistics
+    """NISRA Annual Survey of Hours and Earnings (ASHE) - Employee Earnings Statistics.
 
     Annual survey measuring employee earnings in Northern Ireland across multiple dimensions
     including employment type, sector, geography, occupation, and industry. Data from April
     of each year, published in October.
 
-    \b
-    EXAMPLES:
-        # Get weekly earnings timeseries (1997-2025)
-        bolster nisra ashe --latest
+    Args:
+        latest: Get the most recent ASHE data
+        metric: Type of earnings metric (weekly, hourly, or annual)
+        dimension: Data dimension to retrieve (timeseries, geography, or sector)
+        basis: Geographic basis (workplace or residence, for geography dimension only)
+        year: Filter data for specific year
+        output_format: Output format (csv or json)
+        force_refresh: Force re-download even if cached
+        save: Save data to file (specify filename)
+        growth: Include year-on-year growth rates (timeseries only)
 
-        # Get hourly earnings timeseries
-        bolster nisra ashe --latest --metric hourly
+    Examples:
+        Get weekly earnings timeseries (1997-2025)::
 
-        # Get annual earnings timeseries
-        bolster nisra ashe --latest --metric annual
+            bolster nisra ashe --latest
 
-        # Get geographic earnings by workplace
-        bolster nisra ashe --latest --dimension geography
+        Get hourly earnings timeseries::
 
-        # Get geographic earnings by residence
-        bolster nisra ashe --latest --dimension geography --basis residence
+            bolster nisra ashe --latest --metric hourly
 
-        # Get public vs private sector comparison
-        bolster nisra ashe --latest --dimension sector
+        Get annual earnings timeseries::
 
-        # Include year-on-year growth rates
-        bolster nisra ashe --latest --growth
+            bolster nisra ashe --latest --metric annual
 
-        # Filter for specific year
-        bolster nisra ashe --latest --year 2025
+        Get geographic earnings by workplace::
 
-        # Save to file
-        bolster nisra ashe --latest --save earnings.csv --format csv
+            bolster nisra ashe --latest --dimension geography
 
-        # Force refresh data
-        bolster nisra ashe --latest --force-refresh
+        Get geographic earnings by residence::
 
-    \b
-    DATA NOTES:
+            bolster nisra ashe --latest --dimension geography --basis residence
+
+        Get public vs private sector comparison::
+
+            bolster nisra ashe --latest --dimension sector
+
+        Include year-on-year growth rates::
+
+            bolster nisra ashe --latest --growth
+
+        Filter for specific year::
+
+            bolster nisra ashe --latest --year 2025
+
+        Save to file::
+
+            bolster nisra ashe --latest --save earnings.csv --format csv
+
+    Data Notes:
         - Coverage: April 1997 - 2025 (annual, timeseries)
         - Annual earnings: 1999 - 2025
         - Sector breakdown: 2005 - 2025
@@ -3411,42 +3512,39 @@ def nisra_ashe_cmd(latest, metric, dimension, basis, year, output_format, force_
         - Published: October each year
         - Base: Employee jobs in Northern Ireland (not self-employed)
 
-    \b
-    METRICS:
+    Metrics:
         - weekly: Median gross weekly earnings (£)
         - hourly: Median hourly earnings excluding overtime (£)
         - annual: Median annual earnings (£)
 
-    \b
-    DIMENSIONS:
+    Dimensions:
         - timeseries: Historical trends by work pattern (Full-time/Part-time/All)
         - geography: Earnings by 11 Local Government Districts
         - sector: Public vs Private sector comparison (NI & UK)
 
-    \b
-    OUTPUT (timeseries):
-        - year: Year
-        - work_pattern: Full-time, Part-time, or All
-        - median_*_earnings: Median earnings (£)
-        - earnings_yoy_growth: YoY % change (if --growth specified)
+    Returns:
+        DataFrame with different columns depending on dimension:
 
-    \b
-    OUTPUT (geography):
-        - year: Year
-        - lgd: Local Government District name
-        - basis: workplace or residence
-        - median_weekly_earnings: Median weekly earnings (£)
+        Timeseries:
+            - year: Year
+            - work_pattern: Full-time, Part-time, or All
+            - median_*_earnings: Median earnings (£)
+            - earnings_yoy_growth: YoY % change (if --growth specified)
 
-    \b
-    OUTPUT (sector):
-        - year: Year
-        - location: Northern Ireland or United Kingdom
-        - sector: Public or Private
-        - median_weekly_earnings: Median weekly earnings (£)
+        Geography:
+            - year: Year
+            - lgd: Local Government District name
+            - basis: workplace or residence
+            - median_weekly_earnings: Median weekly earnings (£)
 
-    \b
-    SOURCE:
-        NISRA Economic & Labour Market Statistics Branch
+        Sector:
+            - year: Year
+            - location: Northern Ireland or United Kingdom
+            - sector: Public or Private
+            - median_weekly_earnings: Median weekly earnings (£)
+
+    Note:
+        Source: NISRA Economic & Labour Market Statistics Branch
         https://www.nisra.gov.uk/statistics/work-pay-and-benefits/annual-survey-hours-and-earnings
     """
     console = Console()
@@ -3511,7 +3609,7 @@ def nisra_ashe_cmd(latest, metric, dimension, basis, year, output_format, force_
         console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="composite-index")
@@ -3534,61 +3632,75 @@ def nisra_ashe_cmd(latest, metric, dimension, basis, year, output_format, force_
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
 def nisra_composite_index_cmd(latest, table, year, quarter, output_format, force_refresh, save):
-    """
-    NISRA Northern Ireland Composite Economic Index (NICEI) - Experimental Economic Indicator
+    """NISRA Northern Ireland Composite Economic Index (NICEI) - Experimental Economic Indicator.
 
     Quarterly measure of NI economic performance tracking five key sectors:
     Services, Production, Construction, Agriculture, and Public Sector.
     Base period 2022=100, quarterly data from Q1 2006 to present.
 
-    \b
-    EXAMPLES:
-        # Get latest NICEI indices
-        bolster nisra composite-index --latest
+    Args:
+        latest: Get the most recent NICEI data
+        table: Which table to retrieve (indices, contributions, or all)
+        year: Filter data for specific year
+        quarter: Filter data for specific quarter (1-4)
+        output_format: Output format (csv or json)
+        force_refresh: Force re-download even if cached
+        save: Save data to file (specify filename)
 
-        # Get sector contributions to quarterly change
-        bolster nisra composite-index --latest --table contributions
+    Examples:
+        Get latest NICEI indices::
 
-        # Get all tables
-        bolster nisra composite-index --latest --table all
+            bolster nisra composite-index --latest
 
-        # Filter for specific year
-        bolster nisra composite-index --latest --year 2024
+        Get sector contributions to quarterly change::
 
-        # Get specific quarter
-        bolster nisra composite-index --latest --year 2025 --quarter 2
+            bolster nisra composite-index --latest --table contributions
 
-        # Save to file
-        bolster nisra composite-index --latest --save nicei.csv
+        Get all tables::
 
-        # Force refresh data
-        bolster nisra composite-index --latest --force-refresh
+            bolster nisra composite-index --latest --table all
 
-    \b
-    DATA NOTES:
+        Filter for specific year::
+
+            bolster nisra composite-index --latest --year 2024
+
+        Get specific quarter::
+
+            bolster nisra composite-index --latest --year 2025 --quarter 2
+
+        Save to file::
+
+            bolster nisra composite-index --latest --save nicei.csv
+
+    Data Notes:
         - Coverage: Q1 2006 - Q2 2025 (quarterly)
         - Base period: 2022 = 100
         - Experimental statistic subject to revision
         - Published ~3 months after quarter end
         - Not seasonally adjusted
 
-    \b
-    TABLES:
-        indices         - NICEI and component indices by quarter (Table 1)
-                         • Overall NICEI, private/public sector breakdowns
-                         • Sectoral indices: Services, Production, Construction, Agriculture
-                         • Quarterly time series from Q1 2006
+    Tables:
+        indices: NICEI and component indices by quarter (Table 1)
+            • Overall NICEI, private/public sector breakdowns
+            • Sectoral indices: Services, Production, Construction, Agriculture
+            • Quarterly time series from Q1 2006
 
-        contributions   - Sector contributions to quarterly change (Table 11)
-                         • How much each sector contributed to NICEI quarterly change
-                         • Percentage point contributions
-                         • Identifies main drivers of economic growth/decline
+        contributions: Sector contributions to quarterly change (Table 11)
+            • How much each sector contributed to NICEI quarterly change
+            • Percentage point contributions
+            • Identifies main drivers of economic growth/decline
 
-        all             - All available tables
+        all: All available tables
 
-    \b
-    SOURCE:
-        NISRA Economic & Labour Market Statistics Branch
+    Returns:
+        DataFrame with columns varying by table type:
+            - date: Quarter start date
+            - quarter: Quarter (Q1-Q4)
+            - year: Year
+            - Various index/contribution columns depending on table
+
+    Note:
+        Source: NISRA Economic & Labour Market Statistics Branch
         https://www.nisra.gov.uk/statistics/economic-output-statistics/ni-composite-economic-index
     """
     console = Console()
@@ -3648,10 +3760,9 @@ def nisra_composite_index_cmd(latest, table, year, quarter, output_format, force
             console.print(f"[green]✅ Retrieved {table} table successfully[/green]")
             console.print(f"[cyan]📊 Total records: {len(data)}[/cyan]")
 
-        if not (isinstance(data, dict) and all(df.empty for df in data.values())):
-            if table != "all" and not data.empty:
-                years = data["year"].unique()
-                console.print(f"[dim]Years: {min(years)} - {max(years)}[/dim]")
+        if not (isinstance(data, dict) and all(df.empty for df in data.values())) and table != "all" and not data.empty:
+            years = data["year"].unique()
+            console.print(f"[dim]Years: {min(years)} - {max(years)}[/dim]")
 
         # Handle file saving
         if save:
@@ -3698,7 +3809,7 @@ def nisra_composite_index_cmd(latest, table, year, quarter, output_format, force
         console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="wellbeing")
@@ -3720,55 +3831,63 @@ def nisra_composite_index_cmd(latest, table, year, quarter, output_format, force
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
 def nisra_wellbeing_cmd(latest, metric, year, output_format, force_refresh, save):
-    """
-    NISRA Individual Wellbeing Statistics
+    """NISRA Individual Wellbeing Statistics.
 
     Retrieves individual wellbeing statistics for Northern Ireland, measuring
     subjective wellbeing across the population aged 16 and over.
 
-    \b
-    METRICS:
-        personal     - ONS4 measures: Life Satisfaction, Worthwhile, Happiness, Anxiety
-                       Scores from 0-10 (higher is better, except Anxiety where lower is better)
-        loneliness   - Proportion feeling lonely at least some of the time
-        self-efficacy - Mean self-efficacy scores (range 5-25)
-        summary      - Combined latest values for all measures
+    Args:
+        latest: Get the most recent wellbeing data available
+        metric: Type of wellbeing data to retrieve (personal, loneliness, self-efficacy, or summary)
+        year: Filter data for specific year (format: 2024/25)
+        output_format: Output format (csv or json)
+        force_refresh: Force re-download even if cached
+        save: Save data to file (specify filename)
 
-    \b
-    EXAMPLES:
-        # Get personal wellbeing (ONS4 measures)
-        bolster nisra wellbeing --latest
+    Metrics:
+        personal: ONS4 measures: Life Satisfaction, Worthwhile, Happiness, Anxiety
+            Scores from 0-10 (higher is better, except Anxiety where lower is better)
+        loneliness: Proportion feeling lonely at least some of the time
+        self-efficacy: Mean self-efficacy scores (range 5-25)
+        summary: Combined latest values for all measures
 
-        # Get loneliness statistics
-        bolster nisra wellbeing --latest --metric loneliness
+    Examples:
+        Get personal wellbeing (ONS4 measures)::
 
-        # Get summary of all metrics for latest year
-        bolster nisra wellbeing --latest --metric summary
+            bolster nisra wellbeing --latest
 
-        # Filter for a specific year
-        bolster nisra wellbeing --latest --year "2023/24"
+        Get loneliness statistics::
 
-        # Save to file
-        bolster nisra wellbeing --latest --save wellbeing.csv
+            bolster nisra wellbeing --latest --metric loneliness
 
-    \b
-    DATA NOTES:
+        Get summary of all metrics for latest year::
+
+            bolster nisra wellbeing --latest --metric summary
+
+        Filter for a specific year::
+
+            bolster nisra wellbeing --latest --year "2023/24"
+
+        Save to file::
+
+            bolster nisra wellbeing --latest --save wellbeing.csv
+
+    Data Notes:
         - Personal wellbeing: Annual from 2014/15 to present
         - Loneliness: Annual from 2017/18 to present
         - Self-efficacy: Annual from 2014/15 to present
         - COVID-19 Note: 2020/21 shows increased anxiety and loneliness
 
-    \b
-    OUTPUT (personal):
-        - year: Financial year (e.g., "2024/25")
-        - life_satisfaction: Mean score 0-10 (higher is better)
-        - worthwhile: Mean score 0-10 (higher is better)
-        - happiness: Mean score 0-10 (higher is better)
-        - anxiety: Mean score 0-10 (lower is better)
+    Returns:
+        DataFrame with columns (for personal metric):
+            - year: Financial year (e.g., "2024/25")
+            - life_satisfaction: Mean score 0-10 (higher is better)
+            - worthwhile: Mean score 0-10 (higher is better)
+            - happiness: Mean score 0-10 (higher is better)
+            - anxiety: Mean score 0-10 (lower is better)
 
-    \b
-    SOURCE:
-        https://www.nisra.gov.uk/statistics/wellbeing/individual-wellbeing-northern-ireland
+    Note:
+        Source: https://www.nisra.gov.uk/statistics/wellbeing/individual-wellbeing-northern-ireland
     """
     console = Console()
 
@@ -3861,7 +3980,7 @@ def nisra_wellbeing_cmd(latest, metric, year, output_format, force_refresh, save
         console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="cancer-waiting-times")
@@ -3890,59 +4009,62 @@ def nisra_wellbeing_cmd(latest, metric, year, output_format, force_refresh, save
 @click.option("--save", help="Save data to file (specify filename)")
 @click.option("--summary", is_flag=True, help="Show NI-wide summary instead of raw data")
 def nisra_cancer_cmd(latest, target, dimension, year, output_format, force_refresh, save, summary):
-    """
-    NISRA Cancer Waiting Times Statistics
+    """NISRA Cancer Waiting Times Statistics.
 
     Retrieves cancer waiting times performance data for Northern Ireland from the
     Department of Health, tracking progress against ministerial targets.
 
-    \b
-    TARGETS:
-        14-day    - Urgent breast referrals seen within 14 days (breast cancer only)
-        31-day    - Treatment within 31 days of decision to treat (all cancers)
-        62-day    - Treatment within 62 days of urgent GP referral (all cancers)
-        referrals - Monthly breast cancer referral volumes
+    Parameters
+    ----------
+    target : str
+        14-day : Urgent breast referrals seen within 14 days (breast cancer only)
+        31-day : Treatment within 31 days of decision to treat (all cancers)
+        62-day : Treatment within 62 days of urgent GP referral (all cancers)
+        referrals : Monthly breast cancer referral volumes
+    dimension : str
+        trust : Breakdown by HSC Trust (Belfast, Northern, South Eastern, Southern, Western)
+        tumour : Breakdown by Tumour Site (Breast, Lung, Skin, Urological, etc.)
+                 Note: 14-day target only available for breast cancer
 
-    \b
-    DIMENSIONS:
-        trust     - Breakdown by HSC Trust (Belfast, Northern, South Eastern, Southern, Western)
-        tumour    - Breakdown by Tumour Site (Breast, Lung, Skin, Urological, etc.)
-                    Note: 14-day target only available for breast cancer
+    Examples:
+    --------
+    Get latest 31-day performance by trust::
 
-    \b
-    EXAMPLES:
-        # Get latest 31-day performance by trust
         bolster nisra cancer-waiting-times --latest
 
-        # Get 62-day performance by tumour site
+    Get 62-day performance by tumour site::
+
         bolster nisra cancer-waiting-times --latest --target 62-day --dimension tumour
 
-        # Get 14-day breast cancer performance
+    Get 14-day breast cancer performance::
+
         bolster nisra cancer-waiting-times --latest --target 14-day
 
-        # Get NI-wide summary for 2024
+    Get NI-wide summary for 2024::
+
         bolster nisra cancer-waiting-times --latest --year 2024 --summary
 
-        # Save to file
+    Save to file::
+
         bolster nisra cancer-waiting-times --latest --save cancer.csv
 
-    \b
-    KEY INSIGHTS (as of 2025):
-        - 31-day target (95%): NI achieving ~90% average
-        - 62-day target (95%): Performance collapsed to ~32% (crisis level)
-        - 14-day breast target: Dropped from 77% (2020) to 17% (2025)
-        - Trust disparities: Belfast 82% vs Western 97% for 31-day
+    Key Insights (as of 2025)
+    -------------------------
+    - 31-day target (95%): NI achieving ~90% average
+    - 62-day target (95%): Performance collapsed to ~32% (crisis level)
+    - 14-day breast target: Dropped from 77% (2020) to 17% (2025)
+    - Trust disparities: Belfast 82% vs Western 97% for 31-day
 
-    \b
-    DATA NOTES:
-        - Data from Q1 2008 to present (monthly)
-        - Some Belfast Trust data missing Q2-Q3 2024 (encompass system rollout)
-        - Regional breast service transition from May 2025
-        - COVID-19 impact visible in 2020 volumes and post-2020 backlogs
+    Notes:
+    -----
+    - Data from Q1 2008 to present (monthly)
+    - Some Belfast Trust data missing Q2-Q3 2024 (encompass system rollout)
+    - Regional breast service transition from May 2025
+    - COVID-19 impact visible in 2020 volumes and post-2020 backlogs
 
-    \b
-    SOURCE:
-        https://www.health-ni.gov.uk/articles/cancer-waiting-times
+    Source
+    ------
+    https://www.health-ni.gov.uk/articles/cancer-waiting-times
     """
     console = Console()
 
@@ -4055,7 +4177,7 @@ def nisra_cancer_cmd(latest, target, dimension, year, output_format, force_refre
         console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @nisra.command(name="registrar-general")
@@ -4083,55 +4205,73 @@ def nisra_cancer_cmd(latest, target, dimension, year, output_format, force_refre
 def nisra_registrar_general_cmd(
     latest, quarterly, lgd, validate, table, year, quarter, output_format, force_refresh, save
 ):
-    """
-    NISRA Registrar General Quarterly Tables
+    """NISRA Registrar General Quarterly Tables.
 
     Quarterly vital statistics for Northern Ireland including births, deaths,
     marriages, civil partnerships, and LGD-level breakdowns. Data available
     from Q1 2009 to present.
 
-    \b
-    TABLES AVAILABLE:
-        births  - Quarterly births, stillbirths, birth rates
-        deaths  - Quarterly deaths, marriages, civil partnerships, death rates
-        lgd     - Current quarter breakdown by Local Government District
+    Args:
+        latest: Get the most recent quarterly tables data
+        quarterly: Show full quarterly time series
+        lgd: Show LGD (Local Government District) breakdown
+        validate: Run cross-validation against monthly data
+        table: Which table to retrieve (births, deaths, or all)
+        year: Filter data for specific year
+        quarter: Filter data for specific quarter (1-4)
+        output_format: Output format (csv or json)
+        force_refresh: Force re-download even if cached
+        save: Save data to file (specify filename)
 
-    \b
-    EXAMPLES:
-        # Get latest quarterly data (all tables)
-        bolster nisra registrar-general --latest
+    Tables Available:
+        births: Quarterly births, stillbirths, birth rates
+        deaths: Quarterly deaths, marriages, civil partnerships, death rates
+        lgd: Current quarter breakdown by Local Government District
 
-        # Get quarterly births time series
-        bolster nisra registrar-general --quarterly --table births
+    Examples:
+        Get latest quarterly data (all tables)::
 
-        # Get LGD breakdown for current quarter
-        bolster nisra registrar-general --lgd
+            bolster nisra registrar-general --latest
 
-        # Cross-validate quarterly vs monthly data
-        bolster nisra registrar-general --validate
+        Get quarterly births time series::
 
-        # Get specific year/quarter
-        bolster nisra registrar-general --quarterly --year 2024 --quarter 1
+            bolster nisra registrar-general --quarterly --table births
 
-        # Save to file
-        bolster nisra registrar-general --quarterly --save quarterly.csv
+        Get LGD breakdown for current quarter::
 
-    \b
-    CROSS-VALIDATION:
+            bolster nisra registrar-general --lgd
+
+        Cross-validate quarterly vs monthly data::
+
+            bolster nisra registrar-general --validate
+
+        Get specific year/quarter::
+
+            bolster nisra registrar-general --quarterly --year 2024 --quarter 1
+
+        Save to file::
+
+            bolster nisra registrar-general --quarterly --save quarterly.csv
+
+    Cross-Validation:
         The --validate option compares quarterly totals against aggregated
         monthly data from the births and marriages modules. Differences
         within 2% are considered acceptable (timing of registrations).
 
-    \b
-    DATA NOTES:
+    Data Notes:
         - Quarterly data from Q1 2009 to present
         - Updated approximately 6 weeks after each quarter ends
         - 11 Local Government Districts in NI
         - Birth/death rates per 1,000 population
 
-    \b
-    SOURCE:
-        https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/registrar-general-quarterly-report
+    Returns:
+        DataFrame with columns varying by table type:
+            - quarter: Quarter (Q1, Q2, Q3, Q4)
+            - year: Year
+            - Various statistical columns depending on table
+
+    Note:
+        Source: https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/registrar-general-quarterly-report
     """
     console = Console()
 
@@ -4339,13 +4479,12 @@ def nisra_registrar_general_cmd(
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
         console.print("   • Visit NISRA website to verify data availability")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @cli.group()
 def psni():
-    """
-    PSNI (Police Service of Northern Ireland) data sources.
+    """PSNI (Police Service of Northern Ireland) data sources.
 
     Access official statistics from the Police Service of Northern Ireland including:
     - Road Traffic Collision statistics (injury collisions, casualties, vehicles)
@@ -4380,34 +4519,46 @@ def psni():
 @click.option("--save", help="Save data to file (specify filename)")
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 def psni_rtc_cmd(year, data_type, by, output_format, save, force_refresh):
-    """
-    PSNI Road Traffic Collision Statistics
+    """PSNI Road Traffic Collision Statistics.
 
     Retrieves police-recorded injury road traffic collision data including:
     - Collision records with date, location, road conditions
     - Casualty records with severity (fatal/serious/slight), road user type
     - Vehicle records with type and driver details
 
-    \b
-    EXAMPLES:
-        # Get annual summary for all available years
-        bolster psni rtc --data-type summary
+    Args:
+        year: Specific year to retrieve (default: latest)
+        data_type: Type of data to retrieve (collisions, casualties, vehicles, or summary)
+        by: Group results by dimension (district, road-user, or year)
+        output_format: Output format (table, csv, or json)
+        save: Save data to file (specify filename)
+        force_refresh: Force re-download even if cached
 
-        # Get 2024 casualties by district
-        bolster psni rtc --year 2024 --data-type casualties --by district
+    Examples:
+        Get annual summary for all available years::
 
-        # Get casualties by road user type
-        bolster psni rtc --data-type casualties --by road-user
+            bolster psni rtc --data-type summary
 
-        # Export collision data to CSV
-        bolster psni rtc --year 2024 --data-type collisions --format csv --save collisions.csv
+        Get 2024 casualties by district::
 
-    \b
-    DATA NOTES:
+            bolster psni rtc --year 2024 --data-type casualties --by district
+
+        Get casualties by road user type::
+
+            bolster psni rtc --data-type casualties --by road-user
+
+        Export collision data to CSV::
+
+            bolster psni rtc --year 2024 --data-type collisions --format csv --save collisions.csv
+
+    Data Notes:
         - Data covers injury collisions only (not damage-only)
         - Available from 2013 onwards via OpenDataNI
         - Severity: Fatal, Serious, Slight
         - Updated annually (~6 months after year end)
+
+    Returns:
+        DataFrame with various columns depending on data_type and grouping
     """
     from rich.table import Table
 
@@ -4486,13 +4637,12 @@ def psni_rtc_cmd(year, data_type, by, output_format, save, force_refresh):
 
     except Exception as e:
         console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
-        raise click.Abort()
+        raise click.Abort() from e
 
 
 @cli.command()
 def list_sources():
-    """
-    List all available data sources and their descriptions.
+    """List all available data sources and their descriptions.
 
     Shows a comprehensive overview of all data sources available in the Bolster library,
     organized by category with brief descriptions of what data each source provides.
@@ -4500,15 +4650,15 @@ def list_sources():
     click.echo("\nBolster - Available Data Sources")
     click.echo("=" * 50)
 
-    click.echo("\n📊 WEATHER & ENVIRONMENT")
+    click.echo("\nWEATHER & ENVIRONMENT")
     click.echo("  get-precipitation    UK precipitation maps from Met Office API")
     click.echo("                       Requires MET_OFFICE_API_KEY environment variable")
 
-    click.echo("\n💧 WATER & UTILITIES")
+    click.echo("\nWATER & UTILITIES")
     click.echo("  water-quality        NI water quality data by postcode or zone")
     click.echo("                       Chemical parameters, hardness, compliance info")
 
-    click.echo("\n🏛️  GOVERNMENT & POLITICS")
+    click.echo("\nGOVERNMENT & POLITICS")
     click.echo("  ni-executive         NI Executive composition and dissolution history")
     click.echo("                       Establishment dates, duration, interregnum periods")
     click.echo("  ni-elections         NI Assembly election results (2016-2022)")
@@ -4516,27 +4666,27 @@ def list_sources():
     click.echo("  nisra deaths         NISRA weekly death registrations")
     click.echo("                       Demographics (age/sex), geography (LGDs), place of death")
 
-    click.echo("\n🏢 BUSINESS & PROPERTY")
+    click.echo("\nBUSINESS & PROPERTY")
     click.echo("  companies-house      UK Companies House company data queries")
     click.echo("                       Company search, Farset Labs related companies")
     click.echo("  ni-house-prices      NI house price index data from official sources")
     click.echo("                       Price trends by property type, region, time period")
 
-    click.echo("\n🚗 TRANSPORT")
+    click.echo("\nTRANSPORT")
     click.echo("  dva                  DVA monthly test statistics (vehicle, driver, theory)")
     click.echo("                       April 2014 - present, includes --summary dashboard")
 
-    click.echo("\n🎬 ENTERTAINMENT & LIFESTYLE")
+    click.echo("\nENTERTAINMENT & LIFESTYLE")
     click.echo("  cinema-listings      Cineworld movie listings and showtimes")
     click.echo("                       Default: Belfast (site 117), supports other locations")
 
-    click.echo("\n📰 RSS & FEEDS")
+    click.echo("\nRSS & FEEDS")
     click.echo("  rss read             Generic RSS/Atom feed reader with filtering")
     click.echo("                       Beautiful terminal output, JSON/CSV export")
     click.echo("  rss nisra-statistics Browse NISRA publications feed")
     click.echo("                       Research and statistics from NISRA via GOV.UK")
 
-    click.echo("\n🔧 DATA SOURCE MODULES")
+    click.echo("\nDATA SOURCE MODULES")
     click.echo("  bolster.data_sources.metoffice         - UK Met Office API integration")
     click.echo("  bolster.data_sources.ni_water          - NI Water quality data")
     click.echo("  bolster.data_sources.nisra.deaths      - NISRA weekly deaths statistics")
@@ -4548,7 +4698,7 @@ def list_sources():
     click.echo("  bolster.data_sources.companies_house   - UK Companies House API")
     click.echo("  bolster.utils.rss                      - RSS/Atom feed parsing utilities")
 
-    click.echo("\n💡 USAGE EXAMPLES")
+    click.echo("\nUSAGE EXAMPLES")
     click.echo("  bolster water-quality BT1 5GS              # Water quality by postcode")
     click.echo("  bolster nisra deaths --latest              # Latest NISRA deaths data")
     click.echo("  bolster dva --latest --summary             # DVA test statistics summary")

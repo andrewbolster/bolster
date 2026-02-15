@@ -193,9 +193,8 @@ def main() -> int:
     if not failures:
         print("✅ All checks passed")
         return 0
-    else:
-        print(f"❌ {len(failures)} check(s) failed: {', '.join(failures)}")
-        return 1
+    print(f"❌ {len(failures)} check(s) failed: {', '.join(failures)}")
+    return 1
 
 
 if __name__ == "__main__":

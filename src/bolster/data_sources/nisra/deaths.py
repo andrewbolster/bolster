@@ -35,7 +35,7 @@ Example:
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Literal, Optional, Union
+from typing import Literal, Optional, Union
 
 import pandas as pd
 from openpyxl import load_workbook
@@ -172,7 +172,7 @@ def get_latest_weekly_deaths_url() -> str:
             links = scrape_download_links(WEEKLY_DEATHS_BASE_URL, file_extension=".xlsx")
 
         if not links:
-            raise NISRADataNotFoundError("No weekly deaths Excel files found on NISRA website")
+            raise NISRADataNotFoundError("No weekly deaths Excel files found on NISRA website") from e
 
         weekly_files = [
             link for link in links if "weekly_deaths" in link["url"].lower() and "historical" not in link["url"].lower()
@@ -317,7 +317,7 @@ def parse_deaths_demographics(file_path: Union[str, Path]) -> pd.DataFrame:
         raise NISRADataNotFoundError("Could not find header row in Table 2")
 
     # Extract headers
-    headers = [cell for cell in sheet[header_row]]
+    headers = list(sheet[header_row])
 
     # Find week columns (start from column index 2, format: "Week N\n DD Month YYYY")
     # Skip "to Date" cumulative column
@@ -526,7 +526,7 @@ def parse_deaths_place(file_path: Union[str, Path]) -> pd.DataFrame:
 
 def parse_deaths_file(
     file_path: Union[str, Path], dimension: DimensionType = "all"
-) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
+) -> Union[pd.DataFrame, dict[str, pd.DataFrame]]:
     """Parse weekly deaths file for one or all dimensions.
 
     Args:
@@ -553,21 +553,20 @@ def parse_deaths_file(
             "geography": parse_deaths_geography(file_path),
             "place": parse_deaths_place(file_path),
         }
-    elif dimension == "totals":
+    if dimension == "totals":
         return parse_deaths_totals(file_path)
-    elif dimension == "demographics":
+    if dimension == "demographics":
         return parse_deaths_demographics(file_path)
-    elif dimension == "geography":
+    if dimension == "geography":
         return parse_deaths_geography(file_path)
-    elif dimension == "place":
+    if dimension == "place":
         return parse_deaths_place(file_path)
-    else:
-        raise ValueError(f"Invalid dimension: {dimension}. Must be one of: totals, demographics, geography, place, all")
+    raise ValueError(f"Invalid dimension: {dimension}. Must be one of: totals, demographics, geography, place, all")
 
 
 def get_latest_deaths(
     dimension: DimensionType = "all", force_refresh: bool = False
-) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
+) -> Union[pd.DataFrame, dict[str, pd.DataFrame]]:
     """Get the latest weekly deaths data.
 
     Args:
@@ -587,8 +586,8 @@ def get_latest_deaths(
 
 
 def get_historical_deaths(
-    years: Optional[List[int]] = None, force_refresh: bool = False, include_age_breakdowns: bool = False
-) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
+    years: Optional[list[int]] = None, force_refresh: bool = False, include_age_breakdowns: bool = False
+) -> Union[pd.DataFrame, dict[str, pd.DataFrame]]:
     """Get historical weekly deaths data (2011-2024).
 
     Downloads and parses the NISRA historical weekly deaths file which contains
@@ -741,12 +740,11 @@ def get_historical_deaths(
         logger.info(f"Age breakdowns parsed: {len(df_age)} records across {df_age['age_range'].nunique()} age ranges")
 
         return {"totals": df_totals, "age_breakdowns": df_age}
-    else:
-        return df_totals
+    return df_totals
 
 
 def get_combined_deaths(
-    years: Optional[List[int]] = None, include_current_year: bool = True, force_refresh: bool = False
+    years: Optional[list[int]] = None, include_current_year: bool = True, force_refresh: bool = False
 ) -> pd.DataFrame:
     """Get combined historical and current year deaths data.
 
@@ -833,16 +831,14 @@ def get_combined_deaths(
         df_combined = df_historical
 
     # Sort by date
-    df_combined = df_combined.sort_values("week_ending").reset_index(drop=True)
-
-    return df_combined
+    return df_combined.sort_values("week_ending").reset_index(drop=True)
 
 
 # Helper functions
 
 
 def _parse_week_ending(week_header: str) -> datetime:
-    """Parse week ending date from Excel header.
+    r"""Parse week ending date from Excel header.
 
     Example headers:
     - "Week 1\n 3 January 2025"
@@ -853,10 +849,7 @@ def _parse_week_ending(week_header: str) -> datetime:
     from dateutil import parser
 
     # Extract date part (after newline)
-    if "\n" in week_header:
-        date_str = week_header.split("\n")[1].strip()
-    else:
-        date_str = week_header
+    date_str = week_header.split("\n")[1].strip() if "\n" in week_header else week_header
 
     # Try to parse with dateutil
     try:

@@ -317,9 +317,9 @@ class TestMemoizeDecorator:
         obj.cached_method(2)
 
         # Check counters have expected types and contain data
-        cache = getattr(obj, "_memoize__cache")
-        hits = getattr(obj, "_memoize__hits")
-        misses = getattr(obj, "_memoize__misses")
+        cache = obj._memoize__cache
+        hits = obj._memoize__hits
+        misses = obj._memoize__misses
 
         assert isinstance(cache, dict)
         assert len(cache) == 1  # One cached result

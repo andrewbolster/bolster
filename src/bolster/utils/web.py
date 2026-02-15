@@ -1,8 +1,9 @@
 import io
 import logging
 import zipfile
+from collections.abc import Generator
 from io import BytesIO
-from typing import Dict, Generator, Optional, Tuple
+from typing import Optional
 
 import pandas as pd
 import requests
@@ -41,9 +42,8 @@ class RateLimitAwareRetry(Retry):
                 f"Retry attempt {retry_count + 1}/{self.total}"
             )
             return backoff_value
-        else:
-            # Use normal backoff for other status codes
-            return super().get_backoff_time()
+        # Use normal backoff for other status codes
+        return super().get_backoff_time()
 
     def increment(self, method=None, url=None, response=None, error=None, _pool=None, _stacktrace=None):
         """Override increment to track the last response status."""
@@ -78,15 +78,15 @@ session.mount("https://", _adapter)
 
 
 def get_last_valid(url: str) -> str:
+    """Get the last valid URL from Wayback Machine."""
     return WaybackMachineCDXServerAPI(url).oldest().archive_url
 
 
 def resilient_get(url: str, **kwargs) -> requests.Response:
-    """
-    Attempt a get, but if it fails, try using the wayback machine to get the last valid version and get that.
-    If all else fails, raise a HTTPError from the inner "NoCDXRecordFound" exception
-    """
+    """Attempt a get, but if it fails, try using the wayback machine to get the last valid version and get that.
 
+    If all else fails, raise a HTTPError from the inner "NoCDXRecordFound" exception.
+    """
     try:
         res = session.get(url, **kwargs)
         res.raise_for_status()
@@ -97,13 +97,14 @@ def resilient_get(url: str, **kwargs) -> requests.Response:
             raise outer_err from inner_err
         res = session.get(last_valid, **kwargs)
         res.raise_for_status()
-        logging.warning(f"Failed to get {url} directly, successfully used waybackmachine to get {last_valid}")
+        logger.warning(f"Failed to get {url} directly, successfully used waybackmachine to get {last_valid}")
     return res
 
 
 def get_excel_dataframe(
-    file_url: str, requests_kwargs: Optional[Dict] = None, read_kwargs: Optional[Dict] = None
+    file_url: str, requests_kwargs: Optional[dict] = None, read_kwargs: Optional[dict] = None
 ) -> pd.DataFrame:
+    """Download and read Excel file into pandas DataFrame."""
     if requests_kwargs is None:
         requests_kwargs = {}
     if read_kwargs is None:
@@ -112,14 +113,13 @@ def get_excel_dataframe(
     with session.get(file_url, **requests_kwargs) as response:
         response.raise_for_status()
         data = BytesIO(response.content)
-        df = pd.read_excel(data, **read_kwargs)
-        return df
+        return pd.read_excel(data, **read_kwargs)
 
 
-def download_extract_zip(url: str) -> Generator[Tuple[str, io.BufferedReader], None, None]:
-    """
-    Download a ZIP file and extract its contents in memory
-    yields (filename, file-like object) pairs
+def download_extract_zip(url: str) -> Generator[tuple[str, io.BufferedReader], None, None]:
+    """Download a ZIP file and extract its contents in memory.
+
+    Yields (filename, file-like object) pairs.
     """
     with session.get(url, stream=True) as response:
         response.raise_for_status()

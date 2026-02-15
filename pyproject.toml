@@ -41,6 +41,7 @@ dependencies = [
     "click-log>=0.4.0",
     "dateparser>=1.2.1",
     "feedparser>=6.0.12",
+    "import-linter>=2.0",
     "lxml>=5.3.2",
     "numpy>=1.25.0,<2.0",
     "openpyxl>=3.1.5",
@@ -94,13 +95,48 @@ markers = [
 ]
 
 [tool.ruff]
-lint.select = ["E", "F", "I"]
-lint.ignore = ["E501"]
+# Select rule categories - adding more for quality gate
+lint.select = [
+    "E",    # pycodestyle errors
+    "F",    # Pyflakes
+    "I",    # isort
+    "W",    # pycodestyle warnings
+    "D",    # pydocstyle - for docstring validation
+    "UP",   # pyupgrade - for modern Python patterns
+    "B",    # flake8-bugbear - for common bugs
+    "C4",   # flake8-comprehensions
+    "T20",  # flake8-print - catches print() statements
+    "RET",  # flake8-return - for return style
+    "LOG",  # flake8-logging - for proper logging patterns
+    "SIM",  # flake8-simplify
+    "TID",  # flake8-tidy-imports
+    "TCH",  # flake8-type-checking
+    "PGH",  # pygrep-hooks
+]
+lint.ignore = [
+    "E501",    # Line too long (handled by formatter)
+    "D100",    # Missing docstring in public module (too strict initially)
+    "D104",    # Missing docstring in public package (too strict initially)
+    "D105",    # Missing docstring in magic method (too pedantic)
+    "D203",    # 1 blank line required before class docstring (conflicts with D211)
+    "D212",    # Multi-line docstring summary should start at the first line (conflicts with D213)
+    "D213",    # Multi-line docstring summary should start at the second line (conflicts with D212)
+]
 line-length = 120
 
+# Configure docstring requirements for data source modules
+[tool.ruff.lint.pydocstyle]
+convention = "google"  # Use Google docstring style
+
+# Custom rules for different file types
 [tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["F401"]
+"__init__.py" = ["F401", "D104"]  # Allow unused imports and missing docstrings in __init__.py
 "*.ipynb" = ["E402", "F401", "F811", "I001", "F403", "F405", "E741"]
+"src/bolster/cli.py" = ["T20"]  # Allow print() in CLI module
+"scripts/**/*.py" = ["T20"]  # Allow print() in scripts
+"scripts/constitutional_check.py.reference" = ["UP006", "UP035", "T201"]  # Legacy reference file
+"tests/**/*.py" = ["D", "T20"]  # Relax docstring and print rules in tests
+
 
 [tool.coverage.run]
 source = ["bolster"]
@@ -113,6 +149,12 @@ omit = [
 ]
 
 [tool.coverage.report]
+# Set 80% coverage threshold for quality gate
+fail_under = 80
+show_missing = true
+skip_covered = false
+sort = "Miss"
+
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
@@ -130,10 +172,13 @@ exclude_lines = [
     "if os.name.*:",
 ]
 
-# Additional exclusion patterns
-skip_covered = true
-show_missing = true
+# Additional exclusion patterns for validation functions
+# These are often simple pass/fail checks that don't need coverage
 precision = 2
+
+# Import-linter configuration is in .importlinter file
+# This enforces HTTP centralization - all HTTP requests must go through
+# bolster.utils.web.session instead of raw requests to ensure retry logic
 
 # Configuration for bump-my-version (modern) and legacy bumpversion compatibility
 [tool.bumpversion]
@@ -174,7 +219,7 @@ dev = [
     "safety>=3.7.0",
 ]
 docs = [
-    "Sphinx>=7.0",
+    "sphinx>=7.0",
     "sphinx-click>=6.0",
     "sphinx-issues>=4.0",
     "nbsphinx>=0.9",
