@@ -17,15 +17,16 @@ Derived from audit of 28+ existing data source modules. These conventions descri
 ### Testing Philosophy
 
 - **Real data only**: Tests download and validate current published data
-- **No mocks**: Integration tests use actual HTTP requests with `scope="class"` fixtures
+- **Avoid mocking data sources**: Never mock external data sources; mocking specific in-module utilities is permissible in extreme cases
 - **Data integrity focus**: Tests validate data quality, not just code paths
-- **Coverage target**: >90% on new code, with pragmatic exemptions for error paths
+- **Coverage target**: 80% on new data paths, with pragmatic exemptions for error handling
 
-### CLI-First Design
+### CLI Design
 
-- **User-facing features expose CLI commands**: Every data source module provides at least one command in `cli.py`
+- **Useful and well-scoped CLIs**: Expose CLI commands when they provide clear standalone utility
+- **Interface consolidation**: Look for opportunities to consolidate related commands rather than proliferating single-purpose commands
 - **Rich output**: Use `rich` library for formatted tables and progress indicators
-- **Utility modules exempt**: `_base.py`, `validation.py`, `migration.py` do not need CLI
+- **Not a hard requirement**: CLIs are encouraged but not mandatory for every module
 
 ### Mother Page Scraping
 
@@ -33,6 +34,8 @@ Derived from audit of 28+ existing data source modules. These conventions descri
 - **Always scrape publication listings**: Find "mother pages" that list all publications for a topic
 - **Navigate publication structure**: Mother page → publication detail page → Excel/CSV file
 - **Fail explicitly**: Raise `*DataNotFoundError` if scraping fails, with context about what broke
+- **No unstable sources**: If stable mother pages cannot be identified, we should not implement the data source - we are not a "source of truth" for unreliable or one-off datasets
+- **Exception**: Extremely canonical and reliable hardcoded sources may be considered on a case-by-case basis
 
 **Mother Page Pattern**:
 
@@ -155,7 +158,7 @@ raise Exception("Error occurred")
 
 ## 7. Validation Functions
 
-Every data source module has at least one `validate_*()` function that checks domain-specific integrity:
+Validation functions are encouraged to help derive insights for PR review and guide later usage, but are not a hard requirement:
 
 ```python
 def validate_births_totals(df: pd.DataFrame) -> bool:
@@ -190,7 +193,16 @@ def validate_births_totals(df: pd.DataFrame) -> bool:
 - **Completeness checks**: Expected time periods present (no missing months in time series)
 - **Cross-dataset validation**: When multiple related datasets exist, check consistency
 
-**Exemptions**: Utility modules (`validation.py`, `_base.py`)
+**When to include validation**:
+
+- Domain-specific integrity checks exist (arithmetic relationships, known ranges)
+- Validation helps document expected data properties
+- Cross-dataset consistency can be verified
+
+**When validation may be omitted**:
+
+- No meaningful domain-specific checks beyond basic sanity
+- Data is purely descriptive with no mathematical relationships
 
 ## 8. File Downloads
 
@@ -382,7 +394,7 @@ This project defines three specialized agents for data source development:
 1. Branch (`git checkout -b feature/<name>`)
 1. Study similar modules before writing
 1. Implement: core module → exports → tests → CLI → README update
-1. Quality checks: all tests pass, >90% coverage, pre-commit clean
+1. Quality checks: all tests pass, 80% coverage on new data paths, pre-commit clean
 1. PR with insights from data (`gh pr create`)
 1. Verify CI (`gh pr checks`)
 
@@ -404,7 +416,7 @@ This project defines three specialized agents for data source development:
 - Uses `web.session` for HTTP (not raw `requests.get()`)
 - Type hints on public functions
 - Real data tests (no mocks), `scope="class"` fixtures
-- > 90% coverage on new code
+- 80% coverage on new data paths
 - ALL existing tests still pass
 - CLI command added and documented
 - README coverage table updated
@@ -458,11 +470,11 @@ Update this table whenever:
 
 ## 17. Python Version Support
 
-**Supported versions**: Python 3.9, 3.10, 3.11, 3.12, 3.13
+**Supported versions**: Python 3.11+
 
-**CI testing**: All supported versions tested in GitHub Actions
+**CI testing**: Python 3.11, 3.12, 3.13 tested in GitHub Actions
 
-**Dependencies**: Must be compatible with all supported versions (avoid cutting-edge syntax)
+**Dependencies**: Must be compatible with all supported versions (avoid cutting-edge syntax from 3.14+)
 
 ## 18. Documentation Standards
 
