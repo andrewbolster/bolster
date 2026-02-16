@@ -1,12 +1,15 @@
 """Tests for web.py retry behavior and configuration."""
 
 import time
+from unittest.mock import Mock, patch
 
 import pytest
 import requests
 from requests.adapters import HTTPAdapter
+from requests import exceptions as requests_exceptions
+from waybackpy import exceptions as wayback_exceptions
 
-from bolster.utils.web import _retry_strategy, session
+from bolster.utils.web import _retry_strategy, session, RateLimitAwareRetry, resilient_get, get_last_valid
 
 
 class TestRetryConfiguration:
@@ -109,6 +112,134 @@ class TestNetworkResilience:
         assert _retry_strategy.status_forcelist == original_status_list
         assert _retry_strategy.allowed_methods == original_methods
         assert _retry_strategy.raise_on_status == original_raise_on_status
+
+
+class TestRateLimitAwareRetry:
+    """Test the custom RateLimitAwareRetry class to cover missing lines."""
+
+    def test_get_backoff_time_normal_error(self):
+        """Test normal backoff calculation for non-429 errors."""
+        retry = RateLimitAwareRetry(total=3, backoff_factor=1)
+
+        # With no history, should use parent backoff
+        backoff_time = retry.get_backoff_time()
+        assert backoff_time >= 0  # Should be a valid backoff time
+
+    def test_get_backoff_time_rate_limited(self):
+        """Test extended backoff calculation for 429 errors."""
+        retry = RateLimitAwareRetry(total=3, backoff_factor=1)
+
+        # Mock a 429 response in history
+        mock_response = Mock()
+        mock_response.status = 429
+        retry.history = [mock_response]
+
+        # Should use extended backoff for 429
+        backoff_time = retry.get_backoff_time()
+        assert backoff_time >= 30  # Should be at least 30 seconds for rate limiting
+
+    def test_get_backoff_time_empty_history(self):
+        """Test backoff with empty history."""
+        retry = RateLimitAwareRetry(total=3, backoff_factor=1)
+        retry.history = []
+
+        backoff_time = retry.get_backoff_time()
+        assert backoff_time >= 0
+
+    def test_increment_with_429_response(self):
+        """Test increment method with 429 response to cover logging."""
+        retry = RateLimitAwareRetry(total=3, backoff_factor=1)
+
+        # Mock a 429 response
+        mock_response = Mock()
+        mock_response.status = 429
+
+        # This should trigger the warning log and set _last_status
+        with patch('bolster.utils.web.logger.warning') as mock_logger:
+            # Call increment - this covers lines 51-53
+            new_retry = retry.increment(
+                method='GET',
+                url='https://example.com/test',
+                response=mock_response
+            )
+
+            # Should have logged the 429 warning
+            mock_logger.assert_called_once()
+            assert "429 Too Many Requests" in mock_logger.call_args[0][0]
+            assert "rate limiting" in mock_logger.call_args[0][0]
+
+    def test_increment_with_non_429_response(self):
+        """Test increment method with normal response."""
+        retry = RateLimitAwareRetry(total=3, backoff_factor=1)
+
+        # Mock a normal error response
+        mock_response = Mock()
+        mock_response.status = 500
+
+        # Should not trigger 429-specific logging
+        with patch('bolster.utils.web.logger.warning') as mock_logger:
+            new_retry = retry.increment(
+                method='GET',
+                url='https://example.com/test',
+                response=mock_response
+            )
+
+            # Should not log 429-specific warnings
+            mock_logger.assert_not_called()
+
+
+class TestResilientGet:
+    """Test resilient_get function to cover wayback machine error handling."""
+
+    def test_resilient_get_wayback_fallback_failure(self):
+        """Test resilient_get when both direct and wayback requests fail."""
+        test_url = "https://example.com/nonexistent"
+
+        # Mock session.get to fail on direct request
+        with patch.object(session, 'get') as mock_get:
+            mock_get.side_effect = requests_exceptions.HTTPError("Direct request failed")
+
+            # Mock get_last_valid to raise NoCDXRecordFound
+            with patch('bolster.utils.web.get_last_valid') as mock_wayback:
+                mock_wayback.side_effect = wayback_exceptions.NoCDXRecordFound("No wayback record")
+
+                # Should raise the original HTTP error with wayback error as cause
+                with pytest.raises(requests_exceptions.HTTPError, match="Direct request failed"):
+                    resilient_get(test_url)
+
+                # Verify wayback was attempted (covers line 95)
+                mock_wayback.assert_called_once_with(test_url)
+
+    def test_resilient_get_successful_wayback_fallback(self):
+        """Test resilient_get successfully falling back to wayback machine."""
+        test_url = "https://example.com/content"
+        wayback_url = "https://web.archive.org/web/20230101000000/https://example.com/content"
+
+        # Mock successful response for wayback URL
+        mock_wayback_response = Mock()
+        mock_wayback_response.raise_for_status.return_value = None
+
+        with patch.object(session, 'get') as mock_get:
+            # First call (direct) fails, second call (wayback) succeeds
+            mock_get.side_effect = [
+                requests_exceptions.HTTPError("Direct failed"),
+                mock_wayback_response
+            ]
+
+            with patch('bolster.utils.web.get_last_valid') as mock_wayback:
+                mock_wayback.return_value = wayback_url
+
+                with patch('bolster.utils.web.logger.warning') as mock_logger:
+                    result = resilient_get(test_url)
+
+                    # Should return the wayback response
+                    assert result == mock_wayback_response
+
+                    # Should log the fallback warning (covers line 100)
+                    mock_logger.assert_called_once()
+                    assert "Failed to get" in mock_logger.call_args[0][0]
+                    assert "waybackmachine" in mock_logger.call_args[0][0]
+                    assert wayback_url in mock_logger.call_args[0][0]
 
 
 @pytest.mark.integration

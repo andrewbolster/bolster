@@ -105,7 +105,7 @@ class TestWaterQualityByZone:
 
     def test_get_water_quality_by_zone_logging_warning(self):
         """Test that invalid zones log warnings in non-strict mode."""
-        with patch("bolster.data_sources.ni_water.logging.warning") as mock_warning:
+        with patch("bolster.data_sources.ni_water.logger.warning") as mock_warning:
             _ = get_water_quality_by_zone("INVALID_SITE", strict=False)
 
             # Should log a warning for invalid site
