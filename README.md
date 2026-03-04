@@ -198,7 +198,8 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Construction Bulletin | `nisra.construction_output` | ✅ |
 | Index of Services/Production | `nisra.economic_indicators` | ✅ |
 | Population Estimates | `nisra.population` | ✅ |
-| Migration Estimates | `nisra.migration` | ✅ |
+| Migration Estimates (Derived + Official LTI) | `nisra.migration` | ✅ |
+| Population Projections (2022-based, 2022–2072) | `nisra.population_projections` | ✅ |
 | Annual Survey of Hours & Earnings | `nisra.ashe` | ✅ |
 | DVA Monthly Tests Statistics | `dva` | ✅ |
 | Individual Wellbeing | `nisra.wellbeing` | ✅ |
