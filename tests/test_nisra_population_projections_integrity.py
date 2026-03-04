@@ -76,8 +76,8 @@ class TestDataIntegrity:
         age_groups = projections_data["age_group"].unique()
 
         for age in age_groups:
-            # Should match pattern: "00-04", "05-09", ..., "90+" or similar
-            assert re.match(r"^\d{2}-\d{2}$|^\d{2}\+$", str(age)), f"Invalid age group format: {age}"
+            # Should match pattern: "00-04", "05-09", ..., "90+", "100+" or similar
+            assert re.match(r"^\d{2}-\d{2}$|^\d{2,3}\+$", str(age)), f"Invalid age group format: {age}"
 
     def test_filtering(self, projections_data):
         """Verify filtering by area, year works correctly."""

@@ -16,6 +16,7 @@ Available modules:
     - marriages: Monthly marriage registrations
     - migration: Official and derived migration estimates (demographic components)
     - population: Annual mid-year population estimates by age, sex, and geography
+    - population_projections: Population projections by age, sex, and geography (2022-2072)
     - registrar_general: Registrar General Quarterly Tables (quarterly births, deaths, marriages, LGD breakdowns)
     - tourism: Tourism statistics including occupancy surveys, visitor stats (subpackage)
     - wellbeing: Individual wellbeing statistics (life satisfaction, happiness, anxiety, loneliness)
@@ -102,6 +103,7 @@ from . import (
     marriages,
     migration,
     population,
+    population_projections,
     registrar_general,
     tourism,
     wellbeing,
@@ -119,6 +121,7 @@ __all__ = [
     "marriages",
     "migration",
     "population",
+    "population_projections",
     "registrar_general",
     "tourism",
     "wellbeing",
