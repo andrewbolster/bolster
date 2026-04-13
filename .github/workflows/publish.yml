@@ -69,7 +69,7 @@ jobs:
 
             - name: Create GitHub Release (if manual)
               if: github.event_name == 'workflow_dispatch'
-              uses: softprops/action-gh-release@v2
+              uses: softprops/action-gh-release@v3
               with:
                 tag_name: ${{ github.event.inputs.tag }}
                 name: Release ${{ github.event.inputs.tag }}
