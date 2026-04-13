@@ -40,7 +40,7 @@ jobs:
 
     - name: Analyze changes and determine version bump
       id: analyze
-      uses: actions/github-script@v8
+      uses: actions/github-script@v9
       with:
         script: |
           // Get commits since last tag
@@ -243,7 +243,7 @@ jobs:
         attestations: true
 
     - name: Create GitHub Release
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@v3
       with:
         tag_name: v${{ env.NEW_VERSION }}
         name: Release ${{ env.NEW_VERSION }}
@@ -271,7 +271,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Trigger ReadTheDocs build
-      uses: actions/github-script@v8
+      uses: actions/github-script@v9
       with:
         script: |
           // Trigger ReadTheDocs webhook if configured

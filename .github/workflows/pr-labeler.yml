@@ -15,7 +15,7 @@ jobs:
     - uses: actions/checkout@v6
 
     - name: Auto-label PR based on changes
-      uses: actions/github-script@v8
+      uses: actions/github-script@v9
       with:
         script: |
           const { owner, repo, number } = context.issue;
@@ -128,7 +128,7 @@ jobs:
     if: github.event.action == 'opened'
     steps:
     - name: Create standard labels if they don't exist
-      uses: actions/github-script@v8
+      uses: actions/github-script@v9
       with:
         script: |
           const labels = [
