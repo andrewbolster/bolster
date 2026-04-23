@@ -25,7 +25,6 @@ Example:
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 from bolster.utils.cache import CachedDownloader, DownloadError
 
@@ -121,7 +120,7 @@ NUTS_REGION_NAMES = {
 }
 
 
-def get_lgd_code(district_name: str) -> Optional[str]:
+def get_lgd_code(district_name: str) -> str | None:
     """Get LGD code for a policing district.
 
     Args:
@@ -137,7 +136,7 @@ def get_lgd_code(district_name: str) -> Optional[str]:
     return LGD_CODES.get(district_name)
 
 
-def get_nuts3_code(district_name: str) -> Optional[str]:
+def get_nuts3_code(district_name: str) -> str | None:
     """Get NUTS3 regional code for a policing district.
 
     Uses NUTS 2021 classification where each LGD maps 1:1 to a NUTS3 region.
@@ -157,7 +156,7 @@ def get_nuts3_code(district_name: str) -> Optional[str]:
     return NUTS3_CODES.get(district_name)
 
 
-def get_nuts_region_name(nuts3_code: str) -> Optional[str]:
+def get_nuts_region_name(nuts3_code: str) -> str | None:
     """Get descriptive name for a NUTS3 region code.
 
     Args:
@@ -206,7 +205,7 @@ def download_file(url: str, cache_ttl_hours: int = 24, force_refresh: bool = Fal
         raise PSNIDataNotFoundError(str(e)) from e
 
 
-def clear_cache(pattern: Optional[str] = None) -> int:
+def clear_cache(pattern: str | None = None) -> int:
     """Clear cached files from the PSNI cache directory.
 
     Args:

@@ -1,9 +1,9 @@
-from typing import AnyStr, BinaryIO, Union
+from typing import AnyStr, BinaryIO
 
 import pandas as pd
 
 
-def save_xls(dict_df: dict[AnyStr, pd.DataFrame], path: Union[str, BinaryIO]) -> None:
+def save_xls(dict_df: dict[AnyStr, pd.DataFrame], path: str | BinaryIO) -> None:
     """Save a dictionary of dataframes to an excel file, with each dataframe as a separate page."""
     with pd.ExcelWriter(path) as writer:
         for key in dict_df:

@@ -57,7 +57,6 @@ Publication Details:
 import logging
 import re
 from pathlib import Path
-from typing import Union
 
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -159,7 +158,7 @@ def get_latest_publication_url() -> tuple[str, str]:
     return excel_url, quarter_str
 
 
-def parse_31_day_by_trust(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_31_day_by_trust(file_path: str | Path) -> pd.DataFrame:
     """Parse 31-day waiting times by HSC Trust.
 
     Args:
@@ -178,7 +177,7 @@ def parse_31_day_by_trust(file_path: Union[str, Path]) -> pd.DataFrame:
     return df[["date", "year", "month", "trust", "within_target", "over_target", "total", "performance_rate"]]
 
 
-def parse_31_day_by_tumour(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_31_day_by_tumour(file_path: str | Path) -> pd.DataFrame:
     """Parse 31-day waiting times by Tumour Site.
 
     Args:
@@ -197,7 +196,7 @@ def parse_31_day_by_tumour(file_path: Union[str, Path]) -> pd.DataFrame:
     return df[["date", "year", "month", "tumour_site", "within_target", "over_target", "total", "performance_rate"]]
 
 
-def parse_62_day_by_trust(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_62_day_by_trust(file_path: str | Path) -> pd.DataFrame:
     """Parse 62-day waiting times by HSC Trust.
 
     Args:
@@ -220,7 +219,7 @@ def parse_62_day_by_trust(file_path: Union[str, Path]) -> pd.DataFrame:
     return df[["date", "year", "month", "trust", "within_target", "over_target", "total", "performance_rate"]]
 
 
-def parse_62_day_by_tumour(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_62_day_by_tumour(file_path: str | Path) -> pd.DataFrame:
     """Parse 62-day waiting times by Tumour Site.
 
     Args:
@@ -239,7 +238,7 @@ def parse_62_day_by_tumour(file_path: Union[str, Path]) -> pd.DataFrame:
     return df[["date", "year", "month", "tumour_site", "within_target", "over_target", "total", "performance_rate"]]
 
 
-def parse_14_day_breast(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_14_day_breast(file_path: str | Path) -> pd.DataFrame:
     """Parse 14-day breast cancer waiting times (combined historic and regional).
 
     Args:
@@ -270,7 +269,7 @@ def parse_14_day_breast(file_path: Union[str, Path]) -> pd.DataFrame:
     return df[["date", "year", "month", "trust", "within_target", "over_target", "total", "performance_rate"]]
 
 
-def parse_breast_referrals(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_breast_referrals(file_path: str | Path) -> pd.DataFrame:
     """Parse breast cancer referrals data.
 
     Args:

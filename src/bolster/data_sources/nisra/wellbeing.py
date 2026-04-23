@@ -54,7 +54,6 @@ Publication Details:
 import logging
 import re
 from pathlib import Path
-from typing import Union
 
 import pandas as pd
 
@@ -158,7 +157,7 @@ def get_wellbeing_file_url(year_str: str) -> str:
     return url
 
 
-def parse_personal_wellbeing(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_personal_wellbeing(file_path: str | Path) -> pd.DataFrame:
     """Parse personal wellbeing (ONS4) measures from the Excel file.
 
     Extracts Life Satisfaction, Worthwhile, Happiness, and Anxiety mean scores
@@ -236,7 +235,7 @@ def parse_personal_wellbeing(file_path: Union[str, Path]) -> pd.DataFrame:
     return df
 
 
-def parse_loneliness(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_loneliness(file_path: str | Path) -> pd.DataFrame:
     """Parse loneliness data from the Excel file.
 
     Extracts the proportion of people who feel lonely at least some of the time.
@@ -289,7 +288,7 @@ def parse_loneliness(file_path: Union[str, Path]) -> pd.DataFrame:
     return df
 
 
-def parse_self_efficacy(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_self_efficacy(file_path: str | Path) -> pd.DataFrame:
     """Parse self-efficacy data from the Excel file.
 
     Self-efficacy measures a person's belief in their capabilities to influence

@@ -57,7 +57,6 @@ Date: 2025-12-22
 
 import logging
 from pathlib import Path
-from typing import Union
 
 import pandas as pd
 
@@ -147,7 +146,7 @@ def get_latest_nicei_publication_url() -> tuple[str, int, str]:
     raise NISRADataNotFoundError("Could not find latest NICEI publication")
 
 
-def parse_nicei_indices(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_nicei_indices(file_path: str | Path) -> pd.DataFrame:
     """Parse NICEI Table 1: Index values by quarter.
 
     Extracts the main NICEI time series including overall index and sectoral breakdowns.
@@ -205,7 +204,7 @@ def parse_nicei_indices(file_path: Union[str, Path]) -> pd.DataFrame:
     return df
 
 
-def parse_nicei_contributions(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_nicei_contributions(file_path: str | Path) -> pd.DataFrame:
     """Parse NICEI Table 11: Sector contributions to quarterly change.
 
     Extracts how much each sector contributed to the quarterly change in NICEI.

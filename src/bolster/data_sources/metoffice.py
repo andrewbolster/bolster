@@ -41,7 +41,6 @@ from datetime import datetime, timedelta
 from functools import lru_cache
 from io import BytesIO
 from itertools import groupby
-from typing import Optional
 from urllib.parse import quote
 
 from PIL import Image, ImageDraw, ImageFilter
@@ -187,7 +186,7 @@ def make_precipitation(data: bytes) -> Image.Image:
 
 
 def generate_image(
-    order_name: str, block: dict, bounding_box: Optional[tuple[int, int, int, int]] = (100, 250, 500, 550)
+    order_name: str, block: dict, bounding_box: tuple[int, int, int, int] | None = (100, 250, 500, 550)
 ) -> Image.Image:
     """Generate composite weather visualization from Met Office data."""
     # TODO: Network integration testing - requires valid Met Office API key and order
@@ -213,7 +212,7 @@ def generate_image(
     return img  # pragma: no cover
 
 
-def get_uk_precipitation(order_name: str, bounding_box: Optional[tuple[int, int, int, int]] = None) -> Image.Image:
+def get_uk_precipitation(order_name: str, bounding_box: tuple[int, int, int, int] | None = None) -> Image.Image:
     """Get the latest UK precipitation forecast from the Met Office API and generate an image suitable for epaper display."""
     # TODO: Network integration testing - requires valid Met Office API key and order
     order_status = get_order_latest(order_name)  # pragma: no cover

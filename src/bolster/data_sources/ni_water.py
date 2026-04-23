@@ -33,7 +33,6 @@ with support for both current quality data and historical zone mapping.
 
 import csv
 import logging
-from typing import Optional
 from urllib.error import HTTPError
 
 import pandas as pd
@@ -54,7 +53,7 @@ T_HARDNESS = pd.CategoricalDtype(["Soft", "Moderately Soft", "Slightly Hard", "M
 INVALID_ZONE_IDENTIFIER = "No Zone Identified"
 
 # Cache for water quality data to avoid repeated downloads
-_water_quality_cache: Optional[pd.DataFrame] = None
+_water_quality_cache: pd.DataFrame | None = None
 
 
 @backoff((HTTPError, RuntimeError))

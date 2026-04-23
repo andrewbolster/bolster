@@ -36,7 +36,7 @@ Example:
 import logging
 import re
 from pathlib import Path
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import pandas as pd
 
@@ -134,16 +134,15 @@ def get_latest_population_publication_url() -> tuple[str, int]:
 
 
 def parse_population_file(
-    file_path: Union[str, Path],
-    area: Optional[
-        Literal[
-            "all",
-            "Northern Ireland",
-            "Parliamentary Constituencies (2024)",
-            "Health and Social Care Trusts",
-            "Parliamentary Constituencies (2008)",
-        ]
-    ] = "all",
+    file_path: str | Path,
+    area: Literal[
+        "all",
+        "Northern Ireland",
+        "Parliamentary Constituencies (2024)",
+        "Health and Social Care Trusts",
+        "Parliamentary Constituencies (2008)",
+    ]
+    | None = "all",
 ) -> pd.DataFrame:
     """Parse NISRA mid-year population estimates Excel file.
 
@@ -215,15 +214,14 @@ def parse_population_file(
 
 
 def get_latest_population(
-    area: Optional[
-        Literal[
-            "all",
-            "Northern Ireland",
-            "Parliamentary Constituencies (2024)",
-            "Health and Social Care Trusts",
-            "Parliamentary Constituencies (2008)",
-        ]
-    ] = "all",
+    area: Literal[
+        "all",
+        "Northern Ireland",
+        "Parliamentary Constituencies (2024)",
+        "Health and Social Care Trusts",
+        "Parliamentary Constituencies (2008)",
+    ]
+    | None = "all",
     force_refresh: bool = False,
 ) -> pd.DataFrame:
     """Get the latest mid-year population estimates.
@@ -305,7 +303,7 @@ def validate_population_totals(df: pd.DataFrame) -> bool:
 def get_population_by_year(
     df: pd.DataFrame,
     year: int,
-    sex: Optional[Literal["All persons", "Males", "Females"]] = "All persons",
+    sex: Literal["All persons", "Males", "Females"] | None = "All persons",
 ) -> pd.DataFrame:
     """Filter population data for a specific year and optional sex.
 
@@ -334,7 +332,7 @@ def get_population_by_year(
 def get_population_pyramid_data(
     df: pd.DataFrame,
     year: int,
-    area_name: Optional[str] = "NORTHERN IRELAND",
+    area_name: str | None = "NORTHERN IRELAND",
 ) -> pd.DataFrame:
     """Prepare data for population pyramid visualization.
 

@@ -18,7 +18,6 @@ import hashlib
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from .web import session as web_session
 
@@ -86,7 +85,7 @@ class CachedDownloader:
         self.cache_dir = CACHE_BASE / namespace
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
-    def get_cached_file(self, url: str, cache_ttl_hours: int = 24) -> Optional[Path]:
+    def get_cached_file(self, url: str, cache_ttl_hours: int = 24) -> Path | None:
         """Return cached file if it exists and is fresh, else None.
 
         Args:
@@ -150,7 +149,7 @@ class CachedDownloader:
         except Exception as e:
             raise DownloadError(f"Failed to download {url}: {e}") from e
 
-    def clear(self, pattern: Optional[str] = None) -> int:
+    def clear(self, pattern: str | None = None) -> int:
         """Clear cached files.
 
         Args:

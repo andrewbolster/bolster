@@ -2,7 +2,6 @@
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -92,7 +91,7 @@ def scrape_download_links(page_url: str, file_extension: str = ".xlsx") -> list[
     return links
 
 
-def clear_cache(pattern: Optional[str] = None) -> int:
+def clear_cache(pattern: str | None = None) -> int:
     """Clear cached files.
 
     Args:
@@ -108,7 +107,7 @@ def clear_cache(pattern: Optional[str] = None) -> int:
 # Excel parsing utilities
 
 
-def safe_int(val) -> Optional[int]:
+def safe_int(val) -> int | None:
     """Safely convert a value to integer, handling None, '', and '-' placeholders.
 
     Args:
@@ -125,7 +124,7 @@ def safe_int(val) -> Optional[int]:
         return None
 
 
-def safe_float(val) -> Optional[float]:
+def safe_float(val) -> float | None:
     """Safely convert a value to float, handling None, '', and '-' placeholders.
 
     Args:
@@ -142,7 +141,7 @@ def safe_float(val) -> Optional[float]:
         return None
 
 
-def find_header_row(sheet, expected_columns: list[str], max_rows: int = 20) -> Optional[int]:
+def find_header_row(sheet, expected_columns: list[str], max_rows: int = 20) -> int | None:
     """Find the row number containing expected column headers in an Excel sheet.
 
     Args:
@@ -237,7 +236,7 @@ def make_absolute_url(url: str, base_url: str) -> str:
     return url
 
 
-def parse_month_year(month_str: str, format: str = "%B %Y") -> Optional[pd.Timestamp]:
+def parse_month_year(month_str: str, format: str = "%B %Y") -> pd.Timestamp | None:
     """Parse a month-year string to datetime.
 
     Args:

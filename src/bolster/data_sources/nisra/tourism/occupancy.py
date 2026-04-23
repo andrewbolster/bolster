@@ -45,7 +45,7 @@ Example:
 import logging
 import re
 from pathlib import Path
-from typing import Literal, Union
+from typing import Literal
 
 import pandas as pd
 
@@ -233,7 +233,7 @@ def get_latest_ssa_occupancy_publication_url() -> tuple[str, str]:
     return excel_url, pub_date or "Unknown"
 
 
-def _find_table_by_title(file_path: Union[str, Path], title_contains: str) -> str:
+def _find_table_by_title(file_path: str | Path, title_contains: str) -> str:
     """Find the sheet name that contains the specified title.
 
     Args:
@@ -264,7 +264,7 @@ def _find_table_by_title(file_path: Union[str, Path], title_contains: str) -> st
     raise NISRAValidationError(f"Could not find table with title containing '{title_contains}'")
 
 
-def parse_hotel_occupancy_rates(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_hotel_occupancy_rates(file_path: str | Path) -> pd.DataFrame:
     """Parse NISRA hotel occupancy rates from Excel file (Table 1).
 
     Args:
@@ -392,7 +392,7 @@ def parse_hotel_occupancy_rates(file_path: Union[str, Path]) -> pd.DataFrame:
     return result
 
 
-def parse_rooms_beds_sold(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_rooms_beds_sold(file_path: str | Path) -> pd.DataFrame:
     """Parse NISRA hotel rooms and beds sold from Excel file (Table 3).
 
     Args:
@@ -592,7 +592,7 @@ def get_latest_rooms_beds_sold(force_refresh: bool = False) -> pd.DataFrame:
 # ============================================================================
 
 
-def parse_ssa_occupancy_rates(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_ssa_occupancy_rates(file_path: str | Path) -> pd.DataFrame:
     """Parse NISRA SSA occupancy rates from Excel file (Table 1).
 
     SSA = Small Service Accommodation (B&Bs, guest houses, etc.)
@@ -732,7 +732,7 @@ def parse_ssa_occupancy_rates(file_path: Union[str, Path]) -> pd.DataFrame:
     return result
 
 
-def parse_ssa_rooms_beds_sold(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_ssa_rooms_beds_sold(file_path: str | Path) -> pd.DataFrame:
     """Parse NISRA SSA rooms and beds sold from Excel file (Table 2).
 
     Note: SSA uses Table 2 for rooms/beds sold, while Hotel uses Table 3.

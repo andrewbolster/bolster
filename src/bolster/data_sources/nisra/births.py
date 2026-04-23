@@ -39,7 +39,7 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Literal, Union
+from typing import Literal
 
 import pandas as pd
 from openpyxl import load_workbook
@@ -134,9 +134,9 @@ def get_latest_births_publication_url() -> str:
 
 
 def parse_births_file(
-    file_path: Union[str, Path],
+    file_path: str | Path,
     event_type: Literal["registration", "occurrence", "both"] = "both",
-) -> Union[pd.DataFrame, dict[str, pd.DataFrame]]:
+) -> pd.DataFrame | dict[str, pd.DataFrame]:
     """Parse NISRA monthly births Excel file into long-format DataFrames.
 
     The births file contains two main sheets:
@@ -317,7 +317,7 @@ def _parse_births_table(
 def get_latest_births(
     event_type: Literal["registration", "occurrence", "both"] = "both",
     force_refresh: bool = False,
-) -> Union[pd.DataFrame, dict[str, pd.DataFrame]]:
+) -> pd.DataFrame | dict[str, pd.DataFrame]:
     """Get the latest monthly births data.
 
     Automatically discovers and downloads the most recent monthly births publication

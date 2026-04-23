@@ -3,7 +3,6 @@ import logging
 import zipfile
 from collections.abc import Generator
 from io import BytesIO
-from typing import Optional
 
 import pandas as pd
 import requests
@@ -102,7 +101,7 @@ def resilient_get(url: str, **kwargs) -> requests.Response:
 
 
 def get_excel_dataframe(
-    file_url: str, requests_kwargs: Optional[dict] = None, read_kwargs: Optional[dict] = None
+    file_url: str, requests_kwargs: dict | None = None, read_kwargs: dict | None = None
 ) -> pd.DataFrame:
     """Download and read Excel file into pandas DataFrame."""
     if requests_kwargs is None:

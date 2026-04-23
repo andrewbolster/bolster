@@ -44,7 +44,7 @@ Example:
 
 import logging
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal
 
 import pandas as pd
 
@@ -276,7 +276,7 @@ def _get_resource_url(year: int, resource_type: Literal["collision", "casualty",
 
 
 def get_collisions(
-    year: Optional[int] = None,
+    year: int | None = None,
     force_refresh: bool = False,
     decode_values: bool = True,
 ) -> pd.DataFrame:
@@ -376,7 +376,7 @@ def get_collisions(
 
 
 def get_casualties(
-    year: Optional[int] = None,
+    year: int | None = None,
     force_refresh: bool = False,
     decode_values: bool = True,
 ) -> pd.DataFrame:
@@ -450,7 +450,7 @@ def get_casualties(
 
 
 def get_vehicles(
-    year: Optional[int] = None,
+    year: int | None = None,
     force_refresh: bool = False,
     decode_values: bool = True,
 ) -> pd.DataFrame:
@@ -510,7 +510,7 @@ def get_vehicles(
 
 
 def get_casualties_with_collision_details(
-    year: Optional[int] = None,
+    year: int | None = None,
     force_refresh: bool = False,
 ) -> pd.DataFrame:
     """Get casualty records merged with collision details.
@@ -559,7 +559,7 @@ def get_casualties_with_collision_details(
 
 
 def get_annual_summary(
-    years: Optional[list[int]] = None,
+    years: list[int] | None = None,
     force_refresh: bool = False,
 ) -> pd.DataFrame:
     """Get annual summary statistics across multiple years.
@@ -625,7 +625,7 @@ def get_annual_summary(
 
 
 def get_casualties_by_district(
-    year: Optional[int] = None,
+    year: int | None = None,
     force_refresh: bool = False,
 ) -> pd.DataFrame:
     """Get casualty counts by policing district.
@@ -674,7 +674,7 @@ def get_casualties_by_district(
 
 
 def get_casualties_by_road_user(
-    year: Optional[int] = None,
+    year: int | None = None,
     force_refresh: bool = False,
 ) -> pd.DataFrame:
     """Get casualty counts by road user type.
