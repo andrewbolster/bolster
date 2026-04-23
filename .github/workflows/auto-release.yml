@@ -37,6 +37,7 @@ jobs:
       uses: astral-sh/setup-uv@v7
       with:
         python-version: "3.11"
+        enable-cache: false
 
     - name: Analyze changes and determine version bump
       id: analyze
