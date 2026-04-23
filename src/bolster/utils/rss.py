@@ -8,7 +8,6 @@ import contextlib
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, Union
 
 import feedparser
 from dateutil import parser as date_parser
@@ -24,13 +23,13 @@ class FeedEntry:
 
     title: str
     link: str
-    published: Optional[datetime] = None
-    updated: Optional[datetime] = None
-    summary: Optional[str] = None
-    author: Optional[str] = None
+    published: datetime | None = None
+    updated: datetime | None = None
+    summary: str | None = None
+    author: str | None = None
     categories: list[str] = None
-    content: Optional[str] = None
-    id: Optional[str] = None
+    content: str | None = None
+    id: str | None = None
 
     def __post_init__(self):
         """Initialize empty lists for mutable default arguments."""
@@ -58,10 +57,10 @@ class Feed:
 
     title: str
     link: str
-    description: Optional[str] = None
+    description: str | None = None
     entries: list[FeedEntry] = None
-    language: Optional[str] = None
-    updated: Optional[datetime] = None
+    language: str | None = None
+    updated: datetime | None = None
 
     def __post_init__(self):
         """Initialize empty lists for mutable default arguments."""
@@ -80,7 +79,7 @@ class Feed:
         }
 
 
-def parse_date(date_str: Optional[str]) -> Optional[datetime]:
+def parse_date(date_str: str | None) -> datetime | None:
     """Parse a date string into a datetime object.
 
     Args:
@@ -225,10 +224,10 @@ def parse_rss_feed(feed_url: str, timeout: int = 30) -> Feed:
 
 def filter_entries(
     entries: list[FeedEntry],
-    title_contains: Optional[str] = None,
-    category: Optional[str] = None,
-    after_date: Optional[Union[datetime, str]] = None,
-    before_date: Optional[Union[datetime, str]] = None,
+    title_contains: str | None = None,
+    category: str | None = None,
+    after_date: datetime | str | None = None,
+    before_date: datetime | str | None = None,
 ) -> list[FeedEntry]:
     """Filter feed entries based on various criteria.
 

@@ -48,7 +48,6 @@ Example:
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Union
 
 import pandas as pd
 
@@ -108,7 +107,7 @@ def get_data_source_info() -> dict:
 
 
 def parse_crime_statistics_file(
-    file_path: Union[str, Path],
+    file_path: str | Path,
     add_geographic_codes: bool = True,
 ) -> pd.DataFrame:
     """Parse PSNI crime statistics CSV file.
@@ -369,7 +368,7 @@ def validate_crime_statistics(df: pd.DataFrame) -> bool:  # pragma: no cover
 
 def filter_by_district(
     df: pd.DataFrame,
-    district: Union[str, list[str]],
+    district: str | list[str],
 ) -> pd.DataFrame:
     """Filter crime statistics to specific policing district(s).
 
@@ -396,7 +395,7 @@ def filter_by_district(
 
 def filter_by_crime_type(
     df: pd.DataFrame,
-    crime_type: Union[str, list[str]],
+    crime_type: str | list[str],
 ) -> pd.DataFrame:
     """Filter crime statistics to specific crime type(s).
 
@@ -420,8 +419,8 @@ def filter_by_crime_type(
 
 def filter_by_date_range(
     df: pd.DataFrame,
-    start_date: Optional[Union[str, datetime]] = None,
-    end_date: Optional[Union[str, datetime]] = None,
+    start_date: str | datetime | None = None,
+    end_date: str | datetime | None = None,
 ) -> pd.DataFrame:
     """Filter crime statistics to a date range.
 
@@ -458,7 +457,7 @@ def filter_by_date_range(
 
 def get_total_crimes_by_district(
     df: pd.DataFrame,
-    year: Optional[int] = None,
+    year: int | None = None,
 ) -> pd.DataFrame:
     """Calculate total recorded crimes by policing district.
 
@@ -536,7 +535,7 @@ def get_crime_trends(
 
 def get_outcome_rates_by_district(
     df: pd.DataFrame,
-    year: Optional[int] = None,
+    year: int | None = None,
     crime_type: str = "Total police recorded crime",
 ) -> pd.DataFrame:
     """Calculate crime outcome rates by policing district.

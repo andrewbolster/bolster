@@ -42,7 +42,6 @@ Example:
 import logging
 import re
 from pathlib import Path
-from typing import Union
 
 import pandas as pd
 
@@ -142,7 +141,7 @@ def get_latest_marriages_publication_url() -> tuple[str, str]:
     return excel_url, pub_date or "Unknown"
 
 
-def parse_marriages_file(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_marriages_file(file_path: str | Path) -> pd.DataFrame:
     """Parse NISRA monthly marriages Excel file.
 
     The marriages file contains a single "Marriages" sheet with a wide-format table:
@@ -467,7 +466,7 @@ def get_latest_civil_partnerships_publication_url() -> tuple[str, str]:
     return excel_url, pub_date or "Unknown"
 
 
-def parse_civil_partnerships_file(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_civil_partnerships_file(file_path: str | Path) -> pd.DataFrame:
     """Parse NISRA monthly civil partnerships Excel file.
 
     The civil partnerships file contains a "Civil Partnerships" sheet with a wide-format table:

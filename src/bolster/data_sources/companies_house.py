@@ -30,8 +30,7 @@ with built-in filtering capabilities for targeted analysis.
 
 import csv
 import logging
-from collections.abc import Iterator
-from typing import Callable
+from collections.abc import Callable, Iterator
 
 import bs4
 from tqdm.auto import tqdm

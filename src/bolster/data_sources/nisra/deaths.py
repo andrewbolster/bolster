@@ -35,7 +35,7 @@ Example:
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import pandas as pd
 from openpyxl import load_workbook
@@ -186,7 +186,7 @@ def get_latest_weekly_deaths_url() -> str:
         return latest["url"]
 
 
-def parse_deaths_totals(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_deaths_totals(file_path: str | Path) -> pd.DataFrame:
     """Parse weekly totals with COVID-19, flu/pneumonia, and excess deaths from weekly deaths file.
 
     Extracts Table 1a and creates a flat table with columns:
@@ -251,7 +251,7 @@ def parse_deaths_totals(file_path: Union[str, Path]) -> pd.DataFrame:
         records.append(
             {
                 "week_ending": week_ending,
-                "week_number": int(week_number) if isinstance(week_number, (int, float)) else week_number,
+                "week_number": int(week_number) if isinstance(week_number, int | float) else week_number,
                 "observed_deaths": int(row[2]) if row[2] is not None else None,
                 "deaths_same_week_2024": int(row[3]) if row[3] is not None else None,
                 "expected_deaths_5yr": float(row[6]) if row[6] is not None else None,
@@ -280,7 +280,7 @@ def parse_deaths_totals(file_path: Union[str, Path]) -> pd.DataFrame:
     return df
 
 
-def parse_deaths_demographics(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_deaths_demographics(file_path: str | Path) -> pd.DataFrame:
     """Parse demographics dimension (age, sex) from weekly deaths file.
 
     Extracts Table 2 and creates a flat table with columns:
@@ -380,7 +380,7 @@ def parse_deaths_demographics(file_path: Union[str, Path]) -> pd.DataFrame:
     return df
 
 
-def parse_deaths_geography(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_deaths_geography(file_path: str | Path) -> pd.DataFrame:
     """Parse geography dimension (Local Government Districts) from weekly deaths file.
 
     Extracts Table 3 and creates a flat table with columns:
@@ -451,7 +451,7 @@ def parse_deaths_geography(file_path: Union[str, Path]) -> pd.DataFrame:
     return df
 
 
-def parse_deaths_place(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_deaths_place(file_path: str | Path) -> pd.DataFrame:
     """Parse place of death dimension from weekly deaths file.
 
     Extracts Table 4 and creates a flat table with columns:
@@ -525,8 +525,8 @@ def parse_deaths_place(file_path: Union[str, Path]) -> pd.DataFrame:
 
 
 def parse_deaths_file(
-    file_path: Union[str, Path], dimension: DimensionType = "all"
-) -> Union[pd.DataFrame, dict[str, pd.DataFrame]]:
+    file_path: str | Path, dimension: DimensionType = "all"
+) -> pd.DataFrame | dict[str, pd.DataFrame]:
     """Parse weekly deaths file for one or all dimensions.
 
     Args:
@@ -566,7 +566,7 @@ def parse_deaths_file(
 
 def get_latest_deaths(
     dimension: DimensionType = "all", force_refresh: bool = False
-) -> Union[pd.DataFrame, dict[str, pd.DataFrame]]:
+) -> pd.DataFrame | dict[str, pd.DataFrame]:
     """Get the latest weekly deaths data.
 
     Args:
@@ -586,8 +586,8 @@ def get_latest_deaths(
 
 
 def get_historical_deaths(
-    years: Optional[list[int]] = None, force_refresh: bool = False, include_age_breakdowns: bool = False
-) -> Union[pd.DataFrame, dict[str, pd.DataFrame]]:
+    years: list[int] | None = None, force_refresh: bool = False, include_age_breakdowns: bool = False
+) -> pd.DataFrame | dict[str, pd.DataFrame]:
     """Get historical weekly deaths data (2011-2024).
 
     Downloads and parses the NISRA historical weekly deaths file which contains
@@ -744,7 +744,7 @@ def get_historical_deaths(
 
 
 def get_combined_deaths(
-    years: Optional[list[int]] = None, include_current_year: bool = True, force_refresh: bool = False
+    years: list[int] | None = None, include_current_year: bool = True, force_refresh: bool = False
 ) -> pd.DataFrame:
     """Get combined historical and current year deaths data.
 

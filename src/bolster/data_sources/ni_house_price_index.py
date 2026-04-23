@@ -38,7 +38,6 @@ import warnings
 from datetime import datetime
 from functools import partial
 from pathlib import Path
-from typing import Optional
 from urllib.parse import urlparse
 
 import bs4
@@ -76,7 +75,7 @@ def _hash_url(url: str) -> str:
     return hashlib.md5(url.encode()).hexdigest()
 
 
-def _get_cached_file(url: str, cache_ttl_hours: int = 24) -> Optional[Path]:
+def _get_cached_file(url: str, cache_ttl_hours: int = 24) -> Path | None:
     """Return cached file if exists and fresh, else None.
 
     Args:

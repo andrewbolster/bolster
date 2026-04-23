@@ -153,7 +153,7 @@ def top_n(df: pd.DataFrame, n: int, others: AnyStr = "others") -> pd.DataFrame:
 
     top_df = df.iloc[:n]
     others_df = df.iloc[n:].sum(numeric_only=True)
-    if isinstance(others_df, (pd.Series, pd.DataFrame)):
+    if isinstance(others_df, pd.Series | pd.DataFrame):
         others_df.name = others
     else:
         others_df = pd.Series(others_df, name=others)
