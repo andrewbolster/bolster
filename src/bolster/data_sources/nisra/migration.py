@@ -47,7 +47,6 @@ Example:
 import logging
 import re
 from pathlib import Path
-from typing import Optional, Tuple
 
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -313,7 +312,7 @@ def get_migration_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
 
 
 def get_migration_summary_statistics(
-    df: pd.DataFrame, start_year: Optional[int] = None, end_year: Optional[int] = None
+    df: pd.DataFrame, start_year: int | None = None, end_year: int | None = None
 ) -> dict:
     """Calculate summary statistics for migration data.
 
@@ -390,7 +389,7 @@ def get_migration_summary_statistics(
 MIGRATION_MOTHER_PAGE = "https://www.nisra.gov.uk/statistics/population/long-term-international-migration-statistics"
 
 
-def get_official_migration_publication_url() -> Tuple[str, int]:
+def get_official_migration_publication_url() -> tuple[str, int]:
     """Scrape NISRA migration mother page to find latest Official estimates file.
 
     Navigates the publication structure:
@@ -408,7 +407,7 @@ def get_official_migration_publication_url() -> Tuple[str, int]:
         response = session.get(MIGRATION_MOTHER_PAGE, timeout=30)
         response.raise_for_status()
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch migration mother page: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch migration mother page: {e}") from e
 
     soup = BeautifulSoup(response.content, "html.parser")
 
@@ -444,7 +443,7 @@ def get_official_migration_publication_url() -> Tuple[str, int]:
         pub_response = session.get(pub_link, timeout=30)
         pub_response.raise_for_status()
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch publication page {pub_link}: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch publication page {pub_link}: {e}") from e
 
     pub_soup = BeautifulSoup(pub_response.content, "html.parser")
 
@@ -494,7 +493,7 @@ def parse_official_migration_file(file_path: Path) -> pd.DataFrame:
         # skiprows=2 to skip title and subtitle rows
         df = pd.read_excel(file_path, sheet_name="Table 1.1", skiprows=2)
     except Exception as e:
-        raise NISRAValidationError(f"Failed to read Table 1.1 from {file_path}: {e}")
+        raise NISRAValidationError(f"Failed to read Table 1.1 from {file_path}: {e}") from e
 
     # Find time period column (first column usually)
     time_col = df.columns[0]

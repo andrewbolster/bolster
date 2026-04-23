@@ -50,7 +50,6 @@ Example:
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -95,7 +94,7 @@ def get_latest_projections_publication_url(variant: str = "principal") -> str:
         response = session.get(pub_url, timeout=30)
         response.raise_for_status()
     except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch projections publication page: {e}")
+        raise NISRADataNotFoundError(f"Failed to fetch projections publication page: {e}") from e
 
     soup = BeautifulSoup(response.content, "html.parser")
 
@@ -156,7 +155,7 @@ def parse_projections_file(file_path: Path, variant: str = "principal") -> pd.Da
             raise NotImplementedError(f"Variant projection parsing not yet implemented: {variant}")
 
     except Exception as e:
-        raise NISRAValidationError(f"Failed to read projections from {file_path}: {e}")
+        raise NISRAValidationError(f"Failed to read projections from {file_path}: {e}") from e
 
     # Standardize column names (Flat File uses: Area, Area_Code, Projection, Mid-Year, Sex, Age, Age_5, NPP)
     df = df.rename(
@@ -282,9 +281,9 @@ def validate_projection_coverage(df: pd.DataFrame) -> bool:
 
 
 def get_latest_projections(
-    area: Optional[str] = None,
-    start_year: Optional[int] = None,
-    end_year: Optional[int] = None,
+    area: str | None = None,
+    start_year: int | None = None,
+    end_year: int | None = None,
     variant: str = "principal",
     force_refresh: bool = False,
 ) -> pd.DataFrame:
