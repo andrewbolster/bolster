@@ -63,7 +63,7 @@ from bs4 import BeautifulSoup
 
 from bolster.utils.web import session
 
-from ._base import NISRADataNotFoundError, add_date_columns, download_file, make_absolute_url
+from ._base import NISRADataNotFoundError, NISRAValidationError, add_date_columns, download_file, make_absolute_url
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +78,15 @@ SHEET_62_DAY_TRUST = "62 Day Wait by HSC Trust"
 SHEET_62_DAY_TUMOUR = "62 Day Wait by Tumour Site"
 SHEET_14_DAY_REGIONAL = "14 d Wait - Breast Regional"
 SHEET_14_DAY_HISTORIC = "14 d Wait - Breast Historic"
+# Pre-Q3-2025-26 files used a single combined sheet instead of the historic/regional split
+SHEET_14_DAY_LEGACY = "14 Day Wait - Breast Cancer"
 SHEET_BREAST_REFERRALS = "Breast Cancer Referrals"
+
+# Column schemas vary by publication era:
+# - Pre-Q3 2025-26: 5 cols (no median/percentile); breast referrals 4 cols (total before urgent, no routine)
+# - Q3 2025-26+:    7 cols (+ median_days, percentile_95_days); breast referrals 5 cols (routine, urgent, total)
+_WAIT_COLS_5 = ["period_month", "group", "within_target", "over_target", "total"]
+_WAIT_COLS_7 = ["period_month", "group", "within_target", "over_target", "total", "median_days", "percentile_95_days"]
 
 
 def get_latest_publication_url() -> tuple[str, str]:
@@ -158,8 +166,34 @@ def get_latest_publication_url() -> tuple[str, str]:
     return excel_url, quarter_str
 
 
+def _parse_wait_sheet(file_path: str | Path, sheet_name: str, group_col: str) -> pd.DataFrame:
+    """Parse a wait-time sheet, handling 5-column (pre-Q3 2025-26) and 7-column (Q3 2025-26+) formats.
+
+    Args:
+        file_path: Path to the Excel file
+        sheet_name: Name of the sheet to parse
+        group_col: Output column name for the grouping dimension (e.g. 'trust' or 'tumour_site')
+
+    Returns:
+        DataFrame with columns: period_month, group_col, within_target, over_target, total
+        (median_days and percentile_95_days are dropped — not yet used downstream)
+    """
+    df = pd.read_excel(file_path, sheet_name=sheet_name)
+    n_cols = len(df.columns)
+    if n_cols == 7:
+        df.columns = _WAIT_COLS_7
+    elif n_cols == 5:
+        df.columns = _WAIT_COLS_5
+    else:
+        raise NISRAValidationError(f"Unexpected column count ({n_cols}) in sheet '{sheet_name}' of {file_path}")
+    return df.rename(columns={"group": group_col})
+
+
 def parse_31_day_by_trust(file_path: str | Path) -> pd.DataFrame:
     """Parse 31-day waiting times by HSC Trust.
+
+    Handles both the 5-column format (pre-Q3 2025-26) and the 7-column format
+    (Q3 2025-26+, which added Median and 95th Percentile columns).
 
     Args:
         file_path: Path to the Excel file
@@ -168,17 +202,17 @@ def parse_31_day_by_trust(file_path: str | Path) -> pd.DataFrame:
         DataFrame with columns: date, year, month, trust, within_target,
         over_target, total, performance_rate
     """
-    df = pd.read_excel(file_path, sheet_name=SHEET_31_DAY_TRUST)
-
-    df.columns = ["treatment_month", "trust", "within_target", "over_target", "total"]
-    df = add_date_columns(df, "treatment_month")
+    df = _parse_wait_sheet(file_path, SHEET_31_DAY_TRUST, "trust")
+    df = add_date_columns(df, "period_month")
     df["performance_rate"] = df["within_target"] / df["total"]
-
     return df[["date", "year", "month", "trust", "within_target", "over_target", "total", "performance_rate"]]
 
 
 def parse_31_day_by_tumour(file_path: str | Path) -> pd.DataFrame:
     """Parse 31-day waiting times by Tumour Site.
+
+    Handles both the 5-column format (pre-Q3 2025-26) and the 7-column format
+    (Q3 2025-26+, which added Median and 95th Percentile columns).
 
     Args:
         file_path: Path to the Excel file
@@ -187,17 +221,17 @@ def parse_31_day_by_tumour(file_path: str | Path) -> pd.DataFrame:
         DataFrame with columns: date, year, month, tumour_site, within_target,
         over_target, total, performance_rate
     """
-    df = pd.read_excel(file_path, sheet_name=SHEET_31_DAY_TUMOUR)
-
-    df.columns = ["treatment_month", "tumour_site", "within_target", "over_target", "total"]
-    df = add_date_columns(df, "treatment_month")
+    df = _parse_wait_sheet(file_path, SHEET_31_DAY_TUMOUR, "tumour_site")
+    df = add_date_columns(df, "period_month")
     df["performance_rate"] = df["within_target"] / df["total"]
-
     return df[["date", "year", "month", "tumour_site", "within_target", "over_target", "total", "performance_rate"]]
 
 
 def parse_62_day_by_trust(file_path: str | Path) -> pd.DataFrame:
     """Parse 62-day waiting times by HSC Trust.
+
+    Handles both the 5-column format (pre-Q3 2025-26) and the 7-column format
+    (Q3 2025-26+, which added Median and 95th Percentile columns).
 
     Args:
         file_path: Path to the Excel file
@@ -210,17 +244,17 @@ def parse_62_day_by_trust(file_path: str | Path) -> pd.DataFrame:
         62-day data may contain fractional patient counts due to shared care
         arrangements between trusts.
     """
-    df = pd.read_excel(file_path, sheet_name=SHEET_62_DAY_TRUST)
-
-    df.columns = ["treatment_month", "trust", "within_target", "over_target", "total"]
-    df = add_date_columns(df, "treatment_month")
+    df = _parse_wait_sheet(file_path, SHEET_62_DAY_TRUST, "trust")
+    df = add_date_columns(df, "period_month")
     df["performance_rate"] = df["within_target"] / df["total"]
-
     return df[["date", "year", "month", "trust", "within_target", "over_target", "total", "performance_rate"]]
 
 
 def parse_62_day_by_tumour(file_path: str | Path) -> pd.DataFrame:
     """Parse 62-day waiting times by Tumour Site.
+
+    Handles both the 5-column format (pre-Q3 2025-26) and the 7-column format
+    (Q3 2025-26+, which added Median and 95th Percentile columns).
 
     Args:
         file_path: Path to the Excel file
@@ -229,17 +263,19 @@ def parse_62_day_by_tumour(file_path: str | Path) -> pd.DataFrame:
         DataFrame with columns: date, year, month, tumour_site, within_target,
         over_target, total, performance_rate
     """
-    df = pd.read_excel(file_path, sheet_name=SHEET_62_DAY_TUMOUR)
-
-    df.columns = ["treatment_month", "tumour_site", "within_target", "over_target", "total"]
-    df = add_date_columns(df, "treatment_month")
+    df = _parse_wait_sheet(file_path, SHEET_62_DAY_TUMOUR, "tumour_site")
+    df = add_date_columns(df, "period_month")
     df["performance_rate"] = df["within_target"] / df["total"]
-
     return df[["date", "year", "month", "tumour_site", "within_target", "over_target", "total", "performance_rate"]]
 
 
 def parse_14_day_breast(file_path: str | Path) -> pd.DataFrame:
-    """Parse 14-day breast cancer waiting times (combined historic and regional).
+    """Parse 14-day breast cancer waiting times.
+
+    Handles three publication formats:
+    - Pre-Q4 2024-25: single sheet 'SHEET_14_DAY_LEGACY' (5 cols)
+    - Q4 2024-25 to Q2 2025-26: split into historic (5 cols) + regional (5 cols)
+    - Q3 2025-26+: split into historic (5 cols) + regional (7 cols, + median/95th pct)
 
     Args:
         file_path: Path to the Excel file
@@ -252,25 +288,36 @@ def parse_14_day_breast(file_path: str | Path) -> pd.DataFrame:
         From May 2025, breast cancer services became regional. Historic data
         (pre-May 2025) is by individual Trust. Regional data shows NI-wide figures.
     """
-    # Parse historic data (by Trust, up to April 2025)
-    df_historic = pd.read_excel(file_path, sheet_name=SHEET_14_DAY_HISTORIC)
-    df_historic.columns = ["month_seen", "trust", "within_target", "over_target", "total"]
-    df_historic = add_date_columns(df_historic, "month_seen")
+    xl = pd.ExcelFile(file_path)
+    sheet_names = xl.sheet_names
 
-    # Parse regional data (May 2025 onwards)
-    df_regional = pd.read_excel(file_path, sheet_name=SHEET_14_DAY_REGIONAL)
-    df_regional.columns = ["month_seen", "trust", "within_target", "over_target", "total"]
-    df_regional = add_date_columns(df_regional, "month_seen")
+    if SHEET_14_DAY_HISTORIC in sheet_names:
+        # New split format (Q4 2024-25 onwards)
+        df_historic = _parse_wait_sheet(file_path, SHEET_14_DAY_HISTORIC, "trust")
+        df_historic = add_date_columns(df_historic, "period_month")
+        parts = [df_historic]
 
-    # Combine
-    df = pd.concat([df_historic, df_regional], ignore_index=True)
+        if SHEET_14_DAY_REGIONAL in sheet_names:
+            df_regional = _parse_wait_sheet(file_path, SHEET_14_DAY_REGIONAL, "trust")
+            df_regional = add_date_columns(df_regional, "period_month")
+            parts.append(df_regional)
+
+        df = pd.concat(parts, ignore_index=True)
+    else:
+        # Legacy single-sheet format (pre-Q4 2024-25)
+        df = _parse_wait_sheet(file_path, SHEET_14_DAY_LEGACY, "trust")
+        df = add_date_columns(df, "period_month")
+
     df["performance_rate"] = df["within_target"] / df["total"]
-
     return df[["date", "year", "month", "trust", "within_target", "over_target", "total", "performance_rate"]]
 
 
 def parse_breast_referrals(file_path: str | Path) -> pd.DataFrame:
     """Parse breast cancer referrals data.
+
+    Handles two formats:
+    - Pre-Q3 2025-26: 4 columns (referral_month, trust, total_referrals, urgent_referrals)
+    - Q3 2025-26+: 5 columns (referral_month, trust, routine_referrals, urgent_referrals, total_referrals)
 
     Args:
         file_path: Path to the Excel file
@@ -280,11 +327,19 @@ def parse_breast_referrals(file_path: str | Path) -> pd.DataFrame:
         urgent_referrals, urgent_rate
     """
     df = pd.read_excel(file_path, sheet_name=SHEET_BREAST_REFERRALS)
+    n_cols = len(df.columns)
 
-    df.columns = ["referral_month", "trust", "total_referrals", "urgent_referrals"]
+    if n_cols == 5:
+        # Q3 2025-26+: routine, urgent, total
+        df.columns = ["referral_month", "trust", "routine_referrals", "urgent_referrals", "total_referrals"]
+    elif n_cols == 4:
+        # Pre-Q3 2025-26: total before urgent, no routine column
+        df.columns = ["referral_month", "trust", "total_referrals", "urgent_referrals"]
+    else:
+        raise NISRAValidationError(f"Unexpected column count ({n_cols}) in breast referrals sheet of {file_path}")
+
     df = add_date_columns(df, "referral_month")
     df["urgent_rate"] = df["urgent_referrals"] / df["total_referrals"]
-
     return df[["date", "year", "month", "trust", "total_referrals", "urgent_referrals", "urgent_rate"]]
 
 
