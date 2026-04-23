@@ -11,9 +11,9 @@ import logging
 import random
 import time
 from collections import Counter
-from collections.abc import Generator, Iterator, Sequence
+from collections.abc import Callable, Generator, Iterator, Sequence
 from gzip import GzipFile
-from typing import Any, AnyStr, Callable, Optional, SupportsInt, Union
+from typing import Any, AnyStr, Optional, SupportsInt, Union
 
 import boto3
 import botocore.config
@@ -29,7 +29,7 @@ logger.setLevel(logging.INFO)
 # Global Session Parent
 ###
 # In theory this means a single auth/pool cycle... in theory..
-session: Optional[boto3.Session] = None
+session: boto3.Session | None = None
 
 
 def start_session(*args, restart=False, **kwargs) -> boto3.Session:
@@ -69,7 +69,7 @@ def get_s3_client():
 
 
 def put_s3(
-    obj: Union[Sequence[dict], io.StringIO],
+    obj: Sequence[dict] | io.StringIO,
     key: str,
     bucket: str,
     keys=None,
@@ -248,7 +248,7 @@ def select_from_csv(bucket, key, fields, client=None) -> list:
     return json.loads("[" + results + "]")
 
 
-def get_latest_key(prefix: str, bucket: str, key: Optional[Callable] = None, client=None) -> str:
+def get_latest_key(prefix: str, bucket: str, key: Callable | None = None, client=None) -> str:
     """Walk a given S3 bucket for the lexicographically highest item in the given bucket.
 
     Defaults to the analysis store defined in utils.env.
@@ -350,7 +350,7 @@ def get_ssm_param(param_name: str, client=None) -> str:
 ###
 # Kinesis/Firehose Helpers
 ###
-def fh_json_decode(content: AnyStr) -> Iterator[Union[dict, list]]:
+def fh_json_decode(content: AnyStr) -> Iterator[dict | list]:
     """Customised JSON Decoder for consuming Firehose batched records.
 
     Firehose doesn't include entry separators between entries, so we intercept the raw_decoder

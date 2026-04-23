@@ -49,7 +49,6 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Union
 
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -206,7 +205,7 @@ def get_latest_dva_publication_url() -> tuple[str, str, datetime]:
     raise DVADataNotFoundError("Could not find any DVA monthly tests publications in the last 6 months")
 
 
-def _parse_month_year(date_str: str) -> Optional[datetime]:
+def _parse_month_year(date_str: str) -> datetime | None:
     """Parse a 'YYYY Month' string into a datetime.
 
     Args:
@@ -247,7 +246,7 @@ def _parse_month_year(date_str: str) -> Optional[datetime]:
     return None
 
 
-def parse_vehicle_tests(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_vehicle_tests(file_path: str | Path) -> pd.DataFrame:
     """Parse DVA vehicle tests data from Excel file.
 
     Extracts full vehicle tests conducted from Table 1.1a.
@@ -326,7 +325,7 @@ def parse_vehicle_tests(file_path: Union[str, Path]) -> pd.DataFrame:
     return df
 
 
-def parse_driver_tests(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_driver_tests(file_path: str | Path) -> pd.DataFrame:
     """Parse DVA driver tests data from Excel file.
 
     Extracts driver tests conducted from Table 2.1.
@@ -405,7 +404,7 @@ def parse_driver_tests(file_path: Union[str, Path]) -> pd.DataFrame:
     return df
 
 
-def parse_theory_tests(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_theory_tests(file_path: str | Path) -> pd.DataFrame:
     """Parse DVA theory tests data from Excel file.
 
     Extracts theory tests conducted from Table 3.1.
@@ -645,7 +644,7 @@ def calculate_growth_rates(df: pd.DataFrame, periods: int = 12) -> pd.DataFrame:
     return result
 
 
-def get_summary_statistics(df: pd.DataFrame, start_year: Optional[int] = None, end_year: Optional[int] = None) -> dict:
+def get_summary_statistics(df: pd.DataFrame, start_year: int | None = None, end_year: int | None = None) -> dict:
     """Calculate summary statistics for test data.
 
     Args:

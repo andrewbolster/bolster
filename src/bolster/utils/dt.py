@@ -1,8 +1,7 @@
 from datetime import date, datetime, timedelta, timezone
-from typing import Union
 
 
-def round_to_week(dt: Union[datetime, date]) -> date:
+def round_to_week(dt: datetime | date) -> date:
     """Return a date for the Monday before the given date.
 
     Args:
@@ -18,7 +17,7 @@ def round_to_week(dt: Union[datetime, date]) -> date:
     return (dt.date() if isinstance(dt, datetime) else dt) - timedelta(days=dt.weekday())
 
 
-def round_to_month(dt: Union[datetime, date]) -> date:
+def round_to_month(dt: datetime | date) -> date:
     """Return a date for the first day of the month of a given date.
 
     Args:

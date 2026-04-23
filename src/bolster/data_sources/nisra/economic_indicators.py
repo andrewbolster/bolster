@@ -51,7 +51,6 @@ Publication Details:
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Union
 
 import pandas as pd
 
@@ -200,7 +199,7 @@ def get_latest_iop_publication_url() -> tuple[str, datetime]:
     raise NISRADataNotFoundError("Could not find latest Index of Production publication")
 
 
-def parse_ios_file(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_ios_file(file_path: str | Path) -> pd.DataFrame:
     """Parse NISRA Index of Services Excel file.
 
     Extracts the main IOS time series (Table 1.1) from the Excel file.
@@ -248,7 +247,7 @@ def parse_ios_file(file_path: Union[str, Path]) -> pd.DataFrame:
     return result
 
 
-def parse_iop_file(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_iop_file(file_path: str | Path) -> pd.DataFrame:
     """Parse NISRA Index of Production Excel file.
 
     Extracts the main IOP time series (Table 1) from the Excel file.
@@ -482,9 +481,7 @@ def calculate_iop_growth_rate(df: pd.DataFrame, periods: int = 4) -> pd.DataFram
     return result
 
 
-def get_ios_summary_statistics(
-    df: pd.DataFrame, start_year: Optional[int] = None, end_year: Optional[int] = None
-) -> dict:
+def get_ios_summary_statistics(df: pd.DataFrame, start_year: int | None = None, end_year: int | None = None) -> dict:
     """Calculate summary statistics for Index of Services.
 
     Args:
@@ -527,9 +524,7 @@ def get_ios_summary_statistics(
     }
 
 
-def get_iop_summary_statistics(
-    df: pd.DataFrame, start_year: Optional[int] = None, end_year: Optional[int] = None
-) -> dict:
+def get_iop_summary_statistics(df: pd.DataFrame, start_year: int | None = None, end_year: int | None = None) -> dict:
     """Calculate summary statistics for Index of Production.
 
     Args:

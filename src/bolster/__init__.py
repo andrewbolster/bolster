@@ -45,7 +45,7 @@ import sys
 import time
 import traceback
 from collections import Counter, defaultdict
-from collections.abc import Generator, Hashable, Iterable, Iterator, Sequence
+from collections.abc import Callable, Generator, Hashable, Iterable, Iterator, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from functools import partial, wraps
 from itertools import chain, groupby, islice
@@ -54,7 +54,6 @@ from pathlib import Path
 from typing import (
     Any,
     AnyStr,
-    Callable,
     Optional,
     SupportsFloat,
     SupportsInt,
@@ -100,7 +99,7 @@ def always(x, **kwargs) -> bool:
 def poolmap(
     f: Callable,
     iterable: Iterable,
-    max_workers: Optional[int] = None,
+    max_workers: int | None = None,
     progress: Callable = None,
     **kwargs,
 ) -> dict:
@@ -200,11 +199,11 @@ def arg_exception_logger(func: Callable) -> Callable:
 
 # noinspection PyShadowingNames
 def backoff(
-    exception_to_check: Union[Any, Sequence[Any]] = BaseException,
+    exception_to_check: Any | Sequence[Any] = BaseException,
     tries: SupportsInt = 5,
     delay: SupportsFloat = 0.2,
     backoff: SupportsFloat = 2,
-    logger: Optional[logging.Logger] = logger,
+    logger: logging.Logger | None = logger,
 ):
     """Retry calling the decorated function using an exponential backoff.
 
@@ -364,7 +363,7 @@ def exceptional_executor(futures: Sequence[Future], exception_handler=None, time
 
 
 @contextlib.contextmanager
-def working_directory(path: Union[str, Path]) -> Generator:
+def working_directory(path: str | Path) -> Generator:
     """Contextmanager that changes working directory and returns to previous on exit.
 
     Args:
@@ -379,7 +378,7 @@ def working_directory(path: Union[str, Path]) -> Generator:
         os.chdir(str(prev_cwd.absolute()))
 
 
-def compress_for_relay(obj: Union[list, dict]) -> AnyStr:
+def compress_for_relay(obj: list | dict) -> AnyStr:
     """Compress json-serializable object to a gzipped base64 string.
 
     Args:
@@ -396,7 +395,7 @@ def compress_for_relay(obj: Union[list, dict]) -> AnyStr:
     return base64.b64encode(gzip.compress(json.dumps(obj).encode("utf-8"), 6)).decode()
 
 
-def decompress_from_relay(msg: AnyStr) -> Union[list, dict]:
+def decompress_from_relay(msg: AnyStr) -> list | dict:
     """Uncompress  gzipped base64 string to a json-serializable object.
 
     ['test'].
@@ -462,7 +461,7 @@ class memoize:
         return res
 
 
-def pretty_print_request(req, expose_auth=False, authentication_header_blacklist: Optional[Sequence] = None) -> None:
+def pretty_print_request(req, expose_auth=False, authentication_header_blacklist: Sequence | None = None) -> None:
     """At this point it is completely built and ready to be fired; it is "prepared".
 
     However pay attention at the formatting used in
@@ -523,7 +522,7 @@ def get_recursively(search_dict: dict, field: str) -> list:
     return fields_found
 
 
-def transform_(r: dict, rule_keys: dict[AnyStr, Optional[tuple]]) -> dict:
+def transform_(r: dict, rule_keys: dict[AnyStr, tuple | None]) -> dict:
     """Generic Item-wise transformation function.
 
     The values in `r` are updated based on key-matching in `rule_keys`,
@@ -573,7 +572,7 @@ def transform_(r: dict, rule_keys: dict[AnyStr, Optional[tuple]]) -> dict:
     return out_record
 
 
-def diff(new: dict, old: dict, excluded_fields: Optional[set] = None) -> dict:
+def diff(new: dict, old: dict, excluded_fields: set | None = None) -> dict:
     """Perform a one-depth diff of a pair of dictionaries.
 
     #TODO diff needs tests
@@ -590,9 +589,9 @@ def diff(new: dict, old: dict, excluded_fields: Optional[set] = None) -> dict:
 
 def aggregate(
     base: list[dict],
-    group_key: Union[AnyStr, tuple[AnyStr], list[AnyStr]],
+    group_key: AnyStr | tuple[AnyStr] | list[AnyStr],
     item_key: AnyStr,
-    condition: Optional[Callable] = None,
+    condition: Callable | None = None,
 ) -> dict[Any, Any]:
     """Abstracted groupby-sum for lists of dicts.
 
@@ -614,7 +613,7 @@ def aggregate(
     if condition is None:
         condition = lambda x: True  # noqa: E731
 
-    grouper = itemgetter(*group_key) if isinstance(group_key, (tuple, list)) else itemgetter(group_key)
+    grouper = itemgetter(*group_key) if isinstance(group_key, tuple | list) else itemgetter(group_key)
 
     for source_key, g in groupby(filter(condition, base), grouper):
         for sig in g:
@@ -676,7 +675,7 @@ def leaves(d: dict) -> Iterator[Any]:
         yield (d)
 
 
-def leaf_paths(d: dict, path: Optional[list[Hashable]] = None) -> Iterator[tuple[list[Hashable], Any]]:
+def leaf_paths(d: dict, path: list[Hashable] | None = None) -> Iterator[tuple[list[Hashable], Any]]:
     """Get all leaf paths in a nested dictionary structure."""
     if path is None:
         path = []
@@ -708,14 +707,14 @@ def uncollect_object(d: dict) -> dict[Hashable, Any]:
     """Convert flat dictionary back to nested structure using path tuples."""
     new_d = {}
     for k, v in d.items():
-        if isinstance(v, (defaultdict, Counter)):
+        if isinstance(v, defaultdict | Counter):
             new_d[k] = uncollect_object(v)
         else:
             new_d[k] = v
     return new_d
 
 
-def dict_concat_safe(d: dict, keys: list[Hashable], default: Optional[Any] = None) -> Iterator[Any]:
+def dict_concat_safe(d: dict, keys: list[Hashable], default: Any | None = None) -> Iterator[Any]:
     """Really Lazy Func because `dict.get('key',default)` is a pain in the ass for lists."""
     for k in keys:
         yield d.get(k, default)

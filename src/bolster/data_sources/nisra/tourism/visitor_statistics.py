@@ -43,7 +43,6 @@ Example:
 
 import logging
 import re
-from typing import Optional
 
 import pandas as pd
 
@@ -373,7 +372,7 @@ def validate_visitor_statistics(df: pd.DataFrame) -> bool:
     return True
 
 
-def get_visitor_statistics_by_market(df: pd.DataFrame, market: str) -> Optional[pd.Series]:
+def get_visitor_statistics_by_market(df: pd.DataFrame, market: str) -> pd.Series | None:
     """Get visitor statistics for a specific market.
 
     Args:
@@ -395,7 +394,7 @@ def get_visitor_statistics_by_market(df: pd.DataFrame, market: str) -> Optional[
     return matches.iloc[0]
 
 
-def get_total_visitor_statistics(df: pd.DataFrame) -> Optional[pd.Series]:
+def get_total_visitor_statistics(df: pd.DataFrame) -> pd.Series | None:
     """Get total visitor statistics across all markets.
 
     Args:

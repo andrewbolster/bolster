@@ -40,7 +40,6 @@ Example:
 import logging
 import re
 from pathlib import Path
-from typing import Optional, Union
 
 import pandas as pd
 from openpyxl import load_workbook
@@ -436,7 +435,7 @@ def parse_lgd_statistics(sheet) -> pd.DataFrame:
     return df
 
 
-def parse_quarterly_tables(file_path: Union[str, Path]) -> dict[str, pd.DataFrame]:
+def parse_quarterly_tables(file_path: str | Path) -> dict[str, pd.DataFrame]:
     """Parse the Registrar General Quarterly Tables Excel file.
 
     The file contains multiple tables:
@@ -617,7 +616,7 @@ def get_lgd_statistics(force_refresh: bool = False) -> pd.DataFrame:
 
 def validate_against_monthly_births(
     quarterly_df: pd.DataFrame,
-    monthly_df: Optional[pd.DataFrame] = None,
+    monthly_df: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     """Compare quarterly births totals against aggregated monthly births.
 
@@ -671,7 +670,7 @@ def validate_against_monthly_births(
 
 def validate_against_monthly_marriages(
     quarterly_df: pd.DataFrame,
-    monthly_df: Optional[pd.DataFrame] = None,
+    monthly_df: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     """Compare quarterly marriages totals against aggregated monthly marriages.
 

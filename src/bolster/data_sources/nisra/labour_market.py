@@ -75,7 +75,6 @@ Date: 2025-12-21
 import logging
 import re
 from pathlib import Path
-from typing import Optional, Union
 
 import pandas as pd
 from openpyxl import load_workbook
@@ -216,7 +215,7 @@ def download_quarterly_lfs(year: int, quarter: str, force_refresh: bool = False,
         raise NISRADataNotFoundError(f"Failed to download LFS quarterly data for {year} {quarter}: {e}") from e
 
 
-def parse_employment_by_age_sex(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_employment_by_age_sex(file_path: str | Path) -> pd.DataFrame:
     """Parse Table 2.15: Employment by Age Band and Sex.
 
     Extracts employment numbers and percentages broken down by age group and sex.
@@ -358,7 +357,7 @@ def parse_employment_by_age_sex(file_path: Union[str, Path]) -> pd.DataFrame:
     return pd.concat([df_pct, df_num], ignore_index=True)
 
 
-def parse_economic_inactivity(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_economic_inactivity(file_path: str | Path) -> pd.DataFrame:
     """Parse Table 2.21: Economically Inactive by Sex (Time Series).
 
     Extracts economic inactivity data broken down by sex with historical time series.
@@ -667,7 +666,7 @@ def get_latest_economic_inactivity(force_refresh: bool = False) -> pd.DataFrame:
 
 
 def get_quarterly_data(
-    year: int, quarter: str, tables: Optional[list[str]] = None, force_refresh: bool = False
+    year: int, quarter: str, tables: list[str] | None = None, force_refresh: bool = False
 ) -> dict[str, pd.DataFrame]:
     """Get Labour Force Survey data for a specific quarter.
 
@@ -770,7 +769,7 @@ def get_latest_lgd_employment_url() -> tuple[str, int]:
     return fallback_url, 2024
 
 
-def parse_employment_by_lgd(file_path: Union[str, Path], year: int = None) -> pd.DataFrame:
+def parse_employment_by_lgd(file_path: str | Path, year: int = None) -> pd.DataFrame:
     """Parse Table 1.16a: Employment by Local Government District (ages 16+).
 
     Extracts employment statistics for all 11 Northern Ireland LGDs from the annual

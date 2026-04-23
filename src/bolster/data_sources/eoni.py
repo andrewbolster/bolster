@@ -34,7 +34,7 @@ import datetime
 import logging
 import re
 from collections.abc import Iterable
-from typing import AnyStr, Optional, Union
+from typing import AnyStr
 
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -101,7 +101,7 @@ def normalise_constituencies(cons_str: str) -> str:
 
 def get_metadata_from_df(
     df: pd.DataFrame,
-) -> dict[str, Union[int, str, datetime.datetime]]:
+) -> dict[str, int | str | datetime.datetime]:
     """Extract Ballot metadata from the table header(s) of an XLS formatted result sheet, as output from `get_excel_dataframe`.
 
     # TODO this could probably be done better as a `dataclass`
@@ -162,7 +162,7 @@ def get_stage_transfers_from_df(df: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-def extract_stage_n_votes(df: pd.DataFrame, n: int) -> Optional[pd.Series]:
+def extract_stage_n_votes(df: pd.DataFrame, n: int) -> pd.Series | None:
     """Extract the votes from a given stage N.
 
     Note: This will include trailing, unaligned `Nones` which must be cleaned up at the Ballot level
@@ -179,7 +179,7 @@ def extract_stage_n_votes(df: pd.DataFrame, n: int) -> Optional[pd.Series]:
     return df.iloc[row_offset : row_offset + 20, col_offset].reset_index(drop=True)
 
 
-def extract_stage_n_transfers(df: pd.DataFrame, n: int) -> Optional[pd.Series]:
+def extract_stage_n_transfers(df: pd.DataFrame, n: int) -> pd.Series | None:
     """Extract the votes from a given stage N.
 
     Note: This will include trailing, unaligned `Nones` which must be cleaned up at the Ballot level
@@ -197,7 +197,7 @@ def extract_stage_n_transfers(df: pd.DataFrame, n: int) -> Optional[pd.Series]:
     return df.iloc[row_offset : row_offset + 20, col_offset].reset_index(drop=True)
 
 
-def get_results_from_sheet(sheet_url: AnyStr) -> dict[str, Union[pd.DataFrame, dict]]:
+def get_results_from_sheet(sheet_url: AnyStr) -> dict[str, pd.DataFrame | dict]:
     """Download and parse election results from an Excel sheet URL."""
     df = get_excel_dataframe(sheet_url, requests_kwargs={"headers": _headers})
     metadata = get_metadata_from_df(df)
@@ -213,7 +213,7 @@ def get_results_from_sheet(sheet_url: AnyStr) -> dict[str, Union[pd.DataFrame, d
     }
 
 
-def get_results(year: int) -> dict[str, Union[pd.DataFrame, dict]]:
+def get_results(year: int) -> dict[str, pd.DataFrame | dict]:
     """Get election results for a specific year from EONI website."""
     results_listing_dir = "/results-data/"
     results_listing_path = {

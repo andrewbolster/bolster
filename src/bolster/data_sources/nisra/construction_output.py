@@ -54,7 +54,6 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Union
 
 import pandas as pd
 
@@ -137,7 +136,7 @@ def get_latest_construction_publication_url() -> tuple[str, datetime]:
     raise NISRADataNotFoundError("Could not find latest Construction Output publication")
 
 
-def parse_construction_file(file_path: Union[str, Path]) -> pd.DataFrame:
+def parse_construction_file(file_path: str | Path) -> pd.DataFrame:
     """Parse NISRA Construction Output Excel file.
 
     Extracts the main construction output time series (Table 1.1) from the Excel file.
@@ -332,7 +331,7 @@ def calculate_growth_rates(df: pd.DataFrame, periods: int = 4) -> pd.DataFrame:
     return result
 
 
-def get_summary_statistics(df: pd.DataFrame, start_year: Optional[int] = None, end_year: Optional[int] = None) -> dict:
+def get_summary_statistics(df: pd.DataFrame, start_year: int | None = None, end_year: int | None = None) -> dict:
     """Calculate summary statistics for Construction Output.
 
     Args:
