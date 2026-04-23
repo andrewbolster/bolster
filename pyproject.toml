@@ -12,7 +12,6 @@ classifiers = [
     'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
     'Natural Language :: English',
     'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10',
     'Programming Language :: Python :: 3.11',
     'Programming Language :: Python :: 3.12',
@@ -33,7 +32,7 @@ keywords = [
     "command line interface",
     "python",
 ]
-requires-python = ">=3.9,<4.0"
+requires-python = ">=3.10,<4.0"
 dependencies = [
     "boto3>=1.42.43",
     "bs4>=0.0.2",
@@ -46,12 +45,13 @@ dependencies = [
     "numpy>=1.25.0,<2.0",
     "openpyxl>=3.1.5",
     "pandas>=2.0.3",
-    "pillow>=10.4.0",
+    "pillow>=12.2.0",
     "plotly>=6.5.0",
     "psycopg2-binary>=2.9.10",
     "pytest-cov>=5.0.0",
-    "requests>=2.32.3",
+    "requests>=2.33.1",
     "requests-cache>=1.2.1",
+    "urllib3>=2.6.3",
     "rich>=14.2.0",
     "scipy>=1.10.1",
     "tqdm>=4.67.1",
@@ -207,7 +207,7 @@ post_commit_hooks = []
 [dependency-groups]
 dev = [
     "pre-commit",
-    "pytest",
+    "pytest>=9.0.3",
     "ipykernel",
     "httpx",
     "pytest-cov",
