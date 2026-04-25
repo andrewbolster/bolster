@@ -306,6 +306,7 @@ def get_nisra_statistics_feed(order: str = "recent", timeout: int = 30, limit: i
     first_page = parse_rss_feed(base_url, timeout=timeout)
 
     if limit is None or limit <= len(first_page.entries):
+        first_page.entries = first_page.entries[:limit]
         return first_page
 
     # Paginate until we have enough entries or run out of pages
