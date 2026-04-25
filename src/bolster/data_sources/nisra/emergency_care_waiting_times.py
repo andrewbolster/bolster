@@ -182,11 +182,11 @@ def parse_data(payload: dict) -> pd.DataFrame:
     )
     result["over_12hrs"] = _parse_numeric_col(df[_RAW_OVER_12]).astype("Int64") if _RAW_OVER_12 in df.columns else pd.NA
     result["total"] = _parse_numeric_col(df[_RAW_TOTAL]).astype("Int64")
-    result["pct_within_4hrs"] = pd.to_numeric(df[_RAW_PCT], errors="coerce")
-
-    # Normalise: values > 1.0 are percentages (0–100), convert to proportion (0–1)
-    mask = result["pct_within_4hrs"] > 1.0
-    result.loc[mask, "pct_within_4hrs"] = result.loc[mask, "pct_within_4hrs"] / 100.0
+    pct_raw = pd.to_numeric(df[_RAW_PCT], errors="coerce")
+    # Column header contains "%" → values are on a 0–100 scale; normalise to proportion
+    if "%" in _RAW_PCT:
+        pct_raw = pct_raw / 100.0
+    result["pct_within_4hrs"] = pct_raw
 
     return result.dropna(subset=["date"]).sort_values("date").reset_index(drop=True)
 
