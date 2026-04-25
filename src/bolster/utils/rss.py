@@ -276,12 +276,16 @@ def filter_entries(
     return filtered
 
 
-def get_nisra_statistics_feed(order: str = "recent", timeout: int = 30) -> Feed:
+def get_nisra_statistics_feed(order: str = "recent", timeout: int = 30, limit: int | None = None) -> Feed:
     """Get the NISRA statistics feed from GOV.UK.
+
+    The GOV.UK Atom feed returns 20 entries per page. When limit exceeds 20,
+    multiple pages are fetched automatically.
 
     Args:
         order: Sort order - 'recent' for newest first, 'oldest' for oldest first
         timeout: Request timeout in seconds
+        limit: Maximum number of entries to return (None = first page only, i.e. 20)
 
     Returns:
         Feed object with NISRA statistics
@@ -289,20 +293,41 @@ def get_nisra_statistics_feed(order: str = "recent", timeout: int = 30) -> Feed:
     Example:
         >>> feed = get_nisra_statistics_feed()
         >>> print(f"Found {len(feed.entries)} NISRA publications")
+        >>> feed100 = get_nisra_statistics_feed(limit=100)
+        >>> print(f"Found {len(feed100.entries)} NISRA publications")
     """
-    # Build the URL based on sort order
-    if order == "oldest":
-        url = (
-            "https://www.gov.uk/search/research-and-statistics.atom?"
-            "content_store_document_type=all_research_and_statistics&"
-            "organisations%5B%5D=northern-ireland-statistics-and-research-agency&"
-            "order=release-date-oldest"
-        )
-    else:
-        url = (
-            "https://www.gov.uk/search/research-and-statistics.atom?"
-            "content_store_document_type=all_research_and_statistics&"
-            "organisations%5B%5D=northern-ireland-statistics-and-research-agency"
-        )
+    order_param = "&order=release-date-oldest" if order == "oldest" else ""
+    base_url = (
+        "https://www.gov.uk/search/research-and-statistics.atom?"
+        "content_store_document_type=all_research_and_statistics&"
+        f"organisations%5B%5D=northern-ireland-statistics-and-research-agency{order_param}"
+    )
 
-    return parse_rss_feed(url, timeout=timeout)
+    first_page = parse_rss_feed(base_url, timeout=timeout)
+
+    if limit is None or limit <= len(first_page.entries):
+        first_page.entries = first_page.entries[:limit]
+        return first_page
+
+    # Paginate until we have enough entries or run out of pages
+    all_entries = list(first_page.entries)
+    page = 2
+    while len(all_entries) < limit:
+        paged_url = f"{base_url}&page={page}"
+        try:
+            next_page = parse_rss_feed(paged_url, timeout=timeout)
+        except Exception:
+            break
+        if not next_page.entries:
+            break
+        all_entries.extend(next_page.entries)
+        page += 1
+
+    return Feed(
+        title=first_page.title,
+        link=first_page.link,
+        description=first_page.description,
+        language=first_page.language,
+        updated=first_page.updated,
+        entries=all_entries[:limit],
+    )

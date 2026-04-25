@@ -265,3 +265,70 @@ def test_feed_empty_entries():
 
     assert feed.entries == []
     assert isinstance(feed.entries, list)
+
+
+def _make_feed(n: int) -> Feed:
+    """Helper: Feed with n entries."""
+    return Feed(
+        title="NISRA Stats",
+        link="https://www.gov.uk",
+        entries=[FeedEntry(title=f"Entry {i}", link=f"https://www.gov.uk/{i}") for i in range(n)],
+    )
+
+
+@patch("bolster.utils.rss.parse_rss_feed")
+def test_get_nisra_statistics_feed_limit_within_first_page(mock_parse):
+    """limit <= page size returns first page without extra fetches."""
+    mock_parse.return_value = _make_feed(20)
+
+    feed = get_nisra_statistics_feed(limit=10)
+
+    assert len(feed.entries) == 10
+    mock_parse.assert_called_once()
+
+
+@patch("bolster.utils.rss.parse_rss_feed")
+def test_get_nisra_statistics_feed_pagination(mock_parse):
+    """limit > 20 triggers additional page fetches."""
+    mock_parse.side_effect = [_make_feed(20), _make_feed(20), _make_feed(20)]
+
+    feed = get_nisra_statistics_feed(limit=50)
+
+    assert len(feed.entries) == 50
+    assert mock_parse.call_count == 3
+    # Second call should include &page=2
+    second_url = mock_parse.call_args_list[1][0][0]
+    assert "page=2" in second_url
+
+
+@patch("bolster.utils.rss.parse_rss_feed")
+def test_get_nisra_statistics_feed_pagination_stops_on_empty(mock_parse):
+    """Pagination stops when a page returns no entries."""
+    mock_parse.side_effect = [_make_feed(20), _make_feed(0)]
+
+    feed = get_nisra_statistics_feed(limit=50)
+
+    assert len(feed.entries) == 20
+    assert mock_parse.call_count == 2
+
+
+@patch("bolster.utils.rss.parse_rss_feed")
+def test_get_nisra_statistics_feed_pagination_stops_on_error(mock_parse):
+    """Pagination stops gracefully if a page fetch raises."""
+    mock_parse.side_effect = [_make_feed(20), Exception("network error")]
+
+    feed = get_nisra_statistics_feed(limit=50)
+
+    assert len(feed.entries) == 20
+    assert mock_parse.call_count == 2
+
+
+@patch("bolster.utils.rss.parse_rss_feed")
+def test_get_nisra_statistics_feed_no_limit(mock_parse):
+    """No limit returns only the first page."""
+    mock_parse.return_value = _make_feed(20)
+
+    feed = get_nisra_statistics_feed()
+
+    assert len(feed.entries) == 20
+    mock_parse.assert_called_once()

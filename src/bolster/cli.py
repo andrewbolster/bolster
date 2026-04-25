@@ -1218,7 +1218,7 @@ def nisra_feed(limit: int, title_filter: str, days: int, check_coverage: bool):
     }
 
     with console.status("Fetching NISRA RSS feed..."):
-        feed = get_nisra_statistics_feed()
+        feed = get_nisra_statistics_feed(limit=limit)
 
     entries = feed.entries
 
