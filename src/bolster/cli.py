@@ -25,6 +25,7 @@ from .data_sources.nisra import composite_index as nisra_composite
 from .data_sources.nisra import construction_output as nisra_construction
 from .data_sources.nisra import deaths as nisra_deaths
 from .data_sources.nisra import economic_indicators as nisra_economic
+from .data_sources.nisra import emergency_care_waiting_times as nisra_emergency
 from .data_sources.nisra import labour_market as nisra_labour_market
 from .data_sources.nisra import marriages as nisra_marriages
 from .data_sources.nisra import migration as nisra_migration
@@ -4177,6 +4178,140 @@ def nisra_cancer_cmd(latest, target, dimension, year, output_format, force_refre
         console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@nisra.command(name="emergency-care")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--trust", help="Filter by HSC Trust name (e.g. Belfast)")
+@click.option(
+    "--type",
+    "attendance_type",
+    type=click.Choice(["1", "2", "3"], case_sensitive=False),
+    help="Filter by attendance type (1=major A&E, 2=single specialty, 3=MIU/UTC)",
+)
+@click.option("--year", type=int, help="Filter data for a specific calendar year")
+@click.option("--save", help="Save output to file (specify filename)")
+def nisra_emergency_care_cmd(output_format, trust, attendance_type, year, save):
+    """NISRA Emergency Care Waiting Times Statistics.
+
+    Monthly A&E performance data for Northern Ireland measuring the 4-hour
+    target (95% of attendances seen, treated, admitted or discharged within
+    4 hours). Data by hospital department and HSC Trust, April 2008 to present.
+
+    Attendance Types:
+        Type 1 - Major A&E departments (full A&E)
+        Type 2 - Single specialty emergency departments
+        Type 3 - Minor injury units and urgent treatment centres
+
+    HSC Trusts:
+        Belfast, Northern, South Eastern, Southern, Western
+
+    Examples:
+    --------
+    Get all data as CSV::
+
+        bolster nisra emergency-care
+
+    Get Type 1 performance for Belfast Trust::
+
+        bolster nisra emergency-care --type 1 --trust Belfast
+
+    Get 2024 data as JSON::
+
+        bolster nisra emergency-care --year 2024 --format json
+
+    Save to file::
+
+        bolster nisra emergency-care --save emergency.csv
+
+    Key Insights (as of 2026)
+    -------------------------
+    - 4-hour target (95%): NI performance has declined significantly since 2008
+    - Type 1 performance well below target; Type 3 minor injury units perform best
+    - Belfast RVH and Altnagelvin consistently the busiest Type 1 sites
+
+    Source
+    ------
+    https://www.health-ni.gov.uk/articles/emergency-care-waiting-times
+    """
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading emergency care waiting times data..."):
+            data = nisra_emergency.get_latest_data()
+
+        if trust:
+            trust_filter = trust.strip()
+            filtered = data[data["trust"].str.contains(trust_filter, case=False, na=False)]
+            if filtered.empty:
+                console.print(f"[yellow]No data found for trust matching '{trust_filter}'[/yellow]")
+                available = sorted(data["trust"].unique())
+                console.print(f"[dim]Available trusts: {', '.join(available)}[/dim]")
+                return
+            data = filtered
+
+        if attendance_type:
+            type_label = f"Type {attendance_type}"
+            data = data[data["attendance_type"] == type_label]
+            if data.empty:
+                console.print(f"[yellow]No data found for {type_label}[/yellow]")
+                return
+
+        if year:
+            data = data[data["year"] == year]
+            if data.empty:
+                console.print(f"[yellow]No data found for year {year}[/yellow]")
+                return
+
+        console.print(f"[green]Retrieved {len(data):,} records[/green]")
+
+        if not data.empty:
+            min_year = int(data["year"].min())
+            max_year = int(data["year"].max())
+            console.print(f"[dim]Years: {min_year} - {max_year}[/dim]")
+            avg_pct = data["pct_within_4hrs"].mean()
+            console.print(f"[dim]Average pct within 4hrs: {avg_pct:.1%}[/dim]")
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", date_format="iso", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Data saved to: {save}[/green]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        elif output_format == "table":
+            from rich.table import Table
+
+            table = Table(title="Emergency Care Waiting Times")
+            for col in data.columns:
+                table.add_column(col)
+            for _, row in data.head(50).iterrows():
+                table.add_row(*[str(v) for v in row])
+            console.print(table)
+            if len(data) > 50:
+                console.print(f"[dim]... and {len(data) - 50:,} more rows (use --save to get all)[/dim]")
+        else:
+            console.print("\n[bold]Data:[/bold]")
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
         raise click.Abort() from e
 
 
