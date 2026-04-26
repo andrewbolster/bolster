@@ -88,28 +88,74 @@ jobs:
           const results = JSON.parse(fs.readFileSync('results.json', 'utf8'));
           const newEntries = results.filter(r => r.status === 'new');
 
+          // Strip temporal tokens to get a stable dataset "species" name for dedup.
+          // e.g. "Baby Names (Northern Ireland) 2025" -> "Baby Names (Northern Ireland)"
+          //      "LAC municipal waste statistics - Oct-Dec 2025" -> "LAC municipal waste statistics"
+          function speciesName(title) {
+            return title
+              .replace(/\b(19|20)\d{2}(\/\d{2,4})?\b/g, '')   // years like 2025, 2025/26
+              .replace(/\b(Q[1-4]|quarter\s*[1-4])\b/gi, '')   // Q1-Q4
+              .replace(/\b(jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|jun(e)?|jul(y)?|aug(ust)?|sep(tember)?|oct(ober)?|nov(ember)?|dec(ember)?)\b/gi, '')
+              .replace(/[-–]\s*[-–]/g, '')                       // dangling separators
+              .replace(/\s{2,}/g, ' ')
+              .trim();
+          }
+
+          // Fetch ALL existing data-source-candidate issues (open and closed)
+          // to avoid recreating things that were deliberately closed/resolved.
+          const existingIssues = await github.paginate(github.rest.issues.listForRepo, {
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            labels: 'data-source-candidate',
+            state: 'all',
+            per_page: 100,
+          });
+
+          console.log(`Found ${existingIssues.length} existing data-source-candidate issues`);
+
           for (const entry of newEntries) {
-            // Search for existing open issue with this title
-            const searchResult = await github.rest.search.issuesAndPullRequests({
-              q: `repo:${context.repo.owner}/${context.repo.repo} is:issue is:open label:data-source-candidate "${entry.title}" in:title`,
+            const species = speciesName(entry.title);
+            console.log(`Processing: "${entry.title}" (species: "${species}")`);
+
+            // Match against existing issues by comparing species names
+            const match = existingIssues.find(issue => {
+              const issueSpecies = speciesName(
+                issue.title.replace(/^data-source-candidate:\s*/i, '')
+              );
+              // Both must share enough words to be the same dataset type
+              const entryWords = new Set(species.toLowerCase().split(/\s+/).filter(w => w.length > 2));
+              const issueWords = new Set(issueSpecies.toLowerCase().split(/\s+/).filter(w => w.length > 2));
+              const intersection = [...entryWords].filter(w => issueWords.has(w));
+              const overlap = intersection.length / Math.max(entryWords.size, issueWords.size, 1);
+              return overlap >= 0.5;  // 50% word overlap = same species
             });
 
-            if (searchResult.data.total_count > 0) {
-              // Comment on existing issue with latest detection
-              const issue = searchResult.data.items[0];
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issue.number,
-                body: `🔄 **Re-detected by NISRA feed drift scan** (${new Date().toISOString().split('T')[0]})\n\n- Score: ${entry.score.toFixed(3)} (closest match: \`${entry.best_match}\`)\n- Published: ${entry.published || 'unknown'}\n- [Source](${entry.link})`,
-              });
-              console.log(`Updated existing issue #${issue.number}: ${entry.title}`);
+            if (match) {
+              if (match.state === 'closed') {
+                console.log(`Skipping "${entry.title}" — already resolved in #${match.number} (closed)`);
+              } else {
+                // Comment on existing open issue
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: match.number,
+                  body: [
+                    `🔄 **Re-detected by NISRA feed drift scan** (${new Date().toISOString().split('T')[0]})`,
+                    '',
+                    `- **New publication**: ${entry.title}`,
+                    `- **Score**: ${entry.score.toFixed(3)} (closest match: \`${entry.best_match}\`)`,
+                    `- **Published**: ${entry.published || 'unknown'}`,
+                    `- [Source](${entry.link})`,
+                  ].join('\n'),
+                });
+                console.log(`Commented on existing issue #${match.number}: ${entry.title}`);
+              }
             } else {
               // Create new issue
               await github.rest.issues.create({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                title: `data-source-candidate: ${entry.title}`,
+                title: `data-source-candidate: ${species}`,
                 labels: ['data-source-candidate', 'enhancement'],
                 body: [
                   '## New NISRA Dataset Detected',
@@ -132,7 +178,7 @@ jobs:
                   '_Auto-created by [NISRA Feed Drift Detection](.github/workflows/nisra-feed-drift.yml)_',
                 ].join('\n'),
               });
-              console.log(`Created new issue: ${entry.title}`);
+              console.log(`Created new issue for species: ${species}`);
             }
           }
 
