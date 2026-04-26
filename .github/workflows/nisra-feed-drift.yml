@@ -1,0 +1,157 @@
+name: NISRA Feed Drift Detection
+
+on:
+  schedule:
+    # Friday 01:00 UTC (covers both GMT and BST)
+    - cron: '0 1 * * 5'
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Number of feed entries to check'
+        default: '20'
+        required: false
+      covered_threshold:
+        description: 'Min similarity score to classify as covered (0-1)'
+        default: '0.60'
+        required: false
+      adjacent_threshold:
+        description: 'Min similarity score to classify as adjacent (0-1)'
+        default: '0.40'
+        required: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  drift-detection:
+    runs-on: ubuntu-latest
+    outputs:
+      new_count: ${{ steps.classify.outputs.new_count }}
+      adjacent_count: ${{ steps.classify.outputs.adjacent_count }}
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Setup Python and uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        python-version: "3.11"
+        enable-cache: false
+
+    - name: Run TF-IDF drift detection
+      id: classify
+      run: |
+        uv run scripts/nisra_feed_tfidf.py \
+          --limit ${{ inputs.limit || '20' }} \
+          --covered-threshold ${{ inputs.covered_threshold || '0.60' }} \
+          --adjacent-threshold ${{ inputs.adjacent_threshold || '0.40' }} \
+          --verbose \
+          --json-out results.json \
+          --github-summary \
+          || EXIT_CODE=$?
+
+        NEW_COUNT=$(python3 -c "import json; r=json.load(open('results.json')); print(sum(1 for x in r if x['status']=='new'))")
+        ADJACENT_COUNT=$(python3 -c "import json; r=json.load(open('results.json')); print(sum(1 for x in r if x['status']=='adjacent'))")
+        echo "new_count=$NEW_COUNT" >> $GITHUB_OUTPUT
+        echo "adjacent_count=$ADJACENT_COUNT" >> $GITHUB_OUTPUT
+        echo "New datasets found: $NEW_COUNT, Adjacent: $ADJACENT_COUNT"
+
+        # Exit 0 even if new entries found — we handle that in the next job
+        exit 0
+
+    - name: Upload results
+      uses: actions/upload-artifact@v4
+      with:
+        name: drift-results
+        path: results.json
+        retention-days: 30
+
+  create-issues:
+    needs: drift-detection
+    runs-on: ubuntu-latest
+    if: needs.drift-detection.outputs.new_count > 0
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Download results
+      uses: actions/download-artifact@v4
+      with:
+        name: drift-results
+
+    - name: Create or update issues for new datasets
+      uses: actions/github-script@v9
+      with:
+        script: |
+          const fs = require('fs');
+          const results = JSON.parse(fs.readFileSync('results.json', 'utf8'));
+          const newEntries = results.filter(r => r.status === 'new');
+
+          for (const entry of newEntries) {
+            // Search for existing open issue with this title
+            const searchResult = await github.rest.search.issuesAndPullRequests({
+              q: `repo:${context.repo.owner}/${context.repo.repo} is:issue is:open label:data-source-candidate "${entry.title}" in:title`,
+            });
+
+            if (searchResult.data.total_count > 0) {
+              // Comment on existing issue with latest detection
+              const issue = searchResult.data.items[0];
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `🔄 **Re-detected by NISRA feed drift scan** (${new Date().toISOString().split('T')[0]})\n\n- Score: ${entry.score.toFixed(3)} (closest match: \`${entry.best_match}\`)\n- Published: ${entry.published || 'unknown'}\n- [Source](${entry.link})`,
+              });
+              console.log(`Updated existing issue #${issue.number}: ${entry.title}`);
+            } else {
+              // Create new issue
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `data-source-candidate: ${entry.title}`,
+                labels: ['data-source-candidate', 'enhancement'],
+                body: [
+                  '## New NISRA Dataset Detected',
+                  '',
+                  `Identified by the weekly NISRA feed drift scan on ${new Date().toISOString().split('T')[0]}.`,
+                  '',
+                  '### Dataset details',
+                  '',
+                  `- **Title**: ${entry.title}`,
+                  `- **Published**: ${entry.published || 'unknown'}`,
+                  `- **Source**: ${entry.link}`,
+                  `- **TF-IDF score**: ${entry.score.toFixed(3)} (closest existing module: \`${entry.best_match}\`)`,
+                  '',
+                  '### Next steps',
+                  '',
+                  '- [ ] Run `data-explore` agent to evaluate accessibility and format',
+                  '- [ ] Assess integration complexity',
+                  '- [ ] If RECOMMENDED, run `data-build` agent',
+                  '',
+                  '_Auto-created by [NISRA Feed Drift Detection](.github/workflows/nisra-feed-drift.yml)_',
+                ].join('\n'),
+              });
+              console.log(`Created new issue: ${entry.title}`);
+            }
+          }
+
+  run-tests:
+    needs: drift-detection
+    runs-on: ubuntu-latest
+    # Always run tests on schedule to catch silent schema drift
+    if: always()
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Setup Python and uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        python-version: "3.11"
+
+    - name: Install dependencies
+      run: uv sync --dev
+
+    - name: Run full test suite
+      run: uv run pytest tests/ -v --tb=short
