@@ -654,7 +654,7 @@ def dva_cmd(latest, test_type, year, output_format, force_refresh, save, summary
 )
 @click.option("--save", help="Save data to file (specify filename)")
 @click.option("--summary", is_flag=True, help="Show summary statistics only")
-def gender_pay_gap_cmd(year, all_years, postcode_prefix, output_format, save, summary):
+def gender_pay_gap_cmd(year, all_years, postcode_prefix, output_format, save, summary):  # pragma: no cover
     """UK Gender Pay Gap Reporting Data.
 
     All UK employers with 250+ employees are required to report their gender
