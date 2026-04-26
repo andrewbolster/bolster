@@ -527,25 +527,348 @@ def calculate_growth_rates(df: pd.DataFrame, periods: int = 1) -> pd.DataFrame:
     return result
 
 
-def get_gender_pay_gap(df_weekly: pd.DataFrame) -> pd.DataFrame:
-    """Calculate gender pay gap from weekly earnings data.
+def parse_ashe_gender_pay_gap(file_path: str | Path) -> pd.DataFrame:
+    """Parse ASHE gender pay gap timeseries (Figure 14).
 
-    Note: This requires weekly earnings data broken down by gender, which may not
-    be available in the timeseries file. Use the linked tables file instead.
+    Extracts the NI and UK all-employee gender pay gap from 2005 to present.
+    The gap is defined as the difference between male and female median hourly
+    earnings as a percentage of male median hourly earnings (all employees,
+    excluding overtime).
+
+    Note: methodological changes occurred in 2006, 2011 and 2021 — these are
+    annotated in NISRA publications and should be considered when interpreting
+    trend breaks.
 
     Args:
-        df_weekly: Weekly earnings DataFrame with 'sex' or 'gender' column
+        file_path: Path to the ASHE linked tables Excel file
 
     Returns:
-        DataFrame with gender pay gap by year
+        DataFrame with columns:
+
+        - year: int
+        - location: str ('Northern Ireland' or 'United Kingdom')
+        - gender_pay_gap_pct: float — GPG as % of male earnings (positive = men paid more)
 
     Example:
-        >>> # This requires data from the linked tables file with gender breakdown
-        >>> # Not available in the simple timeseries
-        >>> pass
+        >>> df = parse_ashe_gender_pay_gap("ASHE-2025-linked.xlsx")
+        >>> ni = df[df['location'] == 'Northern Ireland']
+        >>> print(ni.tail())
     """
-    # Placeholder - would need gender-specific data from linked tables
-    raise NotImplementedError("Gender pay gap calculation requires gender-specific data from linked tables file")
+    logger.info(f"Parsing ASHE gender pay gap (Fig14) from: {file_path}")
+    df = pd.read_excel(file_path, sheet_name="Figure14", skiprows=3)
+    df.columns = ["year", "UK", "NI"]
+    df = df.dropna(subset=["year"])
+    df["year"] = df["year"].astype(int)
+
+    records = []
+    for _, row in df.iterrows():
+        records.append({"year": int(row["year"]), "location": "United Kingdom", "gender_pay_gap_pct": float(row["UK"])})
+        records.append(
+            {"year": int(row["year"]), "location": "Northern Ireland", "gender_pay_gap_pct": float(row["NI"])}
+        )
+
+    result = pd.DataFrame(records).sort_values(["year", "location"]).reset_index(drop=True)
+    logger.info(f"Parsed {len(result)} gender pay gap records ({result['year'].min()}–{result['year'].max()})")
+    return result
+
+
+def parse_ashe_hourly_earnings_by_sector_gender(file_path: str | Path) -> pd.DataFrame:
+    """Parse ASHE hourly earnings by sector and gender timeseries (Figure 15).
+
+    Extracts median gross hourly earnings (excluding overtime) for NI employees
+    broken down by public/private sector and male/female, from 2005 to present.
+
+    Args:
+        file_path: Path to the ASHE linked tables Excel file
+
+    Returns:
+        DataFrame with columns:
+
+        - year: int
+        - sector: str ('Public' or 'Private')
+        - sex: str ('Male' or 'Female')
+        - median_hourly_earnings: float (£, excluding overtime)
+
+    Example:
+        >>> df = parse_ashe_hourly_earnings_by_sector_gender("ASHE-2025-linked.xlsx")
+        >>> latest = df[df['year'] == df['year'].max()]
+        >>> print(latest.pivot(index='sector', columns='sex', values='median_hourly_earnings'))
+    """
+    logger.info(f"Parsing ASHE hourly earnings by sector/gender (Fig15) from: {file_path}")
+    df = pd.read_excel(file_path, sheet_name="Figure15", skiprows=3)
+    df.columns = ["year", "Male public", "Female public", "Male private", "Female private"]
+    df = df.dropna(subset=["year"])
+    df["year"] = df["year"].astype(int)
+
+    records = []
+    for _, row in df.iterrows():
+        for col, sector, sex in [
+            ("Male public", "Public", "Male"),
+            ("Female public", "Public", "Female"),
+            ("Male private", "Private", "Male"),
+            ("Female private", "Private", "Female"),
+        ]:
+            records.append(
+                {"year": int(row["year"]), "sector": sector, "sex": sex, "median_hourly_earnings": float(row[col])}
+            )
+
+    result = pd.DataFrame(records).sort_values(["year", "sector", "sex"]).reset_index(drop=True)
+    logger.info(f"Parsed {len(result)} sector/gender earnings records ({result['year'].min()}–{result['year'].max()})")
+    return result
+
+
+def parse_ashe_hourly_earnings_by_age_gender(file_path: str | Path) -> pd.DataFrame:
+    """Parse ASHE hourly earnings by age group and gender, latest year (Figure 16).
+
+    Extracts median gross hourly earnings (excluding overtime) for NI employees
+    broken down by age band and sex. Single-year snapshot from the latest publication.
+
+    Args:
+        file_path: Path to the ASHE linked tables Excel file
+
+    Returns:
+        DataFrame with columns:
+
+        - age_group: str (e.g. '18-21', '22-29', '30-39', '40-49', '50-59', '60+')
+        - sex: str ('Male' or 'Female')
+        - median_hourly_earnings: float (£, excluding overtime)
+
+    Example:
+        >>> df = parse_ashe_hourly_earnings_by_age_gender("ASHE-2025-linked.xlsx")
+        >>> df['implied_gpg_pct'] = (df['Male'] - df['Female']) / df['Male'] * 100
+    """
+    logger.info(f"Parsing ASHE hourly earnings by age/gender (Fig16) from: {file_path}")
+    df = pd.read_excel(file_path, sheet_name="Figure16", skiprows=2)
+    df.columns = ["age_group", "Female", "Male"]
+    df = df.dropna(subset=["age_group"])
+
+    records = []
+    for _, row in df.iterrows():
+        for sex in ("Female", "Male"):
+            records.append({"age_group": str(row["age_group"]), "sex": sex, "median_hourly_earnings": float(row[sex])})
+
+    result = pd.DataFrame(records)
+    logger.info(f"Parsed {len(result)} age/gender earnings records ({len(df)} age bands)")
+    return result
+
+
+def parse_ashe_hourly_earnings_by_occupation_gender(file_path: str | Path) -> pd.DataFrame:
+    """Parse ASHE hourly earnings by occupation and gender, latest year (Figure 17).
+
+    Extracts median gross hourly earnings (excluding overtime) for NI employees
+    broken down by SOC major occupation group and sex. Single-year snapshot.
+
+    Args:
+        file_path: Path to the ASHE linked tables Excel file
+
+    Returns:
+        DataFrame with columns:
+
+        - occupation: str (SOC major group label)
+        - sex: str ('Male' or 'Female')
+        - median_hourly_earnings: float (£, excluding overtime)
+
+    Example:
+        >>> df = parse_ashe_hourly_earnings_by_occupation_gender("ASHE-2025-linked.xlsx")
+        >>> wide = df.pivot(index='occupation', columns='sex', values='median_hourly_earnings')
+        >>> wide['gpg_pct'] = (wide['Male'] - wide['Female']) / wide['Male'] * 100
+        >>> print(wide.sort_values('gpg_pct', ascending=False))
+    """
+    logger.info(f"Parsing ASHE hourly earnings by occupation/gender (Fig17) from: {file_path}")
+    df = pd.read_excel(file_path, sheet_name="Figure17", skiprows=2)
+    df.columns = ["occupation", "Female", "Male"]
+    df = df.dropna(subset=["occupation"])
+
+    records = []
+    for _, row in df.iterrows():
+        for sex in ("Female", "Male"):
+            records.append(
+                {"occupation": str(row["occupation"]), "sex": sex, "median_hourly_earnings": float(row[sex])}
+            )
+
+    result = pd.DataFrame(records)
+    logger.info(f"Parsed {len(result)} occupation/gender earnings records ({len(df)} occupation groups)")
+    return result
+
+
+def parse_ashe_hourly_earnings_by_pattern_gender(file_path: str | Path) -> pd.DataFrame:
+    """Parse ASHE hourly earnings by working pattern and gender, latest year (Figure 18).
+
+    Extracts median gross hourly earnings (excluding overtime) for NI employees
+    broken down by full-time/part-time and sex. Single-year snapshot.
+
+    Note: part-time females earn *more* per hour than part-time males in NI —
+    a reversal of the full-time pattern.
+
+    Args:
+        file_path: Path to the ASHE linked tables Excel file
+
+    Returns:
+        DataFrame with columns:
+
+        - work_pattern: str ('Full-time', 'Part-time', 'All Employees')
+        - sex: str ('Male' or 'Female')
+        - median_hourly_earnings: float (£, excluding overtime)
+
+    Example:
+        >>> df = parse_ashe_hourly_earnings_by_pattern_gender("ASHE-2025-linked.xlsx")
+        >>> print(df.pivot(index='work_pattern', columns='sex', values='median_hourly_earnings'))
+    """
+    logger.info(f"Parsing ASHE hourly earnings by pattern/gender (Fig18) from: {file_path}")
+    df = pd.read_excel(file_path, sheet_name="Figure18", skiprows=2)
+    df.columns = ["work_pattern", "Female", "Male"]
+    df = df.dropna(subset=["work_pattern"])
+
+    records = []
+    for _, row in df.iterrows():
+        for sex in ("Female", "Male"):
+            records.append(
+                {"work_pattern": str(row["work_pattern"]), "sex": sex, "median_hourly_earnings": float(row[sex])}
+            )
+
+    result = pd.DataFrame(records)
+    logger.info(f"Parsed {len(result)} work pattern/gender earnings records")
+    return result
+
+
+def get_gender_pay_gap(force_refresh: bool = False) -> pd.DataFrame:
+    """Get ASHE gender pay gap timeseries for NI and the UK (Figure 14).
+
+    Returns the population-level GPG derived from NISRA's ASHE survey — the
+    difference between male and female median hourly earnings as a percentage
+    of male earnings, for all employees.
+
+    This is survey-based (HMRC PAYE sample) and covers the whole NI economy,
+    complementing the mandatory employer-reported GPG data available via
+    ``bolster.data_sources.gender_pay_gap`` (which covers named employers with
+    250+ staff only).
+
+    Args:
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with columns:
+
+        - year: int (2005–present)
+        - location: str ('Northern Ireland' or 'United Kingdom')
+        - gender_pay_gap_pct: float
+
+    Example:
+        >>> df = get_gender_pay_gap()
+        >>> ni = df[df['location'] == 'Northern Ireland']
+        >>> print(f"NI GPG 2025: {ni[ni['year']==2025]['gender_pay_gap_pct'].values[0]}%")
+    """
+    _, year = get_latest_ashe_publication_url()
+    file_path = download_file(get_ashe_file_url(year, "linked"), cache_ttl_hours=90 * 24, force_refresh=force_refresh)
+    return parse_ashe_gender_pay_gap(file_path)
+
+
+def get_hourly_earnings_by_sector_gender(force_refresh: bool = False) -> pd.DataFrame:
+    """Get ASHE hourly earnings by sector and gender timeseries for NI (Figure 15).
+
+    Returns median gross hourly earnings (excl. overtime) for NI employees by
+    public/private sector and sex, from 2005 to present. Useful for understanding
+    whether the gender pay gap is driven by sector composition or within-sector
+    differences.
+
+    Args:
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with columns:
+
+        - year: int (2005–present)
+        - sector: str ('Public' or 'Private')
+        - sex: str ('Male' or 'Female')
+        - median_hourly_earnings: float (£)
+
+    Example:
+        >>> df = get_hourly_earnings_by_sector_gender()
+        >>> latest = df[df['year'] == df['year'].max()]
+        >>> print(latest.pivot(index='sector', columns='sex', values='median_hourly_earnings'))
+    """
+    _, year = get_latest_ashe_publication_url()
+    file_path = download_file(get_ashe_file_url(year, "linked"), cache_ttl_hours=90 * 24, force_refresh=force_refresh)
+    return parse_ashe_hourly_earnings_by_sector_gender(file_path)
+
+
+def get_hourly_earnings_by_age_gender(force_refresh: bool = False) -> pd.DataFrame:
+    """Get ASHE hourly earnings by age group and gender for NI, latest year (Figure 16).
+
+    Returns median gross hourly earnings (excl. overtime) for NI employees by
+    age band and sex. Single-year snapshot from the latest ASHE publication.
+
+    Args:
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with columns:
+
+        - age_group: str
+        - sex: str ('Male' or 'Female')
+        - median_hourly_earnings: float (£)
+
+    Example:
+        >>> df = get_hourly_earnings_by_age_gender()
+        >>> wide = df.pivot(index='age_group', columns='sex', values='median_hourly_earnings')
+        >>> wide['gpg_pct'] = (wide['Male'] - wide['Female']) / wide['Male'] * 100
+        >>> print(wide)
+    """
+    _, year = get_latest_ashe_publication_url()
+    file_path = download_file(get_ashe_file_url(year, "linked"), cache_ttl_hours=90 * 24, force_refresh=force_refresh)
+    return parse_ashe_hourly_earnings_by_age_gender(file_path)
+
+
+def get_hourly_earnings_by_occupation_gender(force_refresh: bool = False) -> pd.DataFrame:
+    """Get ASHE hourly earnings by occupation and gender for NI, latest year (Figure 17).
+
+    Returns median gross hourly earnings (excl. overtime) for NI employees by
+    SOC major occupation group and sex. Single-year snapshot.
+
+    Args:
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with columns:
+
+        - occupation: str
+        - sex: str ('Male' or 'Female')
+        - median_hourly_earnings: float (£)
+
+    Example:
+        >>> df = get_hourly_earnings_by_occupation_gender()
+        >>> wide = df.pivot(index='occupation', columns='sex', values='median_hourly_earnings')
+        >>> wide['gpg_pct'] = (wide['Male'] - wide['Female']) / wide['Male'] * 100
+        >>> print(wide.sort_values('gpg_pct', ascending=False))
+    """
+    _, year = get_latest_ashe_publication_url()
+    file_path = download_file(get_ashe_file_url(year, "linked"), cache_ttl_hours=90 * 24, force_refresh=force_refresh)
+    return parse_ashe_hourly_earnings_by_occupation_gender(file_path)
+
+
+def get_hourly_earnings_by_pattern_gender(force_refresh: bool = False) -> pd.DataFrame:
+    """Get ASHE hourly earnings by working pattern and gender for NI, latest year (Figure 18).
+
+    Returns median gross hourly earnings (excl. overtime) for NI employees by
+    full-time/part-time and sex. Single-year snapshot.
+
+    Args:
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with columns:
+
+        - work_pattern: str ('Full-time', 'Part-time', 'All Employees')
+        - sex: str ('Male' or 'Female')
+        - median_hourly_earnings: float (£)
+
+    Example:
+        >>> df = get_hourly_earnings_by_pattern_gender()
+        >>> print(df.pivot(index='work_pattern', columns='sex', values='median_hourly_earnings'))
+    """
+    _, year = get_latest_ashe_publication_url()
+    file_path = download_file(get_ashe_file_url(year, "linked"), cache_ttl_hours=90 * 24, force_refresh=force_refresh)
+    return parse_ashe_hourly_earnings_by_pattern_gender(file_path)
 
 
 def validate_ashe_data(df: pd.DataFrame) -> bool:  # pragma: no cover
