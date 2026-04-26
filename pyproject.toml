@@ -61,7 +61,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/andrewbolster/bolster"
-Documentation = "https://bolster.readthedocs.io"
+Documentation = "https://bolster.help"
 Repository = "https://github.com/andrewbolster/bolster.git"
 "Bug Tracker" = "https://github.com/andrewbolster/bolster/issues"
 

@@ -261,7 +261,7 @@ jobs:
 
           ## Documentation
 
-          - [Documentation](https://bolster.readthedocs.io/en/v${{ env.NEW_VERSION }}/)
+          - [Documentation](https://bolster.help)
           - [PyPI Package](https://pypi.org/project/bolster/${{ env.NEW_VERSION }}/)
         draft: false
         prerelease: false
@@ -270,16 +270,17 @@ jobs:
   trigger-docs:
     needs: [release]
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
     steps:
-    - name: Trigger ReadTheDocs build
+    - name: Trigger docs build workflow
       uses: actions/github-script@v9
       with:
         script: |
-          // Trigger ReadTheDocs webhook if configured
-          console.log('Documentation will be automatically rebuilt by ReadTheDocs');
-
-          // Could also trigger manual webhook here if needed:
-          // await fetch('https://readthedocs.org/api/v2/webhook/bolster/123456/', {
-          //   method: 'POST',
-          //   headers: { 'Authorization': 'Token ${{ secrets.RTD_TOKEN }}' }
-          // });
+          await github.rest.actions.createWorkflowDispatch({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            workflow_id: 'docs.yml',
+            ref: 'main',
+          });
+          console.log('Triggered docs.yml workflow dispatch');
