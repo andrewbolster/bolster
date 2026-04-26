@@ -61,7 +61,7 @@ jobs:
         exit 0
 
     - name: Upload results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v4.6.2
       with:
         name: drift-results
         path: results.json
@@ -76,7 +76,7 @@ jobs:
     - uses: actions/checkout@v6
 
     - name: Download results
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v4.3.0
       with:
         name: drift-results
 
@@ -91,12 +91,16 @@ jobs:
           // Strip temporal tokens to get a stable dataset "species" name for dedup.
           // e.g. "Baby Names (Northern Ireland) 2025" -> "Baby Names (Northern Ireland)"
           //      "LAC municipal waste statistics - Oct-Dec 2025" -> "LAC municipal waste statistics"
+          //      "Monthly Stillbirths (Northern Ireland): March 2026" -> "Monthly Stillbirths (Northern Ireland)"
+          //      "planning statistics: October to December 2025" -> "planning statistics"
           function speciesName(title) {
             return title
               .replace(/\b(19|20)\d{2}(\/\d{2,4})?\b/g, '')   // years like 2025, 2025/26
               .replace(/\b(Q[1-4]|quarter\s*[1-4])\b/gi, '')   // Q1-Q4
               .replace(/\b(jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|jun(e)?|jul(y)?|aug(ust)?|sep(tember)?|oct(ober)?|nov(ember)?|dec(ember)?)\b/gi, '')
-              .replace(/[-–]\s*[-–]/g, '')                       // dangling separators
+              .replace(/\bto\b/g, '')                            // "October to December" residue
+              .replace(/[-–,;:]\s*$/g, '')                      // trailing punctuation after stripping
+              .replace(/[-–]\s*[-–]/g, '')                      // dangling separators
               .replace(/\s{2,}/g, ' ')
               .trim();
           }
