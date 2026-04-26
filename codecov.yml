@@ -6,6 +6,7 @@ coverage:
                 target: 20%
         patch:
             default:
-                target: 20%
+                target: 50%
+                threshold: 20%
 ignore:
     - "src/bolster/cli.py"
