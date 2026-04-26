@@ -253,3 +253,212 @@ class TestASHEDataQuality:
         """Test that most recent year is recent."""
         latest_year = latest_weekly["year"].max()
         assert latest_year >= 2025
+
+
+class TestASHEGenderPayGap:
+    """Integrity tests for ASHE gender pay gap timeseries (Figure 14)."""
+
+    @pytest.fixture(scope="class")
+    def gpg(self):
+        return ashe.get_gender_pay_gap()
+
+    def test_required_columns(self, gpg):
+        assert set(gpg.columns) == {"year", "location", "gender_pay_gap_pct"}
+
+    def test_locations(self, gpg):
+        assert set(gpg["location"].unique()) == {"Northern Ireland", "United Kingdom"}
+
+    def test_two_records_per_year(self, gpg):
+        counts = gpg.groupby("year").size()
+        assert (counts == 2).all()
+
+    def test_starts_2005(self, gpg):
+        assert gpg["year"].min() == 2005
+
+    def test_recent_year_present(self, gpg):
+        assert gpg["year"].max() >= 2025
+
+    def test_gap_plausible_range(self, gpg):
+        """GPG should be between 0% and 40% — no negative values expected at population level."""
+        assert (gpg["gender_pay_gap_pct"] >= 0).all()
+        assert (gpg["gender_pay_gap_pct"] < 40).all()
+
+    def test_ni_gap_below_uk(self, gpg):
+        """NI GPG has historically been below the UK average across all years."""
+        for year in gpg["year"].unique():
+            yr = gpg[gpg["year"] == year]
+            ni = yr[yr["location"] == "Northern Ireland"]["gender_pay_gap_pct"].values[0]
+            uk = yr[yr["location"] == "United Kingdom"]["gender_pay_gap_pct"].values[0]
+            assert ni < uk, f"NI GPG ({ni}%) >= UK GPG ({uk}%) in {year}"
+
+    def test_gap_narrowing_trend(self, gpg):
+        """Both NI and UK GPG should be lower in 2025 than in 2005."""
+        for loc in ("Northern Ireland", "United Kingdom"):
+            loc_df = gpg[gpg["location"] == loc].sort_values("year")
+            gap_2005 = loc_df[loc_df["year"] == 2005]["gender_pay_gap_pct"].values[0]
+            gap_latest = loc_df.iloc[-1]["gender_pay_gap_pct"]
+            assert gap_latest < gap_2005, f"{loc}: gap has not narrowed since 2005"
+
+
+class TestASHEHourlyEarningsBySectorGender:
+    """Integrity tests for ASHE hourly earnings by sector and gender (Figure 15)."""
+
+    @pytest.fixture(scope="class")
+    def df(self):
+        return ashe.get_hourly_earnings_by_sector_gender()
+
+    def test_required_columns(self, df):
+        assert set(df.columns) == {"year", "sector", "sex", "median_hourly_earnings"}
+
+    def test_sectors(self, df):
+        assert set(df["sector"].unique()) == {"Public", "Private"}
+
+    def test_sexes(self, df):
+        assert set(df["sex"].unique()) == {"Male", "Female"}
+
+    def test_four_records_per_year(self, df):
+        counts = df.groupby("year").size()
+        assert (counts == 4).all()
+
+    def test_starts_2005(self, df):
+        assert df["year"].min() == 2005
+
+    def test_earnings_positive(self, df):
+        assert (df["median_hourly_earnings"] > 0).all()
+
+    def test_public_sector_pays_more_than_private(self, df):
+        """Public sector median hourly earnings should exceed private in NI for all years."""
+        for year in df["year"].unique():
+            yr = df[df["year"] == year]
+            for sex in ("Male", "Female"):
+                pub = yr[(yr["sector"] == "Public") & (yr["sex"] == sex)]["median_hourly_earnings"].values[0]
+                priv = yr[(yr["sector"] == "Private") & (yr["sex"] == sex)]["median_hourly_earnings"].values[0]
+                assert pub > priv, f"{sex} public (£{pub}) <= private (£{priv}) in {year}"
+
+    def test_males_earn_more_than_females_in_each_sector(self, df):
+        """Male median hourly earnings should exceed female in each sector for most years.
+
+        In 2020, NI public sector females earned slightly more than males (£15.65 vs £15.31),
+        likely reflecting COVID-era public sector composition effects. We check that the
+        male premium holds in >=80% of year-sector combinations rather than requiring it
+        for every single year.
+        """
+        exceptions = []
+        for year in df["year"].unique():
+            yr = df[df["year"] == year]
+            for sector in ("Public", "Private"):
+                male = yr[(yr["sector"] == sector) & (yr["sex"] == "Male")]["median_hourly_earnings"].values[0]
+                female = yr[(yr["sector"] == sector) & (yr["sex"] == "Female")]["median_hourly_earnings"].values[0]
+                if male <= female:
+                    exceptions.append((year, sector, male, female))
+
+        total = len(df["year"].unique()) * 2  # 2 sectors per year
+        exception_rate = len(exceptions) / total
+        assert exception_rate < 0.20, (
+            f"Male earnings exceeded female in too few cases. Exceptions: {exceptions}"
+        )
+
+
+class TestASHEHourlyEarningsByAgeGender:
+    """Integrity tests for ASHE hourly earnings by age and gender (Figure 16)."""
+
+    @pytest.fixture(scope="class")
+    def df(self):
+        return ashe.get_hourly_earnings_by_age_gender()
+
+    def test_required_columns(self, df):
+        assert set(df.columns) == {"age_group", "sex", "median_hourly_earnings"}
+
+    def test_age_groups(self, df):
+        expected = {"18-21", "22-29", "30-39", "40-49", "50-59", "60+"}
+        assert set(df["age_group"].unique()) == expected
+
+    def test_sexes(self, df):
+        assert set(df["sex"].unique()) == {"Male", "Female"}
+
+    def test_two_records_per_age_group(self, df):
+        counts = df.groupby("age_group").size()
+        assert (counts == 2).all()
+
+    def test_earnings_positive(self, df):
+        assert (df["median_hourly_earnings"] > 0).all()
+
+    def test_peak_earnings_in_middle_age(self, df):
+        """Earnings should peak in 40-49 or 50-59 band (career seniority effect)."""
+        for sex in ("Male", "Female"):
+            sex_df = df[df["sex"] == sex]
+            peak_age = sex_df.loc[sex_df["median_hourly_earnings"].idxmax(), "age_group"]
+            assert peak_age in {"40-49", "50-59"}, f"{sex} peak earnings in unexpected band: {peak_age}"
+
+    def test_youngest_earns_least(self, df):
+        """18-21 band should have the lowest earnings for both sexes."""
+        for sex in ("Male", "Female"):
+            sex_df = df[df["sex"] == sex]
+            min_age = sex_df.loc[sex_df["median_hourly_earnings"].idxmin(), "age_group"]
+            assert min_age == "18-21", f"{sex} minimum earnings not in 18-21 band: {min_age}"
+
+
+class TestASHEHourlyEarningsByOccupationGender:
+    """Integrity tests for ASHE hourly earnings by occupation and gender (Figure 17)."""
+
+    @pytest.fixture(scope="class")
+    def df(self):
+        return ashe.get_hourly_earnings_by_occupation_gender()
+
+    def test_required_columns(self, df):
+        assert set(df.columns) == {"occupation", "sex", "median_hourly_earnings"}
+
+    def test_nine_occupation_groups(self, df):
+        assert df["occupation"].nunique() == 9
+
+    def test_sexes(self, df):
+        assert set(df["sex"].unique()) == {"Male", "Female"}
+
+    def test_earnings_positive(self, df):
+        assert (df["median_hourly_earnings"] > 0).all()
+
+    def test_managers_highest_paid(self, df):
+        """Managers/directors should be the highest-paid occupation for both sexes."""
+        for sex in ("Male", "Female"):
+            sex_df = df[df["sex"] == sex]
+            top_occ = sex_df.loc[sex_df["median_hourly_earnings"].idxmax(), "occupation"]
+            assert "Managers" in top_occ, f"{sex} highest-paid occupation unexpected: {top_occ}"
+
+    def test_gap_positive_in_all_occupations(self, df):
+        """Male earnings should exceed female in all NI occupation groups (per NISRA)."""
+        wide = df.pivot(index="occupation", columns="sex", values="median_hourly_earnings")
+        gap = wide["Male"] - wide["Female"]
+        assert (gap > 0).all(), f"Female earns more than male in: {gap[gap <= 0].index.tolist()}"
+
+
+class TestASHEHourlyEarningsByPatternGender:
+    """Integrity tests for ASHE hourly earnings by working pattern and gender (Figure 18)."""
+
+    @pytest.fixture(scope="class")
+    def df(self):
+        return ashe.get_hourly_earnings_by_pattern_gender()
+
+    def test_required_columns(self, df):
+        assert set(df.columns) == {"work_pattern", "sex", "median_hourly_earnings"}
+
+    def test_work_patterns(self, df):
+        assert set(df["work_pattern"].unique()) == {"Full-time", "Part-time", "All Employees"}
+
+    def test_sexes(self, df):
+        assert set(df["sex"].unique()) == {"Male", "Female"}
+
+    def test_earnings_positive(self, df):
+        assert (df["median_hourly_earnings"] > 0).all()
+
+    def test_fulltime_earns_more_than_parttime(self, df):
+        """Full-time hourly earnings should exceed part-time for both sexes."""
+        for sex in ("Male", "Female"):
+            sex_df = df[df["sex"] == sex].set_index("work_pattern")
+            assert sex_df.loc["Full-time", "median_hourly_earnings"] > sex_df.loc["Part-time", "median_hourly_earnings"]
+
+    def test_parttime_females_earn_more_than_parttime_males(self, df):
+        """NI data shows part-time females earn more per hour than part-time males."""
+        pt = df[df["work_pattern"] == "Part-time"].set_index("sex")
+        assert pt.loc["Female", "median_hourly_earnings"] > pt.loc["Male", "median_hourly_earnings"], (
+            "Part-time female hourly earnings should exceed male in NI"
+        )
