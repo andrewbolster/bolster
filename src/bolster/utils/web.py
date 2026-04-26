@@ -7,6 +7,7 @@ from io import BytesIO
 import pandas as pd
 import requests
 from requests.adapters import HTTPAdapter
+from tqdm import tqdm
 from urllib3.util.retry import Retry
 from waybackpy import WaybackMachineCDXServerAPI, exceptions
 
@@ -118,11 +119,19 @@ def get_excel_dataframe(
 def download_extract_zip(url: str) -> Generator[tuple[str, io.BufferedReader], None, None]:
     """Download a ZIP file and extract its contents in memory.
 
-    Yields (filename, file-like object) pairs.
+    Yields (filename, file-like object) pairs. Shows a tqdm progress bar
+    during download sized to Content-Length when the server provides it.
     """
     with session.get(url, stream=True) as response:
         response.raise_for_status()
-        with zipfile.ZipFile(io.BytesIO(response.content)) as thezip:
+        total = int(response.headers.get("content-length", 0)) or None
+        buf = io.BytesIO()
+        with tqdm(total=total, unit="B", unit_scale=True, desc=url.split("/")[-1], leave=False) as bar:
+            for chunk in response.iter_content(chunk_size=65536):
+                buf.write(chunk)
+                bar.update(len(chunk))
+        buf.seek(0)
+        with zipfile.ZipFile(buf) as thezip:
             for zipinfo in thezip.infolist():
                 with thezip.open(zipinfo) as thefile:
                     yield zipinfo.filename, thefile
