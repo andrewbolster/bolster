@@ -38,7 +38,7 @@ jobs:
 
                   # Get all open PRs that need updating (including drafts and failing CI)
                   gh pr list --state open --json number,isDraft,mergeStateStatus \
-                    --jq '.[] | select(.mergeStateStatus == "DIRTY" or .mergeStateStatus == "UNSTABLE") | .number' | \
+                    --jq '.[] | select(.mergeStateStatus == "BEHIND" or .mergeStateStatus == "DIRTY" or .mergeStateStatus == "UNSTABLE") | .number' | \
                   while read -r pr; do
                     echo "----------------------------------------"
                     echo "Updating PR #$pr with latest main..."
