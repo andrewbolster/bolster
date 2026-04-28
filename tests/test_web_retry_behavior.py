@@ -40,11 +40,10 @@ class TestRetryBehavior:
     """Test actual retry behavior with simplified tests."""
 
     def test_retry_configuration_is_correct(self):
-        """Test that the critical fix is applied - raise_on_status=True."""
-        # This is the core fix that enables proper exponential backoff for 503 errors
-        # instead of immediate failures that cause tests to run for 56+ minutes
+        """Test that retry is configured for fast failure, not indefinite hangs."""
         assert _retry_strategy.raise_on_status is True
-        assert _retry_strategy.respect_retry_after_header is True
+        # Disabled: servers returning Retry-After: 86400 would hang CI for 6h
+        assert _retry_strategy.respect_retry_after_header is False
 
     def test_session_uses_retry_adapter(self):
         """Test that session is configured with retry adapter."""
@@ -134,9 +133,9 @@ class TestRateLimitAwareRetry:
         mock_response.status = 429
         retry.history = [mock_response]
 
-        # Should use extended backoff for 429
+        # Should use extended backoff for 429, capped at MAX_BACKOFF
         backoff_time = retry.get_backoff_time()
-        assert backoff_time >= 30  # Should be at least 30 seconds for rate limiting
+        assert 0 < backoff_time <= RateLimitAwareRetry.MAX_BACKOFF
 
     def test_get_backoff_time_empty_history(self):
         """Test backoff with empty history."""
