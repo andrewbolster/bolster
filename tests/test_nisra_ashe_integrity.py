@@ -462,3 +462,163 @@ class TestASHEHourlyEarningsByPatternGender:
         assert pt.loc["Female", "median_hourly_earnings"] > pt.loc["Male", "median_hourly_earnings"], (
             "Part-time female hourly earnings should exceed male in NI"
         )
+
+
+class TestASHENIUKEarningsComparison:
+    """Integrity tests for ASHE Figure 1: NI vs UK full-time weekly earnings timeseries."""
+
+    @pytest.fixture(scope="class")
+    def df(self):
+        return ashe.get_ni_uk_earnings_comparison()
+
+    def test_required_columns(self, df):
+        assert set(df.columns) == {"year", "location", "median_weekly_earnings_fulltime"}
+
+    def test_locations(self, df):
+        assert set(df["location"].unique()) == {"NI", "UK"}
+
+    def test_two_records_per_year(self, df):
+        counts = df.groupby("year").size()
+        assert (counts == 2).all()
+
+    def test_starts_2005(self, df):
+        assert df["year"].min() == 2005
+
+    def test_earnings_positive(self, df):
+        assert (df["median_weekly_earnings_fulltime"] > 0).all()
+
+    def test_uk_earns_more_than_ni(self, df):
+        """UK full-time median weekly earnings should exceed NI for all years."""
+        for year in df["year"].unique():
+            yr = df[df["year"] == year].set_index("location")
+            uk = yr.loc["UK", "median_weekly_earnings_fulltime"]
+            ni = yr.loc["NI", "median_weekly_earnings_fulltime"]
+            assert uk > ni, f"UK (£{uk}) <= NI (£{ni}) in {year}"
+
+    def test_earnings_growing_over_time(self, df):
+        """NI earnings should be higher in the latest year than in 2005."""
+        ni = df[df["location"] == "NI"].set_index("year")
+        assert ni.loc[ni.index.max(), "median_weekly_earnings_fulltime"] > ni.loc[2005, "median_weekly_earnings_fulltime"]
+
+
+class TestASHEUKRegionalPayRatio:
+    """Integrity tests for ASHE Figure 13: high-to-low pay ratio by UK region."""
+
+    @pytest.fixture(scope="class")
+    def df(self):
+        return ashe.get_uk_regional_pay_ratio()
+
+    def test_required_columns(self, df):
+        assert set(df.columns) == {"region", "ratio"}
+
+    def test_northern_ireland_present(self, df):
+        assert "Northern Ireland" in df["region"].values
+
+    def test_london_present(self, df):
+        assert "London" in df["region"].values
+
+    def test_ratios_positive(self, df):
+        assert (df["ratio"] > 0).all()
+
+    def test_london_highest_ratio(self, df):
+        """London should have the highest pay ratio."""
+        assert df.loc[df["ratio"].idxmax(), "region"] == "London"
+
+    def test_ni_below_uk_average(self, df):
+        """NI pay ratio should be below the UK average."""
+        ni = df[df["region"] == "Northern Ireland"]["ratio"].values[0]
+        uk = df[df["region"] == "United Kingdom"]["ratio"].values[0]
+        assert ni < uk, f"NI ratio ({ni}) should be below UK ({uk})"
+
+
+class TestASHEHoursDistribution:
+    """Integrity tests for ASHE Figure 9: weekly paid hours distribution."""
+
+    @pytest.fixture(scope="class")
+    def df(self):
+        return ashe.get_hours_distribution()
+
+    def test_required_columns(self, df):
+        assert set(df.columns) == {"paid_hours_worked", "percentage"}
+
+    def test_hours_range(self, df):
+        assert df["paid_hours_worked"].min() >= 0
+        assert df["paid_hours_worked"].max() >= 60
+
+    def test_percentages_positive(self, df):
+        assert (df["percentage"] >= 0).all()
+
+    def test_percentages_sum_to_100(self, df):
+        assert abs(df["percentage"].sum() - 100) < 2.0
+
+    def test_37_hours_is_modal(self, df):
+        """37 hours/week is the most common working week in NI."""
+        modal_hours = df.loc[df["percentage"].idxmax(), "paid_hours_worked"]
+        assert modal_hours == 37
+
+
+class TestASHEWorkingPatternPayGap:
+    """Integrity tests for ASHE Figure 19: working pattern pay gap timeseries."""
+
+    @pytest.fixture(scope="class")
+    def df(self):
+        return ashe.get_working_pattern_pay_gap()
+
+    def test_required_columns(self, df):
+        assert set(df.columns) == {"year", "location", "working_pattern_pay_gap_pct"}
+
+    def test_locations(self, df):
+        assert set(df["location"].unique()) == {"NI", "UK"}
+
+    def test_two_records_per_year(self, df):
+        counts = df.groupby("year").size()
+        assert (counts == 2).all()
+
+    def test_starts_2005(self, df):
+        assert df["year"].min() == 2005
+
+    def test_gap_positive(self, df):
+        """Full-time workers always earn more per hour than part-time — gap should be positive."""
+        assert (df["working_pattern_pay_gap_pct"] > 0).all()
+
+    def test_ni_gap_below_uk(self, df):
+        """NI working pattern pay gap should be below UK in most years."""
+        pivot = df.pivot(index="year", columns="location", values="working_pattern_pay_gap_pct")
+        ni_below = (pivot["NI"] < pivot["UK"]).sum()
+        total = len(pivot)
+        assert ni_below / total >= 0.75, f"NI gap only below UK in {ni_below}/{total} years"
+
+
+class TestASHEMeanHoursByPatternGender:
+    """Integrity tests for ASHE Figure 20: mean weekly hours by pattern and gender."""
+
+    @pytest.fixture(scope="class")
+    def df(self):
+        return ashe.get_mean_hours_by_pattern_gender()
+
+    def test_required_columns(self, df):
+        assert set(df.columns) == {"work_pattern", "male_mean_hours", "female_mean_hours", "all_mean_hours"}
+
+    def test_work_patterns(self, df):
+        assert set(df["work_pattern"].unique()) == {"Part-time", "Full-time", "All Employees"}
+
+    def test_hours_positive(self, df):
+        for col in ("male_mean_hours", "female_mean_hours", "all_mean_hours"):
+            assert (df[col] > 0).all()
+
+    def test_fulltime_longer_than_parttime(self, df):
+        """Full-time mean hours should exceed part-time for all columns."""
+        ft = df[df["work_pattern"] == "Full-time"].iloc[0]
+        pt = df[df["work_pattern"] == "Part-time"].iloc[0]
+        for col in ("male_mean_hours", "female_mean_hours", "all_mean_hours"):
+            assert ft[col] > pt[col], f"Full-time {col} ({ft[col]}) <= part-time ({pt[col]})"
+
+    def test_males_work_longer_fulltime(self, df):
+        """Male full-time mean hours exceed female full-time mean hours."""
+        ft = df[df["work_pattern"] == "Full-time"].iloc[0]
+        assert ft["male_mean_hours"] > ft["female_mean_hours"]
+
+    def test_females_work_longer_parttime(self, df):
+        """Female part-time mean hours exceed male part-time mean hours in NI."""
+        pt = df[df["work_pattern"] == "Part-time"].iloc[0]
+        assert pt["female_mean_hours"] > pt["male_mean_hours"]
