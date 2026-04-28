@@ -9,6 +9,7 @@ Various scrapers and API wrappers for NI government data:
 - companies_house: UK company data
 - eoni: Electoral data
 - dva: Driver & Vehicle Agency monthly test statistics
+- gender_pay_gap: UK Gender Pay Gap reporting data (all employers 250+, 2017–present)
 - nisra: NISRA statistics (deaths, births, labour market, population, etc.)
 
 Most have corresponding CLI commands.

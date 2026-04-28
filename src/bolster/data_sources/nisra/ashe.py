@@ -527,25 +527,703 @@ def calculate_growth_rates(df: pd.DataFrame, periods: int = 1) -> pd.DataFrame:
     return result
 
 
-def get_gender_pay_gap(df_weekly: pd.DataFrame) -> pd.DataFrame:
-    """Calculate gender pay gap from weekly earnings data.
+# ---------------------------------------------------------------------------
+# Content-fingerprint sheet scanner for the ASHE linked tables file
+# ---------------------------------------------------------------------------
+# NISRA reassigns figure numbers each year based on editorial focus.
+# E.g. "hours distribution" was Figure 3 in 2022-23, Figure 9 in 2024-25.
+# We identify sheets by the column signature of their header row and optional
+# keywords from the subtitle, making parsers robust across publication years.
 
-    Note: This requires weekly earnings data broken down by gender, which may not
-    be available in the timeseries file. Use the linked tables file instead.
+_SHEET_SIGNATURES: dict[str, dict] = {
+    # Timeseries: Year | UK | NI  — three variants share this column shape;
+    # disambiguated by subtitle keyword
+    "ni_uk_weekly_earnings": {
+        "cols": ("Year", "UK", "NI"),
+        "subtitle_keywords": ["weekly", "full-time"],
+        "excludes": ["gender pay gap", "working pattern"],
+    },
+    "gender_pay_gap": {
+        "cols": ("Year", "UK", "NI"),
+        "subtitle_keywords": ["gender pay gap"],
+    },
+    "working_pattern_pay_gap": {
+        "cols": ("Year", "UK", "NI"),
+        "subtitle_keywords": ["working pattern pay gap"],
+    },
+    # Sector × gender hourly earnings timeseries
+    "hourly_by_sector_gender": {
+        "cols": ("Year", "Male public", "Female public", "Male private", "Female private"),
+        "subtitle_keywords": ["sector", "gender"],
+    },
+    # Snapshot tables — single year, no 'Year' column
+    "hours_distribution": {
+        "cols": ("Paid hours worked", "Percentage"),
+    },
+    "uk_regional_pay_ratio": {
+        "cols": ("Region", "Ratio"),
+    },
+    "hourly_by_age_gender": {
+        "cols": ("Age group", "Female", "Male"),
+        "subtitle_keywords": ["age"],
+    },
+    "hourly_by_occupation_gender": {
+        "cols": ("Occupation", "Female", "Male"),
+        "subtitle_keywords": ["occupation"],
+    },
+    "hourly_by_pattern_gender": {
+        "cols": ("Working pattern", "Female", "Male"),
+        "subtitle_keywords": ["working pattern"],
+        "excludes": ["pay gap", "mean weekly"],
+    },
+    "mean_hours_by_pattern_gender": {
+        "cols": ("Working pattern", "Males", "Females", "All"),
+    },
+}
+
+
+def _find_linked_sheet(
+    file_path: str | Path,
+    signature_key: str,
+) -> pd.DataFrame:
+    """Locate a sheet in the linked tables file by content fingerprint.
+
+    Walks all sheets, finds the header row (first short-valued row after the
+    title rows), checks column names against the signature, and optionally
+    confirms subtitle keywords. Returns the DataFrame from the matching sheet.
 
     Args:
-        df_weekly: Weekly earnings DataFrame with 'sex' or 'gender' column
+        file_path: Path to the ASHE linked tables Excel file.
+        signature_key: Key into ``_SHEET_SIGNATURES``.
 
     Returns:
-        DataFrame with gender pay gap by year
+        Raw DataFrame from the matched sheet (header not yet renamed).
+
+    Raises:
+        NISRADataNotFoundError: If no sheet matches the signature.
+    """
+    import openpyxl
+
+    sig = _SHEET_SIGNATURES[signature_key]
+    required_cols = tuple(c.lower() for c in sig["cols"])
+    keywords = [k.lower() for k in sig.get("subtitle_keywords", [])]
+    excludes = [e.lower() for e in sig.get("excludes", [])]
+
+    wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
+    try:
+        for sheet_name in wb.sheetnames:
+            ws = wb[sheet_name]
+            rows = [r for r in ws.iter_rows(values_only=True) if any(v is not None for v in r)]
+            if len(rows) < 3:
+                continue
+
+            # Title is row 0, subtitle row 1, then possibly a note, then headers
+            subtitle = str(rows[1][0] or "").lower()
+
+            # Check keyword/exclude filters on subtitle
+            if keywords and not any(k in subtitle for k in keywords):
+                continue
+            if excludes and any(e in subtitle for e in excludes):
+                continue
+
+            # Find header row: first row where all required cols appear
+            # (case-insensitive, ignoring None cells)
+            for i, row in enumerate(rows):
+                row_vals = tuple(str(v).lower() for v in row if v is not None)
+                if all(rc in row_vals for rc in required_cols):
+                    # Found the header — read everything below it, trimmed to signature width
+                    n_sig = len(sig["cols"])
+                    data_rows = [r[:n_sig] for r in rows[i + 1 :]]
+                    header = [str(v) if v is not None else f"_col{j}" for j, v in enumerate(row[:n_sig])]
+                    df = pd.DataFrame(data_rows, columns=header)
+                    # Drop entirely-None rows
+                    df = df.dropna(how="all")
+                    logger.debug(f"Matched signature '{signature_key}' to sheet '{sheet_name}' in {file_path}")
+                    wb.close()
+                    return df
+    finally:
+        wb.close()
+
+    raise NISRADataNotFoundError(
+        f"No sheet matching signature '{signature_key}' found in {file_path}. Expected columns: {sig['cols']}"
+    )
+
+
+def _get_linked_file(year: int | None = None, force_refresh: bool = False) -> Path:
+    """Download the linked tables file, returning path. Uses latest year if not specified."""
+    if year is None:
+        _, year = get_latest_ashe_publication_url()
+    return download_file(get_ashe_file_url(year, "linked"), cache_ttl_hours=90 * 24, force_refresh=force_refresh)
+
+
+# ---------------------------------------------------------------------------
+# Parse functions — each calls _find_linked_sheet with its signature key
+# ---------------------------------------------------------------------------
+
+
+def parse_ashe_gender_pay_gap(file_path: str | Path) -> pd.DataFrame:
+    """Parse ASHE gender pay gap timeseries (NI and UK), any publication year.
+
+    Extracts the NI and UK all-employee gender pay gap from 2005 to present.
+    The gap is defined as the difference between male and female median hourly
+    earnings as a percentage of male median hourly earnings (all employees,
+    excluding overtime).
+
+    Note: methodological changes occurred in 2006, 2011 and 2021 — these are
+    annotated in NISRA publications and should be considered when interpreting
+    trend breaks.
+
+    Args:
+        file_path: Path to the ASHE linked tables Excel file
+
+    Returns:
+        DataFrame with columns:
+
+        - year: int
+        - location: str ('Northern Ireland' or 'United Kingdom')
+        - gender_pay_gap_pct: float — GPG as % of male earnings (positive = men paid more)
 
     Example:
-        >>> # This requires data from the linked tables file with gender breakdown
-        >>> # Not available in the simple timeseries
-        >>> pass
+        >>> df = parse_ashe_gender_pay_gap("ASHE-2025-linked.xlsx")
+        >>> ni = df[df['location'] == 'Northern Ireland']
+        >>> print(ni.tail())
     """
-    # Placeholder - would need gender-specific data from linked tables
-    raise NotImplementedError("Gender pay gap calculation requires gender-specific data from linked tables file")
+    df = _find_linked_sheet(file_path, "gender_pay_gap")
+    df.columns = ["year", "UK", "NI"]
+    df = df.dropna(subset=["year"])
+    df["year"] = pd.to_numeric(df["year"], errors="coerce").dropna().astype(int)
+    df = df[df["year"].notna()]
+
+    records = []
+    for _, row in df.iterrows():
+        if pd.isna(row["year"]):
+            continue
+        records.append({"year": int(row["year"]), "location": "United Kingdom", "gender_pay_gap_pct": float(row["UK"])})
+        records.append(
+            {"year": int(row["year"]), "location": "Northern Ireland", "gender_pay_gap_pct": float(row["NI"])}
+        )
+
+    result = pd.DataFrame(records).dropna().sort_values(["year", "location"]).reset_index(drop=True)
+    result["year"] = result["year"].astype(int)
+    logger.info(f"Parsed {len(result)} gender pay gap records ({result['year'].min()}–{result['year'].max()})")
+    return result
+
+
+def parse_ashe_hourly_earnings_by_sector_gender(file_path: str | Path) -> pd.DataFrame:
+    """Parse ASHE hourly earnings by sector and gender timeseries.
+
+    Identified by column signature ['Year', 'Male public', 'Female public',
+    'Male private', 'Female private'] — stable across all publication years.
+
+    Args:
+        file_path: Path to the ASHE linked tables Excel file
+
+    Returns:
+        DataFrame with columns:
+
+        - year: int
+        - sector: str ('Public' or 'Private')
+        - sex: str ('Male' or 'Female')
+        - median_hourly_earnings: float (£, excluding overtime)
+
+    Example:
+        >>> df = parse_ashe_hourly_earnings_by_sector_gender("ASHE-2025-linked.xlsx")
+        >>> latest = df[df['year'] == df['year'].max()]
+        >>> print(latest.pivot(index='sector', columns='sex', values='median_hourly_earnings'))
+    """
+    df = _find_linked_sheet(file_path, "hourly_by_sector_gender")
+    df.columns = ["year", "Male public", "Female public", "Male private", "Female private"]
+    df = df.dropna(subset=["year"])
+    df["year"] = pd.to_numeric(df["year"], errors="coerce")
+    df = df[df["year"].notna()]
+    df["year"] = df["year"].astype(int)
+
+    records = []
+    for _, row in df.iterrows():
+        for col, sector, sex in [
+            ("Male public", "Public", "Male"),
+            ("Female public", "Public", "Female"),
+            ("Male private", "Private", "Male"),
+            ("Female private", "Private", "Female"),
+        ]:
+            val = pd.to_numeric(row[col], errors="coerce")
+            if pd.notna(val):
+                records.append(
+                    {"year": int(row["year"]), "sector": sector, "sex": sex, "median_hourly_earnings": float(val)}
+                )
+
+    result = pd.DataFrame(records).sort_values(["year", "sector", "sex"]).reset_index(drop=True)
+    logger.info(f"Parsed {len(result)} sector/gender earnings records ({result['year'].min()}–{result['year'].max()})")
+    return result
+
+
+def parse_ashe_hourly_earnings_by_age_gender(file_path: str | Path) -> pd.DataFrame:
+    """Parse ASHE hourly earnings by age group and gender, latest year snapshot.
+
+    Identified by column signature ['Age group', 'Female', 'Male'] with subtitle
+    containing 'age'. Present in all publication years, though in different figure slots.
+
+    Args:
+        file_path: Path to the ASHE linked tables Excel file
+
+    Returns:
+        DataFrame with columns:
+
+        - age_group: str (e.g. '18-21', '22-29', '30-39', '40-49', '50-59', '60+')
+        - sex: str ('Male' or 'Female')
+        - median_hourly_earnings: float (£, excluding overtime)
+
+    Example:
+        >>> df = parse_ashe_hourly_earnings_by_age_gender("ASHE-2025-linked.xlsx")
+    """
+    df = _find_linked_sheet(file_path, "hourly_by_age_gender")
+    df.columns = ["age_group", "Female", "Male"]
+    df = df.dropna(subset=["age_group"])
+
+    records = []
+    for _, row in df.iterrows():
+        for sex in ("Female", "Male"):
+            val = pd.to_numeric(row[sex], errors="coerce")
+            if pd.notna(val):
+                records.append({"age_group": str(row["age_group"]), "sex": sex, "median_hourly_earnings": float(val)})
+
+    result = pd.DataFrame(records)
+    logger.info(f"Parsed {len(result)} age/gender earnings records ({len(df)} age bands)")
+    return result
+
+
+def parse_ashe_hourly_earnings_by_occupation_gender(file_path: str | Path) -> pd.DataFrame:
+    """Parse ASHE hourly earnings by occupation and gender, latest year snapshot.
+
+    Identified by column signature ['Occupation', 'Female', 'Male'] with subtitle
+    containing 'occupation'. Present in all publication years.
+
+    Args:
+        file_path: Path to the ASHE linked tables Excel file
+
+    Returns:
+        DataFrame with columns:
+
+        - occupation: str (SOC major group label)
+        - sex: str ('Male' or 'Female')
+        - median_hourly_earnings: float (£, excluding overtime)
+
+    Example:
+        >>> df = parse_ashe_hourly_earnings_by_occupation_gender("ASHE-2025-linked.xlsx")
+        >>> wide = df.pivot(index='occupation', columns='sex', values='median_hourly_earnings')
+    """
+    df = _find_linked_sheet(file_path, "hourly_by_occupation_gender")
+    df.columns = ["occupation", "Female", "Male"]
+    df = df.dropna(subset=["occupation"])
+
+    records = []
+    for _, row in df.iterrows():
+        for sex in ("Female", "Male"):
+            val = pd.to_numeric(row[sex], errors="coerce")
+            if pd.notna(val):
+                records.append({"occupation": str(row["occupation"]), "sex": sex, "median_hourly_earnings": float(val)})
+
+    result = pd.DataFrame(records)
+    logger.info(f"Parsed {len(result)} occupation/gender earnings records ({len(df)} occupation groups)")
+    return result
+
+
+def parse_ashe_hourly_earnings_by_pattern_gender(file_path: str | Path) -> pd.DataFrame:
+    """Parse ASHE hourly earnings by working pattern and gender, latest year snapshot.
+
+    Identified by column signature ['Working pattern', 'Female', 'Male'] with
+    subtitle containing 'working pattern' (excluding pay gap / hours tables which
+    share similar columns). Present in all publication years.
+
+    Note: part-time females earn *more* per hour than part-time males in NI —
+    a reversal of the full-time pattern, documented across 2022–2025.
+
+    Args:
+        file_path: Path to the ASHE linked tables Excel file
+
+    Returns:
+        DataFrame with columns:
+
+        - work_pattern: str ('Full-time', 'Part-time', 'All Employees')
+        - sex: str ('Male' or 'Female')
+        - median_hourly_earnings: float (£, excluding overtime)
+
+    Example:
+        >>> df = parse_ashe_hourly_earnings_by_pattern_gender("ASHE-2025-linked.xlsx")
+        >>> print(df.pivot(index='work_pattern', columns='sex', values='median_hourly_earnings'))
+    """
+    df = _find_linked_sheet(file_path, "hourly_by_pattern_gender")
+    df.columns = ["work_pattern", "Female", "Male"]
+    df = df.dropna(subset=["work_pattern"])
+
+    records = []
+    for _, row in df.iterrows():
+        for sex in ("Female", "Male"):
+            val = pd.to_numeric(row[sex], errors="coerce")
+            if pd.notna(val):
+                records.append(
+                    {"work_pattern": str(row["work_pattern"]), "sex": sex, "median_hourly_earnings": float(val)}
+                )
+
+    result = pd.DataFrame(records)
+    logger.info(f"Parsed {len(result)} work pattern/gender earnings records")
+    return result
+
+
+def parse_ashe_ni_uk_earnings_comparison(file_path: str | Path) -> pd.DataFrame:
+    """Parse ASHE NI vs UK full-time weekly earnings timeseries.
+
+    Identified by column signature ['Year', 'UK', 'NI'] with subtitle containing
+    'weekly' and 'full-time'. Stable across all publication years (always Figure 1).
+
+    Args:
+        file_path: Path to the ASHE linked tables Excel file
+
+    Returns:
+        DataFrame with columns:
+
+        - year: int
+        - location: str ('NI' or 'UK')
+        - median_weekly_earnings_fulltime: float (£)
+
+    Example:
+        >>> df = parse_ashe_ni_uk_earnings_comparison("ASHE-2025-linked.xlsx")
+        >>> print(df.pivot(index='year', columns='location', values='median_weekly_earnings_fulltime'))
+    """
+    df = _find_linked_sheet(file_path, "ni_uk_weekly_earnings")
+    df.columns = ["year", "UK", "NI"]
+    df = df.dropna(subset=["year"])
+    df["year"] = pd.to_numeric(df["year"], errors="coerce")
+    df = df[df["year"].notna()]
+    df["year"] = df["year"].astype(int)
+    melted = df.melt(id_vars="year", var_name="location", value_name="median_weekly_earnings_fulltime")
+    melted["median_weekly_earnings_fulltime"] = pd.to_numeric(
+        melted["median_weekly_earnings_fulltime"], errors="coerce"
+    )
+    return melted.dropna(subset=["median_weekly_earnings_fulltime"]).reset_index(drop=True)
+
+
+def parse_ashe_uk_regional_pay_ratio(file_path: str | Path) -> pd.DataFrame:
+    """Parse ASHE high-to-low pay ratio by UK region, latest year snapshot.
+
+    Identified by column signature ['Region', 'Ratio']. Present in all years
+    but in different figure slots (Figure 14 in 2022, Figure 16 in 2023,
+    Figure 13 in 2024–2025).
+
+    Args:
+        file_path: Path to the ASHE linked tables Excel file
+
+    Returns:
+        DataFrame with columns:
+
+        - region: str (UK region name)
+        - ratio: float (high-paid / low-paid jobs ratio)
+
+    Example:
+        >>> df = parse_ashe_uk_regional_pay_ratio("ASHE-2025-linked.xlsx")
+        >>> print(df.sort_values('ratio', ascending=False))
+    """
+    df = _find_linked_sheet(file_path, "uk_regional_pay_ratio")
+    df.columns = ["region", "ratio"]
+    df = df.dropna(subset=["region"])
+    df["ratio"] = pd.to_numeric(df["ratio"], errors="coerce")
+    return df.dropna(subset=["ratio"]).reset_index(drop=True)
+
+
+def parse_ashe_hours_distribution(file_path: str | Path) -> pd.DataFrame:
+    """Parse ASHE distribution of total weekly paid hours, NI, latest year snapshot.
+
+    Identified by column signature ['Paid hours worked', 'Percentage']. Present
+    in all years but in different figure slots (Figure 3 in 2022–2023,
+    Figure 9 in 2024–2025).
+
+    Args:
+        file_path: Path to the ASHE linked tables Excel file
+
+    Returns:
+        DataFrame with columns:
+
+        - paid_hours_worked: int (hours 0–80)
+        - percentage: float (% of employees)
+
+    Example:
+        >>> df = parse_ashe_hours_distribution("ASHE-2025-linked.xlsx")
+        >>> print(df[df['paid_hours_worked'] == 37])
+    """
+    df = _find_linked_sheet(file_path, "hours_distribution")
+    df.columns = ["paid_hours_worked", "percentage"]
+    df["paid_hours_worked"] = pd.to_numeric(df["paid_hours_worked"], errors="coerce")
+    df["percentage"] = pd.to_numeric(df["percentage"], errors="coerce")
+    return df.dropna().reset_index(drop=True)
+
+
+def parse_ashe_working_pattern_pay_gap(file_path: str | Path) -> pd.DataFrame:
+    """Parse ASHE working pattern pay gap timeseries, NI vs UK.
+
+    Identified by column signature ['Year', 'UK', 'NI'] with subtitle containing
+    'working pattern pay gap'. Present from 2023 onwards (Figure 23 in 2023,
+    Figure 19 in 2024–2025).
+
+    Args:
+        file_path: Path to the ASHE linked tables Excel file
+
+    Returns:
+        DataFrame with columns:
+
+        - year: int
+        - location: str ('NI' or 'UK')
+        - working_pattern_pay_gap_pct: float (%)
+
+    Example:
+        >>> df = parse_ashe_working_pattern_pay_gap("ASHE-2025-linked.xlsx")
+        >>> print(df.pivot(index='year', columns='location', values='working_pattern_pay_gap_pct'))
+    """
+    df = _find_linked_sheet(file_path, "working_pattern_pay_gap")
+    df.columns = ["year", "UK", "NI"]
+    df = df.dropna(subset=["year"])
+    df["year"] = pd.to_numeric(df["year"], errors="coerce")
+    df = df[df["year"].notna()]
+    df["year"] = df["year"].astype(int)
+    melted = df.melt(id_vars="year", var_name="location", value_name="working_pattern_pay_gap_pct")
+    melted["working_pattern_pay_gap_pct"] = pd.to_numeric(melted["working_pattern_pay_gap_pct"], errors="coerce")
+    return melted.dropna(subset=["working_pattern_pay_gap_pct"]).reset_index(drop=True)
+
+
+def parse_ashe_mean_hours_by_pattern_gender(file_path: str | Path) -> pd.DataFrame:
+    """Parse ASHE mean weekly paid hours by work pattern and gender, NI, latest year.
+
+    Identified by column signature ['Working pattern', 'Males', 'Females', 'All'].
+    Present in all years (Figure 21 in 2022–2023, Figure 20 in 2024–2025).
+
+    Args:
+        file_path: Path to the ASHE linked tables Excel file
+
+    Returns:
+        DataFrame with columns:
+
+        - work_pattern: str ('Part-time', 'Full-time', 'All Employees')
+        - male_mean_hours: float
+        - female_mean_hours: float
+        - all_mean_hours: float
+
+    Example:
+        >>> df = parse_ashe_mean_hours_by_pattern_gender("ASHE-2025-linked.xlsx")
+        >>> print(df)
+    """
+    df = _find_linked_sheet(file_path, "mean_hours_by_pattern_gender")
+    df.columns = ["work_pattern", "male_mean_hours", "female_mean_hours", "all_mean_hours"]
+    df = df.dropna(subset=["work_pattern"])
+    for col in ("male_mean_hours", "female_mean_hours", "all_mean_hours"):
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+    return df.reset_index(drop=True)
+
+
+def get_gender_pay_gap(force_refresh: bool = False) -> pd.DataFrame:
+    """Get ASHE gender pay gap timeseries for NI and the UK.
+
+    Returns the population-level GPG derived from NISRA's ASHE survey — the
+    difference between male and female median hourly earnings as a percentage
+    of male earnings, for all employees.
+
+    This is survey-based (HMRC PAYE sample) and covers the whole NI economy,
+    complementing the mandatory employer-reported GPG data available via
+    ``bolster.data_sources.gender_pay_gap`` (which covers named employers with
+    250+ staff only).
+
+    Args:
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with columns:
+
+        - year: int (2005–present)
+        - location: str ('Northern Ireland' or 'United Kingdom')
+        - gender_pay_gap_pct: float
+
+    Example:
+        >>> df = get_gender_pay_gap()
+        >>> ni = df[df['location'] == 'Northern Ireland']
+        >>> print(f"NI GPG 2025: {ni[ni['year']==2025]['gender_pay_gap_pct'].values[0]}%")
+    """
+    return parse_ashe_gender_pay_gap(_get_linked_file(force_refresh=force_refresh))
+
+
+def get_hourly_earnings_by_sector_gender(force_refresh: bool = False) -> pd.DataFrame:
+    """Get ASHE hourly earnings by sector and gender timeseries for NI.
+
+    Returns median gross hourly earnings (excl. overtime) for NI employees by
+    public/private sector and sex, from 2005 to present.
+
+    Args:
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with columns:
+
+        - year: int (2005–present)
+        - sector: str ('Public' or 'Private')
+        - sex: str ('Male' or 'Female')
+        - median_hourly_earnings: float (£)
+
+    Example:
+        >>> df = get_hourly_earnings_by_sector_gender()
+        >>> latest = df[df['year'] == df['year'].max()]
+        >>> print(latest.pivot(index='sector', columns='sex', values='median_hourly_earnings'))
+    """
+    return parse_ashe_hourly_earnings_by_sector_gender(_get_linked_file(force_refresh=force_refresh))
+
+
+def get_hourly_earnings_by_age_gender(force_refresh: bool = False) -> pd.DataFrame:
+    """Get ASHE hourly earnings by age group and gender for NI, latest year snapshot.
+
+    Returns median gross hourly earnings (excl. overtime) for NI employees by
+    age band and sex.
+
+    Args:
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with columns:
+
+        - age_group: str
+        - sex: str ('Male' or 'Female')
+        - median_hourly_earnings: float (£)
+
+    Example:
+        >>> df = get_hourly_earnings_by_age_gender()
+        >>> wide = df.pivot(index='age_group', columns='sex', values='median_hourly_earnings')
+        >>> wide['gpg_pct'] = (wide['Male'] - wide['Female']) / wide['Male'] * 100
+        >>> print(wide)
+    """
+    return parse_ashe_hourly_earnings_by_age_gender(_get_linked_file(force_refresh=force_refresh))
+
+
+def get_hourly_earnings_by_occupation_gender(force_refresh: bool = False) -> pd.DataFrame:
+    """Get ASHE hourly earnings by occupation and gender for NI, latest year snapshot.
+
+    Returns median gross hourly earnings (excl. overtime) for NI employees by
+    SOC major occupation group and sex.
+
+    Args:
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with columns:
+
+        - occupation: str
+        - sex: str ('Male' or 'Female')
+        - median_hourly_earnings: float (£)
+
+    Example:
+        >>> df = get_hourly_earnings_by_occupation_gender()
+        >>> wide = df.pivot(index='occupation', columns='sex', values='median_hourly_earnings')
+        >>> wide['gpg_pct'] = (wide['Male'] - wide['Female']) / wide['Male'] * 100
+        >>> print(wide.sort_values('gpg_pct', ascending=False))
+    """
+    return parse_ashe_hourly_earnings_by_occupation_gender(_get_linked_file(force_refresh=force_refresh))
+
+
+def get_hourly_earnings_by_pattern_gender(force_refresh: bool = False) -> pd.DataFrame:
+    """Get ASHE hourly earnings by working pattern and gender for NI, latest year snapshot.
+
+    Returns median gross hourly earnings (excl. overtime) for NI employees by
+    full-time/part-time and sex.
+
+    Args:
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with columns:
+
+        - work_pattern: str ('Full-time', 'Part-time', 'All Employees')
+        - sex: str ('Male' or 'Female')
+        - median_hourly_earnings: float (£)
+
+    Example:
+        >>> df = get_hourly_earnings_by_pattern_gender()
+        >>> print(df.pivot(index='work_pattern', columns='sex', values='median_hourly_earnings'))
+    """
+    return parse_ashe_hourly_earnings_by_pattern_gender(_get_linked_file(force_refresh=force_refresh))
+
+
+def get_ni_uk_earnings_comparison(force_refresh: bool = False) -> pd.DataFrame:
+    """Get NI vs UK full-time weekly earnings timeseries.
+
+    Args:
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with columns: year, location ('NI'/'UK'), median_weekly_earnings_fulltime
+
+    Example:
+        >>> df = get_ni_uk_earnings_comparison()
+        >>> print(df.pivot(index='year', columns='location', values='median_weekly_earnings_fulltime'))
+    """
+    return parse_ashe_ni_uk_earnings_comparison(_get_linked_file(force_refresh=force_refresh))
+
+
+def get_uk_regional_pay_ratio(force_refresh: bool = False) -> pd.DataFrame:
+    """Get high-to-low pay ratio by UK region, latest year snapshot.
+
+    Args:
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with columns: region, ratio
+
+    Example:
+        >>> df = get_uk_regional_pay_ratio()
+        >>> ni = df[df['region'] == 'Northern Ireland']
+    """
+    return parse_ashe_uk_regional_pay_ratio(_get_linked_file(force_refresh=force_refresh))
+
+
+def get_hours_distribution(force_refresh: bool = False) -> pd.DataFrame:
+    """Get distribution of total weekly paid hours for NI employees, latest year snapshot.
+
+    Args:
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with columns: paid_hours_worked, percentage
+
+    Example:
+        >>> df = get_hours_distribution()
+        >>> print(df[df['paid_hours_worked'].between(35, 40)])
+    """
+    return parse_ashe_hours_distribution(_get_linked_file(force_refresh=force_refresh))
+
+
+def get_working_pattern_pay_gap(force_refresh: bool = False) -> pd.DataFrame:
+    """Get working pattern pay gap timeseries for NI vs UK.
+
+    Args:
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with columns: year, location ('NI'/'UK'), working_pattern_pay_gap_pct
+
+    Example:
+        >>> df = get_working_pattern_pay_gap()
+        >>> print(df.pivot(index='year', columns='location', values='working_pattern_pay_gap_pct'))
+    """
+    return parse_ashe_working_pattern_pay_gap(_get_linked_file(force_refresh=force_refresh))
+
+
+def get_mean_hours_by_pattern_gender(force_refresh: bool = False) -> pd.DataFrame:
+    """Get mean weekly paid hours by work pattern and gender for NI, latest year snapshot.
+
+    Args:
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with columns: work_pattern, male_mean_hours, female_mean_hours, all_mean_hours
+
+    Example:
+        >>> df = get_mean_hours_by_pattern_gender()
+        >>> print(df)
+    """
+    return parse_ashe_mean_hours_by_pattern_gender(_get_linked_file(force_refresh=force_refresh))
 
 
 def validate_ashe_data(df: pd.DataFrame) -> bool:  # pragma: no cover

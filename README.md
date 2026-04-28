@@ -202,6 +202,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Population Projections (2022-based, 2022–2072) | `nisra.population_projections` | ✅ |
 | Annual Survey of Hours & Earnings | `nisra.ashe` | ✅ |
 | DVA Monthly Tests Statistics | `dva` | ✅ |
+| UK Gender Pay Gap Reporting | `gender_pay_gap` | ✅ |
 | Individual Wellbeing | `nisra.wellbeing` | ✅ |
 | Cancer Waiting Times | `nisra.cancer_waiting_times` | ✅ |
 | Registrar General Quarterly Tables | `nisra.registrar_general` | ✅ |

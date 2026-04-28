@@ -11,7 +11,7 @@ from rich.panel import Panel
 from rich.text import Text
 
 from . import __version__
-from .data_sources import dva
+from .data_sources import dva, gender_pay_gap
 from .data_sources.cineworld import get_cinema_listings
 from .data_sources.companies_house import get_companies_house_records_that_might_be_in_farset, query_basic_company_data
 from .data_sources.eoni import get_results as get_ni_election_results
@@ -62,6 +62,9 @@ def cli(verbose, args=None):
 
     Transport:
         * dva                  DVA monthly test statistics (vehicle, driver, theory)
+
+    Employment & Pay:
+        * gender-pay-gap       UK Gender Pay Gap reporting data (2017–present)
 
     Entertainment & Lifestyle:
         * cinema-listings      Cineworld movie showtimes
@@ -620,6 +623,132 @@ def dva_cmd(latest, test_type, year, output_format, force_refresh, save, summary
         console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@cli.command(name="gender-pay-gap")
+@click.option(
+    "--year",
+    type=int,
+    default=None,
+    help="Reporting year (e.g. 2024). Defaults to most recent available.",
+)
+@click.option(
+    "--all-years",
+    "all_years",
+    is_flag=True,
+    help="Fetch and combine all available years (2017–present).",
+)
+@click.option(
+    "--postcode-prefix",
+    "postcode_prefix",
+    default=None,
+    help="Filter to employers whose postcode starts with this prefix (e.g. 'BT' for NI, 'EH' for Edinburgh). Returns all UK employers if omitted.",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["json", "csv"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics only")
+def gender_pay_gap_cmd(year, all_years, postcode_prefix, output_format, save, summary):  # pragma: no cover
+    """UK Gender Pay Gap Reporting Data.
+
+    All UK employers with 250+ employees are required to report their gender
+    pay gap annually. Data is available from 2017 to present.
+
+    Filter by postcode prefix to focus on a specific region — e.g. 'BT' for
+    Northern Ireland, 'EH' for Edinburgh, 'M' for Manchester.
+
+    Examples:
+        bolster gender-pay-gap --postcode-prefix BT           # NI employers, latest year
+        bolster gender-pay-gap --year 2024                    # All UK employers, 2024
+        bolster gender-pay-gap --all-years --postcode-prefix BT  # NI trend data
+        bolster gender-pay-gap --postcode-prefix BT --summary    # NI summary stats
+        bolster gender-pay-gap --year 2024 --format json --save gpg_2024.json
+
+    Source:
+        https://gender-pay-gap.service.gov.uk/viewing/download
+    """
+    console = Console()
+
+    try:
+        available_years = gender_pay_gap.get_available_years()
+
+        if all_years:
+            console.print(
+                f"[cyan]Fetching GPG data for all years ({min(available_years)}–{max(available_years)})...[/cyan]"
+            )
+            df = gender_pay_gap.get_all_years(postcode_prefix=postcode_prefix)
+        else:
+            target_year = year or max(available_years)
+            scope = f"postcode prefix '{postcode_prefix}'" if postcode_prefix else "all UK employers"
+            console.print(f"[cyan]Fetching GPG data for {target_year} ({scope})...[/cyan]")
+            df = gender_pay_gap.get_data(year=target_year, postcode_prefix=postcode_prefix)
+
+        if df.empty:
+            console.print("[yellow]⚠️  No data found for the specified filters[/yellow]")
+            return
+
+        if summary:
+            console.print("\n[bold]Gender Pay Gap Summary[/bold]")
+            console.print("━" * 56)
+
+            years_in_data = sorted(df["reporting_year"].unique())
+            scope_label = f"Postcode prefix '{postcode_prefix}'" if postcode_prefix else "All UK employers"
+            console.print(f"[cyan]Scope: {scope_label}[/cyan]")
+            console.print(f"[cyan]Years: {', '.join(str(y) for y in years_in_data)}[/cyan]\n")
+
+            # Per-year summary
+            console.print(f"{'Year':>6} {'Employers':>10} {'Mean gap %':>11} {'Median gap %':>13}")
+            console.print("─" * 46)
+            for yr in years_in_data:
+                yr_df = df[df["reporting_year"] == yr]
+                mean_gap = yr_df["diff_mean_hourly_percent"].median()
+                med_gap = yr_df["diff_median_hourly_percent"].median()
+                console.print(f"{yr:>6} {len(yr_df):>10,} {mean_gap:>11.1f} {med_gap:>13.1f}")
+
+            # Size breakdown for latest year
+            latest_yr = max(years_in_data)
+            latest = df[df["reporting_year"] == latest_yr]
+            console.print(f"\n[bold]Employer sizes ({latest_yr}):[/bold]")
+            size_counts = latest["employer_size"].value_counts()
+            for size, count in size_counts.items():
+                console.print(f"  {size:<22} {count:>5,}")
+
+            return
+
+        console.print(f"[green]✅ Retrieved {len(df):,} employer records[/green]")
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    df.to_json(save, orient="records", date_format="iso", indent=2)
+                else:
+                    df.to_csv(save, index=False)
+                console.print(f"[green]💾 Data saved to: {save}[/green]")
+            except Exception as e:
+                console.print(f"[red]❌ Error saving file: {e}[/red]")
+            return
+
+        if output_format == "json":
+            click.echo(df.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            console.print(df.to_csv(index=False), end="")
+
+    except gender_pay_gap.GenderPayGapDataNotFoundError as e:
+        console.print(f"[bold red]❌ Year not available:[/bold red] {e}")
+        available = gender_pay_gap.get_available_years()
+        console.print(f"[yellow]Available years: {min(available)}–{max(available)}[/yellow]")
+        raise click.Abort() from e
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try --year with a specific year (e.g. --year 2023)")
         raise click.Abort() from e
 
 
