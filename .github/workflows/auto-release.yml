@@ -201,7 +201,7 @@ jobs:
     - name: Bump version
       run: |
         uv run bump-my-version bump ${{ needs.analyze-changes.outputs.version_bump }}
-        NEW_VERSION=$(grep "current_version" pyproject.toml | cut -d'"' -f2)
+        NEW_VERSION=$(uv run bump-my-version show current_version)
         echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
 
     - name: Generate changelog entry
