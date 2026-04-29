@@ -47,7 +47,7 @@ from ._base import NISRADataNotFoundError, NISRAValidationError, download_file
 logger = logging.getLogger(__name__)
 
 # Base URL for population statistics
-POPULATION_BASE_URL = "https://www.nisra.gov.uk/statistics/people-and-communities/population"
+POPULATION_BASE_URL = "https://www.nisra.gov.uk/statistics/population/mid-year-population-estimates"
 
 
 def get_latest_population_publication_url() -> tuple[str, int]:
@@ -77,15 +77,15 @@ def get_latest_population_publication_url() -> tuple[str, int]:
     soup = BeautifulSoup(response.content, "html.parser")
 
     # Find latest "Mid-Year Population Estimates for Small Geographical Areas" publication
-    # Pattern: "2024 Mid-Year Population Estimates for Small Geographical Areas"
+    # Pattern: "2024 Mid-Year Population Estimates for Northern Ireland..."
     pub_link = None
     pub_year = None
 
     for link in soup.find_all("a", href=True):
         link_text = link.get_text(strip=True)
 
-        # Match pattern with year
-        match = re.search(r"(\d{4})\s+Mid-Year Population Estimates.*Small Geographical Areas", link_text)
+        # Match pattern with year - title format changed in 2024 (dropped "Small Geographical Areas" suffix)
+        match = re.search(r"(\d{4})\s+Mid-Year Population Estimates for Northern Ireland", link_text, re.IGNORECASE)
 
         if match and "publications" in link["href"]:
             year = int(match.group(1))
@@ -119,7 +119,8 @@ def get_latest_population_publication_url() -> tuple[str, int]:
     for link in pub_soup.find_all("a", href=True):
         href = link["href"]
 
-        if "AGE_BANDS" in href.upper() and href.endswith(".xlsx"):
+        href_upper = href.upper()
+        if "AGE-BANDS" in href_upper and "NETMIG" not in href_upper and href.endswith(".xlsx"):
             if href.startswith("/"):
                 href = f"https://www.nisra.gov.uk{href}"
 
