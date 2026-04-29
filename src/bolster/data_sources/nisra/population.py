@@ -118,9 +118,11 @@ def get_latest_population_publication_url() -> tuple[str, int]:
 
     for link in pub_soup.find_all("a", href=True):
         href = link["href"]
+        link_text = link.get_text(strip=True).lower()
 
-        href_upper = href.upper()
-        if "AGE-BANDS" in href_upper and "NETMIG" not in href_upper and href.endswith(".xlsx"):
+        # Match on link text rather than filename — NISRA filename conventions vary by year
+        # (e.g. MYE22-AGE-BANDS.xlsx vs MYE23_AGE_BANDS_NI_LGD.xlsx)
+        if "population by sex and age bands" in link_text and href.endswith(".xlsx"):
             if href.startswith("/"):
                 href = f"https://www.nisra.gov.uk{href}"
 
