@@ -31,7 +31,7 @@ jobs:
                   git config user.email "github-actions[bot]@users.noreply.github.com"
 
             - name: Update PR branches
-              if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+              if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.pr_number == '')
               run: |
                   set +e  # Don't exit on errors - we want to process all PRs
                   echo "Updating all PRs with latest main (including drafts and failing CI)..."
