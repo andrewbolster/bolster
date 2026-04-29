@@ -11,6 +11,8 @@ Key validations:
 - Required columns, age bands, sex categories present
 """
 
+import re
+
 import pytest
 
 from bolster.data_sources.nisra import population
@@ -112,12 +114,12 @@ class TestPopulationDataIntegrity:
         """Test that area filtering returns correct data."""
         areas = latest_population_all["area"].unique()
 
-        # Should have 4 area types
-        assert len(areas) == 4, f"Expected 4 area types, got {len(areas)}"
+        # Should have at least 2 area types (NI + LGDs); NISRA reduced from 4 in 2024 publication
+        assert len(areas) >= 2, f"Expected at least 2 area types, got {len(areas)}"
 
-        # Each area should have expected naming pattern
+        # Each area should have expected numbered naming pattern
         for area in areas:
-            assert area.startswith(("1.", "2.", "3.", "4.")), f"Unexpected area format: {area}"
+            assert re.match(r"^\d+\.", area), f"Unexpected area format: {area}"
 
     def test_get_population_by_year_function(self, latest_population_ni):
         """Test the get_population_by_year helper function."""
