@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.5.0] - 2026-05-01
+
+- feat(nisra): add stillbirths module and update population projections to 2024-based (#1762)
+- fix(nisra): fix population scraper broken by NISRA site restructure (#1758)
+- fix(release): use bump-my-version show to extract version after bump (#1739)
+- fix(ci): allow manual dispatch of rebase workflow to update all BEHIND PRs
+- fix(web): cap retry backoff to prevent CI hangs on blocked IPs
+- fix(web): cap retry backoff to prevent CI hangs on blocked IPs
+- fix(ci): include BEHIND PRs in auto-rebase workflow
+- feat(ashe): refactor linked-tables parsing to content-fingerprint detection (#1748)
+- feat(data): UK Gender Pay Gap reporting data source (#217) (#1741)
+- feat(ashe): implement Figures 14-18 gender earnings analysis (#1747)
+- fix(web): add tqdm progress bar to download_extract_zip (#314)
+- fix(drift-detection): bump artifact actions to Node.js 24, fix speciesName trailing punctuation
+- feat: weekly NISRA feed drift detection via TF-IDF (#1732)
+
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
