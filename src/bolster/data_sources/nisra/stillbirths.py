@@ -26,7 +26,6 @@ Example:
 """
 
 import logging
-import re
 from pathlib import Path
 
 import pandas as pd
@@ -46,8 +45,18 @@ logger = logging.getLogger(__name__)
 STILLBIRTHS_PUBLICATION_URL = "https://www.nisra.gov.uk/publications/monthly-stillbirths"
 
 MONTH_ORDER = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
 ]
 
 
@@ -73,10 +82,7 @@ def get_latest_stillbirths_publication_url() -> str:
         href = a_tag["href"]
         link_text = a_tag.get_text(strip=True).lower()
         if "monthly stillbirths" in link_text and href.endswith(".xlsx"):
-            if href.startswith("/"):
-                excel_url = f"https://www.nisra.gov.uk{href}"
-            else:
-                excel_url = href
+            excel_url = f"https://www.nisra.gov.uk{href}" if href.startswith("/") else href
             logger.info(f"Found stillbirths file: {excel_url}")
             break
 
@@ -159,7 +165,7 @@ def parse_stillbirths_file(file_path: str | Path) -> pd.DataFrame:
         if month not in MONTH_ORDER:
             break  # hit Total row or notes
 
-        for year, col_idx in zip(years, year_col_indices):
+        for year, col_idx in zip(years, year_col_indices, strict=False):
             val = row.iloc[col_idx]
             count = safe_int(val)
             if count is None:
@@ -170,9 +176,7 @@ def parse_stillbirths_file(file_path: str | Path) -> pd.DataFrame:
         raise NISRAValidationError("No data rows found in stillbirths sheet")
 
     df = pd.DataFrame(records)
-    df["date"] = pd.to_datetime(
-        df["year"].astype(str) + " " + df["month"], format="%Y %B"
-    )
+    df["date"] = pd.to_datetime(df["year"].astype(str) + " " + df["month"], format="%Y %B")
     df = df[["date", "year", "month", "stillbirths"]]
     df = df.sort_values("date").reset_index(drop=True)
 
@@ -289,9 +293,7 @@ def get_stillbirth_rate(
     live = births_df[["date", births_col]].rename(columns={births_col: "live_births"})
     merged = stillbirths_df.merge(live, on="date", how="inner")
     merged["total_births"] = merged["live_births"] + merged["stillbirths"]
-    merged["stillbirth_rate"] = (
-        (merged["stillbirths"] / merged["total_births"]) * 1000
-    ).round(2)
+    merged["stillbirth_rate"] = ((merged["stillbirths"] / merged["total_births"]) * 1000).round(2)
     return merged
 
 
