@@ -234,6 +234,17 @@ jobs:
 
         ${{ needs.analyze-changes.outputs.changelog }}
 
+        ## Installation
+
+        \`\`\`bash
+        pip install bolster==${NEW_VERSION}
+        \`\`\`
+
+        ## Documentation
+
+        - [Documentation](https://bolster.help)
+        - [PyPI Package](https://pypi.org/project/bolster/${NEW_VERSION}/)
+
         ---
         *This PR was automatically created by the release workflow. It will be merged automatically once CI passes.*
 
