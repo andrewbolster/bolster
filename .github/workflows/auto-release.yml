@@ -18,8 +18,7 @@ on:
 
 permissions:
   contents: write
-  pull-requests: read
-  id-token: write  # Required for trusted publishing to PyPI
+  pull-requests: write
 
 jobs:
   analyze-changes:
@@ -163,11 +162,10 @@ jobs:
 
           console.log(`Release decision: ${versionBump} version bump`);
 
-  release:
+  open-release-pr:
     needs: analyze-changes
     if: needs.analyze-changes.outputs.should_release == 'true'
     runs-on: ubuntu-latest
-    environment: release
     steps:
     - uses: actions/checkout@v6
       with:
@@ -186,17 +184,6 @@ jobs:
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
-
-    - name: Quality gate validation
-      run: |
-        echo "🏗️  Running quality gate validation before release..."
-        uv run scripts/quality_gate.py --format github
-
-    - name: Run tests before release
-      run: uv run pytest tests/ -v
-
-    - name: Lint check
-      run: uv run pre-commit run --all-files
 
     - name: Bump version
       run: |
@@ -228,58 +215,41 @@ jobs:
         path.write_text("\n".join(lines))
         PYEOF
 
-    - name: Commit version bump
+    - name: Push version bump branch, tag, and open PR
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
+        BRANCH="release/v${NEW_VERSION}"
+        git checkout -b "$BRANCH"
         git add .
-        git commit -m "chore: bump version to $NEW_VERSION"
-        git tag "v$NEW_VERSION"
-        git push origin main --tags
+        git commit -m "chore: bump version to ${NEW_VERSION}"
+        git tag "v${NEW_VERSION}"
+        git push origin "$BRANCH"
+        git push origin "v${NEW_VERSION}"
+        gh pr create \
+          --title "chore: bump version to ${NEW_VERSION}" \
+          --body "Automated version bump to ${NEW_VERSION}.
 
-    - name: Build package
-      run: uv build
+        ## Changes in this release
 
-    - name: Publish to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        attestations: true
+        ${{ needs.analyze-changes.outputs.changelog }}
 
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v3
-      with:
-        tag_name: v${{ env.NEW_VERSION }}
-        name: Release ${{ env.NEW_VERSION }}
-        body: |
-          ## Changes in this release
+        ## Installation
 
-          ${{ needs.analyze-changes.outputs.changelog }}
+        \`\`\`bash
+        pip install bolster==${NEW_VERSION}
+        \`\`\`
 
-          ## Installation
+        ## Documentation
 
-          ```bash
-          pip install bolster==${{ env.NEW_VERSION }}
-          ```
+        - [Documentation](https://bolster.help)
+        - [PyPI Package](https://pypi.org/project/bolster/${NEW_VERSION}/)
 
-          ## Documentation
+        ---
+        *This PR was automatically created by the release workflow. It will be merged automatically once CI passes.*
 
-          - [Documentation](https://bolster.readthedocs.io/en/v${{ env.NEW_VERSION }}/)
-          - [PyPI Package](https://pypi.org/project/bolster/${{ env.NEW_VERSION }}/)
-        draft: false
-        prerelease: false
-        files: dist/*
-
-  trigger-docs:
-    needs: [release]
-    runs-on: ubuntu-latest
-    steps:
-    - name: Trigger ReadTheDocs build
-      uses: actions/github-script@v9
-      with:
-        script: |
-          // Trigger ReadTheDocs webhook if configured
-          console.log('Documentation will be automatically rebuilt by ReadTheDocs');
-
-          // Could also trigger manual webhook here if needed:
-          // await fetch('https://readthedocs.org/api/v2/webhook/bolster/123456/', {
-          //   method: 'POST',
-          //   headers: { 'Authorization': 'Token ${{ secrets.RTD_TOKEN }}' }
-          // });
+        > **Note**: The \`v${NEW_VERSION}\` tag has already been pushed. PyPI publishing is triggered by the tag and will proceed independently." \
+          --label "version:skip" \
+          --auto-merge \
+          --base main \
+          --head "$BRANCH"
