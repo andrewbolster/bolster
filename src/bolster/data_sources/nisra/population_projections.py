@@ -11,14 +11,14 @@ Data includes:
 - Multiple projection variants (principal, high, low population scenarios)
 
 Data Source:
-    **Principal Projection**: https://www.nisra.gov.uk/publications/2022-based-population-projections-northern-ireland
-    **Variant Projections**: https://www.nisra.gov.uk/publications/2022-based-population-projections-northern-ireland-variant-projections
+    **Principal Projection**: https://www.nisra.gov.uk/publications/2024-based-population-projections-northern-ireland
+    **Variant Projections**: https://www.nisra.gov.uk/publications/2024-based-population-projections-northern-ireland-variant-projections
 
     The principal projection publication provides 2 Excel files:
-    - NPP22_ppp_age_sexv2.xlsx: Population by age and sex (RECOMMENDED - uses "Flat File" sheet)
-    - NPP22_ppp_coc.xlsx: Components of change summary
+    - NPP24_ppp_age_sex.xlsx: Population by age and sex (RECOMMENDED - uses "Flat File" sheet)
+    - NPP24_ppp_coc.xlsx: Components of change summary
 
-    The variant projections provide 13 additional files with different demographic assumptions
+    The variant projections provide additional files with different demographic assumptions
     (high/low fertility, mortality, migration scenarios).
 
     This module uses the "Flat File" sheet which is already in perfect long format,
@@ -64,31 +64,36 @@ from ._base import (
 
 logger = logging.getLogger(__name__)
 
-# Publication URLs
-PROJECTIONS_PRINCIPAL_URL = "https://www.nisra.gov.uk/publications/2022-based-population-projections-northern-ireland"
+# Publication URLs — update these when a new biennial vintage is released
+PROJECTIONS_PRINCIPAL_URL = "https://www.nisra.gov.uk/publications/2024-based-population-projections-northern-ireland"
 PROJECTIONS_VARIANTS_URL = (
-    "https://www.nisra.gov.uk/publications/2022-based-population-projections-northern-ireland-variant-projections"
+    "https://www.nisra.gov.uk/publications/2024-based-population-projections-northern-ireland-variant-projections"
 )
 
 
-def get_latest_projections_publication_url(variant: str = "principal") -> str:
-    """Discover latest population projections publication URL.
+def get_latest_projections_publication_url(variant: str = "principal") -> tuple[str, int]:
+    """Discover latest population projections publication URL and base year.
+
+    Uses link text matching rather than filename patterns so the selector
+    remains valid across biennial vintages (e.g. NPP22 → NPP24 filename changes).
 
     Args:
         variant: Projection variant ('principal', 'hhh', 'lll', etc.). Default: 'principal'
 
     Returns:
-        URL to latest projections Excel file
+        Tuple of (excel_file_url, base_year)
 
     Raises:
         NISRADataNotFoundError: If publication cannot be found
     """
+    import re
+
     if variant == "principal":
         pub_url = PROJECTIONS_PRINCIPAL_URL
-        file_pattern = "NPP22_ppp_age_sexv2.xlsx"
+        link_text_pattern = "age and sex"
     else:
         pub_url = PROJECTIONS_VARIANTS_URL
-        file_pattern = f"NPP22_{variant}_coc.xlsx"
+        link_text_pattern = "age and sex"
 
     try:
         response = session.get(pub_url, timeout=30)
@@ -98,13 +103,14 @@ def get_latest_projections_publication_url(variant: str = "principal") -> str:
 
     soup = BeautifulSoup(response.content, "html.parser")
 
-    # Find Excel link matching the pattern
+    # Find Excel link by link text — resilient to filename changes across vintages
     excel_url = None
 
     for a_tag in soup.find_all("a", href=True):
         href = a_tag["href"]
-        if file_pattern in href and href.endswith(".xlsx"):
-            # Make absolute URL
+        link_text = a_tag.get_text(strip=True).lower()
+
+        if link_text_pattern in link_text and href.endswith(".xlsx"):
             if href.startswith("/"):
                 excel_url = f"https://www.nisra.gov.uk{href}"
             elif not href.startswith("http"):
@@ -116,25 +122,31 @@ def get_latest_projections_publication_url(variant: str = "principal") -> str:
             break
 
     if not excel_url:
-        raise NISRADataNotFoundError(f"Could not find {file_pattern} on {pub_url}")
+        raise NISRADataNotFoundError(f"Could not find '{link_text_pattern}' Excel file on {pub_url}")
 
-    return excel_url
+    # Extract base year from the publication URL (e.g. "2024-based-population-projections" → 2024)
+    year_match = re.search(r"/(\d{4})-based-population-projections", pub_url)
+    base_year = int(year_match.group(1)) if year_match else 2024
+
+    return excel_url, base_year
 
 
-def parse_projections_file(file_path: Path, variant: str = "principal") -> pd.DataFrame:
+def parse_projections_file(file_path: Path, variant: str = "principal", base_year: int = 2024) -> pd.DataFrame:
     """Parse downloaded projections Excel file into long-format DataFrame.
 
     For principal projection, uses the "Flat File" sheet which is already in
     perfect long format requiring no transformation.
 
     Args:
-        file_path: Path to downloaded NPP22_ppp_age_sexv2.xlsx or variant file
+        file_path: Path to downloaded projections Excel file
         variant: Projection variant ('principal' or variant code)
+        base_year: Base year of the projection vintage (e.g. 2024). Used to
+            populate the base_year column since the file itself doesn't record it.
 
     Returns:
         DataFrame with columns:
             - year: int (projection year)
-            - base_year: int (base year for projection, e.g., 2022)
+            - base_year: int (base year for projection, e.g., 2024)
             - age_group: str (5-year age band, e.g., "00-04", "05-09", "90+")
             - sex: str ("Males", "Females", "All Persons")
             - area: str (geographic area, typically "Northern Ireland")
@@ -168,12 +180,8 @@ def parse_projections_file(file_path: Path, variant: str = "principal") -> pd.Da
         }
     )
 
-    # Add base_year column (extract from Projection column if present, or default to 2022)
-    if "Projection" in df.columns:
-        # Extract base year from projection name (e.g., "Principal Projection" -> 2022)
-        df["base_year"] = 2022  # Default for 2022-based projections
-    else:
-        df["base_year"] = 2022
+    # Record which projection vintage this data comes from
+    df["base_year"] = base_year
 
     # Select and reorder columns
     columns_to_keep = ["year", "base_year", "age_group", "sex", "area", "population"]
@@ -323,14 +331,14 @@ def get_latest_projections(
     """
     logger.info(f"Fetching latest population projections (variant: {variant})...")
 
-    # Get publication URL
-    excel_url = get_latest_projections_publication_url(variant=variant)
+    # Get publication URL and base year
+    excel_url, base_year = get_latest_projections_publication_url(variant=variant)
 
     # Download file (with caching, TTL=168 hours = 7 days for biennial data)
     file_path = download_file(excel_url, cache_ttl_hours=168, force_refresh=force_refresh)
 
     # Parse into DataFrame
-    df = parse_projections_file(file_path, variant=variant)
+    df = parse_projections_file(file_path, variant=variant, base_year=base_year)
 
     # Validate data
     validate_projections_totals(df)

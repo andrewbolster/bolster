@@ -112,6 +112,7 @@ from . import (
     population,
     population_projections,
     registrar_general,
+    stillbirths,
     tourism,
     wellbeing,
 )
@@ -131,6 +132,7 @@ __all__ = [
     "population",
     "population_projections",
     "registrar_general",
+    "stillbirths",
     "tourism",
     "wellbeing",
 ]
