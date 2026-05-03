@@ -63,7 +63,7 @@ class TestVehicleTestsIntegrity:
     def test_vehicle_tests_year_range(self, vehicle_tests_data):
         """Verify that data covers expected year range (2014-present)."""
         assert vehicle_tests_data["year"].min() == 2014, "Data should start from 2014"
-        assert vehicle_tests_data["year"].max() >= datetime.now().year - 1, "Data should be recent"
+        assert vehicle_tests_data["year"].max() >= datetime.now().year, "Data should include current year"
 
 
 class TestDriverTestsIntegrity:
@@ -118,17 +118,19 @@ class TestHelperFunctions:
     @pytest.mark.network
     def test_get_tests_by_year(self, vehicle_tests_data):
         """Verify get_tests_by_year returns correct data."""
-        df_2024 = dva.get_tests_by_year(vehicle_tests_data, 2024)
-        assert len(df_2024) == 12, "Should have 12 months for 2024"
-        assert (df_2024["year"] == 2024).all(), "All rows should be from 2024"
+        last_full_year = datetime.now().year - 1
+        df_year = dva.get_tests_by_year(vehicle_tests_data, last_full_year)
+        assert len(df_year) == 12, f"Should have 12 months for {last_full_year}"
+        assert (df_year["year"] == last_full_year).all(), f"All rows should be from {last_full_year}"
 
     @pytest.mark.network
     def test_get_tests_by_month(self, vehicle_tests_data):
         """Verify get_tests_by_month returns correct data."""
-        df_jan_2024 = dva.get_tests_by_month(vehicle_tests_data, "January", 2024)
-        assert len(df_jan_2024) == 1, "Should have exactly 1 row"
-        assert df_jan_2024.iloc[0]["month"] == "January", "Month should be January"
-        assert df_jan_2024.iloc[0]["year"] == 2024, "Year should be 2024"
+        last_full_year = datetime.now().year - 1
+        df_jan = dva.get_tests_by_month(vehicle_tests_data, "January", last_full_year)
+        assert len(df_jan) == 1, "Should have exactly 1 row"
+        assert df_jan.iloc[0]["month"] == "January", "Month should be January"
+        assert df_jan.iloc[0]["year"] == last_full_year, f"Year should be {last_full_year}"
 
     @pytest.mark.network
     def test_calculate_growth_rates(self, vehicle_tests_data):
@@ -141,10 +143,11 @@ class TestHelperFunctions:
     @pytest.mark.network
     def test_get_summary_statistics(self, vehicle_tests_data):
         """Verify summary statistics calculation."""
-        stats = dva.get_summary_statistics(vehicle_tests_data, start_year=2024, end_year=2024)
+        last_full_year = datetime.now().year - 1
+        stats = dva.get_summary_statistics(vehicle_tests_data, start_year=last_full_year, end_year=last_full_year)
         assert "total_tests" in stats, "Should have total_tests"
         assert "monthly_mean" in stats, "Should have monthly_mean"
-        assert stats["months_count"] == 12, "Should have 12 months for 2024"
+        assert stats["months_count"] == 12, f"Should have 12 months for {last_full_year}"
         assert stats["total_tests"] > 0, "Total tests should be positive"
 
 
