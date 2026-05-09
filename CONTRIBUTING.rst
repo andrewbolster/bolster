@@ -1,4 +1,4 @@
-te. highlight:: shell
+.. highlight:: shell
 
 ============
 Contributing
@@ -64,63 +64,69 @@ Ready to contribute? Here's how to set up `bolster` for local development.
 
     $ git clone git@github.com:andrewbolster/bolster.git
 
-3. Install your local copy into a virtualenv. Assuming you have virtualenvwrapper installed, this is how you set up your fork for local development::
+3. Install all dependencies (runtime + dev) using ``uv``::
 
     $ cd bolster
-    $ uv sync
+    $ uv sync --all-extras
 
 4. Create a branch for local development::
 
-    $ git checkout -b name-of-your-bugfix-or-feature
+    $ git checkout -b fix/<name>   # or feat/<name>
 
    Now you can make your changes locally.
 
-5. When you're done making changes, check that your changes pass testing and linting::
+5. When you're done making changes, check that your changes pass linting and
+   tests::
 
-    $ make pre-commit
-    $ make test
+    $ uv run pre-commit run --all-files
+    $ uv run pytest tests/ -v
 
 6. Commit your changes and push your branch to GitHub::
 
-    $ git add .
+    $ git add <changed-files>
     $ git commit -m "Your detailed description of your changes."
-    $ git push origin name-of-your-bugfix-or-feature
+    $ git push -u origin fix/<name>
 
-7. Submit a pull request through the GitHub website.
+7. Open a pull request through the GitHub website and wait for CI to pass.
 
 Pull Request Guidelines
 -----------------------
 
 Before you submit a pull request, check that it meets these guidelines:
 
-1. The pull request should include tests.
-2. If the pull request adds functionality, the docs should be updated. Put
-   your new functionality into a function with a docstring, and add the
-   feature to the list in README.rst.
-3. The pull request should work for Python 3.10+. Check
-   https://github.com/andrewbolster/bolster/pull_requests
-   and make sure that the tests pass for all supported Python versions.
+1. The pull request should include tests (real-data integrity tests, not mocks).
+2. If the pull request adds functionality, update the docs — add a docstring
+   with an ``Example:`` section and update ``README.md`` and
+   ``docs/data_sources.rst`` if it adds a new data source.
+3. The pull request should work for Python 3.10+.  Check the GitHub Actions
+   CI results and make sure tests pass for all supported versions.
+4. Run ``uv run pre-commit run --all-files`` and resolve any linting issues
+   before requesting a review.
 
 Tips
 ----
 
-To bump a version, just do it manually in `bolster/__init__.py`, and then (assuming tests run
-successfully) run::
+To run only the doctests from source code::
 
-    $ git commit -m "Bump version to x.y.z"
-    $ git tag x.y.z
-    $ git push origin x.y.z
-    $ git push origin main
+    $ uv run pytest src/ --doctest-modules --no-cov
 
+To see code coverage::
+
+    $ uv run pytest tests/ --cov=src/bolster --cov-report=term-missing
 
 Deploying
 ---------
 
 A reminder for the maintainers on how to deploy.
-Make sure all your changes are committed (including an entry in HISTORY.rst).
-Then run::
 
-$ bump2version patch # possible: major / minor / patch
-$ git push
+1. Update ``CHANGELOG.md`` with the new version entry.
+2. Bump the version using ``bump-my-version``::
 
-GitHub Actions `publish.yml` will then tag, release and deploy to PyPI if tests pass.
+    $ uv run bump-my-version bump patch  # or minor / major
+
+3. Push the resulting commit and tag::
+
+    $ git push --follow-tags
+
+GitHub Actions ``publish.yml`` will then tag, release, and deploy to PyPI if
+tests pass.

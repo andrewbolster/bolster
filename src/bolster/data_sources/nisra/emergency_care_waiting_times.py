@@ -21,14 +21,14 @@ Update Frequency:
     Quarterly, approximately 3 months after the end of each quarter.
 
 Example:
-    >>> from bolster.data_sources.nisra import emergency_care_waiting_times as ecwt
-    >>> df = ecwt.get_latest_data()
-    >>> print(df.tail())
+    >>> from bolster.data_sources.nisra import emergency_care_waiting_times as ecwt  # doctest: +SKIP
+    >>> df = ecwt.get_latest_data()  # doctest: +SKIP
+    >>> print(df.tail())  # doctest: +SKIP
 
     >>> # Type 1 A&E performance only
-    >>> type1 = df[df['attendance_type'] == 'Type 1']
-    >>> by_trust = type1.groupby('trust')['pct_within_4hrs'].mean()
-    >>> print(by_trust)
+    >>> type1 = df[df['attendance_type'] == 'Type 1']  # doctest: +SKIP
+    >>> by_trust = type1.groupby('trust')['pct_within_4hrs'].mean()  # doctest: +SKIP
+    >>> print(by_trust)  # doctest: +SKIP
 
 Publication Details:
     - Frequency: Quarterly (published ~3 months after quarter end)

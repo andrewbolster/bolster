@@ -23,13 +23,13 @@ Update Frequency: Weekly (published Fridays for week ending previous Friday)
 Geographic Coverage: Northern Ireland
 
 Example:
-    >>> from bolster.data_sources.nisra import deaths
+    >>> from bolster.data_sources.nisra import deaths  # doctest: +SKIP
     >>> # Get latest demographics breakdown
-    >>> df = deaths.get_latest_deaths(dimension='demographics')
-    >>> print(df.head())
+    >>> df = deaths.get_latest_deaths(dimension='demographics')  # doctest: +SKIP
+    >>> print(df.head())  # doctest: +SKIP
 
     >>> # Get specific week
-    >>> df = deaths.parse_deaths_file('/path/to/file.xlsx', dimension='geography')
+    >>> df = deaths.parse_deaths_file('/path/to/file.xlsx', dimension='geography')  # doctest: +SKIP
 """
 
 import logging
@@ -542,9 +542,9 @@ def parse_deaths_file(
         DataFrame for single dimension, or dict of DataFrames for 'all'
 
     Example:
-        >>> df = parse_deaths_file('deaths.xlsx', dimension='totals')
-        >>> data = parse_deaths_file('deaths.xlsx', dimension='all')
-        >>> print(data['totals'].head())
+        >>> df = parse_deaths_file('deaths.xlsx', dimension='totals')  # doctest: +SKIP
+        >>> data = parse_deaths_file('deaths.xlsx', dimension='all')  # doctest: +SKIP
+        >>> print(data['totals'].head())  # doctest: +SKIP
     """
     if dimension == "all":
         return {
@@ -577,8 +577,8 @@ def get_latest_deaths(
         DataFrame or dict of DataFrames depending on dimension
 
     Example:
-        >>> df = get_latest_deaths(dimension='demographics')
-        >>> print(f"Latest week: {df['week_ending'].max()}")
+        >>> df = get_latest_deaths(dimension='demographics')  # doctest: +SKIP
+        >>> print(f"Latest week: {df['week_ending'].max()}")  # doctest: +SKIP
     """
     url = get_latest_weekly_deaths_url()
     file_path = download_file(url, cache_ttl_hours=7 * 24, force_refresh=force_refresh)
@@ -630,15 +630,15 @@ def get_historical_deaths(
 
     Example:
         >>> # Get totals only
-        >>> df = get_historical_deaths()
-        >>> print(f"Data spans {df['year'].min()} to {df['year'].max()}")
+        >>> df = get_historical_deaths()  # doctest: +SKIP
+        >>> print(f"Data spans {df['year'].min()} to {df['year'].max()}")  # doctest: +SKIP
 
         >>> # Get totals with age breakdowns
-        >>> data = get_historical_deaths(years=[2020, 2021], include_age_breakdowns=True)
-        >>> totals = data['totals']
-        >>> age_data = data['age_breakdowns']
+        >>> data = get_historical_deaths(years=[2020, 2021], include_age_breakdowns=True)  # doctest: +SKIP
+        >>> totals = data['totals']  # doctest: +SKIP
+        >>> age_data = data['age_breakdowns']  # doctest: +SKIP
         >>> # Analyze age distribution
-        >>> age_summary = age_data.groupby('age_range')['deaths'].sum()
+        >>> age_summary = age_data.groupby('age_range')['deaths'].sum()  # doctest: +SKIP
     """
     # Download the historical file
     links = scrape_download_links(HISTORICAL_DEATHS_URL, file_extension=".xlsx")
@@ -770,12 +770,12 @@ def get_combined_deaths(
 
     Example:
         >>> # Get past 5 years plus 2025 YTD
-        >>> df = get_combined_deaths()
-        >>> print(f"Data from {df['week_ending'].min().date()} to {df['week_ending'].max().date()}")
+        >>> df = get_combined_deaths()  # doctest: +SKIP
+        >>> print(f"Data from {df['week_ending'].min().date()} to {df['week_ending'].max().date()}")  # doctest: +SKIP
 
         >>> # Create multi-year visualizations
-        >>> import plotly.express as px
-        >>> fig = px.line(df, x='week_ending', y='total_deaths', color='year')
+        >>> import plotly.express as px  # doctest: +SKIP
+        >>> fig = px.line(df, x='week_ending', y='total_deaths', color='year')  # doctest: +SKIP
     """
     current_year = datetime.now().year
 

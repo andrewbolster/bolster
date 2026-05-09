@@ -13,20 +13,20 @@ Executive" table which maintains a comprehensive record of all executives since 
 Example:
     Extract NI Executive historical data and analyze political stability:
 
-        >>> from bolster.data_sources import wikipedia
+        >>> from bolster.data_sources import wikipedia  # doctest: +SKIP
         >>> # Get complete Executive composition history
-        >>> executives = wikipedia.get_ni_executive_basic_table()
-        >>> print(f"Found {len(executives)} executives since devolution")
+        >>> executives = wikipedia.get_ni_executive_basic_table()  # doctest: +SKIP
+        >>> print(f"Found {len(executives)} executives since devolution")  # doctest: +SKIP
 
         >>> # Analyze Executive stability over time
-        >>> avg_duration = executives['Duration'].mean()
-        >>> print(f"Average Executive duration: {avg_duration}")
+        >>> avg_duration = executives['Duration'].mean()  # doctest: +SKIP
+        >>> print(f"Average Executive duration: {avg_duration}")  # doctest: +SKIP
 
         >>> # Find longest and shortest serving executives
-        >>> longest = executives.loc[executives['Duration'].idxmax()]
-        >>> shortest = executives.loc[executives['Duration'].idxmin()]
-        >>> print(f"Longest serving: {longest.name} ({longest['Duration']})")
-        >>> print(f"Shortest serving: {shortest.name} ({shortest['Duration']})")
+        >>> longest = executives.loc[executives['Duration'].idxmax()]  # doctest: +SKIP
+        >>> shortest = executives.loc[executives['Duration'].idxmin()]  # doctest: +SKIP
+        >>> print(f"Longest serving: {longest.name} ({longest['Duration']})")  # doctest: +SKIP
+        >>> print(f"Shortest serving: {shortest.name} ({shortest['Duration']})")  # doctest: +SKIP
 
 This module provides utilities for analyzing Northern Ireland's political history and executive
 stability patterns since the establishment of devolved government.
@@ -59,8 +59,8 @@ def get_ni_executive_basic_table() -> pd.DataFrame:
         - Interregnum: timedelta64[ns] - Gap until next executive
 
     Example:
-        >>> df = get_ni_executive_basic_table()
-        >>> print(df.dtypes)
+        >>> df = get_ni_executive_basic_table()  # doctest: +SKIP
+        >>> print(df.dtypes)  # doctest: +SKIP
         Established     datetime64[ns]
         Dissolved       datetime64[ns]
         Duration       timedelta64[ns]

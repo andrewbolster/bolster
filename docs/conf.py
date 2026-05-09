@@ -204,7 +204,7 @@ texinfo_documents = [
         "Bolster Documentation",
         author,
         "bolster",
-        "One line description of project.",
+        "Python utilities and standardised access to Northern Ireland and UK public data sources.",
         "Miscellaneous",
     )
 ]

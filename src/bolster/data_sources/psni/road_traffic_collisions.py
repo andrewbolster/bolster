@@ -27,19 +27,12 @@ Reference Date: Date of collision occurrence
 Time Coverage: 2013 to present
 
 Example:
-    >>> from bolster.data_sources.psni import road_traffic_collisions
-    >>> # Get latest collision data
-    >>> df = road_traffic_collisions.get_collisions()
-    >>> print(df.head())
-    >>>
-    >>> # Get casualties with decoded values
-    >>> casualties = road_traffic_collisions.get_casualties()
-    >>> fatal = casualties[casualties['severity'] == 'Fatal']
-    >>> print(f"Fatal casualties: {len(fatal)}")
-    >>>
-    >>> # Get summary statistics
-    >>> summary = road_traffic_collisions.get_annual_summary()
-    >>> print(summary)
+    >>> from bolster.data_sources.psni import road_traffic_collisions  # doctest: +SKIP
+    >>> df = road_traffic_collisions.get_collisions()  # doctest: +SKIP
+    >>> print(df.head())  # doctest: +SKIP
+    >>> casualties = road_traffic_collisions.get_casualties()  # doctest: +SKIP
+    >>> fatal = casualties[casualties['severity'] == 'Fatal']  # doctest: +SKIP
+    >>> summary = road_traffic_collisions.get_annual_summary()  # doctest: +SKIP
 """
 
 import logging
@@ -228,8 +221,8 @@ def get_available_years() -> list[int]:
         List of years (integers) in descending order
 
     Example:
-        >>> years = get_available_years()
-        >>> print(years)  # e.g., [2024, 2023, 2022, ...]
+        >>> years = get_available_years()  # doctest: +SKIP
+        >>> print(years)  # e.g., [2024, 2023, 2022, ...]  # doctest: +SKIP
     """
     datasets = _get_available_datasets()
     return [d["year"] for d in datasets]
@@ -309,9 +302,9 @@ def get_collisions(
             - nuts3_code: str (NUTS3 region code)
 
     Example:
-        >>> df = get_collisions(2024)
-        >>> print(f"Total collisions: {len(df)}")
-        >>> print(df.groupby('district')['casualties'].sum())
+        >>> df = get_collisions(2024)  # doctest: +SKIP
+        >>> print(f"Total collisions: {len(df)}")  # doctest: +SKIP
+        >>> print(df.groupby('district')['casualties'].sum())  # doctest: +SKIP
     """
     if year is None:
         years = get_available_years()
@@ -403,10 +396,10 @@ def get_casualties(
             - severity_code: int (1=fatal, 2=serious, 3=slight)
 
     Example:
-        >>> df = get_casualties(2024)
-        >>> print(df['severity'].value_counts())
-        >>> fatal = df[df['severity'] == 'Fatal']
-        >>> print(f"Fatal casualties: {len(fatal)}")
+        >>> df = get_casualties(2024)  # doctest: +SKIP
+        >>> print(df['severity'].value_counts())  # doctest: +SKIP
+        >>> fatal = df[df['severity'] == 'Fatal']  # doctest: +SKIP
+        >>> print(f"Fatal casualties: {len(fatal)}")  # doctest: +SKIP
     """
     if year is None:
         years = get_available_years()
@@ -475,8 +468,8 @@ def get_vehicles(
             - driver_age_group: int
 
     Example:
-        >>> df = get_vehicles(2024)
-        >>> print(df['vehicle_type'].value_counts())
+        >>> df = get_vehicles(2024)  # doctest: +SKIP
+        >>> print(df['vehicle_type'].value_counts())  # doctest: +SKIP
     """
     if year is None:
         years = get_available_years()
@@ -526,10 +519,10 @@ def get_casualties_with_collision_details(
         DataFrame with casualty records enriched with collision details
 
     Example:
-        >>> df = get_casualties_with_collision_details(2024)
+        >>> df = get_casualties_with_collision_details(2024)  # doctest: +SKIP
         >>> # Fatal casualties by district
-        >>> fatal_by_district = df[df['severity'] == 'Fatal'].groupby('district').size()
-        >>> print(fatal_by_district.sort_values(ascending=False))
+        >>> fatal_by_district = df[df['severity'] == 'Fatal'].groupby('district').size()  # doctest: +SKIP
+        >>> print(fatal_by_district.sort_values(ascending=False))  # doctest: +SKIP
     """
     casualties = get_casualties(year, force_refresh=force_refresh)
     collisions = get_collisions(year, force_refresh=force_refresh)
@@ -582,10 +575,10 @@ def get_annual_summary(
             - fatalities_per_100_collisions: float
 
     Example:
-        >>> summary = get_annual_summary()
-        >>> print(summary)
+        >>> summary = get_annual_summary()  # doctest: +SKIP
+        >>> print(summary)  # doctest: +SKIP
         >>> # Plot fatality trend
-        >>> summary.plot(x='year', y='fatal', kind='line')
+        >>> summary.plot(x='year', y='fatal', kind='line')  # doctest: +SKIP
     """
     if years is None:
         years = get_available_years()
@@ -645,8 +638,8 @@ def get_casualties_by_district(
             - slight: int
 
     Example:
-        >>> by_district = get_casualties_by_district(2024)
-        >>> print(by_district.sort_values('fatal', ascending=False))
+        >>> by_district = get_casualties_by_district(2024)  # doctest: +SKIP
+        >>> print(by_district.sort_values('fatal', ascending=False))  # doctest: +SKIP
     """
     df = get_casualties_with_collision_details(year, force_refresh=force_refresh)
 
@@ -693,8 +686,8 @@ def get_casualties_by_road_user(
             - fatality_rate: float (fatal / total %)
 
     Example:
-        >>> by_user = get_casualties_by_road_user(2024)
-        >>> print(by_user)
+        >>> by_user = get_casualties_by_road_user(2024)  # doctest: +SKIP
+        >>> print(by_user)  # doctest: +SKIP
     """
     df = get_casualties(year, force_refresh=force_refresh)
 

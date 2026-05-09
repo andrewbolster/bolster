@@ -19,22 +19,22 @@ Update Frequency: Quarterly (February, May, August, November)
 Geographic Coverage: Northern Ireland (with LGD breakdowns)
 
 Example:
-    >>> from bolster.data_sources.nisra import registrar_general
+    >>> from bolster.data_sources.nisra import registrar_general  # doctest: +SKIP
     >>> # Get all quarterly vital statistics
-    >>> data = registrar_general.get_quarterly_vital_statistics()
-    >>> print(data['births'].tail())
+    >>> data = registrar_general.get_quarterly_vital_statistics()  # doctest: +SKIP
+    >>> print(data['births'].tail())  # doctest: +SKIP
 
     >>> # Get quarterly births only
-    >>> births = registrar_general.get_quarterly_births()
-    >>> print(f"Q1 2024 births: {births[(births['year']==2024) & (births['quarter']==1)]['total_births'].values[0]}")
+    >>> births = registrar_general.get_quarterly_births()  # doctest: +SKIP
+    >>> print(f"Q1 2024 births: {births[(births['year']==2024) & (births['quarter']==1)]['total_births'].values[0]}")  # doctest: +SKIP
 
     >>> # Get LGD-level statistics
-    >>> lgd_df = registrar_general.get_lgd_statistics()
-    >>> print(lgd_df)
+    >>> lgd_df = registrar_general.get_lgd_statistics()  # doctest: +SKIP
+    >>> print(lgd_df)  # doctest: +SKIP
 
     >>> # Cross-validate with monthly data
-    >>> report = registrar_general.get_validation_report()
-    >>> print(report['births_validation'])
+    >>> report = registrar_general.get_validation_report()  # doctest: +SKIP
+    >>> print(report['births_validation'])  # doctest: +SKIP
 """
 
 import logging
@@ -521,9 +521,9 @@ def get_quarterly_vital_statistics(
         NISRADataNotFoundError: If latest publication cannot be found
 
     Example:
-        >>> data = get_quarterly_vital_statistics()
-        >>> print(data['births'].columns)
-        >>> print(data['births'].tail())
+        >>> data = get_quarterly_vital_statistics()  # doctest: +SKIP
+        >>> print(data['births'].columns)  # doctest: +SKIP
+        >>> print(data['births'].tail())  # doctest: +SKIP
     """
     excel_url, pub_url, year, quarter = get_latest_publication_url()
 
@@ -554,9 +554,9 @@ def get_quarterly_births(force_refresh: bool = False) -> pd.DataFrame:
             - stillbirths: int (if available)
 
     Example:
-        >>> births = get_quarterly_births()
-        >>> q1_2024 = births[(births['year']==2024) & (births['quarter']==1)]
-        >>> print(f"Q1 2024 births: {q1_2024['total_births'].values[0]}")
+        >>> births = get_quarterly_births()  # doctest: +SKIP
+        >>> q1_2024 = births[(births['year']==2024) & (births['quarter']==1)]  # doctest: +SKIP
+        >>> print(f"Q1 2024 births: {q1_2024['total_births'].values[0]}")  # doctest: +SKIP
     """
     data = get_quarterly_vital_statistics(force_refresh=force_refresh)
     return data["births"]
@@ -581,8 +581,8 @@ def get_quarterly_deaths(force_refresh: bool = False) -> pd.DataFrame:
             - civil_partnerships: int
 
     Example:
-        >>> deaths = get_quarterly_deaths()
-        >>> print(deaths[deaths['year'] == 2024])
+        >>> deaths = get_quarterly_deaths()  # doctest: +SKIP
+        >>> print(deaths[deaths['year'] == 2024])  # doctest: +SKIP
     """
     data = get_quarterly_vital_statistics(force_refresh=force_refresh)
     return data["deaths"]
@@ -607,8 +607,8 @@ def get_lgd_statistics(force_refresh: bool = False) -> pd.DataFrame:
             - marriages: int
 
     Example:
-        >>> lgd = get_lgd_statistics()
-        >>> print(lgd.sort_values('births', ascending=False))
+        >>> lgd = get_lgd_statistics()  # doctest: +SKIP
+        >>> print(lgd.sort_values('births', ascending=False))  # doctest: +SKIP
     """
     data = get_quarterly_vital_statistics(force_refresh=force_refresh)
     return data["lgd"]
@@ -637,9 +637,9 @@ def validate_against_monthly_births(
             - pct_diff: float (percentage difference)
 
     Example:
-        >>> births_q = get_quarterly_births()
-        >>> validation = validate_against_monthly_births(births_q)
-        >>> print(validation[validation['pct_diff'].abs() > 1])
+        >>> births_q = get_quarterly_births()  # doctest: +SKIP
+        >>> validation = validate_against_monthly_births(births_q)  # doctest: +SKIP
+        >>> print(validation[validation['pct_diff'].abs() > 1])  # doctest: +SKIP
     """
     if monthly_df is None:
         from . import births
@@ -684,9 +684,9 @@ def validate_against_monthly_marriages(
         DataFrame with comparison columns
 
     Example:
-        >>> deaths_q = get_quarterly_deaths()
-        >>> validation = validate_against_monthly_marriages(deaths_q)
-        >>> print(validation)
+        >>> deaths_q = get_quarterly_deaths()  # doctest: +SKIP
+        >>> validation = validate_against_monthly_marriages(deaths_q)  # doctest: +SKIP
+        >>> print(validation)  # doctest: +SKIP
     """
     if monthly_df is None:
         from . import marriages
@@ -728,9 +728,9 @@ def get_validation_report(
             - 'summary': Overall validation statistics
 
     Example:
-        >>> report = get_validation_report()
-        >>> print(report['summary'])
-        >>> print(report['births_validation'])
+        >>> report = get_validation_report()  # doctest: +SKIP
+        >>> print(report['summary'])  # doctest: +SKIP
+        >>> print(report['births_validation'])  # doctest: +SKIP
     """
     data = get_quarterly_vital_statistics(force_refresh=force_refresh)
 

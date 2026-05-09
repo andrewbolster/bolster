@@ -24,13 +24,13 @@ Geographic Coverage: Northern Ireland
 Reference Date: June 30th of each year
 
 Example:
-    >>> from bolster.data_sources.nisra import population
+    >>> from bolster.data_sources.nisra import population  # doctest: +SKIP
     >>> # Get latest population estimates for all geographies
-    >>> df = population.get_latest_population()
-    >>> print(df.head())
+    >>> df = population.get_latest_population()  # doctest: +SKIP
+    >>> print(df.head())  # doctest: +SKIP
 
     >>> # Get only Northern Ireland overall
-    >>> ni_df = population.get_latest_population(area='Northern Ireland')
+    >>> ni_df = population.get_latest_population(area='Northern Ireland')  # doctest: +SKIP
 """
 
 import logging
@@ -251,14 +251,14 @@ def get_latest_population(
 
     Example:
         >>> # Get all data
-        >>> df = get_latest_population()
+        >>> df = get_latest_population()  # doctest: +SKIP
 
         >>> # Get only Northern Ireland overall
-        >>> ni_df = get_latest_population(area='Northern Ireland')
+        >>> ni_df = get_latest_population(area='Northern Ireland')  # doctest: +SKIP
 
         >>> # Calculate total NI population in latest year
-        >>> ni_2024 = ni_df[(ni_df['year'] == 2024) & (ni_df['sex'] == 'All persons')]
-        >>> total = ni_2024['population'].sum()
+        >>> ni_2024 = ni_df[(ni_df['year'] == 2024) & (ni_df['sex'] == 'All persons')]  # doctest: +SKIP
+        >>> total = ni_2024['population'].sum()  # doctest: +SKIP
     """
     # Discover latest publication
     excel_url, year = get_latest_population_publication_url()
@@ -319,10 +319,10 @@ def get_population_by_year(
         Filtered DataFrame
 
     Example:
-        >>> df = get_latest_population(area='Northern Ireland')
-        >>> pop_2024 = get_population_by_year(df, 2024)
+        >>> df = get_latest_population(area='Northern Ireland')  # doctest: +SKIP
+        >>> pop_2024 = get_population_by_year(df, 2024)  # doctest: +SKIP
         >>> # Calculate total population
-        >>> total = pop_2024['population'].sum()
+        >>> total = pop_2024['population'].sum()  # doctest: +SKIP
     """
     filtered = df[df["year"] == year].copy()
 
@@ -354,12 +354,12 @@ def get_population_pyramid_data(
             - females: Female population (negative values for pyramid)
 
     Example:
-        >>> df = get_latest_population(area='Northern Ireland')
-        >>> pyramid = get_population_pyramid_data(df, 2024)
+        >>> df = get_latest_population(area='Northern Ireland')  # doctest: +SKIP
+        >>> pyramid = get_population_pyramid_data(df, 2024)  # doctest: +SKIP
         >>> # Plot with matplotlib/plotly
-        >>> import matplotlib.pyplot as plt
-        >>> plt.barh(pyramid['age_5'], pyramid['males'], label='Males')
-        >>> plt.barh(pyramid['age_5'], pyramid['females'], label='Females')
+        >>> import matplotlib.pyplot as plt  # doctest: +SKIP
+        >>> plt.barh(pyramid['age_5'], pyramid['males'], label='Males')  # doctest: +SKIP
+        >>> plt.barh(pyramid['age_5'], pyramid['females'], label='Females')  # doctest: +SKIP
     """
     filtered = df[(df["year"] == year) & (df["area_name"] == area_name)].copy()
 

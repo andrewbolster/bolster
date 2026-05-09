@@ -10,21 +10,21 @@ All data is sourced from NISRA (Northern Ireland Statistics and Research Agency)
 and published under the Open Government Licence.
 
 Example:
-    >>> from bolster.data_sources.nisra.tourism import occupancy
+    >>> from bolster.data_sources.nisra.tourism import occupancy  # doctest: +SKIP
     >>> # Get hotel occupancy rates
-    >>> df = occupancy.get_latest_hotel_occupancy()
-    >>> print(df.head())
+    >>> df = occupancy.get_latest_hotel_occupancy()  # doctest: +SKIP
+    >>> print(df.head())  # doctest: +SKIP
     >>>
     >>> # Get combined hotel + SSA data
-    >>> df_combined = occupancy.get_combined_occupancy()
-    >>> comparison = occupancy.compare_accommodation_types(df_combined)
-    >>> print(comparison)
+    >>> df_combined = occupancy.get_combined_occupancy()  # doctest: +SKIP
+    >>> comparison = occupancy.compare_accommodation_types(df_combined)  # doctest: +SKIP
+    >>> print(comparison)  # doctest: +SKIP
     >>>
-    >>> from bolster.data_sources.nisra.tourism import visitor_statistics
+    >>> from bolster.data_sources.nisra.tourism import visitor_statistics  # doctest: +SKIP
     >>> # Get visitor statistics by market
-    >>> vs = visitor_statistics.get_latest_visitor_statistics()
-    >>> gb = vs[vs['market'] == 'Great Britain'].iloc[0]
-    >>> print(f"GB: {gb['trips']:,.0f} trips, £{gb['expenditure']:.1f}M spent")
+    >>> vs = visitor_statistics.get_latest_visitor_statistics()  # doctest: +SKIP
+    >>> gb = vs[vs['market'] == 'Great Britain'].iloc[0]  # doctest: +SKIP
+    >>> print(f"GB: {gb['trips']:,.0f} trips, £{gb['expenditure']:.1f}M spent")  # doctest: +SKIP
 
 See individual module docstrings for detailed documentation.
 """

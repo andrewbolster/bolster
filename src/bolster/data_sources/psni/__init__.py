@@ -10,21 +10,21 @@ Northern Ireland's Local Government Districts (LGDs), enabling integration
 with other NISRA datasets.
 
 Example:
-    >>> from bolster.data_sources.psni import crime_statistics, road_traffic_collisions
+    >>> from bolster.data_sources.psni import crime_statistics, road_traffic_collisions  # doctest: +SKIP
     >>> # Get latest crime data
-    >>> df = crime_statistics.get_latest_crime_statistics()
+    >>> df = crime_statistics.get_latest_crime_statistics()  # doctest: +SKIP
     >>>
     >>> # Filter to Belfast
-    >>> belfast = crime_statistics.filter_by_district(df, "Belfast City")
+    >>> belfast = crime_statistics.filter_by_district(df, "Belfast City")  # doctest: +SKIP
     >>>
     >>> # Get LGD code for cross-referencing
-    >>> lgd_code = crime_statistics.get_lgd_code("Belfast City")
-    >>> print(f"Belfast LGD: {lgd_code}")  # N09000003
+    >>> lgd_code = crime_statistics.get_lgd_code("Belfast City")  # doctest: +SKIP
+    >>> print(f"Belfast LGD: {lgd_code}")  # N09000003  # doctest: +SKIP
     >>>
     >>> # Get road traffic collision data
-    >>> collisions = road_traffic_collisions.get_collisions()
-    >>> casualties = road_traffic_collisions.get_casualties()
-    >>> print(f"Fatal casualties: {len(casualties[casualties['severity'] == 'Fatal'])}")
+    >>> collisions = road_traffic_collisions.get_collisions()  # doctest: +SKIP
+    >>> casualties = road_traffic_collisions.get_casualties()  # doctest: +SKIP
+    >>> print(f"Fatal casualties: {len(casualties[casualties['severity'] == 'Fatal'])}")  # doctest: +SKIP
 
 See individual module docstrings for detailed documentation.
 """

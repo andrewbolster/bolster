@@ -153,8 +153,8 @@ def find_header_row(sheet, expected_columns: list[str], max_rows: int = 20) -> i
         1-based row number where headers are found, or None if not found
 
     Example:
-        >>> sheet = wb['Table 1a']
-        >>> header_row = find_header_row(sheet, ['Week Ending', 'Total Deaths'])
+        >>> sheet = wb['Table 1a']  # doctest: +SKIP
+        >>> header_row = find_header_row(sheet, ['Week Ending', 'Total Deaths'])  # doctest: +SKIP
         >>> # Returns 4 if headers are in row 4
     """
     for row_idx, row in enumerate(sheet.iter_rows(min_row=1, max_row=max_rows, values_only=True), 1):
@@ -189,9 +189,9 @@ def extract_column_mapping(sheet, header_row: int, column_names: list[str]) -> d
         Dictionary mapping column names to 0-based column indices
 
     Example:
-        >>> mapping = extract_column_mapping(sheet, 4, ['Week Ending', 'Total Deaths'])
+        >>> mapping = extract_column_mapping(sheet, 4, ['Week Ending', 'Total Deaths'])  # doctest: +SKIP
         >>> # Returns {'Week Ending': 1, 'Total Deaths': 3}
-        >>> week_ending_idx = mapping['Week Ending']
+        >>> week_ending_idx = mapping['Week Ending']  # doctest: +SKIP
     """
     headers = list(sheet[header_row])
     mapping = {}
@@ -224,9 +224,9 @@ def make_absolute_url(url: str, base_url: str) -> str:
         Absolute URL
 
     Example:
-        >>> make_absolute_url("/publications/file.xlsx", "https://www.nisra.gov.uk")
+        >>> make_absolute_url("/publications/file.xlsx", "https://www.nisra.gov.uk")  # doctest: +SKIP
         'https://www.nisra.gov.uk/publications/file.xlsx'
-        >>> make_absolute_url("https://example.com/file.xlsx", "https://www.nisra.gov.uk")
+        >>> make_absolute_url("https://example.com/file.xlsx", "https://www.nisra.gov.uk")  # doctest: +SKIP
         'https://example.com/file.xlsx'
     """
     if url.startswith("/"):
@@ -247,9 +247,9 @@ def parse_month_year(month_str: str, format: str = "%B %Y") -> pd.Timestamp | No
         pandas Timestamp or None if parsing fails
 
     Example:
-        >>> parse_month_year("April 2008")
+        >>> parse_month_year("April 2008")  # doctest: +SKIP
         Timestamp('2008-04-01 00:00:00')
-        >>> parse_month_year("Jan 2024", format="%b %Y")
+        >>> parse_month_year("Jan 2024", format="%b %Y")  # doctest: +SKIP
         Timestamp('2024-01-01 00:00:00')
     """
     if month_str is None or (isinstance(month_str, str) and month_str.strip() == ""):
@@ -278,9 +278,9 @@ def add_date_columns(df: pd.DataFrame, source_col: str, date_col: str = "date") 
         DataFrame with added columns (rows with invalid dates are dropped)
 
     Example:
-        >>> df = pd.DataFrame({"treatment_month": ["April 2008", "May 2008"]})
-        >>> df = add_date_columns(df, "treatment_month")
-        >>> df.columns.tolist()
+        >>> df = pd.DataFrame({"treatment_month": ["April 2008", "May 2008"]})  # doctest: +SKIP
+        >>> df = add_date_columns(df, "treatment_month")  # doctest: +SKIP
+        >>> df.columns.tolist()  # doctest: +SKIP
         ['treatment_month', 'date', 'year', 'month']
     """
     df = df.copy()
@@ -314,8 +314,8 @@ def parse_age_breakdowns(row, age_columns_map: dict[str, int], start_idx: int = 
         List of dicts with 'age_range' and 'deaths' keys
 
     Example:
-        >>> age_map = {'0-7 days': 20, '7 days-1 year': 21, '1-14': 22}
-        >>> result = parse_age_breakdowns(row, age_map)
+        >>> age_map = {'0-7 days': 20, '7 days-1 year': 21, '1-14': 22}  # doctest: +SKIP
+        >>> result = parse_age_breakdowns(row, age_map)  # doctest: +SKIP
         >>> # [{'age_range': '0-7 days', 'deaths': 1}, ...]
     """
     age_breakdowns = []

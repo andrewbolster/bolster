@@ -1,34 +1,53 @@
+"""Datetime rounding and timezone utilities.
+
+Provides helpers that coerce :class:`datetime.datetime` and
+:class:`datetime.date` objects to useful calendar boundaries (week, month)
+and to UTC midnight, without depending on any third-party libraries.
+
+Example:
+    >>> from bolster.utils.dt import round_to_week, round_to_month
+    >>> from datetime import date
+    >>> round_to_week(date(2024, 3, 13))   # Wednesday → previous Monday
+    datetime.date(2024, 3, 11)
+    >>> round_to_month(date(2024, 3, 13))
+    datetime.date(2024, 3, 1)
+"""
+
 from datetime import date, datetime, timedelta, timezone
 
 
 def round_to_week(dt: datetime | date) -> date:
-    """Return a date for the Monday before the given date.
+    """Return a date for the Monday of the week containing the given date.
 
     Args:
-      dt: return:
-      dt: datetime:
+        dt: A :class:`datetime.datetime` or :class:`datetime.date` to round.
 
     Returns:
-    >>> round_to_week(datetime(2018,8,9,12,1))
-    datetime.date(2018, 8, 6)
-    >>> round_to_week(date(2018,8,9))
-    datetime.date(2018, 8, 6)
+        The Monday on or before ``dt`` as a :class:`datetime.date`.
+
+    Example:
+        >>> round_to_week(datetime(2018,8,9,12,1))
+        datetime.date(2018, 8, 6)
+        >>> round_to_week(date(2018,8,9))
+        datetime.date(2018, 8, 6)
     """
     return (dt.date() if isinstance(dt, datetime) else dt) - timedelta(days=dt.weekday())
 
 
 def round_to_month(dt: datetime | date) -> date:
-    """Return a date for the first day of the month of a given date.
+    """Return a date for the first day of the month containing the given date.
 
     Args:
-      dt: return:
-      dt: datetime:
+        dt: A :class:`datetime.datetime` or :class:`datetime.date` to round.
 
     Returns:
-    >>> round_to_month(datetime(2018,8,9,12,1))
-    datetime.date(2018, 8, 1)
-    >>> round_to_month(date(2018,8,9))
-    datetime.date(2018, 8, 1)
+        The first day of the month of ``dt`` as a :class:`datetime.date`.
+
+    Example:
+        >>> round_to_month(datetime(2018,8,9,12,1))
+        datetime.date(2018, 8, 1)
+        >>> round_to_month(date(2018,8,9))
+        datetime.date(2018, 8, 1)
     """
     dt = dt.date() if isinstance(dt, datetime) else dt
 
@@ -36,22 +55,26 @@ def round_to_month(dt: datetime | date) -> date:
 
 
 def utc_midnight_on(dt: datetime) -> datetime:
-    """Some services don't like timezones, so this helper function converts datetime objects to UTC midnight.
+    """Return UTC midnight for the calendar date of a given datetime.
 
-    Converts `datetime.date` and `datetime.datetime` objects to a `datetime.datetime`
-    object corresponding to UTC Midnight on that date.
-
-    Pays primary attention to the actual Date of the input, regardless of if the combination
-    of given-time and timezone would roll over into another date.
+    Converts any :class:`datetime.datetime` to ``00:00:00 UTC`` on the same
+    calendar date, regardless of the original time or timezone offset.  This
+    is useful when a downstream service requires UTC-naive timestamps or
+    rejects sub-day granularity.
 
     Args:
-      dt: return:
-      dt: datetime:
+        dt: A :class:`datetime.datetime` whose calendar date is used.  The
+            time component and any timezone info are ignored.
 
-    >>> utc_midnight_on(datetime(2018,9,1,12,12))
-    datetime.datetime(2018, 9, 1, 0, 0, tzinfo=datetime.timezone.utc)
+    Returns:
+        A timezone-aware :class:`datetime.datetime` at ``00:00:00 UTC`` on
+        the same calendar date as ``dt``.
 
-    >>> utc_midnight_on(datetime(2018,9,1,12,12, tzinfo=timezone(timedelta(hours=-13))))
-    datetime.datetime(2018, 9, 1, 0, 0, tzinfo=datetime.timezone.utc)
+    Example:
+        >>> utc_midnight_on(datetime(2018,9,1,12,12))
+        datetime.datetime(2018, 9, 1, 0, 0, tzinfo=datetime.timezone.utc)
+
+        >>> utc_midnight_on(datetime(2018,9,1,12,12, tzinfo=timezone(timedelta(hours=-13))))
+        datetime.datetime(2018, 9, 1, 0, 0, tzinfo=datetime.timezone.utc)
     """
     return datetime.combine(dt.date(), datetime.min.time()).replace(tzinfo=timezone.utc)

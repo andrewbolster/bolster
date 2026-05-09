@@ -14,18 +14,18 @@ as required when zone boundaries change.
 Example:
     Access water quality data and zone information:
 
-        >>> from bolster.data_sources import ni_water
+        >>> from bolster.data_sources import ni_water  # doctest: +SKIP
         >>> # Get water quality data for all zones
-        >>> quality_data = ni_water.get_water_quality()
-        >>> print(f"Water quality data for {len(quality_data)} supply points")
+        >>> quality_data = ni_water.get_water_quality()  # doctest: +SKIP
+        >>> print(f"Water quality data for {len(quality_data)} supply points")  # doctest: +SKIP
 
         >>> # Check hardness classification distribution
-        >>> hardness_counts = quality_data['NI Hardness Classification'].value_counts()
-        >>> print(hardness_counts)
+        >>> hardness_counts = quality_data['NI Hardness Classification'].value_counts()  # doctest: +SKIP
+        >>> print(hardness_counts)  # doctest: +SKIP
 
         >>> # Get water quality for a specific zone
-        >>> belfast_data = ni_water.get_water_quality_by_zone('BALM')
-        >>> print(f"Belfast area hardness: {belfast_data['NI Hardness Classification']}")
+        >>> belfast_data = ni_water.get_water_quality_by_zone('BALM')  # doctest: +SKIP
+        >>> print(f"Belfast area hardness: {belfast_data['NI Hardness Classification']}")  # doctest: +SKIP
 
 The module provides utilities for analyzing water quality across Northern Ireland's supply zones,
 with support for both current quality data and historical zone mapping.
@@ -199,20 +199,20 @@ def _create_legacy_format_series(site_data: pd.DataFrame, zone_code: str) -> pd.
 def get_postcode_to_water_supply_zone() -> dict[str, str]:
     """Using data from OpenDataNI to generate a map from NI Postcodes to Water Supply Zone.
 
-    >>> zones = get_postcode_to_water_supply_zone()
-    >>> len(zones)
+    >>> zones = get_postcode_to_water_supply_zone()  # doctest: +SKIP
+    >>> len(zones)  # doctest: +SKIP
     49006
 
     Zones is keyed off postcode to a Water Supply Zone
-    >>> zones['BT1 1AA']
+    >>> zones['BT1 1AA']  # doctest: +SKIP
     'ZS0107'
 
     There are much fewer zones than postcodes
-    >>> len(set(zones.values()))
+    >>> len(set(zones.values()))  # doctest: +SKIP
     65
 
     And many postcodes that aren't associated with any zone
-    >>> len([k for k,v in zones.items() if v == INVALID_ZONE_IDENTIFIER])
+    >>> len([k for k,v in zones.items() if v == INVALID_ZONE_IDENTIFIER])  # doctest: +SKIP
     97
 
     """

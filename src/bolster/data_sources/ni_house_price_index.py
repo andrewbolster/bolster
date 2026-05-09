@@ -21,14 +21,14 @@ Index Base: Q1 2023 = 100
 See [here](https://andrewbolster.info/2022/03/NI-House-Price-Index.html) for more details.
 
 Example:
-    >>> from bolster.data_sources.ni_house_price_index import get_hpi_trends, get_sales_volumes
+    >>> from bolster.data_sources.ni_house_price_index import get_hpi_trends, get_sales_volumes  # doctest: +SKIP
     >>> # Get house price index trends over time
-    >>> hpi = get_hpi_trends()
-    >>> print(hpi[['Period', 'NI House Price Index', 'Annual Change']].tail())
+    >>> hpi = get_hpi_trends()  # doctest: +SKIP
+    >>> print(hpi[['Period', 'NI House Price Index', 'Annual Change']].tail())  # doctest: +SKIP
 
     >>> # Get property sales volumes by type
-    >>> sales = get_sales_volumes()
-    >>> print(sales[['Period', 'Detached', 'Semi-Detached', 'Total']].tail())
+    >>> sales = get_sales_volumes()  # doctest: +SKIP
+    >>> print(sales[['Period', 'Detached', 'Semi-Detached', 'Total']].tail())  # doctest: +SKIP
 """
 
 import hashlib
@@ -585,10 +585,10 @@ def get_all_tables(force_refresh: bool = False) -> dict[str, pd.DataFrame]:
             - Table 10a-k: Sales Volumes by Property Type per LGD
 
     Example:
-        >>> tables = get_all_tables()
-        >>> print(tables.keys())
+        >>> tables = get_all_tables()  # doctest: +SKIP
+        >>> print(tables.keys())  # doctest: +SKIP
         >>> # Access specific table
-        >>> hpi_trends = tables['Table 1']
+        >>> hpi_trends = tables['Table 1']  # doctest: +SKIP
     """
     source_dfs = pull_sources(force_refresh=force_refresh)
     return transform_sources(source_dfs)
@@ -614,11 +614,11 @@ def get_hpi_trends(force_refresh: bool = False) -> pd.DataFrame:
             - Annual Change: Percentage change from same quarter previous year
 
     Example:
-        >>> hpi = get_hpi_trends()
+        >>> hpi = get_hpi_trends()  # doctest: +SKIP
         >>> # Get latest quarter
-        >>> print(hpi.tail(1))
+        >>> print(hpi.tail(1))  # doctest: +SKIP
         >>> # Plot index over time
-        >>> hpi.plot(x='Period', y='NI House Price Index')
+        >>> hpi.plot(x='Period', y='NI House Price Index')  # doctest: +SKIP
     """
     tables = get_all_tables(force_refresh=force_refresh)
     return tables.get("Table 1")
@@ -645,9 +645,9 @@ def get_sales_volumes(force_refresh: bool = False) -> pd.DataFrame:
             - Total: Total sales
 
     Example:
-        >>> sales = get_sales_volumes()
+        >>> sales = get_sales_volumes()  # doctest: +SKIP
         >>> # Total sales per year
-        >>> annual = sales.groupby('Year')['Total'].sum()
+        >>> annual = sales.groupby('Year')['Total'].sum()  # doctest: +SKIP
     """
     tables = get_all_tables(force_refresh=force_refresh)
     return tables.get("Table 4")
@@ -672,9 +672,9 @@ def get_average_prices(force_refresh: bool = False) -> pd.DataFrame:
             - Standardised Price (HPI): Quality-adjusted price
 
     Example:
-        >>> prices = get_average_prices()
+        >>> prices = get_average_prices()  # doctest: +SKIP
         >>> # Current median price
-        >>> latest = prices.iloc[-1]['Simple Median']
+        >>> latest = prices.iloc[-1]['Simple Median']  # doctest: +SKIP
     """
     tables = get_all_tables(force_refresh=force_refresh)
     return tables.get("Table 9")
@@ -701,9 +701,9 @@ def get_hpi_by_lgd(force_refresh: bool = False) -> pd.DataFrame:
         Mid and East Antrim, Mid Ulster, Newry Mourne and Down
 
     Example:
-        >>> lgd = get_hpi_by_lgd()
+        >>> lgd = get_hpi_by_lgd()  # doctest: +SKIP
         >>> # Belfast prices
-        >>> belfast = lgd[['Period', 'Belfast']]
+        >>> belfast = lgd[['Period', 'Belfast']]  # doctest: +SKIP
     """
     tables = get_all_tables(force_refresh=force_refresh)
     return tables.get("Table 5")
@@ -727,8 +727,8 @@ def get_hpi_by_property_type(force_refresh: bool = False) -> pd.DataFrame:
             - Standardised Price
 
     Example:
-        >>> by_type = get_hpi_by_property_type()
-        >>> print(by_type)
+        >>> by_type = get_hpi_by_property_type()  # doctest: +SKIP
+        >>> print(by_type)  # doctest: +SKIP
     """
     tables = get_all_tables(force_refresh=force_refresh)
     return tables.get("Table 2")

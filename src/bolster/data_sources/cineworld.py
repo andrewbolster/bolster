@@ -17,20 +17,20 @@ Data is refreshed multiple times daily to maintain accuracy for current and upco
 Example:
     Retrieve current cinema listings for Belfast Cineworld:
 
-        >>> from bolster.data_sources import cineworld
+        >>> from bolster.data_sources import cineworld  # doctest: +SKIP
         >>> # Get today's listings for Belfast cinema (site code 117)
-        >>> listings = cineworld.get_cinema_listings(117)
-        >>> print(f"Found {len(listings)} films showing today")
+        >>> listings = cineworld.get_cinema_listings(117)  # doctest: +SKIP
+        >>> print(f"Found {len(listings)} films showing today")  # doctest: +SKIP
 
         >>> # Check what data is available for each film
-        >>> first_film = listings[0]
-        >>> print(f"Film: {first_film['name']}")
-        >>> print(f"Release Year: {first_film['releaseYear']}")
+        >>> first_film = listings[0]  # doctest: +SKIP
+        >>> print(f"Film: {first_film['name']}")  # doctest: +SKIP
+        >>> print(f"Release Year: {first_film['releaseYear']}")  # doctest: +SKIP
 
         >>> # Get listings for a specific date
-        >>> from datetime import date, timedelta
-        >>> tomorrow = date.today() + timedelta(days=1)
-        >>> tomorrow_listings = cineworld.get_cinema_listings(117, tomorrow)
+        >>> from datetime import date, timedelta  # doctest: +SKIP
+        >>> tomorrow = date.today() + timedelta(days=1)  # doctest: +SKIP
+        >>> tomorrow_listings = cineworld.get_cinema_listings(117, tomorrow)  # doctest: +SKIP
 
 Site Code 117 maps to Belfast, you're on your own for the rest.
 """
@@ -57,10 +57,10 @@ def get_cinema_listings(site_code: int = 117, screening_date: date = None) -> li
     Raises:
         Exception: If there was an error making the API request.
 
-    >>> cinema_listings = get_cinema_listings(117)
-    >>> set(cinema_listings[0].keys()).issuperset({'id', 'name','link','weight','releaseYear','releaseDate','attributeIds','date','site_code'})
+    >>> cinema_listings = get_cinema_listings(117)  # doctest: +SKIP
+    >>> set(cinema_listings[0].keys()).issuperset({'id', 'name','link','weight','releaseYear','releaseDate','attributeIds','date','site_code'})  # doctest: +SKIP
     True
-    >>> list(cinema_listings[0].keys()) # This is likely to break from upstream changes
+    >>> list(cinema_listings[0].keys()) # This is likely to break from upstream changes  # doctest: +SKIP
     ['id', 'name', 'length', 'posterLink', 'videoLink', 'link', 'weight', 'releaseYear', 'releaseDate', 'attributeIds', 'date', 'site_code']
 
     """

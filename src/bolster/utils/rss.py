@@ -174,9 +174,9 @@ def parse_rss_feed(feed_url: str, timeout: int = 30) -> Feed:
         ValueError: If the feed cannot be parsed
 
     Example:
-        >>> feed = parse_rss_feed("https://example.com/feed.xml")
-        >>> print(f"Feed: {feed.title}")
-        >>> for entry in feed.entries:
+        >>> feed = parse_rss_feed("https://example.com/feed.xml")  # doctest: +SKIP
+        >>> print(f"Feed: {feed.title}")  # doctest: +SKIP
+        >>> for entry in feed.entries:  # doctest: +SKIP
         ...     print(f"  - {entry.title}")
     """
     # Fetch the feed
@@ -242,12 +242,16 @@ def filter_entries(
         Filtered list of FeedEntry objects
 
     Example:
-        >>> feed = parse_rss_feed("https://example.com/feed.xml")
-        >>> recent = filter_entries(
-        ...     feed.entries,
-        ...     title_contains="statistics",
-        ...     after_date="2024-01-01"
-        ... )
+        >>> from bolster.utils.rss import FeedEntry, filter_entries
+        >>> from datetime import datetime
+        >>> entries = [
+        ...     FeedEntry("Births Statistics April 2024", "http://example.com/1", published=datetime(2024, 4, 1)),
+        ...     FeedEntry("Deaths Statistics April 2024", "http://example.com/2", published=datetime(2024, 4, 2)),
+        ...     FeedEntry("Old Statistics 2023", "http://example.com/3", published=datetime(2023, 6, 1)),
+        ... ]
+        >>> recent = filter_entries(entries, title_contains="births", after_date="2024-01-01")
+        >>> [e.title for e in recent]
+        ['Births Statistics April 2024']
     """
     filtered = entries
 
@@ -291,10 +295,10 @@ def get_nisra_statistics_feed(order: str = "recent", timeout: int = 30, limit: i
         Feed object with NISRA statistics
 
     Example:
-        >>> feed = get_nisra_statistics_feed()
-        >>> print(f"Found {len(feed.entries)} NISRA publications")
-        >>> feed100 = get_nisra_statistics_feed(limit=100)
-        >>> print(f"Found {len(feed100.entries)} NISRA publications")
+        >>> feed = get_nisra_statistics_feed()  # doctest: +SKIP
+        >>> print(f"Found {len(feed.entries)} NISRA publications")  # doctest: +SKIP
+        >>> feed100 = get_nisra_statistics_feed(limit=100)  # doctest: +SKIP
+        >>> print(f"Found {len(feed100.entries)} NISRA publications")  # doctest: +SKIP
     """
     order_param = "&order=release-date-oldest" if order == "oldest" else ""
     base_url = (

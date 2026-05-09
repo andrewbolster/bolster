@@ -1,3 +1,22 @@
+"""HTTP session utilities with retry and rate-limit handling.
+
+Provides a pre-configured :class:`requests.Session` (``session``) with:
+
+- Automatic retry on transient server errors (500/502/503/504)
+- Rate-limit awareness: exponential backoff on 429 responses, capped at 60 s
+- A consistent ``User-Agent`` header for polite scraping
+- Helpers for downloading Excel files and ZIP archives in memory
+
+All data-source modules should import ``session`` from here rather than
+calling :func:`requests.get` directly, so that retry logic is applied
+uniformly.
+
+Example:
+    >>> from bolster.utils.web import session
+    >>> type(session).__name__
+    'Session'
+"""
+
 import io
 import logging
 import zipfile

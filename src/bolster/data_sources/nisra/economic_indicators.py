@@ -23,23 +23,23 @@ Data Coverage:
     - Both include NI and UK comparator data
 
 Example:
-    >>> from bolster.data_sources.nisra import economic_indicators
+    >>> from bolster.data_sources.nisra import economic_indicators  # doctest: +SKIP
     >>> # Get latest Index of Services data
-    >>> ios_df = economic_indicators.get_latest_index_of_services()
-    >>> print(ios_df.head())
+    >>> ios_df = economic_indicators.get_latest_index_of_services()  # doctest: +SKIP
+    >>> print(ios_df.head())  # doctest: +SKIP
 
     >>> # Get latest Index of Production data
-    >>> iop_df = economic_indicators.get_latest_index_of_production()
-    >>> print(iop_df.head())
+    >>> iop_df = economic_indicators.get_latest_index_of_production()  # doctest: +SKIP
+    >>> print(iop_df.head())  # doctest: +SKIP
 
     >>> # Filter for specific year
-    >>> ios_2024 = economic_indicators.get_ios_by_year(ios_df, 2024)
-    >>> print(f"NI Services Q4 2024: {ios_2024[ios_2024['quarter']=='Q4']['ni_index'].values[0]}")
+    >>> ios_2024 = economic_indicators.get_ios_by_year(ios_df, 2024)  # doctest: +SKIP
+    >>> print(f"NI Services Q4 2024: {ios_2024[ios_2024['quarter']=='Q4']['ni_index'].values[0]}")  # doctest: +SKIP
 
     >>> # Compare NI vs UK performance
-    >>> latest_q = ios_df.iloc[-1]
-    >>> print(f"Latest quarter: {latest_q['quarter']} {latest_q['year']}")
-    >>> print(f"NI: {latest_q['ni_index']}, UK: {latest_q['uk_index']}")
+    >>> latest_q = ios_df.iloc[-1]  # doctest: +SKIP
+    >>> print(f"Latest quarter: {latest_q['quarter']} {latest_q['year']}")  # doctest: +SKIP
+    >>> print(f"NI: {latest_q['ni_index']}, UK: {latest_q['uk_index']}")  # doctest: +SKIP
 
 Publication Details:
     - Frequency: Quarterly
@@ -77,9 +77,9 @@ def get_latest_ios_publication_url() -> tuple[str, datetime]:
         NISRADataNotFoundError: If unable to find the latest publication
 
     Example:
-        >>> url, pub_date = get_latest_ios_publication_url()
-        >>> print(f"Latest IOS published: {pub_date.strftime('%Y-%m-%d')}")
-        >>> print(f"Data URL: {url}")
+        >>> url, pub_date = get_latest_ios_publication_url()  # doctest: +SKIP
+        >>> print(f"Latest IOS published: {pub_date.strftime('%Y-%m-%d')}")  # doctest: +SKIP
+        >>> print(f"Data URL: {url}")  # doctest: +SKIP
     """
     from bs4 import BeautifulSoup
 
@@ -145,8 +145,8 @@ def get_latest_iop_publication_url() -> tuple[str, datetime]:
         NISRADataNotFoundError: If unable to find the latest publication
 
     Example:
-        >>> url, pub_date = get_latest_iop_publication_url()
-        >>> print(f"Latest IOP published: {pub_date.strftime('%Y-%m-%d')}")
+        >>> url, pub_date = get_latest_iop_publication_url()  # doctest: +SKIP
+        >>> print(f"Latest IOP published: {pub_date.strftime('%Y-%m-%d')}")  # doctest: +SKIP
     """
     from bs4 import BeautifulSoup
 
@@ -216,8 +216,8 @@ def parse_ios_file(file_path: str | Path) -> pd.DataFrame:
             - uk_index: float (UK index value)
 
     Example:
-        >>> df = parse_ios_file("ios-q3-2025-tables.xlsx")
-        >>> print(df[df['year'] == 2025].tail())
+        >>> df = parse_ios_file("ios-q3-2025-tables.xlsx")  # doctest: +SKIP
+        >>> print(df[df['year'] == 2025].tail())  # doctest: +SKIP
     """
     logger.info(f"Parsing Index of Services file: {file_path}")
 
@@ -264,8 +264,8 @@ def parse_iop_file(file_path: str | Path) -> pd.DataFrame:
             - uk_index: float (UK index value)
 
     Example:
-        >>> df = parse_iop_file("iop-q3-2025-tables.xlsx")
-        >>> print(df[df['year'] == 2025].tail())
+        >>> df = parse_iop_file("iop-q3-2025-tables.xlsx")  # doctest: +SKIP
+        >>> print(df[df['year'] == 2025].tail())  # doctest: +SKIP
     """
     logger.info(f"Parsing Index of Production file: {file_path}")
 
@@ -311,9 +311,9 @@ def get_latest_index_of_services(force_refresh: bool = False) -> pd.DataFrame:
         DataFrame with quarterly Index of Services data for NI and UK
 
     Example:
-        >>> df = get_latest_index_of_services()
-        >>> print(f"Latest quarter: {df.iloc[-1]['quarter']} {df.iloc[-1]['year']}")
-        >>> print(f"NI Index: {df.iloc[-1]['ni_index']}")
+        >>> df = get_latest_index_of_services()  # doctest: +SKIP
+        >>> print(f"Latest quarter: {df.iloc[-1]['quarter']} {df.iloc[-1]['year']}")  # doctest: +SKIP
+        >>> print(f"NI Index: {df.iloc[-1]['ni_index']}")  # doctest: +SKIP
     """
     excel_url, pub_date = get_latest_ios_publication_url()
 
@@ -336,9 +336,9 @@ def get_latest_index_of_production(force_refresh: bool = False) -> pd.DataFrame:
         DataFrame with quarterly Index of Production data for NI and UK
 
     Example:
-        >>> df = get_latest_index_of_production()
-        >>> print(f"Latest quarter: {df.iloc[-1]['quarter']} {df.iloc[-1]['year']}")
-        >>> print(f"NI Index: {df.iloc[-1]['ni_index']}")
+        >>> df = get_latest_index_of_production()  # doctest: +SKIP
+        >>> print(f"Latest quarter: {df.iloc[-1]['quarter']} {df.iloc[-1]['year']}")  # doctest: +SKIP
+        >>> print(f"NI Index: {df.iloc[-1]['ni_index']}")  # doctest: +SKIP
     """
     excel_url, pub_date = get_latest_iop_publication_url()
 
@@ -364,9 +364,9 @@ def get_ios_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
         DataFrame with only the specified year's data
 
     Example:
-        >>> ios_df = get_latest_index_of_services()
-        >>> ios_2024 = get_ios_by_year(ios_df, 2024)
-        >>> print(ios_2024)
+        >>> ios_df = get_latest_index_of_services()  # doctest: +SKIP
+        >>> ios_2024 = get_ios_by_year(ios_df, 2024)  # doctest: +SKIP
+        >>> print(ios_2024)  # doctest: +SKIP
     """
     return df[df["year"] == year].reset_index(drop=True)
 
@@ -382,9 +382,9 @@ def get_iop_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
         DataFrame with only the specified year's data
 
     Example:
-        >>> iop_df = get_latest_index_of_production()
-        >>> iop_2024 = get_iop_by_year(iop_df, 2024)
-        >>> print(iop_2024)
+        >>> iop_df = get_latest_index_of_production()  # doctest: +SKIP
+        >>> iop_2024 = get_iop_by_year(iop_df, 2024)  # doctest: +SKIP
+        >>> print(iop_2024)  # doctest: +SKIP
     """
     return df[df["year"] == year].reset_index(drop=True)
 
@@ -401,9 +401,9 @@ def get_ios_by_quarter(df: pd.DataFrame, quarter: str, year: int) -> pd.DataFram
         DataFrame with single row for the specified quarter
 
     Example:
-        >>> ios_df = get_latest_index_of_services()
-        >>> q3_2025 = get_ios_by_quarter(ios_df, 'Q3', 2025)
-        >>> print(f"Q3 2025 NI: {q3_2025['ni_index'].values[0]}")
+        >>> ios_df = get_latest_index_of_services()  # doctest: +SKIP
+        >>> q3_2025 = get_ios_by_quarter(ios_df, 'Q3', 2025)  # doctest: +SKIP
+        >>> print(f"Q3 2025 NI: {q3_2025['ni_index'].values[0]}")  # doctest: +SKIP
     """
     return df[(df["quarter"] == quarter) & (df["year"] == year)].reset_index(drop=True)
 
@@ -420,9 +420,9 @@ def get_iop_by_quarter(df: pd.DataFrame, quarter: str, year: int) -> pd.DataFram
         DataFrame with single row for the specified quarter
 
     Example:
-        >>> iop_df = get_latest_index_of_production()
-        >>> q3_2025 = get_iop_by_quarter(iop_df, 'Q3', 2025)
-        >>> print(f"Q3 2025 NI: {q3_2025['ni_index'].values[0]}")
+        >>> iop_df = get_latest_index_of_production()  # doctest: +SKIP
+        >>> q3_2025 = get_iop_by_quarter(iop_df, 'Q3', 2025)  # doctest: +SKIP
+        >>> print(f"Q3 2025 NI: {q3_2025['ni_index'].values[0]}")  # doctest: +SKIP
     """
     return df[(df["quarter"] == quarter) & (df["year"] == year)].reset_index(drop=True)
 
@@ -440,10 +440,10 @@ def calculate_ios_growth_rate(df: pd.DataFrame, periods: int = 4) -> pd.DataFram
             - uk_growth_rate: UK percentage change vs same quarter previous year
 
     Example:
-        >>> ios_df = get_latest_index_of_services()
-        >>> ios_growth = calculate_ios_growth_rate(ios_df)
-        >>> recent = ios_growth.tail(4)
-        >>> print(recent[['quarter', 'year', 'ni_index', 'ni_growth_rate']])
+        >>> ios_df = get_latest_index_of_services()  # doctest: +SKIP
+        >>> ios_growth = calculate_ios_growth_rate(ios_df)  # doctest: +SKIP
+        >>> recent = ios_growth.tail(4)  # doctest: +SKIP
+        >>> print(recent[['quarter', 'year', 'ni_index', 'ni_growth_rate']])  # doctest: +SKIP
     """
     result = df.copy()
 
@@ -467,10 +467,10 @@ def calculate_iop_growth_rate(df: pd.DataFrame, periods: int = 4) -> pd.DataFram
             - uk_growth_rate: UK percentage change vs same quarter previous year
 
     Example:
-        >>> iop_df = get_latest_index_of_production()
-        >>> iop_growth = calculate_iop_growth_rate(iop_df)
-        >>> recent = iop_growth.tail(4)
-        >>> print(recent[['quarter', 'year', 'ni_index', 'ni_growth_rate']])
+        >>> iop_df = get_latest_index_of_production()  # doctest: +SKIP
+        >>> iop_growth = calculate_iop_growth_rate(iop_df)  # doctest: +SKIP
+        >>> recent = iop_growth.tail(4)  # doctest: +SKIP
+        >>> print(recent[['quarter', 'year', 'ni_index', 'ni_growth_rate']])  # doctest: +SKIP
     """
     result = df.copy()
 
@@ -501,9 +501,9 @@ def get_ios_summary_statistics(df: pd.DataFrame, start_year: int | None = None, 
             - quarters_count: Number of quarters included
 
     Example:
-        >>> ios_df = get_latest_index_of_services()
-        >>> stats = get_ios_summary_statistics(ios_df, start_year=2020)
-        >>> print(f"NI mean index since 2020: {stats['ni_mean']:.1f}")
+        >>> ios_df = get_latest_index_of_services()  # doctest: +SKIP
+        >>> stats = get_ios_summary_statistics(ios_df, start_year=2020)  # doctest: +SKIP
+        >>> print(f"NI mean index since 2020: {stats['ni_mean']:.1f}")  # doctest: +SKIP
     """
     filtered = df.copy()
 
@@ -536,9 +536,9 @@ def get_iop_summary_statistics(df: pd.DataFrame, start_year: int | None = None, 
         Dictionary with summary statistics (same format as get_ios_summary_statistics)
 
     Example:
-        >>> iop_df = get_latest_index_of_production()
-        >>> stats = get_iop_summary_statistics(iop_df, start_year=2020)
-        >>> print(f"NI mean index since 2020: {stats['ni_mean']:.1f}")
+        >>> iop_df = get_latest_index_of_production()  # doctest: +SKIP
+        >>> stats = get_iop_summary_statistics(iop_df, start_year=2020)  # doctest: +SKIP
+        >>> print(f"NI mean index since 2020: {stats['ni_mean']:.1f}")  # doctest: +SKIP
     """
     filtered = df.copy()
 

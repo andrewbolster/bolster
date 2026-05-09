@@ -32,17 +32,12 @@ Reference Date: Month of crime occurrence
 Time Coverage: April 2001 to December 2021 (OpenDataNI dataset)
 
 Example:
-    >>> from bolster.data_sources.psni import crime_statistics
-    >>> # Get latest crime data
-    >>> df = crime_statistics.get_latest_crime_statistics()
-    >>> print(df.head())
-    >>>
-    >>> # Filter to Belfast
-    >>> belfast = df[df['policing_district'] == 'Belfast City']
-    >>>
-    >>> # Get LGD code for cross-referencing with NISRA data
-    >>> belfast_lgd = crime_statistics.get_lgd_code('Belfast City')
-    >>> print(f"Belfast LGD code: {belfast_lgd}")  # N09000003
+    >>> from bolster.data_sources.psni import crime_statistics  # doctest: +SKIP
+    >>> df = crime_statistics.get_latest_crime_statistics()  # doctest: +SKIP
+    >>> print(df.head())  # doctest: +SKIP
+    >>> belfast = df[df['policing_district'] == 'Belfast City']  # doctest: +SKIP
+    >>> belfast_lgd = crime_statistics.get_lgd_code('Belfast City')  # doctest: +SKIP
+    >>> print(f"Belfast LGD code: {belfast_lgd}")  # doctest: +SKIP
 """
 
 import logging
@@ -88,9 +83,9 @@ def get_data_source_info() -> dict:
             - last_update: Last known update date for OpenDataNI
 
     Example:
-        >>> info = get_data_source_info()
-        >>> print(f"For current data, visit: {info['psni_official_url']}")
-        >>> print(f"Or contact: {info['contact_email']}")
+        >>> info = get_data_source_info()  # doctest: +SKIP
+        >>> print(f"For current data, visit: {info['psni_official_url']}")  # doctest: +SKIP
+        >>> print(f"Or contact: {info['contact_email']}")  # doctest: +SKIP
     """
     return {
         "opendatani_url": "https://www.opendatani.gov.uk/dataset/police-recorded-crime-in-northern-ireland",
@@ -138,11 +133,11 @@ def parse_crime_statistics_file(
         PSNIValidationError: If file structure is unexpected
 
     Example:
-        >>> from pathlib import Path
-        >>> df = parse_crime_statistics_file(Path("crime_data.csv"))
-        >>> print(df.columns.tolist())
-        >>> print(f"Date range: {df['date'].min()} to {df['date'].max()}")
-        >>> print(f"Districts: {df['policing_district'].nunique()}")
+        >>> from pathlib import Path  # doctest: +SKIP
+        >>> df = parse_crime_statistics_file(Path("crime_data.csv"))  # doctest: +SKIP
+        >>> print(df.columns.tolist())  # doctest: +SKIP
+        >>> print(f"Date range: {df['date'].min()} to {df['date'].max()}")  # doctest: +SKIP
+        >>> print(f"Districts: {df['policing_district'].nunique()}")  # doctest: +SKIP
     """
     file_path = Path(file_path)
 
@@ -255,18 +250,18 @@ def get_latest_crime_statistics(
 
     Example:
         >>> # Get all crime data (NOTE: only through Dec 2021)
-        >>> df = get_latest_crime_statistics()
+        >>> df = get_latest_crime_statistics()  # doctest: +SKIP
         >>>
         >>> # Filter to recent data
-        >>> recent = df[df['date'] >= '2020-01-01']
+        >>> recent = df[df['date'] >= '2020-01-01']  # doctest: +SKIP
         >>>
         >>> # Get total crimes by district for 2021
-        >>> crimes_2021 = df[
-        ...     (df['calendar_year'] == 2021) &
-        ...     (df['data_measure'] == 'Police Recorded Crime') &
-        ...     (df['crime_type'] == 'Total police recorded crime')
-        ... ].groupby('policing_district')['count'].sum()
-        >>> print(crimes_2021.sort_values(ascending=False))
+        >>> crimes_2021 = df[  # doctest: +SKIP
+        ...     (df['calendar_year'] == 2021) &  # doctest: +SKIP
+        ...     (df['data_measure'] == 'Police Recorded Crime') &  # doctest: +SKIP
+        ...     (df['crime_type'] == 'Total police recorded crime')  # doctest: +SKIP
+        ... ].groupby('policing_district')['count'].sum()  # doctest: +SKIP
+        >>> print(crimes_2021.sort_values(ascending=False))  # doctest: +SKIP
     """
     logger.info("Fetching PSNI crime statistics from OpenDataNI")
 
@@ -311,8 +306,8 @@ def validate_crime_statistics(df: pd.DataFrame) -> bool:  # pragma: no cover
         PSNIValidationError: If validation fails
 
     Example:
-        >>> df = get_latest_crime_statistics()
-        >>> validate_crime_statistics(df)
+        >>> df = get_latest_crime_statistics()  # doctest: +SKIP
+        >>> validate_crime_statistics(df)  # doctest: +SKIP
         True
     """
     # Check for negative crime counts (excluding NA which represents "/0")
@@ -380,12 +375,12 @@ def filter_by_district(
         Filtered DataFrame
 
     Example:
-        >>> df = get_latest_crime_statistics()
-        >>> belfast = filter_by_district(df, "Belfast City")
-        >>> print(f"Belfast records: {len(belfast):,}")
+        >>> df = get_latest_crime_statistics()  # doctest: +SKIP
+        >>> belfast = filter_by_district(df, "Belfast City")  # doctest: +SKIP
+        >>> print(f"Belfast records: {len(belfast):,}")  # doctest: +SKIP
         >>>
         >>> # Multiple districts
-        >>> cities = filter_by_district(df, ["Belfast City", "Derry City & Strabane"])
+        >>> cities = filter_by_district(df, ["Belfast City", "Derry City & Strabane"])  # doctest: +SKIP
     """
     if isinstance(district, str):
         district = [district]
@@ -407,9 +402,9 @@ def filter_by_crime_type(
         Filtered DataFrame
 
     Example:
-        >>> df = get_latest_crime_statistics()
-        >>> violence = filter_by_crime_type(df, "Violence with injury (including homicide & death/serious injury by unlawful driving)")
-        >>> print(f"Violence crimes: {len(violence):,}")
+        >>> df = get_latest_crime_statistics()  # doctest: +SKIP
+        >>> violence = filter_by_crime_type(df, "Violence with injury (including homicide & death/serious injury by unlawful driving)")  # doctest: +SKIP
+        >>> print(f"Violence crimes: {len(violence):,}")  # doctest: +SKIP
     """
     if isinstance(crime_type, str):
         crime_type = [crime_type]
@@ -433,12 +428,12 @@ def filter_by_date_range(
         Filtered DataFrame
 
     Example:
-        >>> df = get_latest_crime_statistics()
+        >>> df = get_latest_crime_statistics()  # doctest: +SKIP
         >>> # Get 2020 data
-        >>> df_2020 = filter_by_date_range(df, "2020-01-01", "2020-12-31")
+        >>> df_2020 = filter_by_date_range(df, "2020-01-01", "2020-12-31")  # doctest: +SKIP
         >>>
         >>> # Get data from 2018 onwards
-        >>> recent = filter_by_date_range(df, start_date="2018-01-01")
+        >>> recent = filter_by_date_range(df, start_date="2018-01-01")  # doctest: +SKIP
     """
     filtered = df.copy()
 
@@ -469,9 +464,9 @@ def get_total_crimes_by_district(
         DataFrame with columns: policing_district, lgd_code, nuts3_code, total_crimes
 
     Example:
-        >>> df = get_latest_crime_statistics()
-        >>> totals_2021 = get_total_crimes_by_district(df, year=2021)
-        >>> print(totals_2021.sort_values('total_crimes', ascending=False))
+        >>> df = get_latest_crime_statistics()  # doctest: +SKIP
+        >>> totals_2021 = get_total_crimes_by_district(df, year=2021)  # doctest: +SKIP
+        >>> print(totals_2021.sort_values('total_crimes', ascending=False))  # doctest: +SKIP
     """
     # Filter to total crimes measure
     crime_df = df[
@@ -511,20 +506,20 @@ def get_crime_trends(
         DataFrame with columns: date, calendar_year, month, count
 
     Example:
-        >>> df = get_latest_crime_statistics()
+        >>> df = get_latest_crime_statistics()  # doctest: +SKIP
         >>> # Belfast violence trends
-        >>> trends = get_crime_trends(
-        ...     df,
-        ...     crime_type="Violence with injury (including homicide & death/serious injury by unlawful driving)",
-        ...     district="Belfast City"
-        ... )
-        >>> print(trends.tail())
+        >>> trends = get_crime_trends(  # doctest: +SKIP
+        ...     df,  # doctest: +SKIP
+        ...     crime_type="Violence with injury (including homicide & death/serious injury by unlawful driving)",  # doctest: +SKIP
+        ...     district="Belfast City"  # doctest: +SKIP
+        ... )  # doctest: +SKIP
+        >>> print(trends.tail())  # doctest: +SKIP
         >>>
         >>> # Plot with pandas
-        >>> import matplotlib.pyplot as plt
-        >>> trends.set_index('date')['count'].plot()
-        >>> plt.title('Crime Trends')
-        >>> plt.show()
+        >>> import matplotlib.pyplot as plt  # doctest: +SKIP
+        >>> trends.set_index('date')['count'].plot()  # doctest: +SKIP
+        >>> plt.title('Crime Trends')  # doctest: +SKIP
+        >>> plt.show()  # doctest: +SKIP
     """
     filtered = df[
         (df["crime_type"] == crime_type) & (df["policing_district"] == district) & (df["data_measure"] == measure)
@@ -552,9 +547,9 @@ def get_outcome_rates_by_district(
         DataFrame with columns: policing_district, lgd_code, average_outcome_rate
 
     Example:
-        >>> df = get_latest_crime_statistics()
-        >>> outcomes = get_outcome_rates_by_district(df, year=2021)
-        >>> print(outcomes.sort_values('average_outcome_rate', ascending=False))
+        >>> df = get_latest_crime_statistics()  # doctest: +SKIP
+        >>> outcomes = get_outcome_rates_by_district(df, year=2021)  # doctest: +SKIP
+        >>> print(outcomes.sort_values('average_outcome_rate', ascending=False))  # doctest: +SKIP
     """
     # Filter to outcome rate measure
     outcome_df = df[
@@ -589,10 +584,10 @@ def get_available_crime_types(df: pd.DataFrame) -> list[str]:
         Sorted list of crime type names
 
     Example:
-        >>> df = get_latest_crime_statistics()
-        >>> crime_types = get_available_crime_types(df)
-        >>> for crime_type in crime_types:
-        ...     print(crime_type)
+        >>> df = get_latest_crime_statistics()  # doctest: +SKIP
+        >>> crime_types = get_available_crime_types(df)  # doctest: +SKIP
+        >>> for crime_type in crime_types:  # doctest: +SKIP
+        ...     print(crime_type)  # doctest: +SKIP
     """
     return sorted(df["crime_type"].unique().tolist())
 
@@ -607,10 +602,10 @@ def get_available_districts(df: pd.DataFrame) -> list[str]:
         Sorted list of district names
 
     Example:
-        >>> df = get_latest_crime_statistics()
-        >>> districts = get_available_districts(df)
-        >>> for district in districts:
-        ...     lgd = get_lgd_code(district)
-        ...     print(f"{district}: {lgd}")
+        >>> df = get_latest_crime_statistics()  # doctest: +SKIP
+        >>> districts = get_available_districts(df)  # doctest: +SKIP
+        >>> for district in districts:  # doctest: +SKIP
+        ...     lgd = get_lgd_code(district)  # doctest: +SKIP
+        ...     print(f"{district}: {lgd}")  # doctest: +SKIP
     """
     return sorted(df["policing_district"].unique().tolist())

@@ -24,22 +24,22 @@ Geographic Coverage: Northern Ireland
 Reference Date: Month of survey
 
 Example:
-    >>> from bolster.data_sources.nisra.tourism import occupancy
+    >>> from bolster.data_sources.nisra.tourism import occupancy  # doctest: +SKIP
     >>> # Get latest hotel occupancy rates
-    >>> df = occupancy.get_latest_hotel_occupancy()
-    >>> print(df.head())
+    >>> df = occupancy.get_latest_hotel_occupancy()  # doctest: +SKIP
+    >>> print(df.head())  # doctest: +SKIP
 
     >>> # Get rooms/beds sold
-    >>> df_sold = occupancy.get_latest_rooms_beds_sold()
-    >>> print(f"Total rooms sold in 2024: {df_sold[df_sold['year']==2024]['rooms_sold'].sum():,.0f}")
+    >>> df_sold = occupancy.get_latest_rooms_beds_sold()  # doctest: +SKIP
+    >>> print(f"Total rooms sold in 2024: {df_sold[df_sold['year']==2024]['rooms_sold'].sum():,.0f}")  # doctest: +SKIP
 
     >>> # Get SSA (B&B/guest house) occupancy rates
-    >>> df_ssa = occupancy.get_latest_ssa_occupancy()
-    >>> print(df_ssa.head())
+    >>> df_ssa = occupancy.get_latest_ssa_occupancy()  # doctest: +SKIP
+    >>> print(df_ssa.head())  # doctest: +SKIP
 
     >>> # Compare hotel vs SSA occupancy
-    >>> df_combined = occupancy.get_combined_occupancy()
-    >>> print(df_combined.groupby('accommodation_type')['room_occupancy'].mean())
+    >>> df_combined = occupancy.get_combined_occupancy()  # doctest: +SKIP
+    >>> print(df_combined.groupby('accommodation_type')['room_occupancy'].mean())  # doctest: +SKIP
 """
 
 import logging
@@ -542,10 +542,10 @@ def get_latest_hotel_occupancy(force_refresh: bool = False) -> pd.DataFrame:
         NISRAValidationError: If file structure is unexpected
 
     Example:
-        >>> df = get_latest_hotel_occupancy()
+        >>> df = get_latest_hotel_occupancy()  # doctest: +SKIP
         >>> # Get 2024 average occupancy
-        >>> avg_2024 = df[df['year'] == 2024]['room_occupancy'].mean()
-        >>> print(f"2024 average room occupancy: {avg_2024:.1%}")
+        >>> avg_2024 = df[df['year'] == 2024]['room_occupancy'].mean()  # doctest: +SKIP
+        >>> print(f"2024 average room occupancy: {avg_2024:.1%}")  # doctest: +SKIP
     """
     excel_url, pub_date = get_latest_hotel_occupancy_publication_url()
 
@@ -573,9 +573,9 @@ def get_latest_rooms_beds_sold(force_refresh: bool = False) -> pd.DataFrame:
             - beds_sold: float (number of beds sold)
 
     Example:
-        >>> df = get_latest_rooms_beds_sold()
-        >>> total_2024 = df[df['year'] == 2024]['rooms_sold'].sum()
-        >>> print(f"Total rooms sold in 2024: {total_2024:,.0f}")
+        >>> df = get_latest_rooms_beds_sold()  # doctest: +SKIP
+        >>> total_2024 = df[df['year'] == 2024]['rooms_sold'].sum()  # doctest: +SKIP
+        >>> print(f"Total rooms sold in 2024: {total_2024:,.0f}")  # doctest: +SKIP
     """
     excel_url, pub_date = get_latest_hotel_occupancy_publication_url()
 
@@ -881,10 +881,10 @@ def get_latest_ssa_occupancy(force_refresh: bool = False) -> pd.DataFrame:
         NISRAValidationError: If file structure is unexpected
 
     Example:
-        >>> df = get_latest_ssa_occupancy()
+        >>> df = get_latest_ssa_occupancy()  # doctest: +SKIP
         >>> # Get 2024 average occupancy for B&Bs
-        >>> avg_2024 = df[df['year'] == 2024]['room_occupancy'].mean()
-        >>> print(f"2024 average SSA room occupancy: {avg_2024:.1%}")
+        >>> avg_2024 = df[df['year'] == 2024]['room_occupancy'].mean()  # doctest: +SKIP
+        >>> print(f"2024 average SSA room occupancy: {avg_2024:.1%}")  # doctest: +SKIP
     """
     excel_url, pub_date = get_latest_ssa_occupancy_publication_url()
 
@@ -914,9 +914,9 @@ def get_latest_ssa_rooms_beds_sold(force_refresh: bool = False) -> pd.DataFrame:
             - beds_sold: float (number of beds sold)
 
     Example:
-        >>> df = get_latest_ssa_rooms_beds_sold()
-        >>> total_2024 = df[df['year'] == 2024]['rooms_sold'].sum()
-        >>> print(f"Total SSA rooms sold in 2024: {total_2024:,.0f}")
+        >>> df = get_latest_ssa_rooms_beds_sold()  # doctest: +SKIP
+        >>> total_2024 = df[df['year'] == 2024]['rooms_sold'].sum()  # doctest: +SKIP
+        >>> print(f"Total SSA rooms sold in 2024: {total_2024:,.0f}")  # doctest: +SKIP
     """
     excel_url, pub_date = get_latest_ssa_occupancy_publication_url()
 
@@ -953,9 +953,9 @@ def get_combined_occupancy(force_refresh: bool = False) -> pd.DataFrame:
             - accommodation_type: str ('hotel' or 'ssa')
 
     Example:
-        >>> df = get_combined_occupancy()
+        >>> df = get_combined_occupancy()  # doctest: +SKIP
         >>> # Compare hotel vs SSA occupancy by year
-        >>> df.groupby(['year', 'accommodation_type'])['room_occupancy'].mean()
+        >>> df.groupby(['year', 'accommodation_type'])['room_occupancy'].mean()  # doctest: +SKIP
     """
     hotel_df = get_latest_hotel_occupancy(force_refresh=force_refresh)
     hotel_df["accommodation_type"] = "hotel"
@@ -989,10 +989,10 @@ def compare_accommodation_types(
             - ratio: float (hotel / ssa)
 
     Example:
-        >>> df = get_combined_occupancy()
-        >>> comparison = compare_accommodation_types(df)
+        >>> df = get_combined_occupancy()  # doctest: +SKIP
+        >>> comparison = compare_accommodation_types(df)  # doctest: +SKIP
         >>> # Hotels typically have higher occupancy than B&Bs
-        >>> print(comparison[['year', 'hotel_room_occupancy', 'ssa_room_occupancy', 'difference']])
+        >>> print(comparison[['year', 'hotel_room_occupancy', 'ssa_room_occupancy', 'difference']])  # doctest: +SKIP
     """
     pivot = df.pivot_table(
         index="year",
@@ -1061,11 +1061,11 @@ def get_seasonal_patterns(df: pd.DataFrame) -> pd.DataFrame:
             - avg_bed_occupancy: float
 
     Example:
-        >>> df = get_latest_hotel_occupancy()
-        >>> seasonal = get_seasonal_patterns(df)
+        >>> df = get_latest_hotel_occupancy()  # doctest: +SKIP
+        >>> seasonal = get_seasonal_patterns(df)  # doctest: +SKIP
         >>> # Find peak season
-        >>> peak = seasonal.loc[seasonal['avg_room_occupancy'].idxmax()]
-        >>> print(f"Peak month: {peak['month']} ({peak['avg_room_occupancy']:.1%})")
+        >>> peak = seasonal.loc[seasonal['avg_room_occupancy'].idxmax()]  # doctest: +SKIP
+        >>> print(f"Peak month: {peak['month']} ({peak['avg_room_occupancy']:.1%})")  # doctest: +SKIP
     """
     month_order = [
         "January",

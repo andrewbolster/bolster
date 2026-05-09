@@ -26,13 +26,13 @@ Update Frequency: Monthly (published 12th of following month at 9:30 AM)
 Geographic Coverage: Northern Ireland (based on mother's residence)
 
 Example:
-    >>> from bolster.data_sources.nisra import births
+    >>> from bolster.data_sources.nisra import births  # doctest: +SKIP
     >>> # Get latest births by registration date
-    >>> df = births.get_latest_births(event_type='registration')
-    >>> print(df.head())
+    >>> df = births.get_latest_births(event_type='registration')  # doctest: +SKIP
+    >>> print(df.head())  # doctest: +SKIP
 
     >>> # Get latest births by occurrence date
-    >>> df = births.get_latest_births(event_type='occurrence')
+    >>> df = births.get_latest_births(event_type='occurrence')  # doctest: +SKIP
 """
 
 import logging
@@ -344,13 +344,13 @@ def get_latest_births(
 
     Example:
         >>> # Get births by registration date
-        >>> df = get_latest_births(event_type='registration')
-        >>> print(df[df['sex'] == 'Male'].head())
+        >>> df = get_latest_births(event_type='registration')  # doctest: +SKIP
+        >>> print(df[df['sex'] == 'Male'].head())  # doctest: +SKIP
 
         >>> # Get both types
-        >>> data = get_latest_births(event_type='both')
-        >>> print(data['registration'].head())
-        >>> print(data['occurrence'].head())
+        >>> data = get_latest_births(event_type='both')  # doctest: +SKIP
+        >>> print(data['registration'].head())  # doctest: +SKIP
+        >>> print(data['occurrence'].head())  # doctest: +SKIP
     """
     # Discover latest publication
     excel_url = get_latest_births_publication_url()

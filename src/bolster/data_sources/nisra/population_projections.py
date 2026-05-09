@@ -29,23 +29,23 @@ Geographic Coverage: Northern Ireland
 Projection Horizon: Typically 50 years (e.g., 2022-2072)
 
 Example:
-    >>> from bolster.data_sources.nisra import population_projections
+    >>> from bolster.data_sources.nisra import population_projections  # doctest: +SKIP
     >>>
     >>> # Get all projections (default: principal projection)
-    >>> df = population_projections.get_latest_projections()
-    >>> print(df.head())
+    >>> df = population_projections.get_latest_projections()  # doctest: +SKIP
+    >>> print(df.head())  # doctest: +SKIP
     >>>
     >>> # Filter to specific year and demographics
-    >>> df_2030 = df[(df['year'] == 2030) & (df['sex'] == 'All Persons')]
-    >>> total_2030 = df_2030['population'].sum()
-    >>> print(f"Projected NI population in 2030: {total_2030:,}")
+    >>> df_2030 = df[(df['year'] == 2030) & (df['sex'] == 'All Persons')]  # doctest: +SKIP
+    >>> total_2030 = df_2030['population'].sum()  # doctest: +SKIP
+    >>> print(f"Projected NI population in 2030: {total_2030:,}")  # doctest: +SKIP
     >>>
     >>> # Get projections for specific year range
-    >>> df_decade = population_projections.get_latest_projections(
-    ...     area='Northern Ireland',
-    ...     start_year=2025,
-    ...     end_year=2035
-    ... )
+    >>> df_decade = population_projections.get_latest_projections(  # doctest: +SKIP
+    ...     area='Northern Ireland',  # doctest: +SKIP
+    ...     start_year=2025,  # doctest: +SKIP
+    ...     end_year=2035  # doctest: +SKIP
+    ... )  # doctest: +SKIP
 """
 
 import logging
@@ -313,21 +313,21 @@ def get_latest_projections(
 
     Example:
         >>> # Get all projections
-        >>> df = get_latest_projections()
+        >>> df = get_latest_projections()  # doctest: +SKIP
         >>>
         >>> # Get Northern Ireland projections for 2030s
-        >>> df_ni_2030s = get_latest_projections(
-        ...     area='Northern Ireland',
-        ...     start_year=2030,
-        ...     end_year=2039
-        ... )
+        >>> df_ni_2030s = get_latest_projections(  # doctest: +SKIP
+        ...     area='Northern Ireland',  # doctest: +SKIP
+        ...     start_year=2030,  # doctest: +SKIP
+        ...     end_year=2039  # doctest: +SKIP
+        ... )  # doctest: +SKIP
         >>>
         >>> # Get working-age population projection
-        >>> df_2030 = get_latest_projections(start_year=2030, end_year=2030)
-        >>> working_age = df_2030[
-        ...     (df_2030['sex'] == 'All Persons') &
-        ...     (df_2030['age_group'].isin(['15-19', '20-24', ..., '60-64']))
-        ... ]
+        >>> df_2030 = get_latest_projections(start_year=2030, end_year=2030)  # doctest: +SKIP
+        >>> working_age = df_2030[  # doctest: +SKIP
+        ...     (df_2030['sex'] == 'All Persons') &  # doctest: +SKIP
+        ...     (df_2030['age_group'].isin(['15-19', '20-24', ..., '60-64']))  # doctest: +SKIP
+        ... ]  # doctest: +SKIP
     """
     logger.info(f"Fetching latest population projections (variant: {variant})...")
 
