@@ -65,7 +65,7 @@ def get_ni_executive_basic_table() -> pd.DataFrame:
     url = "https://en.wikipedia.org/wiki/Northern_Ireland_Executive"
     response = session.get(url, headers=headers)
     response.raise_for_status()
-    tables = pd.read_html(response.text)
+    tables = pd.read_html(pd.io.common.StringIO(response.text))
     tables[4].columns = range(len(tables[4].columns))
 
     # Get rid of the nasty multi index
@@ -94,7 +94,7 @@ def get_ni_executive_basic_table() -> pd.DataFrame:
     executive_durations = executive_events.groupby(["Executive", "Active"])["Date"].first().unstack()
     executive_durations.columns = ["Dissolved", "Established"]
     executive_durations = executive_durations[reversed(executive_durations.columns)]
-    executive_durations = executive_durations.applymap(lambda s: dateparser.parse(s) if isinstance(s, str) else s)
+    executive_durations = executive_durations.map(lambda s: dateparser.parse(s) if isinstance(s, str) else s)
     executive_durations["Duration"] = executive_durations.diff(axis=1).iloc[:, -1:]
 
     executive_dissolutions = pd.concat(

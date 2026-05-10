@@ -135,8 +135,12 @@ def parse_crime_statistics_file(
         PSNIValidationError: If file structure is unexpected
 
     Example:
-        >>> from pathlib import Path
-        >>> df = parse_crime_statistics_file(Path("crime_data.csv"))
+        >>> path = download_file(CRIME_STATISTICS_URL, cache_ttl_hours=24*7)
+        >>> df = parse_crime_statistics_file(path)
+        >>> 'crime_type' in df.columns
+        True
+        >>> len(df) > 0
+        True
     """
     file_path = Path(file_path)
 
@@ -511,18 +515,11 @@ def get_crime_trends(
 
     Example:
         >>> df = get_latest_crime_statistics()
-        >>> # Belfast violence trends
-        >>> trends = get_crime_trends(
-        ...     df,
-        ...     crime_type="Violence with injury (including homicide & death/serious injury by unlawful driving)",
-        ...     district="Belfast City"
-        ... )
-        >>>
-        >>> # Plot with pandas
-        >>> import matplotlib.pyplot as plt
-        >>> trends.set_index('date')['count'].plot()
-        >>> plt.title('Crime Trends')
-        >>> plt.show()
+        >>> trends = get_crime_trends(df, district="Belfast City")
+        >>> sorted(trends.columns.tolist())
+        ['calendar_year', 'count', 'date', 'month']
+        >>> len(trends) > 0
+        True
     """
     filtered = df[
         (df["crime_type"] == crime_type) & (df["policing_district"] == district) & (df["data_measure"] == measure)

@@ -18,8 +18,7 @@ Example:
         >>> quality_data = ni_water.get_water_quality()
         >>> 'NI Hardness Classification' in quality_data.columns
         True
-        >>> belfast_data = ni_water.get_water_quality_by_zone('BALM')
-        >>> 'NI Hardness Classification' in belfast_data
+        >>> len(quality_data) > 0
         True
 
 The module provides utilities for analyzing water quality across Northern Ireland's supply zones,

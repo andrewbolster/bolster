@@ -148,7 +148,11 @@ def parse_construction_file(file_path: str | Path) -> pd.DataFrame:
             - repair_maintenance_index: float (repair and maintenance, SA)
 
     Example:
-        >>> df = parse_construction_file("construction-tables-q2-2025.xlsx")
+        >>> url, _ = get_latest_construction_publication_url()
+        >>> path = download_file(url, cache_ttl_hours=168)
+        >>> df = parse_construction_file(path)
+        >>> 'all_work_index' in df.columns
+        True
     """
     logger.info(f"Parsing Construction Output file: {file_path}")
 

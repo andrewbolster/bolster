@@ -91,7 +91,8 @@ addopts = [
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "network: marks tests requiring network access (deselect with '-m \"not network\"')"
+    "network: marks tests requiring network access (deselect with '-m \"not network\"')",
+    "integration: marks optional integration tests requiring real network (run with '-m integration')"
 ]
 
 [tool.ruff]

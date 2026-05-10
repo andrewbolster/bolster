@@ -163,7 +163,11 @@ def parse_ashe_timeseries_weekly(file_path: str | Path) -> pd.DataFrame:
             - median_weekly_earnings: float (£)
 
     Example:
-        >>> df = parse_ashe_timeseries_weekly("ASHE-1997-2025-headline-timeseries.xlsx")
+        >>> _, year = get_latest_ashe_publication_url()
+        >>> path = download_file(get_ashe_file_url(year, 'timeseries'), cache_ttl_hours=90*24)
+        >>> df = parse_ashe_timeseries_weekly(path)
+        >>> sorted(df.columns.tolist())
+        ['median_weekly_earnings', 'work_pattern', 'year']
     """
     logger.info(f"Parsing ASHE weekly earnings from: {file_path}")
 
@@ -199,7 +203,11 @@ def parse_ashe_timeseries_hourly(file_path: str | Path) -> pd.DataFrame:
             - median_hourly_earnings: float (£)
 
     Example:
-        >>> df = parse_ashe_timeseries_hourly("ASHE-1997-2025-headline-timeseries.xlsx")
+        >>> _, year = get_latest_ashe_publication_url()
+        >>> path = download_file(get_ashe_file_url(year, 'timeseries'), cache_ttl_hours=90*24)
+        >>> df = parse_ashe_timeseries_hourly(path)
+        >>> sorted(df.columns.tolist())
+        ['median_hourly_earnings', 'work_pattern', 'year']
     """
     logger.info(f"Parsing ASHE hourly earnings from: {file_path}")
 
@@ -235,7 +243,11 @@ def parse_ashe_timeseries_annual(file_path: str | Path) -> pd.DataFrame:
             - median_annual_earnings: float (£)
 
     Example:
-        >>> df = parse_ashe_timeseries_annual("ASHE-1997-2025-headline-timeseries.xlsx")
+        >>> _, year = get_latest_ashe_publication_url()
+        >>> path = download_file(get_ashe_file_url(year, 'timeseries'), cache_ttl_hours=90*24)
+        >>> df = parse_ashe_timeseries_annual(path)
+        >>> sorted(df.columns.tolist())
+        ['median_annual_earnings', 'work_pattern', 'year']
     """
     logger.info(f"Parsing ASHE annual earnings from: {file_path}")
 
@@ -274,7 +286,11 @@ def parse_ashe_geography(file_path: str | Path, basis: str = "workplace", year: 
             - median_weekly_earnings: float (£)
 
     Example:
-        >>> df = parse_ashe_geography("ASHE-2025-linked.xlsx", basis='workplace', year=2025)
+        >>> _, year = get_latest_ashe_publication_url()
+        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> df = parse_ashe_geography(path, basis='workplace', year=year)
+        >>> 'median_weekly_earnings' in df.columns
+        True
     """
     logger.info(f"Parsing ASHE geography ({basis}) from: {file_path}")
 
@@ -326,7 +342,11 @@ def parse_ashe_sector(file_path: str | Path) -> pd.DataFrame:
             - median_weekly_earnings: float (£)
 
     Example:
-        >>> df = parse_ashe_sector("ASHE-2025-linked.xlsx")
+        >>> _, year = get_latest_ashe_publication_url()
+        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> df = parse_ashe_sector(path)
+        >>> 'location' in df.columns
+        True
     """
     logger.info(f"Parsing ASHE sector data from: {file_path}")
 
@@ -501,7 +521,7 @@ def calculate_growth_rates(df: pd.DataFrame, periods: int = 1) -> pd.DataFrame:
     Example:
         >>> df = get_latest_ashe_timeseries('weekly')
         >>> df_growth = calculate_growth_rates(df)
-        >>> 'yoy_growth' in df_growth.columns
+        >>> 'earnings_yoy_growth' in df_growth.columns
         True
     """
     result = df.copy()
@@ -685,8 +705,11 @@ def parse_ashe_gender_pay_gap(file_path: str | Path) -> pd.DataFrame:
         - gender_pay_gap_pct: float — GPG as % of male earnings (positive = men paid more)
 
     Example:
-        >>> df = parse_ashe_gender_pay_gap("ASHE-2025-linked.xlsx")
-        >>> ni = df[df['location'] == 'Northern Ireland']
+        >>> _, year = get_latest_ashe_publication_url()
+        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> df = parse_ashe_gender_pay_gap(path)
+        >>> sorted(df.columns.tolist())
+        ['gender_pay_gap_pct', 'location', 'year']
     """
     df = _find_linked_sheet(file_path, "gender_pay_gap")
     df.columns = ["year", "UK", "NI"]
@@ -727,8 +750,11 @@ def parse_ashe_hourly_earnings_by_sector_gender(file_path: str | Path) -> pd.Dat
         - median_hourly_earnings: float (£, excluding overtime)
 
     Example:
-        >>> df = parse_ashe_hourly_earnings_by_sector_gender("ASHE-2025-linked.xlsx")
-        >>> latest = df[df['year'] == df['year'].max()]
+        >>> _, year = get_latest_ashe_publication_url()
+        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> df = parse_ashe_hourly_earnings_by_sector_gender(path)
+        >>> sorted(df.columns.tolist())
+        ['median_hourly_earnings', 'sector', 'sex', 'year']
     """
     df = _find_linked_sheet(file_path, "hourly_by_sector_gender")
     df.columns = ["year", "Male public", "Female public", "Male private", "Female private"]
@@ -773,7 +799,11 @@ def parse_ashe_hourly_earnings_by_age_gender(file_path: str | Path) -> pd.DataFr
         - median_hourly_earnings: float (£, excluding overtime)
 
     Example:
-        >>> df = parse_ashe_hourly_earnings_by_age_gender("ASHE-2025-linked.xlsx")
+        >>> _, year = get_latest_ashe_publication_url()
+        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> df = parse_ashe_hourly_earnings_by_age_gender(path)
+        >>> sorted(df.columns.tolist())
+        ['age_group', 'median_hourly_earnings', 'sex']
     """
     df = _find_linked_sheet(file_path, "hourly_by_age_gender")
     df.columns = ["age_group", "Female", "Male"]
@@ -808,8 +838,11 @@ def parse_ashe_hourly_earnings_by_occupation_gender(file_path: str | Path) -> pd
         - median_hourly_earnings: float (£, excluding overtime)
 
     Example:
-        >>> df = parse_ashe_hourly_earnings_by_occupation_gender("ASHE-2025-linked.xlsx")
-        >>> wide = df.pivot(index='occupation', columns='sex', values='median_hourly_earnings')
+        >>> _, year = get_latest_ashe_publication_url()
+        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> df = parse_ashe_hourly_earnings_by_occupation_gender(path)
+        >>> sorted(df.columns.tolist())
+        ['median_hourly_earnings', 'occupation', 'sex']
     """
     df = _find_linked_sheet(file_path, "hourly_by_occupation_gender")
     df.columns = ["occupation", "Female", "Male"]
@@ -848,7 +881,11 @@ def parse_ashe_hourly_earnings_by_pattern_gender(file_path: str | Path) -> pd.Da
         - median_hourly_earnings: float (£, excluding overtime)
 
     Example:
-        >>> df = parse_ashe_hourly_earnings_by_pattern_gender("ASHE-2025-linked.xlsx")
+        >>> _, year = get_latest_ashe_publication_url()
+        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> df = parse_ashe_hourly_earnings_by_pattern_gender(path)
+        >>> sorted(df.columns.tolist())
+        ['median_hourly_earnings', 'sex', 'work_pattern']
     """
     df = _find_linked_sheet(file_path, "hourly_by_pattern_gender")
     df.columns = ["work_pattern", "Female", "Male"]
@@ -885,7 +922,11 @@ def parse_ashe_ni_uk_earnings_comparison(file_path: str | Path) -> pd.DataFrame:
         - median_weekly_earnings_fulltime: float (£)
 
     Example:
-        >>> df = parse_ashe_ni_uk_earnings_comparison("ASHE-2025-linked.xlsx")
+        >>> _, year = get_latest_ashe_publication_url()
+        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> df = parse_ashe_ni_uk_earnings_comparison(path)
+        >>> sorted(df.columns.tolist())
+        ['location', 'median_weekly_earnings_fulltime', 'year']
     """
     df = _find_linked_sheet(file_path, "ni_uk_weekly_earnings")
     df.columns = ["year", "UK", "NI"]
@@ -917,7 +958,11 @@ def parse_ashe_uk_regional_pay_ratio(file_path: str | Path) -> pd.DataFrame:
         - ratio: float (high-paid / low-paid jobs ratio)
 
     Example:
-        >>> df = parse_ashe_uk_regional_pay_ratio("ASHE-2025-linked.xlsx")
+        >>> _, year = get_latest_ashe_publication_url()
+        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> df = parse_ashe_uk_regional_pay_ratio(path)
+        >>> sorted(df.columns.tolist())
+        ['ratio', 'region']
     """
     df = _find_linked_sheet(file_path, "uk_regional_pay_ratio")
     df.columns = ["region", "ratio"]
@@ -943,7 +988,11 @@ def parse_ashe_hours_distribution(file_path: str | Path) -> pd.DataFrame:
         - percentage: float (% of employees)
 
     Example:
-        >>> df = parse_ashe_hours_distribution("ASHE-2025-linked.xlsx")
+        >>> _, year = get_latest_ashe_publication_url()
+        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> df = parse_ashe_hours_distribution(path)
+        >>> sorted(df.columns.tolist())
+        ['paid_hours_worked', 'percentage']
     """
     df = _find_linked_sheet(file_path, "hours_distribution")
     df.columns = ["paid_hours_worked", "percentage"]
@@ -970,7 +1019,11 @@ def parse_ashe_working_pattern_pay_gap(file_path: str | Path) -> pd.DataFrame:
         - working_pattern_pay_gap_pct: float (%)
 
     Example:
-        >>> df = parse_ashe_working_pattern_pay_gap("ASHE-2025-linked.xlsx")
+        >>> _, year = get_latest_ashe_publication_url()
+        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> df = parse_ashe_working_pattern_pay_gap(path)
+        >>> sorted(df.columns.tolist())
+        ['location', 'working_pattern_pay_gap_pct', 'year']
     """
     df = _find_linked_sheet(file_path, "working_pattern_pay_gap")
     df.columns = ["year", "UK", "NI"]
@@ -1001,7 +1054,11 @@ def parse_ashe_mean_hours_by_pattern_gender(file_path: str | Path) -> pd.DataFra
         - all_mean_hours: float
 
     Example:
-        >>> df = parse_ashe_mean_hours_by_pattern_gender("ASHE-2025-linked.xlsx")
+        >>> _, year = get_latest_ashe_publication_url()
+        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> df = parse_ashe_mean_hours_by_pattern_gender(path)
+        >>> 'work_pattern' in df.columns
+        True
     """
     df = _find_linked_sheet(file_path, "mean_hours_by_pattern_gender")
     df.columns = ["work_pattern", "male_mean_hours", "female_mean_hours", "all_mean_hours"]

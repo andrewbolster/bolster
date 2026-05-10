@@ -268,7 +268,13 @@ def parse_vehicle_tests(file_path: str | Path) -> pd.DataFrame:
             - rolling_12_month_total: int (optional, rolling 12-month sum)
 
     Example:
-        >>> df = parse_vehicle_tests("dva-monthly-tests-december-2025.xlsx")
+        >>> url, _, _ = get_latest_dva_publication_url()
+        >>> path = _download_file(url)
+        >>> df = parse_vehicle_tests(path)
+        >>> 'tests_conducted' in df.columns
+        True
+        >>> len(df) > 0
+        True
     """
     from openpyxl import load_workbook
 
@@ -346,7 +352,13 @@ def parse_driver_tests(file_path: str | Path) -> pd.DataFrame:
             - rolling_12_month_total: int (optional, rolling 12-month sum)
 
     Example:
-        >>> df = parse_driver_tests("dva-monthly-tests-december-2025.xlsx")
+        >>> url, _, _ = get_latest_dva_publication_url()
+        >>> path = _download_file(url)
+        >>> df = parse_driver_tests(path)
+        >>> 'tests_conducted' in df.columns
+        True
+        >>> len(df) > 0
+        True
     """
     from openpyxl import load_workbook
 
@@ -424,7 +436,13 @@ def parse_theory_tests(file_path: str | Path) -> pd.DataFrame:
             - rolling_12_month_total: int (optional, rolling 12-month sum)
 
     Example:
-        >>> df = parse_theory_tests("dva-monthly-tests-december-2025.xlsx")
+        >>> url, _, _ = get_latest_dva_publication_url()
+        >>> path = _download_file(url)
+        >>> df = parse_theory_tests(path)
+        >>> 'tests_conducted' in df.columns
+        True
+        >>> len(df) > 0
+        True
     """
     from openpyxl import load_workbook
 

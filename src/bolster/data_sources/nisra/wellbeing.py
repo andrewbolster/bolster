@@ -175,7 +175,11 @@ def parse_personal_wellbeing(file_path: str | Path) -> pd.DataFrame:
             - anxiety: float (mean score 0-10, lower is better)
 
     Example:
-        >>> df = parse_personal_wellbeing("individual-wellbeing-ni-202425-data-tables.xlsx")
+        >>> _, year = get_latest_wellbeing_publication_url()
+        >>> path = download_file(get_wellbeing_file_url(year), cache_ttl_hours=90*24)
+        >>> df = parse_personal_wellbeing(path)
+        >>> 'life_satisfaction' in df.columns
+        True
     """
     logger.info(f"Parsing personal wellbeing from {file_path}")
 
@@ -249,7 +253,11 @@ def parse_loneliness(file_path: str | Path) -> pd.DataFrame:
             - confidence_interval: str (e.g., "+/- 1.1")
 
     Example:
-        >>> df = parse_loneliness("individual-wellbeing-ni-202425-data-tables.xlsx")
+        >>> _, year = get_latest_wellbeing_publication_url()
+        >>> path = download_file(get_wellbeing_file_url(year), cache_ttl_hours=90*24)
+        >>> df = parse_loneliness(path)
+        >>> 'lonely_some_of_time' in df.columns
+        True
     """
     logger.info(f"Parsing loneliness from {file_path}")
 
@@ -302,7 +310,11 @@ def parse_self_efficacy(file_path: str | Path) -> pd.DataFrame:
             - confidence_interval: str (e.g., "+/- 0.1")
 
     Example:
-        >>> df = parse_self_efficacy("individual-wellbeing-ni-202425-data-tables.xlsx")
+        >>> _, year = get_latest_wellbeing_publication_url()
+        >>> path = download_file(get_wellbeing_file_url(year), cache_ttl_hours=90*24)
+        >>> df = parse_self_efficacy(path)
+        >>> 'self_efficacy_mean' in df.columns
+        True
     """
     logger.info(f"Parsing self-efficacy from {file_path}")
 

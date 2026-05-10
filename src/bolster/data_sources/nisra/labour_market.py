@@ -227,7 +227,11 @@ def parse_employment_by_age_sex(file_path: str | Path) -> pd.DataFrame:
             - number: Absolute number employed (from Table 2.15b)
 
     Example:
-        >>> df = parse_employment_by_age_sex("lfs_2025_Q3.xlsx")
+        >>> url, year, quarter = get_latest_lfs_publication_url()
+        >>> path = download_file(url, cache_ttl_hours=90*24)
+        >>> df = parse_employment_by_age_sex(path)
+        >>> 'age_group' in df.columns
+        True
     """
     wb = load_workbook(file_path, data_only=True)
 
@@ -375,9 +379,11 @@ def parse_economic_inactivity(file_path: str | Path) -> pd.DataFrame:
         allowing year-over-year comparisons for the same seasonal period.
 
     Example:
-        >>> df = parse_economic_inactivity("lfs_2025_Q3.xlsx")
-        >>> # Get 2025 data
-        >>> df_2025 = df[df['time_period'].str.contains('2025')]
+        >>> url, year, quarter = get_latest_lfs_publication_url()
+        >>> path = download_file(url, cache_ttl_hours=90*24)
+        >>> df = parse_economic_inactivity(path)
+        >>> 'economic_inactivity_rate' in df.columns
+        True
     """
     wb = load_workbook(file_path, data_only=True)
 
@@ -794,8 +800,11 @@ def parse_employment_by_lgd(file_path: str | Path, year: int = None) -> pd.DataF
             - employment_rate: float (%)
 
     Example:
-        >>> df = parse_employment_by_lgd("lfs-lgd-2024.xlsx", year=2024)
-        >>> belfast = df[df['lgd'] == 'Belfast']
+        >>> url, year = get_latest_lgd_employment_url()
+        >>> path = download_file(url, cache_ttl_hours=180*24)
+        >>> df = parse_employment_by_lgd(path, year=year)
+        >>> 'employment_rate' in df.columns
+        True
     """
     logger.info(f"Parsing LFS LGD employment from: {file_path}")
 

@@ -287,7 +287,7 @@ def get_latest_marriages(force_refresh: bool = False) -> pd.DataFrame:
 
         >>> df_2024 = df[df['year'] == 2024]
         >>> total_2024 = df_2024['marriages'].sum()
-        >>> total_2024 > 0
+        >>> bool(total_2024 > 0)
         True
     """
     # Discover latest publication
@@ -346,7 +346,7 @@ def get_marriages_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
         >>> df = get_latest_marriages()
         >>> df_2024 = get_marriages_by_year(df, 2024)
         >>> total = df_2024['marriages'].sum()
-        >>> total > 0
+        >>> bool(total > 0)
         True
     """
     return df[df["year"] == year].reset_index(drop=True)
@@ -641,7 +641,7 @@ def get_latest_civil_partnerships(force_refresh: bool = False) -> pd.DataFrame:
         ['civil_partnerships', 'date', 'month', 'year']
         >>> df_2024 = df[df['year'] == 2024]
         >>> total = df_2024['civil_partnerships'].sum()
-        >>> total >= 0
+        >>> bool(total >= 0)
         True
     """
     excel_url, pub_date = get_latest_civil_partnerships_publication_url()

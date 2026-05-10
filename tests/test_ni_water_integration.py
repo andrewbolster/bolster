@@ -164,7 +164,7 @@ class TestNIWaterIntegrationFullDataset:
             # Check for hardness classification if present
             if "NI Hardness Classification" in df.columns:
                 # Should be categorical
-                assert pd.api.types.is_categorical_dtype(df["NI Hardness Classification"])
+                assert isinstance(df["NI Hardness Classification"].dtype, pd.CategoricalDtype)
 
         except Exception as e:
             pytest.skip(f"OpenDataNI service unavailable: {e}")

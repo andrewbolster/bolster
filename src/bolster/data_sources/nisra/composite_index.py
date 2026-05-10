@@ -161,7 +161,11 @@ def parse_nicei_indices(file_path: str | Path) -> pd.DataFrame:
             - agriculture: float
 
     Example:
-        >>> df = parse_nicei_indices('/path/to/nicei.xlsx')
+        >>> url, _, _ = get_latest_nicei_publication_url()
+        >>> path = download_file(url, cache_ttl_hours=90*24)
+        >>> df = parse_nicei_indices(path)
+        >>> 'nicei' in df.columns
+        True
     """
     logger.info(f"Parsing NICEI indices from: {file_path}")
 
@@ -218,7 +222,11 @@ def parse_nicei_contributions(file_path: str | Path) -> pd.DataFrame:
             - agriculture_contribution: float
 
     Example:
-        >>> df = parse_nicei_contributions('/path/to/nicei.xlsx')
+        >>> url, _, _ = get_latest_nicei_publication_url()
+        >>> path = download_file(url, cache_ttl_hours=90*24)
+        >>> df = parse_nicei_contributions(path)
+        >>> 'nicei' in df.columns
+        True
     """
     logger.info(f"Parsing NICEI sector contributions from: {file_path}")
 

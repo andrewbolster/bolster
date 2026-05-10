@@ -308,7 +308,7 @@ def get_latest_projections(
     Example:
         >>> df = get_latest_projections()
         >>> sorted(df.columns.tolist())
-        ['age_group', 'area', 'population', 'sex', 'variant', 'year']
+        ['age_group', 'area', 'base_year', 'population', 'sex', 'year']
         >>> df_ni_2030s = get_latest_projections(
         ...     area='Northern Ireland',
         ...     start_year=2030,

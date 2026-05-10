@@ -30,9 +30,6 @@ Example:
     ['age_range', 'deaths', 'sex', 'week_ending']
     >>> len(df) > 0
     True
-
-    >>> # Get specific week
-    >>> df = deaths.parse_deaths_file('/path/to/file.xlsx', dimension='geography')
 """
 
 import logging
@@ -545,8 +542,9 @@ def parse_deaths_file(
         DataFrame for single dimension, or dict of DataFrames for 'all'
 
     Example:
-        >>> df = parse_deaths_file('deaths.xlsx', dimension='totals')
-        >>> data = parse_deaths_file('deaths.xlsx', dimension='all')
+        >>> url = get_latest_weekly_deaths_url()
+        >>> path = download_file(url, cache_ttl_hours=24*7)
+        >>> data = parse_deaths_file(path, dimension='all')
         >>> sorted(data.keys())
         ['demographics', 'geography', 'place', 'totals']
     """
@@ -781,7 +779,7 @@ def get_combined_deaths(
         - data_source: 'historical' or 'current'
 
     Example:
-        >>> df = get_combined_deaths()
+        >>> df = get_combined_deaths(years=[2022, 2023, 2024])
         >>> 'total_deaths' in df.columns
         True
         >>> 'data_source' in df.columns

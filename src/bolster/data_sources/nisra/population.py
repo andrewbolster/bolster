@@ -323,7 +323,7 @@ def get_population_by_year(
         >>> df = get_latest_population(area='Northern Ireland')
         >>> pop_2024 = get_population_by_year(df, 2024)
         >>> total = pop_2024['population'].sum()
-        >>> total > 0
+        >>> bool(total > 0)
         True
     """
     filtered = df[df["year"] == year].copy()

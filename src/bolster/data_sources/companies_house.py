@@ -43,7 +43,7 @@ def get_basic_company_data_url() -> str:
     """
     base_url = "http://download.companieshouse.gov.uk/en_output.html"
     # TODO: Network integration testing - requires active Companies House website
-    s = bs4.BeautifulSoup(session.get(base_url).content)  # pragma: no cover
+    s = bs4.BeautifulSoup(session.get(base_url).content, features="lxml")  # pragma: no cover
     for a in s.find_all("a"):  # pragma: no cover
         if a.get("href").startswith("BasicCompanyDataAsOneFile"):  # pragma: no cover
             url = f"http://download.companieshouse.gov.uk/{a.get('href')}"  # pragma: no cover

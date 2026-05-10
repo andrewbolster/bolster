@@ -215,7 +215,11 @@ def parse_ios_file(file_path: str | Path) -> pd.DataFrame:
             - uk_index: float (UK index value)
 
     Example:
-        >>> df = parse_ios_file("ios-q3-2025-tables.xlsx")
+        >>> url, _ = get_latest_ios_publication_url()
+        >>> path = download_file(url, cache_ttl_hours=168)
+        >>> df = parse_ios_file(path)
+        >>> 'ni_index' in df.columns
+        True
     """
     logger.info(f"Parsing Index of Services file: {file_path}")
 
@@ -262,7 +266,11 @@ def parse_iop_file(file_path: str | Path) -> pd.DataFrame:
             - uk_index: float (UK index value)
 
     Example:
-        >>> df = parse_iop_file("iop-q3-2025-tables.xlsx")
+        >>> url, _ = get_latest_iop_publication_url()
+        >>> path = download_file(url, cache_ttl_hours=168)
+        >>> df = parse_iop_file(path)
+        >>> 'ni_index' in df.columns
+        True
     """
     logger.info(f"Parsing Index of Production file: {file_path}")
 

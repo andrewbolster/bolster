@@ -60,7 +60,7 @@ Examples:
 
     >>> from bolster.data_sources.nisra import labour_market
     >>> emp_df = labour_market.get_latest_employment()
-    >>> 'employment_rate' in emp_df.columns
+    >>> 'percentage' in emp_df.columns
     True
 
     >>> from bolster.data_sources.nisra import marriages

@@ -23,7 +23,7 @@ Example:
 
     >>> # Total stillbirths in 2024
     >>> total_2024 = df[df['year'] == 2024]['stillbirths'].sum()
-    >>> total_2024 >= 0
+    >>> bool(total_2024 >= 0)
     True
 """
 
@@ -295,7 +295,11 @@ def get_stillbirth_rate(
     if births_col is None:
         raise NISRAValidationError("Could not identify births count column in births DataFrame")
 
-    live = births_df[["date", births_col]].rename(columns={births_col: "live_births"})
+    # births_df has 'month' and a 'sex' column; filter to Persons and align on date
+    if "sex" in births_df.columns:
+        births_df = births_df[births_df["sex"] == "Persons"].copy()
+    date_col = "date" if "date" in births_df.columns else "month"
+    live = births_df[[date_col, births_col]].rename(columns={date_col: "date", births_col: "live_births"})
     merged = stillbirths_df.merge(live, on="date", how="inner")
     merged["total_births"] = merged["live_births"] + merged["stillbirths"]
     merged["stillbirth_rate"] = ((merged["stillbirths"] / merged["total_births"]) * 1000).round(2)

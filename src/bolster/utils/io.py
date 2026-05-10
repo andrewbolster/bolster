@@ -39,4 +39,4 @@ def save_xls(dict_df: dict[AnyStr, pd.DataFrame], path: str | BinaryIO) -> None:
     """
     with pd.ExcelWriter(path) as writer:
         for key in dict_df:
-            dict_df[key].to_excel(writer, key)
+            dict_df[key].to_excel(writer, sheet_name=key)

@@ -10,14 +10,18 @@ typically occur every 4-5 years, with the most recent elections in 2022, 2017, a
 Historical data remains static once published, with occasional corrections or clarifications.
 
 Example:
-    Retrieve election results for specific years and constituencies:
+    Retrieve election results for the 2022 NI Assembly election:
 
         >>> from bolster.data_sources import eoni
-        >>> results_2022 = eoni.get_election_results(2022)
+        >>> results_2022 = eoni.get_results(2022)
+        >>> isinstance(results_2022, dict)
+        True
         >>> len(results_2022) > 0
         True
-        >>> belfast_east = eoni.get_constituency_results("Belfast East", 2022)
-        >>> 'candidates' in belfast_east
+        >>> constituency = next(iter(results_2022))
+        >>> isinstance(constituency, str)
+        True
+        >>> 'candidates' in results_2022[constituency]
         True
 
 The module supports automated ingestion of NI Assembly election results with constituency-level
