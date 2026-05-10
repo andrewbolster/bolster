@@ -21,14 +21,12 @@ Index Base: Q1 2023 = 100
 See [here](https://andrewbolster.info/2022/03/NI-House-Price-Index.html) for more details.
 
 Example:
-    >>> from bolster.data_sources.ni_house_price_index import get_hpi_trends, get_sales_volumes  # doctest: +SKIP
+    >>> from bolster.data_sources.ni_house_price_index import get_hpi_trends, get_sales_volumes
     >>> # Get house price index trends over time
-    >>> hpi = get_hpi_trends()  # doctest: +SKIP
-    >>> print(hpi[['Period', 'NI House Price Index', 'Annual Change']].tail())  # doctest: +SKIP
+    >>> hpi = get_hpi_trends()
 
     >>> # Get property sales volumes by type
-    >>> sales = get_sales_volumes()  # doctest: +SKIP
-    >>> print(sales[['Period', 'Detached', 'Semi-Detached', 'Total']].tail())  # doctest: +SKIP
+    >>> sales = get_sales_volumes()
 """
 
 import hashlib
@@ -585,10 +583,9 @@ def get_all_tables(force_refresh: bool = False) -> dict[str, pd.DataFrame]:
             - Table 10a-k: Sales Volumes by Property Type per LGD
 
     Example:
-        >>> tables = get_all_tables()  # doctest: +SKIP
-        >>> print(tables.keys())  # doctest: +SKIP
+        >>> tables = get_all_tables()
         >>> # Access specific table
-        >>> hpi_trends = tables['Table 1']  # doctest: +SKIP
+        >>> hpi_trends = tables['Table 1']
     """
     source_dfs = pull_sources(force_refresh=force_refresh)
     return transform_sources(source_dfs)
@@ -614,11 +611,10 @@ def get_hpi_trends(force_refresh: bool = False) -> pd.DataFrame:
             - Annual Change: Percentage change from same quarter previous year
 
     Example:
-        >>> hpi = get_hpi_trends()  # doctest: +SKIP
+        >>> hpi = get_hpi_trends()
         >>> # Get latest quarter
-        >>> print(hpi.tail(1))  # doctest: +SKIP
         >>> # Plot index over time
-        >>> hpi.plot(x='Period', y='NI House Price Index')  # doctest: +SKIP
+        >>> hpi.plot(x='Period', y='NI House Price Index')
     """
     tables = get_all_tables(force_refresh=force_refresh)
     return tables.get("Table 1")
@@ -645,9 +641,9 @@ def get_sales_volumes(force_refresh: bool = False) -> pd.DataFrame:
             - Total: Total sales
 
     Example:
-        >>> sales = get_sales_volumes()  # doctest: +SKIP
+        >>> sales = get_sales_volumes()
         >>> # Total sales per year
-        >>> annual = sales.groupby('Year')['Total'].sum()  # doctest: +SKIP
+        >>> annual = sales.groupby('Year')['Total'].sum()
     """
     tables = get_all_tables(force_refresh=force_refresh)
     return tables.get("Table 4")
@@ -672,9 +668,9 @@ def get_average_prices(force_refresh: bool = False) -> pd.DataFrame:
             - Standardised Price (HPI): Quality-adjusted price
 
     Example:
-        >>> prices = get_average_prices()  # doctest: +SKIP
+        >>> prices = get_average_prices()
         >>> # Current median price
-        >>> latest = prices.iloc[-1]['Simple Median']  # doctest: +SKIP
+        >>> latest = prices.iloc[-1]['Simple Median']
     """
     tables = get_all_tables(force_refresh=force_refresh)
     return tables.get("Table 9")
@@ -701,9 +697,9 @@ def get_hpi_by_lgd(force_refresh: bool = False) -> pd.DataFrame:
         Mid and East Antrim, Mid Ulster, Newry Mourne and Down
 
     Example:
-        >>> lgd = get_hpi_by_lgd()  # doctest: +SKIP
+        >>> lgd = get_hpi_by_lgd()
         >>> # Belfast prices
-        >>> belfast = lgd[['Period', 'Belfast']]  # doctest: +SKIP
+        >>> belfast = lgd[['Period', 'Belfast']]
     """
     tables = get_all_tables(force_refresh=force_refresh)
     return tables.get("Table 5")
@@ -727,8 +723,7 @@ def get_hpi_by_property_type(force_refresh: bool = False) -> pd.DataFrame:
             - Standardised Price
 
     Example:
-        >>> by_type = get_hpi_by_property_type()  # doctest: +SKIP
-        >>> print(by_type)  # doctest: +SKIP
+        >>> by_type = get_hpi_by_property_type()
     """
     tables = get_all_tables(force_refresh=force_refresh)
     return tables.get("Table 2")

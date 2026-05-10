@@ -35,18 +35,16 @@ as part of their healthcare performance monitoring, with data updated four times
 to track progress against key cancer treatment targets.
 
 Example:
-    >>> from bolster.data_sources.nisra import cancer_waiting_times as cwt  # doctest: +SKIP
+    >>> from bolster.data_sources.nisra import cancer_waiting_times as cwt
     >>> # Get latest 31-day waiting times by HSC Trust
-    >>> df = cwt.get_latest_31_day_by_trust()  # doctest: +SKIP
-    >>> print(df.tail())  # doctest: +SKIP
+    >>> df = cwt.get_latest_31_day_by_trust()
 
     >>> # Get 62-day waiting times by tumour site
-    >>> df_tumour = cwt.get_latest_62_day_by_tumour()  # doctest: +SKIP
-    >>> print(df_tumour[df_tumour['tumour_site'] == 'Lung Cancer'].tail())  # doctest: +SKIP
+    >>> df_tumour = cwt.get_latest_62_day_by_tumour()
 
     >>> # Calculate performance rates
-    >>> summary = cwt.get_performance_summary()  # doctest: +SKIP
-    >>> print(summary)  # doctest: +SKIP
+    >>> summary = cwt.get_performance_summary()
+    >>> print(summary)
 
 Publication Details:
     - Frequency: Quarterly (published ~3 months after quarter end)

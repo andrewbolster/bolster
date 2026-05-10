@@ -27,18 +27,15 @@ Metrics Provided:
     - Employer metadata (size band, SIC code, Companies House number)
 
 Example:
-    >>> from bolster.data_sources import gender_pay_gap  # doctest: +SKIP
+    >>> from bolster.data_sources import gender_pay_gap
     >>> # Get all UK employers for 2024 reporting year
-    >>> df = gender_pay_gap.get_data(year=2024)  # doctest: +SKIP
-    >>> print(df.head())  # doctest: +SKIP
+    >>> df = gender_pay_gap.get_data(year=2024)
 
     >>> # Get NI employers only (BT postcode prefix)
-    >>> ni_df = gender_pay_gap.get_data(year=2024, postcode_prefix="BT")  # doctest: +SKIP
-    >>> print(f"NI employers reporting: {len(ni_df)}")  # doctest: +SKIP
+    >>> ni_df = gender_pay_gap.get_data(year=2024, postcode_prefix="BT")
 
     >>> # Get all available years combined, filtered to NI
-    >>> all_df = gender_pay_gap.get_all_years(postcode_prefix="BT")  # doctest: +SKIP
-    >>> print(all_df.groupby('reporting_year')['diff_mean_hourly_percent'].median())  # doctest: +SKIP
+    >>> all_df = gender_pay_gap.get_all_years(postcode_prefix="BT")
 """
 
 import logging
@@ -124,8 +121,7 @@ def get_available_years() -> list[int]:
         List of years (integers) for which data is available, e.g. [2017, ..., 2024].
 
     Example:
-        >>> years = get_available_years()  # doctest: +SKIP
-        >>> print(f"Data available from {min(years)} to {max(years)}")  # doctest: +SKIP
+        >>> years = get_available_years()
     """
     current_year = pd.Timestamp.now().year
     # Data for year Y is typically published in April of year Y+1
@@ -193,15 +189,13 @@ def get_data(
 
     Example:
         >>> # All UK employers
-        >>> df = get_data(year=2024)  # doctest: +SKIP
-        >>> print(f"Total UK employers: {len(df)}")  # doctest: +SKIP
+        >>> df = get_data(year=2024)
 
         >>> # Northern Ireland only
-        >>> ni = get_data(year=2024, postcode_prefix="BT")  # doctest: +SKIP
-        >>> print(f"NI employers: {len(ni)}")  # doctest: +SKIP
+        >>> ni = get_data(year=2024, postcode_prefix="BT")
 
         >>> # Edinburgh employers
-        >>> edinburgh = get_data(year=2024, postcode_prefix="EH")  # doctest: +SKIP
+        >>> edinburgh = get_data(year=2024, postcode_prefix="EH")
     """
     available = get_available_years()
     if year not in available:
@@ -270,12 +264,11 @@ def get_all_years(postcode_prefix: str | None = None) -> pd.DataFrame:
 
     Example:
         >>> # NI employer median pay gap trend
-        >>> df = get_all_years(postcode_prefix="BT")  # doctest: +SKIP
-        >>> trend = df.groupby('reporting_year')['diff_median_hourly_percent'].median()  # doctest: +SKIP
-        >>> print(trend)  # doctest: +SKIP
+        >>> df = get_all_years(postcode_prefix="BT")
+        >>> trend = df.groupby('reporting_year')['diff_median_hourly_percent'].median()
 
         >>> # All UK employers across all years
-        >>> df = get_all_years()  # doctest: +SKIP
+        >>> df = get_all_years()
     """
     frames = []
     for year in get_available_years():
@@ -310,8 +303,8 @@ def validate_data(df: pd.DataFrame) -> bool:
         GenderPayGapError: If any validation check fails.
 
     Example:
-        >>> df = get_data(year=2024)  # doctest: +SKIP
-        >>> validate_data(df)  # doctest: +SKIP
+        >>> df = get_data(year=2024)
+        >>> validate_data(df)
         True
     """
     required_columns = {

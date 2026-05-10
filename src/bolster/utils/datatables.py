@@ -8,9 +8,8 @@ structure, where ``x["data"]`` is a list of column arrays (not row arrays) and
 
 Example:
     >>> from bolster.utils.datatables import fetch_datatables_json, datatables_to_dataframe
-    >>> payload = fetch_datatables_json("https://datavis.nisra.gov.uk/health/my-data.html")  # doctest: +SKIP
-    >>> df = datatables_to_dataframe(payload)  # doctest: +SKIP
-    >>> print(df.head())  # doctest: +SKIP
+    >>> payload = fetch_datatables_json("https://datavis.nisra.gov.uk/health/my-data.html")
+    >>> df = datatables_to_dataframe(payload)
 """
 
 import json
@@ -47,8 +46,8 @@ def fetch_datatables_json(url: str, timeout: int = 30) -> dict:
         DataTablesError: If the page cannot be fetched or no DT payload is found.
 
     Example:
-        >>> payload = fetch_datatables_json("https://example.com/data.html")  # doctest: +SKIP
-        >>> len(payload["data"])  # doctest: +SKIP
+        >>> payload = fetch_datatables_json("https://example.com/data.html")
+        >>> len(payload["data"])
     """
     try:
         response = session.get(url, timeout=timeout)

@@ -24,15 +24,13 @@ Geographic Coverage: Northern Ireland and UK comparison
 Base Year: 2020=100
 
 Example:
-    >>> from bolster.data_sources.nisra import index_of_services as ios  # doctest: +SKIP
-    >>> df = ios.get_latest_ios()  # doctest: +SKIP
-    >>> print(df.tail())  # doctest: +SKIP
+    >>> from bolster.data_sources.nisra import index_of_services as ios
+    >>> df = ios.get_latest_ios()
 
     >>> # Services sector growth
-    >>> from bolster.data_sources.nisra import index_of_services as ios  # doctest: +SKIP
-    >>> df = ios.get_latest_ios()  # doctest: +SKIP
-    >>> growth = ios.get_ios_growth(df)  # doctest: +SKIP
-    >>> print(growth[['quarter_label', 'ni_yoy']].tail(4))  # doctest: +SKIP
+    >>> from bolster.data_sources.nisra import index_of_services as ios
+    >>> df = ios.get_latest_ios()
+    >>> growth = ios.get_ios_growth(df)
 """
 
 import logging
@@ -182,11 +180,9 @@ def get_latest_ios(force_refresh: bool = False) -> pd.DataFrame:
         NISRAValidationError: If file structure is unexpected
 
     Example:
-        >>> df = get_latest_ios()  # doctest: +SKIP
-        >>> print(df.tail(4))  # doctest: +SKIP
+        >>> df = get_latest_ios()
         >>> # Services as driver of NI growth
-        >>> latest = df.iloc[-1]  # doctest: +SKIP
-        >>> print(f"NI Services {latest['quarter_label']}: {latest['ni_index']:.1f} (UK: {latest['uk_index']:.1f})")  # doctest: +SKIP
+        >>> latest = df.iloc[-1]
     """
     excel_url, year, quarter = get_latest_ios_publication_url()
     logger.info(f"Downloading IOS Q{quarter} {year} from: {excel_url}")
@@ -234,9 +230,8 @@ def get_ios_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
         Filtered DataFrame (up to 4 quarters)
 
     Example:
-        >>> df = get_latest_ios()  # doctest: +SKIP
-        >>> df_2024 = get_ios_by_year(df, 2024)  # doctest: +SKIP
-        >>> print(df_2024[['quarter_label', 'ni_index', 'uk_index']])  # doctest: +SKIP
+        >>> df = get_latest_ios()
+        >>> df_2024 = get_ios_by_year(df, 2024)
     """
     return df[df["year"] == year].reset_index(drop=True)
 
@@ -255,9 +250,8 @@ def get_ios_growth(df: pd.DataFrame) -> pd.DataFrame:
             - uk_yoy: UK year-on-year % change
 
     Example:
-        >>> df = get_latest_ios()  # doctest: +SKIP
-        >>> growth = get_ios_growth(df)  # doctest: +SKIP
-        >>> print(growth[['quarter_label', 'ni_yoy', 'uk_yoy']].tail(8))  # doctest: +SKIP
+        >>> df = get_latest_ios()
+        >>> growth = get_ios_growth(df)
     """
     result = df.copy()
     result["ni_qoq"] = result["ni_index"].pct_change(1).mul(100).round(2)

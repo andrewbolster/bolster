@@ -12,15 +12,14 @@ Historical data remains static once published, with occasional corrections or cl
 Example:
     Retrieve election results for specific years and constituencies:
 
-        >>> from bolster.data_sources import eoni  # doctest: +SKIP
+        >>> from bolster.data_sources import eoni
         >>> # Get available election results
-        >>> results_2022 = eoni.get_election_results(2022)  # doctest: +SKIP
-        >>> print(f"Found {len(results_2022)} constituency results for 2022")  # doctest: +SKIP
+        >>> results_2022 = eoni.get_election_results(2022)
 
         >>> # Get specific constituency data
-        >>> belfast_east = eoni.get_constituency_results("Belfast East", 2022)  # doctest: +SKIP
-        >>> for candidate in belfast_east['candidates']:  # doctest: +SKIP
-        ...     print(f"{candidate['name']}: {candidate['votes']} votes")  # doctest: +SKIP
+        >>> belfast_east = eoni.get_constituency_results("Belfast East", 2022)
+        >>> for candidate in belfast_east['candidates']:
+        ...     print(f"{candidate['name']}: {candidate['votes']} votes")
 
 The module supports automated ingestion of NI Assembly election results with constituency-level
 detail and candidate performance data.
@@ -57,8 +56,8 @@ def get_page(path: AnyStr) -> BeautifulSoup:
     Note:
         EONI is trying to block people from scraping and will return a 403 error if you don't pass a 'conventional' user agent
 
-    >>> page = get_page("/Elections/")  # doctest: +SKIP
-    >>> page.find('title').contents[0].strip()  # doctest: +SKIP
+    >>> page = get_page("/Elections/")
+    >>> page.find('title').contents[0].strip()
     'Elections | The Electoral Office for Northern Ireland'
 
     """
@@ -75,10 +74,10 @@ def find_xls_links_in_page(page: BeautifulSoup) -> Iterable[AnyStr]:
     #WTF Was starting to do some consistency checks between elections to make sure all is kosher, and was wondering why I had a Strangford listing in 2017 but not 2022;
     # As a cross-check on the result page, I walk the links in the right colum of the page, looking for links that have text that ends (XLS). Pretty simple you might think. Except the Strangford link ends in (XLS  and then a random closing ) text string is added to the end.
 
-    >>> page = get_page("/results-data/ni-assembly-election-2022-results/")  # doctest: +SKIP
-    >>> len(list(find_xls_links_in_page(page)))  # doctest: +SKIP
+    >>> page = get_page("/results-data/ni-assembly-election-2022-results/")
+    >>> len(list(find_xls_links_in_page(page)))
     18
-    >>> next(find_xls_links_in_page(page))  # doctest: +SKIP
+    >>> next(find_xls_links_in_page(page))
     'https://www.eoni.org.uk/media/omtlpqow/ni-assembly-election-2022-result-sheet-belfast-east-xls.xlsx'
 
     """
@@ -92,7 +91,7 @@ def normalise_constituencies(cons_str: str) -> str:
 
     Use this function to take external/unconventional inputs and project them into a normalised format.
 
-    >>> normalise_constituencies('Newry & Armagh')  # doctest: +SKIP
+    >>> normalise_constituencies('Newry & Armagh')
     'newry and armagh'
 
     """

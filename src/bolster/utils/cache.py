@@ -13,7 +13,7 @@ Example:
     >>> hash_url("https://example.com/data.csv")
     '2a01ab0de708440185cbb6473893860c'
     >>> downloader = CachedDownloader("my_source")
-    >>> path = downloader.download("https://example.com/data.csv", cache_ttl_hours=24)  # doctest: +SKIP
+    >>> path = downloader.download("https://example.com/data.csv", cache_ttl_hours=24)
 """
 
 import hashlib
@@ -72,7 +72,7 @@ class CachedDownloader:
         >>> path = downloader.download(
         ...     "https://example.com/data.csv",
         ...     cache_ttl_hours=24
-        ... )  # doctest: +SKIP
+        ... )
     """
 
     def __init__(self, namespace: str, timeout: int = 60):

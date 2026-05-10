@@ -197,7 +197,7 @@ def download_file(url: str, cache_ttl_hours: int = 24, force_refresh: bool = Fal
         >>> path = download_file(
         ...     "https://example.com/data.csv",
         ...     cache_ttl_hours=24
-        ... )  # doctest: +SKIP
+        ... )
     """
     try:
         return _downloader.download(url, cache_ttl_hours=cache_ttl_hours, force_refresh=force_refresh)
@@ -217,6 +217,6 @@ def clear_cache(pattern: str | None = None) -> int:
 
     Example:
         >>> from bolster.data_sources.psni._base import clear_cache
-        >>> deleted = clear_cache("*.csv")  # doctest: +SKIP
+        >>> deleted = clear_cache("*.csv")
     """
     return _downloader.clear(pattern)

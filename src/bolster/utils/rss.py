@@ -174,9 +174,8 @@ def parse_rss_feed(feed_url: str, timeout: int = 30) -> Feed:
         ValueError: If the feed cannot be parsed
 
     Example:
-        >>> feed = parse_rss_feed("https://example.com/feed.xml")  # doctest: +SKIP
-        >>> print(f"Feed: {feed.title}")  # doctest: +SKIP
-        >>> for entry in feed.entries:  # doctest: +SKIP
+        >>> feed = parse_rss_feed("https://example.com/feed.xml")
+        >>> for entry in feed.entries:
         ...     print(f"  - {entry.title}")
     """
     # Fetch the feed
@@ -295,10 +294,8 @@ def get_nisra_statistics_feed(order: str = "recent", timeout: int = 30, limit: i
         Feed object with NISRA statistics
 
     Example:
-        >>> feed = get_nisra_statistics_feed()  # doctest: +SKIP
-        >>> print(f"Found {len(feed.entries)} NISRA publications")  # doctest: +SKIP
-        >>> feed100 = get_nisra_statistics_feed(limit=100)  # doctest: +SKIP
-        >>> print(f"Found {len(feed100.entries)} NISRA publications")  # doctest: +SKIP
+        >>> feed = get_nisra_statistics_feed()
+        >>> feed100 = get_nisra_statistics_feed(limit=100)
     """
     order_param = "&order=release-date-oldest" if order == "oldest" else ""
     base_url = (

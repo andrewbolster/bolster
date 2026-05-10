@@ -16,13 +16,11 @@ Update Frequency: Monthly (published ~6 weeks after reference month)
 Geographic Coverage: Northern Ireland (resident stillbirths)
 
 Example:
-    >>> from bolster.data_sources.nisra import stillbirths  # doctest: +SKIP
-    >>> df = stillbirths.get_latest_stillbirths()  # doctest: +SKIP
-    >>> print(df.head())  # doctest: +SKIP
+    >>> from bolster.data_sources.nisra import stillbirths
+    >>> df = stillbirths.get_latest_stillbirths()
 
     >>> # Total stillbirths in 2024
-    >>> total_2024 = df[df['year'] == 2024]['stillbirths'].sum()  # doctest: +SKIP
-    >>> print(f"Stillbirths in 2024: {total_2024}")  # doctest: +SKIP
+    >>> total_2024 = df[df['year'] == 2024]['stillbirths'].sum()
 """
 
 import logging
@@ -202,9 +200,8 @@ def get_latest_stillbirths(force_refresh: bool = False) -> pd.DataFrame:
         NISRAValidationError: If file structure is unexpected
 
     Example:
-        >>> df = get_latest_stillbirths()  # doctest: +SKIP
-        >>> annual = df.groupby('year')['stillbirths'].sum()  # doctest: +SKIP
-        >>> print(annual.tail())  # doctest: +SKIP
+        >>> df = get_latest_stillbirths()
+        >>> annual = df.groupby('year')['stillbirths'].sum()
     """
     excel_url = get_latest_stillbirths_publication_url()
     logger.info(f"Downloading stillbirths data from: {excel_url}")
@@ -254,9 +251,8 @@ def get_stillbirths_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
         Filtered DataFrame
 
     Example:
-        >>> df = get_latest_stillbirths()  # doctest: +SKIP
-        >>> df_2024 = get_stillbirths_by_year(df, 2024)  # doctest: +SKIP
-        >>> print(df_2024['stillbirths'].sum())  # doctest: +SKIP
+        >>> df = get_latest_stillbirths()
+        >>> df_2024 = get_stillbirths_by_year(df, 2024)
     """
     return df[df["year"] == year].reset_index(drop=True)
 
@@ -276,11 +272,10 @@ def get_stillbirth_rate(
         total_births, stillbirth_rate
 
     Example:
-        >>> from bolster.data_sources.nisra import stillbirths, births  # doctest: +SKIP
-        >>> sb = stillbirths.get_latest_stillbirths()  # doctest: +SKIP
-        >>> lb = births.get_latest_births(event_type='registration')  # doctest: +SKIP
-        >>> rate = stillbirths.get_stillbirth_rate(sb, lb)  # doctest: +SKIP
-        >>> print(rate[['year', 'month', 'stillbirth_rate']].tail(12))  # doctest: +SKIP
+        >>> from bolster.data_sources.nisra import stillbirths, births
+        >>> sb = stillbirths.get_latest_stillbirths()
+        >>> lb = births.get_latest_births(event_type='registration')
+        >>> rate = stillbirths.get_stillbirth_rate(sb, lb)
     """
     # births_df has 'tests_conducted' or 'births_persons' depending on event_type
     births_col = next(
@@ -307,9 +302,8 @@ def get_annual_summary(df: pd.DataFrame) -> pd.DataFrame:
         DataFrame with columns: year, total_stillbirths, yoy_change, yoy_pct_change
 
     Example:
-        >>> df = get_latest_stillbirths()  # doctest: +SKIP
-        >>> summary = get_annual_summary(df)  # doctest: +SKIP
-        >>> print(summary.tail(5))  # doctest: +SKIP
+        >>> df = get_latest_stillbirths()
+        >>> summary = get_annual_summary(df)
     """
     annual = df.groupby("year")["stillbirths"].sum().reset_index()
     annual = annual.rename(columns={"stillbirths": "total_stillbirths"})

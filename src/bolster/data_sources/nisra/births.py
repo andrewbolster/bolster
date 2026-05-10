@@ -26,13 +26,12 @@ Update Frequency: Monthly (published 12th of following month at 9:30 AM)
 Geographic Coverage: Northern Ireland (based on mother's residence)
 
 Example:
-    >>> from bolster.data_sources.nisra import births  # doctest: +SKIP
+    >>> from bolster.data_sources.nisra import births
     >>> # Get latest births by registration date
-    >>> df = births.get_latest_births(event_type='registration')  # doctest: +SKIP
-    >>> print(df.head())  # doctest: +SKIP
+    >>> df = births.get_latest_births(event_type='registration')
 
     >>> # Get latest births by occurrence date
-    >>> df = births.get_latest_births(event_type='occurrence')  # doctest: +SKIP
+    >>> df = births.get_latest_births(event_type='occurrence')
 """
 
 import logging
@@ -344,13 +343,10 @@ def get_latest_births(
 
     Example:
         >>> # Get births by registration date
-        >>> df = get_latest_births(event_type='registration')  # doctest: +SKIP
-        >>> print(df[df['sex'] == 'Male'].head())  # doctest: +SKIP
+        >>> df = get_latest_births(event_type='registration')
 
         >>> # Get both types
-        >>> data = get_latest_births(event_type='both')  # doctest: +SKIP
-        >>> print(data['registration'].head())  # doctest: +SKIP
-        >>> print(data['occurrence'].head())  # doctest: +SKIP
+        >>> data = get_latest_births(event_type='both')
     """
     # Discover latest publication
     excel_url = get_latest_births_publication_url()

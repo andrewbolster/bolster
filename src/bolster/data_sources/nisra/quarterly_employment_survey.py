@@ -21,13 +21,11 @@ Geographic Coverage: Northern Ireland
 Time Series: Q1 2005 to present (seasonally adjusted); Q1 2005 unadjusted
 
 Example:
-    >>> from bolster.data_sources.nisra import quarterly_employment_survey as qes  # doctest: +SKIP
-    >>> df = qes.get_latest_qes()  # doctest: +SKIP
-    >>> print(df.tail(4))  # doctest: +SKIP
+    >>> from bolster.data_sources.nisra import quarterly_employment_survey as qes
+    >>> df = qes.get_latest_qes()
 
     >>> # Total employee jobs trend
-    >>> growth = qes.get_qes_growth(df)  # doctest: +SKIP
-    >>> print(growth[['quarter_label', 'total_jobs', 'total_yoy']].tail(8))  # doctest: +SKIP
+    >>> growth = qes.get_qes_growth(df)
 """
 
 import logging
@@ -263,9 +261,9 @@ def get_latest_qes(force_refresh: bool = False, adjusted: bool = True) -> pd.Dat
         NISRAValidationError: If file structure is unexpected
 
     Example:
-        >>> df = get_latest_qes()  # doctest: +SKIP
-        >>> latest = df.iloc[-1]  # doctest: +SKIP
-        >>> print(f"NI employee jobs {latest['quarter_label']}: {latest['total_jobs']:,}")  # doctest: +SKIP
+        >>> df = get_latest_qes()
+        >>> latest = df.iloc[-1]
+        >>> print(f"NI employee jobs {latest['quarter_label']}: {latest['total_jobs']:,}")
         NI employee jobs Q4 2025: 843,860
     """
     excel_url = get_latest_qes_publication_url()
@@ -330,9 +328,8 @@ def get_qes_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
         Filtered DataFrame (up to 4 quarters)
 
     Example:
-        >>> df = get_latest_qes()  # doctest: +SKIP
-        >>> df_2024 = get_qes_by_year(df, 2024)  # doctest: +SKIP
-        >>> print(df_2024[['quarter_label', 'total_jobs']])  # doctest: +SKIP
+        >>> df = get_latest_qes()
+        >>> df_2024 = get_qes_by_year(df, 2024)
     """
     return df[df["year"] == year].reset_index(drop=True)
 
@@ -351,9 +348,8 @@ def get_qes_growth(df: pd.DataFrame) -> pd.DataFrame:
             - manufacturing_yoy: Manufacturing jobs year-on-year % change
 
     Example:
-        >>> df = get_latest_qes()  # doctest: +SKIP
-        >>> growth = get_qes_growth(df)  # doctest: +SKIP
-        >>> print(growth[['quarter_label', 'total_jobs', 'total_yoy']].tail(8))  # doctest: +SKIP
+        >>> df = get_latest_qes()
+        >>> growth = get_qes_growth(df)
     """
     result = df.copy()
     result["total_qoq"] = result["total_jobs"].diff(1)
@@ -377,10 +373,9 @@ def get_sector_shares(df: pd.DataFrame) -> pd.DataFrame:
             - other_share: Other industries % of total
 
     Example:
-        >>> df = get_latest_qes()  # doctest: +SKIP
-        >>> shares = get_sector_shares(df)  # doctest: +SKIP
-        >>> latest = shares.iloc[-1]  # doctest: +SKIP
-        >>> print(f"Services share: {latest['services_share']:.1f}%")  # doctest: +SKIP
+        >>> df = get_latest_qes()
+        >>> shares = get_sector_shares(df)
+        >>> latest = shares.iloc[-1]
     """
     result = df.copy()
     for sector in ("manufacturing", "construction", "services", "other"):

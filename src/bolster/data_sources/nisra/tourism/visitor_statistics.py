@@ -27,18 +27,15 @@ Geographic Coverage: Northern Ireland (by visitor origin market)
 Reference Period: Rolling 12-month and year-to-date
 
 Example:
-    >>> from bolster.data_sources.nisra.tourism import visitor_statistics  # doctest: +SKIP
+    >>> from bolster.data_sources.nisra.tourism import visitor_statistics
     >>> # Get latest visitor statistics by market
-    >>> df = visitor_statistics.get_latest_visitor_statistics()  # doctest: +SKIP
-    >>> print(df.head())  # doctest: +SKIP
+    >>> df = visitor_statistics.get_latest_visitor_statistics()
 
     >>> # Get trips from Great Britain
-    >>> gb_trips = df[df['market'] == 'Great Britain']['trips'].values[0]  # doctest: +SKIP
-    >>> print(f"GB trips (12-month): {gb_trips:,.0f}")  # doctest: +SKIP
+    >>> gb_trips = df[df['market'] == 'Great Britain']['trips'].values[0]
 
     >>> # Get total expenditure
-    >>> total_spend = df['expenditure'].sum()  # doctest: +SKIP
-    >>> print(f"Total visitor spend: £{total_spend:.1f}M")  # doctest: +SKIP
+    >>> total_spend = df['expenditure'].sum()
 """
 
 import logging
@@ -317,9 +314,8 @@ def get_latest_visitor_statistics(
         NISRAValidationError: If data parsing fails
 
     Example:
-        >>> df = get_latest_visitor_statistics()  # doctest: +SKIP
-        >>> gb = df[df['market'] == 'Great Britain'].iloc[0]  # doctest: +SKIP
-        >>> print(f"GB: {gb['trips']:,.0f} trips, £{gb['expenditure']:.1f}M spent")  # doctest: +SKIP
+        >>> df = get_latest_visitor_statistics()
+        >>> gb = df[df['market'] == 'Great Britain'].iloc[0]
     """
     excel_url, pub_period = get_latest_visitor_statistics_publication_url()
 
@@ -383,10 +379,9 @@ def get_visitor_statistics_by_market(df: pd.DataFrame, market: str) -> pd.Series
         Series with statistics for the market, or None if not found
 
     Example:
-        >>> df = get_latest_visitor_statistics()  # doctest: +SKIP
-        >>> gb = get_visitor_statistics_by_market(df, "Great Britain")  # doctest: +SKIP
-        >>> if gb is not None:  # doctest: +SKIP
-        ...     print(f"GB trips: {gb['trips']:,.0f}")  # doctest: +SKIP
+        >>> df = get_latest_visitor_statistics()
+        >>> gb = get_visitor_statistics_by_market(df, "Great Britain")
+        >>> if gb is not None:
     """
     matches = df[df["market"].str.lower() == market.lower()]
     if matches.empty:
@@ -416,9 +411,8 @@ def get_domestic_vs_external(df: pd.DataFrame) -> pd.DataFrame:
         DataFrame with domestic and external totals and percentages
 
     Example:
-        >>> df = get_latest_visitor_statistics()  # doctest: +SKIP
-        >>> comparison = get_domestic_vs_external(df)  # doctest: +SKIP
-        >>> print(comparison)  # doctest: +SKIP
+        >>> df = get_latest_visitor_statistics()
+        >>> comparison = get_domestic_vs_external(df)
     """
     domestic = df[df["market"] == "NI Residents"]
     external = df[~df["market"].isin(["NI Residents", "Total"])]
@@ -468,9 +462,8 @@ def get_expenditure_per_trip(df: pd.DataFrame) -> pd.DataFrame:
         DataFrame with market and expenditure_per_trip columns
 
     Example:
-        >>> df = get_latest_visitor_statistics()  # doctest: +SKIP
-        >>> spend = get_expenditure_per_trip(df)  # doctest: +SKIP
-        >>> print(spend.sort_values('expenditure_per_trip', ascending=False))  # doctest: +SKIP
+        >>> df = get_latest_visitor_statistics()
+        >>> spend = get_expenditure_per_trip(df)
     """
     result = df[df["market"] != "Total"].copy()
     # Expenditure is in millions, trips are individual
@@ -488,9 +481,8 @@ def get_nights_per_trip(df: pd.DataFrame) -> pd.DataFrame:
         DataFrame with market and nights_per_trip columns
 
     Example:
-        >>> df = get_latest_visitor_statistics()  # doctest: +SKIP
-        >>> duration = get_nights_per_trip(df)  # doctest: +SKIP
-        >>> print(duration.sort_values('nights_per_trip', ascending=False))  # doctest: +SKIP
+        >>> df = get_latest_visitor_statistics()
+        >>> duration = get_nights_per_trip(df)
     """
     result = df[df["market"] != "Total"].copy()
     result["nights_per_trip"] = (result["nights"] / result["trips"]).round(2)
@@ -507,9 +499,8 @@ def get_market_summary(df: pd.DataFrame) -> pd.DataFrame:
         DataFrame with market summary including percentages and per-trip metrics
 
     Example:
-        >>> df = get_latest_visitor_statistics()  # doctest: +SKIP
-        >>> summary = get_market_summary(df)  # doctest: +SKIP
-        >>> print(summary)  # doctest: +SKIP
+        >>> df = get_latest_visitor_statistics()
+        >>> summary = get_market_summary(df)
     """
     total = get_total_visitor_statistics(df)
     if total is None:

@@ -26,23 +26,19 @@ Data Coverage:
     - Base period: 2022=100
 
 Examples:
-    >>> from bolster.data_sources.nisra import composite_index  # doctest: +SKIP
+    >>> from bolster.data_sources.nisra import composite_index
     >>> # Get latest NICEI data
-    >>> nicei_df = composite_index.get_latest_nicei()  # doctest: +SKIP
-    >>> print(nicei_df.tail())  # doctest: +SKIP
+    >>> nicei_df = composite_index.get_latest_nicei()
 
     >>> # Get sector contributions
-    >>> contrib_df = composite_index.get_latest_nicei_contributions()  # doctest: +SKIP
-    >>> print(contrib_df.tail())  # doctest: +SKIP
+    >>> contrib_df = composite_index.get_latest_nicei_contributions()
 
     >>> # Filter for specific year
-    >>> nicei_2024 = composite_index.get_nicei_by_year(nicei_df, 2024)  # doctest: +SKIP
-    >>> print(f"Annual average 2024: {nicei_2024['nicei'].mean():.2f}")  # doctest: +SKIP
+    >>> nicei_2024 = composite_index.get_nicei_by_year(nicei_df, 2024)
 
     >>> # Analyze sectoral performance
-    >>> latest = nicei_df.iloc[-1]  # doctest: +SKIP
-    >>> print(f"Q{latest['quarter']} {latest['year']} NICEI: {latest['nicei']:.2f}")  # doctest: +SKIP
-    >>> print(f"Services: {latest['services']:.2f}, Construction: {latest['construction']:.2f}")  # doctest: +SKIP
+    >>> latest = nicei_df.iloc[-1]
+    >>> print(f"Services: {latest['services']:.2f}, Construction: {latest['construction']:.2f}")
 
 Publication Details:
     - Frequency: Quarterly (published ~3 months after quarter end)
@@ -83,8 +79,7 @@ def get_latest_nicei_publication_url() -> tuple[str, int, str]:
         NISRADataNotFoundError: If unable to find the latest publication
 
     Example:
-        >>> url, year, quarter = get_latest_nicei_publication_url()  # doctest: +SKIP
-        >>> print(f"Latest NICEI: Q{quarter} {year}")  # doctest: +SKIP
+        >>> url, year, quarter = get_latest_nicei_publication_url()
     """
     from bs4 import BeautifulSoup
 
@@ -167,8 +162,7 @@ def parse_nicei_indices(file_path: str | Path) -> pd.DataFrame:
             - agriculture: float
 
     Example:
-        >>> df = parse_nicei_indices('/path/to/nicei.xlsx')  # doctest: +SKIP
-        >>> print(df[df['year'] == 2024].mean())  # doctest: +SKIP
+        >>> df = parse_nicei_indices('/path/to/nicei.xlsx')
     """
     logger.info(f"Parsing NICEI indices from: {file_path}")
 
@@ -225,9 +219,8 @@ def parse_nicei_contributions(file_path: str | Path) -> pd.DataFrame:
             - agriculture_contribution: float
 
     Example:
-        >>> df = parse_nicei_contributions('/path/to/nicei.xlsx')  # doctest: +SKIP
+        >>> df = parse_nicei_contributions('/path/to/nicei.xlsx')
         >>> # Find quarter with largest services contribution
-        >>> print(df.loc[df['services_contribution'].idxmax()])  # doctest: +SKIP
     """
     logger.info(f"Parsing NICEI sector contributions from: {file_path}")
 
@@ -290,8 +283,7 @@ def get_latest_nicei(force_refresh: bool = False) -> pd.DataFrame:
         DataFrame with quarterly NICEI index values and sectoral breakdowns
 
     Example:
-        >>> df = get_latest_nicei()  # doctest: +SKIP
-        >>> print(f"Latest NICEI: {df.iloc[-1]['nicei']:.2f}")  # doctest: +SKIP
+        >>> df = get_latest_nicei()
     """
     excel_url, year, quarter = get_latest_nicei_publication_url()
 
@@ -314,10 +306,8 @@ def get_latest_nicei_contributions(force_refresh: bool = False) -> pd.DataFrame:
         DataFrame with quarterly sector contributions to NICEI change
 
     Example:
-        >>> df = get_latest_nicei_contributions()  # doctest: +SKIP
-        >>> latest = df.iloc[-1]  # doctest: +SKIP
-        >>> print(f"Q{latest['quarter']} {latest['year']} contributions:")  # doctest: +SKIP
-        >>> print(f"  Services: {latest['services_contribution']:.2f}")  # doctest: +SKIP
+        >>> df = get_latest_nicei_contributions()
+        >>> latest = df.iloc[-1]
     """
     excel_url, year, quarter = get_latest_nicei_publication_url()
 
@@ -338,9 +328,8 @@ def get_nicei_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
         Filtered DataFrame containing only the specified year
 
     Example:
-        >>> df = get_latest_nicei()  # doctest: +SKIP
-        >>> df_2024 = get_nicei_by_year(df, 2024)  # doctest: +SKIP
-        >>> print(f"2024 average NICEI: {df_2024['nicei'].mean():.2f}")  # doctest: +SKIP
+        >>> df = get_latest_nicei()
+        >>> df_2024 = get_nicei_by_year(df, 2024)
     """
     return df[df["year"] == year].reset_index(drop=True)
 
@@ -357,9 +346,8 @@ def get_nicei_by_quarter(df: pd.DataFrame, year: int, quarter: int) -> pd.DataFr
         Filtered DataFrame containing only the specified quarter (usually 1 row)
 
     Example:
-        >>> df = get_latest_nicei()  # doctest: +SKIP
-        >>> q2_2024 = get_nicei_by_quarter(df, 2024, 2)  # doctest: +SKIP
-        >>> print(f"Q2 2024 NICEI: {q2_2024['nicei'].values[0]:.2f}")  # doctest: +SKIP
+        >>> df = get_latest_nicei()
+        >>> q2_2024 = get_nicei_by_quarter(df, 2024, 2)
     """
     return df[(df["year"] == year) & (df["quarter"] == quarter)].reset_index(drop=True)
 

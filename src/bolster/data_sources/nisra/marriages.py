@@ -25,18 +25,15 @@ Geographic Coverage: Northern Ireland
 Reference Date: Month of registration
 
 Example:
-    >>> from bolster.data_sources.nisra import marriages  # doctest: +SKIP
+    >>> from bolster.data_sources.nisra import marriages
     >>> # Get latest marriage registrations
-    >>> df = marriages.get_latest_marriages()  # doctest: +SKIP
-    >>> print(df.head())  # doctest: +SKIP
+    >>> df = marriages.get_latest_marriages()
 
     >>> # Get latest civil partnership registrations
-    >>> cp_df = marriages.get_latest_civil_partnerships()  # doctest: +SKIP
-    >>> print(f"Total civil partnerships in 2024: {cp_df[cp_df['year']==2024]['civil_partnerships'].sum()}")  # doctest: +SKIP
+    >>> cp_df = marriages.get_latest_civil_partnerships()
 
     >>> # Filter for a specific year
-    >>> df_2024 = df[df['year'] == 2024]  # doctest: +SKIP
-    >>> print(f"Total marriages in 2024: {df_2024['marriages'].sum():,}")  # doctest: +SKIP
+    >>> df_2024 = df[df['year'] == 2024]
 """
 
 import logging
@@ -279,16 +276,14 @@ def get_latest_marriages(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> # Get all data
-        >>> df = get_latest_marriages()  # doctest: +SKIP
+        >>> df = get_latest_marriages()
 
         >>> # Filter for 2024
-        >>> df_2024 = df[df['year'] == 2024]  # doctest: +SKIP
-        >>> total_2024 = df_2024['marriages'].sum()  # doctest: +SKIP
-        >>> print(f"Total marriages in 2024: {total_2024:,}")  # doctest: +SKIP
+        >>> df_2024 = df[df['year'] == 2024]
+        >>> total_2024 = df_2024['marriages'].sum()
 
         >>> # Get monthly average by month across all years
-        >>> monthly_avg = df.groupby('month')['marriages'].mean()  # doctest: +SKIP
-        >>> print(monthly_avg.sort_values(ascending=False))  # doctest: +SKIP
+        >>> monthly_avg = df.groupby('month')['marriages'].mean()
     """
     # Discover latest publication
     excel_url, pub_date = get_latest_marriages_publication_url()
@@ -343,10 +338,9 @@ def get_marriages_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
         Filtered DataFrame
 
     Example:
-        >>> df = get_latest_marriages()  # doctest: +SKIP
-        >>> df_2024 = get_marriages_by_year(df, 2024)  # doctest: +SKIP
-        >>> total = df_2024['marriages'].sum()  # doctest: +SKIP
-        >>> print(f"Total marriages in 2024: {total:,}")  # doctest: +SKIP
+        >>> df = get_latest_marriages()
+        >>> df_2024 = get_marriages_by_year(df, 2024)
+        >>> total = df_2024['marriages'].sum()
     """
     return df[df["year"] == year].reset_index(drop=True)
 
@@ -365,9 +359,9 @@ def get_marriages_summary_by_year(df: pd.DataFrame) -> pd.DataFrame:
             - avg_per_month: float (average marriages per month)
 
     Example:
-        >>> df = get_latest_marriages()  # doctest: +SKIP
-        >>> summary = get_marriages_summary_by_year(df)  # doctest: +SKIP
-        >>> print(summary.tail(10))  # Last 10 years  # doctest: +SKIP
+        >>> df = get_latest_marriages()
+        >>> summary = get_marriages_summary_by_year(df)
+        >>> print(summary.tail(10))  # Last 10 years
     """
     summary = (
         df.groupby("year")
@@ -634,10 +628,9 @@ def get_latest_civil_partnerships(force_refresh: bool = False) -> pd.DataFrame:
         NISRAValidationError: If file structure is unexpected
 
     Example:
-        >>> df = get_latest_civil_partnerships()  # doctest: +SKIP
-        >>> df_2024 = df[df['year'] == 2024]  # doctest: +SKIP
-        >>> total = df_2024['civil_partnerships'].sum()  # doctest: +SKIP
-        >>> print(f"Total civil partnerships in 2024: {total}")  # doctest: +SKIP
+        >>> df = get_latest_civil_partnerships()
+        >>> df_2024 = df[df['year'] == 2024]
+        >>> total = df_2024['civil_partnerships'].sum()
     """
     excel_url, pub_date = get_latest_civil_partnerships_publication_url()
 

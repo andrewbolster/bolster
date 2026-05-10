@@ -153,9 +153,12 @@ def find_header_row(sheet, expected_columns: list[str], max_rows: int = 20) -> i
         1-based row number where headers are found, or None if not found
 
     Example:
-        >>> sheet = wb['Table 1a']  # doctest: +SKIP
-        >>> header_row = find_header_row(sheet, ['Week Ending', 'Total Deaths'])  # doctest: +SKIP
-        >>> # Returns 4 if headers are in row 4
+        >>> import openpyxl
+        >>> wb = openpyxl.Workbook()
+        >>> ws = wb.active
+        >>> _ = ws.append(['Week Ending', 'Total Deaths'])
+        >>> find_header_row(ws, ['Week Ending', 'Total Deaths'])
+        1
     """
     for row_idx, row in enumerate(sheet.iter_rows(min_row=1, max_row=max_rows, values_only=True), 1):
         # Convert row to lowercase strings for comparison
@@ -189,9 +192,12 @@ def extract_column_mapping(sheet, header_row: int, column_names: list[str]) -> d
         Dictionary mapping column names to 0-based column indices
 
     Example:
-        >>> mapping = extract_column_mapping(sheet, 4, ['Week Ending', 'Total Deaths'])  # doctest: +SKIP
-        >>> # Returns {'Week Ending': 1, 'Total Deaths': 3}
-        >>> week_ending_idx = mapping['Week Ending']  # doctest: +SKIP
+        >>> import openpyxl
+        >>> wb = openpyxl.Workbook()
+        >>> ws = wb.active
+        >>> _ = ws.append(['Week Ending', 'Total Deaths'])
+        >>> extract_column_mapping(ws, 1, ['Week Ending', 'Total Deaths'])
+        {'Week Ending': 0, 'Total Deaths': 1}
     """
     headers = list(sheet[header_row])
     mapping = {}

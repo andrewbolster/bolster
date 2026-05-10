@@ -24,23 +24,20 @@ Data Coverage:
     - Base year: 2022 = 100 (chained volume measure)
 
 Examples:
-    >>> from bolster.data_sources.nisra import construction_output  # doctest: +SKIP
+    >>> from bolster.data_sources.nisra import construction_output
     >>> # Get latest construction output data
-    >>> df = construction_output.get_latest_construction_output()  # doctest: +SKIP
-    >>> print(df.head())  # doctest: +SKIP
+    >>> df = construction_output.get_latest_construction_output()
 
     >>> # Filter for specific year
-    >>> df_2024 = construction_output.get_construction_by_year(df, 2024)  # doctest: +SKIP
-    >>> print(f"Q4 2024 All Work: {df_2024[df_2024['quarter']=='Q4']['all_work_index'].values[0]}")  # doctest: +SKIP
+    >>> df_2024 = construction_output.get_construction_by_year(df, 2024)
 
     >>> # Get specific quarter
-    >>> q2_2025 = construction_output.get_construction_by_quarter(df, 'Q2', 2025)  # doctest: +SKIP
-    >>> print(f"Q2 2025: All Work={q2_2025['all_work_index'].values[0]:.1f}")  # doctest: +SKIP
+    >>> q2_2025 = construction_output.get_construction_by_quarter(df, 'Q2', 2025)
 
     >>> # Calculate growth rates
-    >>> df_growth = construction_output.calculate_growth_rates(df)  # doctest: +SKIP
-    >>> recent = df_growth.tail(4)  # doctest: +SKIP
-    >>> print(recent[['quarter', 'year', 'all_work_index', 'all_work_yoy_growth']])  # doctest: +SKIP
+    >>> df_growth = construction_output.calculate_growth_rates(df)
+    >>> recent = df_growth.tail(4)
+    >>> print(recent[['quarter', 'year', 'all_work_index', 'all_work_yoy_growth']])
 
 Publication Details:
     - Frequency: Quarterly
@@ -79,8 +76,7 @@ def get_latest_construction_publication_url() -> tuple[str, datetime]:
         NISRADataNotFoundError: If unable to find the latest publication
 
     Example:
-        >>> url, pub_date = get_latest_construction_publication_url()  # doctest: +SKIP
-        >>> print(f"Latest published: {pub_date.strftime('%Y-%m-%d')}")  # doctest: +SKIP
+        >>> url, pub_date = get_latest_construction_publication_url()
     """
     from bs4 import BeautifulSoup
 
@@ -154,8 +150,7 @@ def parse_construction_file(file_path: str | Path) -> pd.DataFrame:
             - repair_maintenance_index: float (repair and maintenance, SA)
 
     Example:
-        >>> df = parse_construction_file("construction-tables-q2-2025.xlsx")  # doctest: +SKIP
-        >>> print(df[df['year'] == 2025].tail())  # doctest: +SKIP
+        >>> df = parse_construction_file("construction-tables-q2-2025.xlsx")
     """
     logger.info(f"Parsing Construction Output file: {file_path}")
 
@@ -248,9 +243,7 @@ def get_latest_construction_output(force_refresh: bool = False) -> pd.DataFrame:
         DataFrame with quarterly Construction Output data
 
     Example:
-        >>> df = get_latest_construction_output()  # doctest: +SKIP
-        >>> print(f"Latest quarter: {df.iloc[-1]['quarter']} {df.iloc[-1]['year']}")  # doctest: +SKIP
-        >>> print(f"All Work Index: {df.iloc[-1]['all_work_index']:.1f}")  # doctest: +SKIP
+        >>> df = get_latest_construction_output()
     """
     excel_url, pub_date = get_latest_construction_publication_url()
 
@@ -276,9 +269,8 @@ def get_construction_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
         DataFrame with only the specified year's data
 
     Example:
-        >>> df = get_latest_construction_output()  # doctest: +SKIP
-        >>> df_2024 = get_construction_by_year(df, 2024)  # doctest: +SKIP
-        >>> print(df_2024)  # doctest: +SKIP
+        >>> df = get_latest_construction_output()
+        >>> df_2024 = get_construction_by_year(df, 2024)
     """
     return df[df["year"] == year].reset_index(drop=True)
 
@@ -295,9 +287,8 @@ def get_construction_by_quarter(df: pd.DataFrame, quarter: str, year: int) -> pd
         DataFrame with single row for the specified quarter
 
     Example:
-        >>> df = get_latest_construction_output()  # doctest: +SKIP
-        >>> q2_2025 = get_construction_by_quarter(df, 'Q2', 2025)  # doctest: +SKIP
-        >>> print(f"Q2 2025 All Work: {q2_2025['all_work_index'].values[0]:.1f}")  # doctest: +SKIP
+        >>> df = get_latest_construction_output()
+        >>> q2_2025 = get_construction_by_quarter(df, 'Q2', 2025)
     """
     return df[(df["quarter"] == quarter) & (df["year"] == year)].reset_index(drop=True)
 
@@ -316,10 +307,9 @@ def calculate_growth_rates(df: pd.DataFrame, periods: int = 4) -> pd.DataFrame:
             - repair_maintenance_yoy_growth: R&M percentage change vs same quarter previous year
 
     Example:
-        >>> df = get_latest_construction_output()  # doctest: +SKIP
-        >>> df_growth = calculate_growth_rates(df)  # doctest: +SKIP
-        >>> recent = df_growth.tail(4)  # doctest: +SKIP
-        >>> print(recent[['quarter', 'year', 'all_work_index', 'all_work_yoy_growth']])  # doctest: +SKIP
+        >>> df = get_latest_construction_output()
+        >>> df_growth = calculate_growth_rates(df)
+        >>> recent = df_growth.tail(4)
     """
     result = df.copy()
 
@@ -350,9 +340,8 @@ def get_summary_statistics(df: pd.DataFrame, start_year: int | None = None, end_
             - quarters_count: Number of quarters included
 
     Example:
-        >>> df = get_latest_construction_output()  # doctest: +SKIP
-        >>> stats = get_summary_statistics(df, start_year=2020)  # doctest: +SKIP
-        >>> print(f"All Work mean since 2020: {stats['all_work_mean']:.1f}")  # doctest: +SKIP
+        >>> df = get_latest_construction_output()
+        >>> stats = get_summary_statistics(df, start_year=2020)
     """
     filtered = df.copy()
 

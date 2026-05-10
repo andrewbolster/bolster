@@ -19,13 +19,11 @@ Geographic Coverage: Northern Ireland and UK comparison
 Base Year: 2020=100
 
 Example:
-    >>> from bolster.data_sources.nisra import index_of_production as iop  # doctest: +SKIP
-    >>> df = iop.get_latest_iop()  # doctest: +SKIP
-    >>> print(df.tail())  # doctest: +SKIP
+    >>> from bolster.data_sources.nisra import index_of_production as iop
+    >>> df = iop.get_latest_iop()
 
     >>> # NI vs UK production gap in latest quarter
-    >>> latest = df.iloc[-1]  # doctest: +SKIP
-    >>> print(f"Q{latest['quarter']} {latest['year']}: NI={latest['ni_index']:.1f}, UK={latest['uk_index']:.1f}")  # doctest: +SKIP
+    >>> latest = df.iloc[-1]
 """
 
 import logging
@@ -183,12 +181,10 @@ def get_latest_iop(force_refresh: bool = False) -> pd.DataFrame:
         NISRAValidationError: If file structure is unexpected
 
     Example:
-        >>> df = get_latest_iop()  # doctest: +SKIP
-        >>> print(df.tail(4))  # doctest: +SKIP
+        >>> df = get_latest_iop()
         >>> # NI outperforming UK?
-        >>> latest = df.iloc[-1]  # doctest: +SKIP
-        >>> gap = latest['ni_index'] - latest['uk_index']  # doctest: +SKIP
-        >>> print(f"NI vs UK gap: {gap:+.1f} points")  # doctest: +SKIP
+        >>> latest = df.iloc[-1]
+        >>> gap = latest['ni_index'] - latest['uk_index']
     """
     excel_url, year, quarter = get_latest_iop_publication_url()
     logger.info(f"Downloading IOP Q{quarter} {year} from: {excel_url}")
@@ -236,9 +232,8 @@ def get_iop_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
         Filtered DataFrame (up to 4 quarters)
 
     Example:
-        >>> df = get_latest_iop()  # doctest: +SKIP
-        >>> df_2024 = get_iop_by_year(df, 2024)  # doctest: +SKIP
-        >>> print(df_2024[['quarter_label', 'ni_index', 'uk_index']])  # doctest: +SKIP
+        >>> df = get_latest_iop()
+        >>> df_2024 = get_iop_by_year(df, 2024)
     """
     return df[df["year"] == year].reset_index(drop=True)
 
@@ -257,9 +252,8 @@ def get_iop_growth(df: pd.DataFrame) -> pd.DataFrame:
             - uk_yoy: UK year-on-year % change
 
     Example:
-        >>> df = get_latest_iop()  # doctest: +SKIP
-        >>> growth = get_iop_growth(df)  # doctest: +SKIP
-        >>> print(growth[['quarter_label', 'ni_yoy', 'uk_yoy']].tail(8))  # doctest: +SKIP
+        >>> df = get_latest_iop()
+        >>> growth = get_iop_growth(df)
     """
     result = df.copy()
     result["ni_qoq"] = result["ni_index"].pct_change(1).mul(100).round(2)
