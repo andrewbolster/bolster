@@ -34,8 +34,12 @@ Time Coverage: April 2001 to December 2021 (OpenDataNI dataset)
 Example:
     >>> from bolster.data_sources.psni import crime_statistics
     >>> df = crime_statistics.get_latest_crime_statistics()
+    >>> sorted(df.columns.tolist())
+    ['calendar_year', 'count', 'crime_type', 'data_measure', 'date', 'lgd_code', 'month', 'nuts3_code', 'nuts3_name', 'policing_district']
     >>> belfast = df[df['policing_district'] == 'Belfast City']
     >>> belfast_lgd = crime_statistics.get_lgd_code('Belfast City')
+    >>> belfast_lgd
+    'N09000003'
 """
 
 import logging
@@ -82,6 +86,8 @@ def get_data_source_info() -> dict:
 
     Example:
         >>> info = get_data_source_info()
+        >>> sorted(info.keys())
+        ['contact_email', 'data_guide_url', 'data_limitation', 'last_update', 'opendatani_url', 'psni_official_url']
     """
     return {
         "opendatani_url": "https://www.opendatani.gov.uk/dataset/police-recorded-crime-in-northern-ireland",
@@ -244,16 +250,13 @@ def get_latest_crime_statistics(
     Example:
         >>> # Get all crime data (NOTE: only through Dec 2021)
         >>> df = get_latest_crime_statistics()
+        >>> sorted(df.columns.tolist())
+        ['calendar_year', 'count', 'crime_type', 'data_measure', 'date', 'lgd_code', 'month', 'nuts3_code', 'nuts3_name', 'policing_district']
         >>>
         >>> # Filter to recent data
         >>> recent = df[df['date'] >= '2020-01-01']
-        >>>
-        >>> # Get total crimes by district for 2021
-        >>> crimes_2021 = df[
-        ...     (df['calendar_year'] == 2021) &
-        ...     (df['data_measure'] == 'Police Recorded Crime') &
-        ...     (df['crime_type'] == 'Total police recorded crime')
-        ... ].groupby('policing_district')['count'].sum()
+        >>> len(recent) > 0
+        True
     """
     logger.info("Fetching PSNI crime statistics from OpenDataNI")
 
@@ -369,9 +372,13 @@ def filter_by_district(
     Example:
         >>> df = get_latest_crime_statistics()
         >>> belfast = filter_by_district(df, "Belfast City")
+        >>> belfast['policing_district'].unique().tolist()
+        ['Belfast City']
         >>>
         >>> # Multiple districts
         >>> cities = filter_by_district(df, ["Belfast City", "Derry City & Strabane"])
+        >>> len(cities['policing_district'].unique()) == 2
+        True
     """
     if isinstance(district, str):
         district = [district]
@@ -395,6 +402,8 @@ def filter_by_crime_type(
     Example:
         >>> df = get_latest_crime_statistics()
         >>> violence = filter_by_crime_type(df, "Violence with injury (including homicide & death/serious injury by unlawful driving)")
+        >>> len(violence) > 0
+        True
     """
     if isinstance(crime_type, str):
         crime_type = [crime_type]
@@ -421,9 +430,13 @@ def filter_by_date_range(
         >>> df = get_latest_crime_statistics()
         >>> # Get 2020 data
         >>> df_2020 = filter_by_date_range(df, "2020-01-01", "2020-12-31")
+        >>> df_2020['calendar_year'].unique().tolist()
+        [2020]
         >>>
         >>> # Get data from 2018 onwards
         >>> recent = filter_by_date_range(df, start_date="2018-01-01")
+        >>> len(recent) > 0
+        True
     """
     filtered = df.copy()
 
@@ -456,6 +469,8 @@ def get_total_crimes_by_district(
     Example:
         >>> df = get_latest_crime_statistics()
         >>> totals_2021 = get_total_crimes_by_district(df, year=2021)
+        >>> sorted(totals_2021.columns.tolist())
+        ['lgd_code', 'nuts3_code', 'policing_district', 'total_crimes']
     """
     # Filter to total crimes measure
     crime_df = df[
@@ -537,6 +552,8 @@ def get_outcome_rates_by_district(
     Example:
         >>> df = get_latest_crime_statistics()
         >>> outcomes = get_outcome_rates_by_district(df, year=2021)
+        >>> 'average_outcome_rate' in outcomes.columns
+        True
     """
     # Filter to outcome rate measure
     outcome_df = df[
@@ -573,7 +590,10 @@ def get_available_crime_types(df: pd.DataFrame) -> list[str]:
     Example:
         >>> df = get_latest_crime_statistics()
         >>> crime_types = get_available_crime_types(df)
-        >>> for crime_type in crime_types:
+        >>> isinstance(crime_types, list)
+        True
+        >>> 'Total police recorded crime' in crime_types
+        True
     """
     return sorted(df["crime_type"].unique().tolist())
 
@@ -590,7 +610,9 @@ def get_available_districts(df: pd.DataFrame) -> list[str]:
     Example:
         >>> df = get_latest_crime_statistics()
         >>> districts = get_available_districts(df)
-        >>> for district in districts:
-        ...     lgd = get_lgd_code(district)
+        >>> isinstance(districts, list)
+        True
+        >>> 'Northern Ireland' in districts
+        True
     """
     return sorted(df["policing_district"].unique().tolist())

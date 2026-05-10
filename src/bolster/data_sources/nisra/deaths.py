@@ -26,6 +26,10 @@ Example:
     >>> from bolster.data_sources.nisra import deaths
     >>> # Get latest demographics breakdown
     >>> df = deaths.get_latest_deaths(dimension='demographics')
+    >>> sorted(df.columns.tolist())
+    ['age_range', 'deaths', 'sex', 'week_ending']
+    >>> len(df) > 0
+    True
 
     >>> # Get specific week
     >>> df = deaths.parse_deaths_file('/path/to/file.xlsx', dimension='geography')
@@ -543,6 +547,8 @@ def parse_deaths_file(
     Example:
         >>> df = parse_deaths_file('deaths.xlsx', dimension='totals')
         >>> data = parse_deaths_file('deaths.xlsx', dimension='all')
+        >>> sorted(data.keys())
+        ['demographics', 'geography', 'place', 'totals']
     """
     if dimension == "all":
         return {
@@ -576,6 +582,10 @@ def get_latest_deaths(
 
     Example:
         >>> df = get_latest_deaths(dimension='demographics')
+        >>> sorted(df.columns.tolist())
+        ['age_range', 'deaths', 'sex', 'week_ending']
+        >>> len(df) > 0
+        True
     """
     url = get_latest_weekly_deaths_url()
     file_path = download_file(url, cache_ttl_hours=7 * 24, force_refresh=force_refresh)
@@ -628,13 +638,19 @@ def get_historical_deaths(
     Example:
         >>> # Get totals only
         >>> df = get_historical_deaths()
+        >>> 'total_deaths' in df.columns
+        True
 
         >>> # Get totals with age breakdowns
         >>> data = get_historical_deaths(years=[2020, 2021], include_age_breakdowns=True)
+        >>> sorted(data.keys())
+        ['age_breakdowns', 'totals']
         >>> totals = data['totals']
         >>> age_data = data['age_breakdowns']
         >>> # Analyze age distribution
         >>> age_summary = age_data.groupby('age_range')['deaths'].sum()
+        >>> len(age_summary) > 0
+        True
     """
     # Download the historical file
     links = scrape_download_links(HISTORICAL_DEATHS_URL, file_extension=".xlsx")
@@ -767,10 +783,10 @@ def get_combined_deaths(
     Example:
         >>> # Get past 5 years plus 2025 YTD
         >>> df = get_combined_deaths()
-
-        >>> # Create multi-year visualizations
-        >>> import plotly.express as px
-        >>> fig = px.line(df, x='week_ending', y='total_deaths', color='year')
+        >>> 'total_deaths' in df.columns
+        True
+        >>> 'data_source' in df.columns
+        True
     """
     current_year = datetime.now().year
 

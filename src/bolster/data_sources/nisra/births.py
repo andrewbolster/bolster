@@ -29,9 +29,15 @@ Example:
     >>> from bolster.data_sources.nisra import births
     >>> # Get latest births by registration date
     >>> df = births.get_latest_births(event_type='registration')
+    >>> sorted(df.columns.tolist())
+    ['births', 'month', 'sex']
+    >>> sorted(df['sex'].unique().tolist())
+    ['Female', 'Male', 'Persons']
 
     >>> # Get latest births by occurrence date
     >>> df = births.get_latest_births(event_type='occurrence')
+    >>> len(df) > 0
+    True
 """
 
 import logging
@@ -344,9 +350,13 @@ def get_latest_births(
     Example:
         >>> # Get births by registration date
         >>> df = get_latest_births(event_type='registration')
+        >>> sorted(df.columns.tolist())
+        ['births', 'month', 'sex']
 
         >>> # Get both types
         >>> data = get_latest_births(event_type='both')
+        >>> sorted(data.keys())
+        ['occurrence', 'registration']
     """
     # Discover latest publication
     excel_url = get_latest_births_publication_url()
