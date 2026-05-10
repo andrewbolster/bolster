@@ -25,17 +25,15 @@ Reference Date: Month of survey
 
 Example:
     >>> from bolster.data_sources.nisra.tourism import occupancy
-    >>> # Get latest hotel occupancy rates
     >>> df = occupancy.get_latest_hotel_occupancy()
-
-    >>> # Get rooms/beds sold
+    >>> 'room_occupancy' in df.columns
+    True
     >>> df_sold = occupancy.get_latest_rooms_beds_sold()
-
-    >>> # Get SSA (B&B/guest house) occupancy rates
-    >>> df_ssa = occupancy.get_latest_ssa_occupancy()
-
-    >>> # Compare hotel vs SSA occupancy
+    >>> 'rooms_sold' in df_sold.columns
+    True
     >>> df_combined = occupancy.get_combined_occupancy()
+    >>> 'accommodation_type' in df_combined.columns
+    True
 """
 
 import logging
@@ -539,8 +537,8 @@ def get_latest_hotel_occupancy(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_hotel_occupancy()
-        >>> # Get 2024 average occupancy
-        >>> avg_2024 = df[df['year'] == 2024]['room_occupancy'].mean()
+        >>> 'room_occupancy' in df.columns
+        True
     """
     excel_url, pub_date = get_latest_hotel_occupancy_publication_url()
 
@@ -569,7 +567,8 @@ def get_latest_rooms_beds_sold(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_rooms_beds_sold()
-        >>> total_2024 = df[df['year'] == 2024]['rooms_sold'].sum()
+        >>> 'rooms_sold' in df.columns
+        True
     """
     excel_url, pub_date = get_latest_hotel_occupancy_publication_url()
 
@@ -876,8 +875,8 @@ def get_latest_ssa_occupancy(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_ssa_occupancy()
-        >>> # Get 2024 average occupancy for B&Bs
-        >>> avg_2024 = df[df['year'] == 2024]['room_occupancy'].mean()
+        >>> 'room_occupancy' in df.columns
+        True
     """
     excel_url, pub_date = get_latest_ssa_occupancy_publication_url()
 
@@ -908,7 +907,8 @@ def get_latest_ssa_rooms_beds_sold(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_ssa_rooms_beds_sold()
-        >>> total_2024 = df[df['year'] == 2024]['rooms_sold'].sum()
+        >>> 'rooms_sold' in df.columns
+        True
     """
     excel_url, pub_date = get_latest_ssa_occupancy_publication_url()
 
@@ -946,8 +946,8 @@ def get_combined_occupancy(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_combined_occupancy()
-        >>> # Compare hotel vs SSA occupancy by year
-        >>> df.groupby(['year', 'accommodation_type'])['room_occupancy'].mean()
+        >>> 'accommodation_type' in df.columns
+        True
     """
     hotel_df = get_latest_hotel_occupancy(force_refresh=force_refresh)
     hotel_df["accommodation_type"] = "hotel"
@@ -983,7 +983,8 @@ def compare_accommodation_types(
     Example:
         >>> df = get_combined_occupancy()
         >>> comparison = compare_accommodation_types(df)
-        >>> # Hotels typically have higher occupancy than B&Bs
+        >>> 'difference' in comparison.columns
+        True
     """
     pivot = df.pivot_table(
         index="year",
@@ -1054,8 +1055,8 @@ def get_seasonal_patterns(df: pd.DataFrame) -> pd.DataFrame:
     Example:
         >>> df = get_latest_hotel_occupancy()
         >>> seasonal = get_seasonal_patterns(df)
-        >>> # Find peak season
-        >>> peak = seasonal.loc[seasonal['avg_room_occupancy'].idxmax()]
+        >>> 'avg_room_occupancy' in seasonal.columns
+        True
     """
     month_order = [
         "January",

@@ -38,13 +38,13 @@ Example:
     >>> from bolster.data_sources.nisra import cancer_waiting_times as cwt
     >>> # Get latest 31-day waiting times by HSC Trust
     >>> df = cwt.get_latest_31_day_by_trust()
+    >>> sorted(df.columns.tolist())
+    ['date', 'month', 'over_target', 'performance_rate', 'total', 'trust', 'within_target', 'year']
 
     >>> # Get 62-day waiting times by tumour site
     >>> df_tumour = cwt.get_latest_62_day_by_tumour()
-
-    >>> # Calculate performance rates
-    >>> summary = cwt.get_performance_summary()
-    >>> print(summary)
+    >>> 'tumour_site' in df_tumour.columns
+    True
 
 Publication Details:
     - Frequency: Quarterly (published ~3 months after quarter end)

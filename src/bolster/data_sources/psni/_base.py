@@ -218,5 +218,7 @@ def clear_cache(pattern: str | None = None) -> int:
     Example:
         >>> from bolster.data_sources.psni._base import clear_cache
         >>> deleted = clear_cache("*.csv")
+        >>> isinstance(deleted, int)
+        True
     """
     return _downloader.clear(pattern)

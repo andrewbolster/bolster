@@ -13,15 +13,11 @@ Example:
     Basic usage for querying company data:
 
         >>> from bolster.data_sources import companies_house
-        >>> # Get all companies (warning: this is very large!)
-        >>> for company in companies_house.query_basic_company_data():
-        ...     break  # Just show first result
-
-        >>> # Query companies that might be associated with Farset Labs
         >>> farset_companies = list(companies_house.query_basic_company_data(
         ...     companies_house.companies_house_record_might_be_farset
         ... ))
-        >>> print(f"Found {len(farset_companies)} potential Farset-related companies")
+        >>> len(farset_companies) > 0
+        True
 
 The module provides utilities for downloading and parsing the complete UK company registry,
 with built-in filtering capabilities for targeted analysis.

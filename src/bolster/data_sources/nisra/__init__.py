@@ -25,61 +25,73 @@ Available modules:
 Examples:
     >>> from bolster.data_sources.nisra import ashe
     >>> earnings_df = ashe.get_latest_ashe_timeseries('weekly')
-    >>> latest = earnings_df[earnings_df['year'] == earnings_df['year'].max()]
+    >>> 'median_weekly_earnings' in earnings_df.columns
+    True
 
     >>> from bolster.data_sources.nisra import emergency_care_waiting_times as ecwt
     >>> df = ecwt.get_latest_data()
-    >>> type1 = df[df['attendance_type'] == 'Type 1']
+    >>> 'pct_within_4hrs' in df.columns
+    True
 
     >>> from bolster.data_sources.nisra import births
     >>> birth_data = births.get_latest_births(event_type='both')
+    >>> 'births' in birth_data['registration'].columns
+    True
 
     >>> from bolster.data_sources.nisra import composite_index
     >>> nicei_df = composite_index.get_latest_nicei()
-    >>> latest = nicei_df.iloc[-1]
+    >>> 'nicei' in nicei_df.columns
+    True
 
     >>> from bolster.data_sources.nisra import construction_output
     >>> construction_df = construction_output.get_latest_construction_output()
+    >>> 'all_work_index' in construction_df.columns
+    True
 
     >>> from bolster.data_sources.nisra import deaths
     >>> df = deaths.get_latest_deaths(dimension='demographics')
+    >>> 'deaths' in df.columns
+    True
 
     >>> from bolster.data_sources.nisra import economic_indicators
     >>> ios_df = economic_indicators.get_latest_index_of_services()
-    >>> iop_df = economic_indicators.get_latest_index_of_production()
+    >>> 'ni_index' in ios_df.columns
+    True
 
     >>> from bolster.data_sources.nisra import labour_market
     >>> emp_df = labour_market.get_latest_employment()
-    >>> inact_df = labour_market.get_latest_economic_inactivity()
+    >>> 'employment_rate' in emp_df.columns
+    True
 
     >>> from bolster.data_sources.nisra import marriages
     >>> marriages_df = marriages.get_latest_marriages()
-    >>> df_2024 = marriages.get_marriages_by_year(marriages_df, 2024)
+    >>> 'marriages' in marriages_df.columns
+    True
 
     >>> from bolster.data_sources.nisra.tourism import occupancy
     >>> occ_df = occupancy.get_latest_hotel_occupancy()
-    >>> avg_2024 = occ_df[occ_df['year'] == 2024]['room_occupancy'].mean()
-
-    >>> # SSA (B&B/guest house) occupancy
-    >>> ssa_df = occupancy.get_latest_ssa_occupancy()
-
-    >>> # Compare hotel vs SSA
-    >>> combined = occupancy.get_combined_occupancy()
+    >>> 'room_occupancy' in occ_df.columns
+    True
 
     >>> from bolster.data_sources.nisra import migration
     >>> migration_df = migration.get_latest_migration()
-    >>> df_2024 = migration.get_migration_by_year(migration_df, 2024)
+    >>> 'net_migration' in migration_df.columns
+    True
 
     >>> from bolster.data_sources.nisra import registrar_general
     >>> data = registrar_general.get_quarterly_vital_statistics()
-    >>> births = data['births']
+    >>> sorted(data.keys())
+    ['births', 'deaths', 'lgd']
 
     >>> from bolster.data_sources.nisra import population
     >>> pop_df = population.get_latest_population(area='Northern Ireland')
+    >>> 'population' in pop_df.columns
+    True
 
     >>> from bolster.data_sources.nisra import wellbeing
     >>> df = wellbeing.get_latest_personal_wellbeing()
-    >>> latest = df.iloc[-1]
+    >>> 'life_satisfaction' in df.columns
+    True
 """
 
 from . import (

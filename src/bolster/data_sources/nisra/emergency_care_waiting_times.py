@@ -23,11 +23,8 @@ Update Frequency:
 Example:
     >>> from bolster.data_sources.nisra import emergency_care_waiting_times as ecwt
     >>> df = ecwt.get_latest_data()
-
-    >>> # Type 1 A&E performance only
-    >>> type1 = df[df['attendance_type'] == 'Type 1']
-    >>> by_trust = type1.groupby('trust')['pct_within_4hrs'].mean()
-    >>> print(by_trust)
+    >>> 'pct_within_4hrs' in df.columns
+    True
 
 Publication Details:
     - Frequency: Quarterly (published ~3 months after quarter end)

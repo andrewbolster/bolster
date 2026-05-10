@@ -29,16 +29,23 @@ Example:
     >>> from bolster.data_sources import dva
     >>> # Get latest vehicle test statistics
     >>> df = dva.get_latest_vehicle_tests()
+    >>> 'tests_conducted' in df.columns
+    True
 
     >>> # Get latest driver test statistics
     >>> df = dva.get_latest_driver_tests()
+    >>> len(df) > 0
+    True
 
     >>> # Get latest theory test statistics
     >>> df = dva.get_latest_theory_tests()
+    >>> len(df) > 0
+    True
 
     >>> # Get all test types combined
     >>> data = dva.get_latest_all_tests()
-    >>> print(data.keys())  # ['vehicle', 'driver', 'theory']
+    >>> sorted(data.keys())
+    ['driver', 'theory', 'vehicle']
 """
 
 import contextlib
@@ -133,6 +140,8 @@ def get_latest_dva_publication_url() -> tuple[str, str, datetime]:
 
     Example:
         >>> url, title, pub_date = get_latest_dva_publication_url()
+        >>> url.startswith('https://')
+        True
     """
     from dateutil.relativedelta import relativedelta
 
@@ -495,6 +504,8 @@ def get_latest_vehicle_tests(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_vehicle_tests()
+        >>> 'tests_conducted' in df.columns
+        True
     """
     excel_url, _, _ = get_latest_dva_publication_url()
     file_path = _download_file(excel_url, cache_ttl_hours=168, force_refresh=force_refresh)
@@ -515,6 +526,8 @@ def get_latest_driver_tests(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_driver_tests()
+        >>> len(df) > 0
+        True
     """
     excel_url, _, _ = get_latest_dva_publication_url()
     file_path = _download_file(excel_url, cache_ttl_hours=168, force_refresh=force_refresh)
@@ -535,6 +548,8 @@ def get_latest_theory_tests(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_theory_tests()
+        >>> len(df) > 0
+        True
     """
     excel_url, _, _ = get_latest_dva_publication_url()
     file_path = _download_file(excel_url, cache_ttl_hours=168, force_refresh=force_refresh)
@@ -554,6 +569,8 @@ def get_latest_all_tests(force_refresh: bool = False) -> dict[str, pd.DataFrame]
 
     Example:
         >>> data = get_latest_all_tests()
+        >>> sorted(data.keys())
+        ['driver', 'theory', 'vehicle']
     """
     excel_url, _, _ = get_latest_dva_publication_url()
     file_path = _download_file(excel_url, cache_ttl_hours=168, force_refresh=force_refresh)
@@ -583,6 +600,8 @@ def get_tests_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
     Example:
         >>> df = get_latest_vehicle_tests()
         >>> df_2024 = get_tests_by_year(df, 2024)
+        >>> 'tests_conducted' in df_2024.columns
+        True
     """
     return df[df["year"] == year].reset_index(drop=True)
 
@@ -601,6 +620,8 @@ def get_tests_by_month(df: pd.DataFrame, month: str, year: int) -> pd.DataFrame:
     Example:
         >>> df = get_latest_vehicle_tests()
         >>> dec_2025 = get_tests_by_month(df, 'December', 2025)
+        >>> 'tests_conducted' in dec_2025.columns
+        True
     """
     return df[(df["month"] == month) & (df["year"] == year)].reset_index(drop=True)
 
@@ -619,6 +640,8 @@ def calculate_growth_rates(df: pd.DataFrame, periods: int = 12) -> pd.DataFrame:
     Example:
         >>> df = get_latest_vehicle_tests()
         >>> df_growth = calculate_growth_rates(df)
+        >>> 'yoy_growth' in df_growth.columns
+        True
     """
     result = df.copy()
     result["yoy_growth"] = result["tests_conducted"].pct_change(periods=periods) * 100
@@ -645,6 +668,8 @@ def get_summary_statistics(df: pd.DataFrame, start_year: int | None = None, end_
     Example:
         >>> df = get_latest_vehicle_tests()
         >>> stats = get_summary_statistics(df, start_year=2020)
+        >>> sorted(stats.keys())
+        ['monthly_max', 'monthly_mean', 'monthly_min', 'months_count', 'period', 'total_tests']
     """
     filtered = df.copy()
 

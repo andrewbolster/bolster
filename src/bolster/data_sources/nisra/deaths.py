@@ -781,7 +781,6 @@ def get_combined_deaths(
         - data_source: 'historical' or 'current'
 
     Example:
-        >>> # Get past 5 years plus 2025 YTD
         >>> df = get_combined_deaths()
         >>> 'total_deaths' in df.columns
         True

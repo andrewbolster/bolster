@@ -22,11 +22,12 @@ See [here](https://andrewbolster.info/2022/03/NI-House-Price-Index.html) for mor
 
 Example:
     >>> from bolster.data_sources.ni_house_price_index import get_hpi_trends, get_sales_volumes
-    >>> # Get house price index trends over time
     >>> hpi = get_hpi_trends()
-
-    >>> # Get property sales volumes by type
+    >>> 'NI House Price Index' in hpi.columns
+    True
     >>> sales = get_sales_volumes()
+    >>> 'Total' in sales.columns
+    True
 """
 
 import hashlib
@@ -584,8 +585,8 @@ def get_all_tables(force_refresh: bool = False) -> dict[str, pd.DataFrame]:
 
     Example:
         >>> tables = get_all_tables()
-        >>> # Access specific table
-        >>> hpi_trends = tables['Table 1']
+        >>> 'Table 1' in tables
+        True
     """
     source_dfs = pull_sources(force_refresh=force_refresh)
     return transform_sources(source_dfs)
@@ -612,9 +613,8 @@ def get_hpi_trends(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> hpi = get_hpi_trends()
-        >>> # Get latest quarter
-        >>> # Plot index over time
-        >>> hpi.plot(x='Period', y='NI House Price Index')
+        >>> 'NI House Price Index' in hpi.columns
+        True
     """
     tables = get_all_tables(force_refresh=force_refresh)
     return tables.get("Table 1")
@@ -642,8 +642,8 @@ def get_sales_volumes(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> sales = get_sales_volumes()
-        >>> # Total sales per year
-        >>> annual = sales.groupby('Year')['Total'].sum()
+        >>> 'Total' in sales.columns
+        True
     """
     tables = get_all_tables(force_refresh=force_refresh)
     return tables.get("Table 4")
@@ -669,8 +669,8 @@ def get_average_prices(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> prices = get_average_prices()
-        >>> # Current median price
-        >>> latest = prices.iloc[-1]['Simple Median']
+        >>> 'Simple Median' in prices.columns
+        True
     """
     tables = get_all_tables(force_refresh=force_refresh)
     return tables.get("Table 9")
@@ -698,8 +698,8 @@ def get_hpi_by_lgd(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> lgd = get_hpi_by_lgd()
-        >>> # Belfast prices
-        >>> belfast = lgd[['Period', 'Belfast']]
+        >>> 'Period' in lgd.columns
+        True
     """
     tables = get_all_tables(force_refresh=force_refresh)
     return tables.get("Table 5")
@@ -724,6 +724,8 @@ def get_hpi_by_property_type(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> by_type = get_hpi_by_property_type()
+        >>> 'Property Type' in by_type.columns
+        True
     """
     tables = get_all_tables(force_refresh=force_refresh)
     return tables.get("Table 2")

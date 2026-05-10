@@ -18,9 +18,13 @@ Geographic Coverage: Northern Ireland (resident stillbirths)
 Example:
     >>> from bolster.data_sources.nisra import stillbirths
     >>> df = stillbirths.get_latest_stillbirths()
+    >>> sorted(df.columns.tolist())
+    ['date', 'month', 'stillbirths', 'year']
 
     >>> # Total stillbirths in 2024
     >>> total_2024 = df[df['year'] == 2024]['stillbirths'].sum()
+    >>> total_2024 >= 0
+    True
 """
 
 import logging
@@ -201,7 +205,11 @@ def get_latest_stillbirths(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_stillbirths()
+        >>> sorted(df.columns.tolist())
+        ['date', 'month', 'stillbirths', 'year']
         >>> annual = df.groupby('year')['stillbirths'].sum()
+        >>> len(annual) > 0
+        True
     """
     excel_url = get_latest_stillbirths_publication_url()
     logger.info(f"Downloading stillbirths data from: {excel_url}")
@@ -253,6 +261,8 @@ def get_stillbirths_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
     Example:
         >>> df = get_latest_stillbirths()
         >>> df_2024 = get_stillbirths_by_year(df, 2024)
+        >>> 'stillbirths' in df_2024.columns
+        True
     """
     return df[df["year"] == year].reset_index(drop=True)
 
@@ -304,6 +314,8 @@ def get_annual_summary(df: pd.DataFrame) -> pd.DataFrame:
     Example:
         >>> df = get_latest_stillbirths()
         >>> summary = get_annual_summary(df)
+        >>> sorted(summary.columns.tolist())
+        ['total_stillbirths', 'year', 'yoy_change', 'yoy_pct_change']
     """
     annual = df.groupby("year")["stillbirths"].sum().reset_index()
     annual = annual.rename(columns={"stillbirths": "total_stillbirths"})

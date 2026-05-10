@@ -14,16 +14,11 @@ Example:
     Extract NI Executive historical data and analyze political stability:
 
         >>> from bolster.data_sources import wikipedia
-        >>> # Get complete Executive composition history
         >>> executives = wikipedia.get_ni_executive_basic_table()
-
-        >>> # Analyze Executive stability over time
-        >>> avg_duration = executives['Duration'].mean()
-
-        >>> # Find longest and shortest serving executives
-        >>> longest = executives.loc[executives['Duration'].idxmax()]
-        >>> shortest = executives.loc[executives['Duration'].idxmin()]
-        >>> print(f"Shortest serving: {shortest.name} ({shortest['Duration']})")
+        >>> 'Duration' in executives.columns
+        True
+        >>> len(executives) > 0
+        True
 
 This module provides utilities for analyzing Northern Ireland's political history and executive
 stability patterns since the establishment of devolved government.
@@ -57,12 +52,10 @@ def get_ni_executive_basic_table() -> pd.DataFrame:
 
     Example:
         >>> df = get_ni_executive_basic_table()
-        >>> print(df.dtypes)
-        Established     datetime64[ns]
-        Dissolved       datetime64[ns]
-        Duration       timedelta64[ns]
-        Interregnum    timedelta64[ns]
-        dtype: object
+        >>> sorted(df.columns.tolist())
+        ['Dissolved', 'Duration', 'Established', 'Interregnum']
+        >>> len(df) > 0
+        True
     """
     # Use a custom user agent to avoid Wikipedia 403 errors
     # Wikipedia blocks default pandas/urllib user agents

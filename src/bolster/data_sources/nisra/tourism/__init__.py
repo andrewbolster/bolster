@@ -11,18 +11,17 @@ and published under the Open Government Licence.
 
 Example:
     >>> from bolster.data_sources.nisra.tourism import occupancy
-    >>> # Get hotel occupancy rates
     >>> df = occupancy.get_latest_hotel_occupancy()
-    >>>
-    >>> # Get combined hotel + SSA data
+    >>> 'room_occupancy' in df.columns
+    True
     >>> df_combined = occupancy.get_combined_occupancy()
     >>> comparison = occupancy.compare_accommodation_types(df_combined)
-    >>>
+    >>> 'difference' in comparison.columns
+    True
     >>> from bolster.data_sources.nisra.tourism import visitor_statistics
-    >>> # Get visitor statistics by market
     >>> vs = visitor_statistics.get_latest_visitor_statistics()
-    >>> gb = vs[vs['market'] == 'Great Britain'].iloc[0]
-    >>> print(f"GB: {gb['trips']:,.0f} trips, £{gb['expenditure']:.1f}M spent")
+    >>> 'market' in vs.columns
+    True
 
 See individual module docstrings for detailed documentation.
 """

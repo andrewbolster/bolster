@@ -27,18 +27,15 @@ Data Coverage:
 
 Examples:
     >>> from bolster.data_sources.nisra import composite_index
-    >>> # Get latest NICEI data
     >>> nicei_df = composite_index.get_latest_nicei()
-
-    >>> # Get sector contributions
+    >>> 'nicei' in nicei_df.columns
+    True
     >>> contrib_df = composite_index.get_latest_nicei_contributions()
-
-    >>> # Filter for specific year
+    >>> 'services_contribution' in contrib_df.columns
+    True
     >>> nicei_2024 = composite_index.get_nicei_by_year(nicei_df, 2024)
-
-    >>> # Analyze sectoral performance
-    >>> latest = nicei_df.iloc[-1]
-    >>> print(f"Services: {latest['services']:.2f}, Construction: {latest['construction']:.2f}")
+    >>> len(nicei_2024) <= 4
+    True
 
 Publication Details:
     - Frequency: Quarterly (published ~3 months after quarter end)
@@ -80,6 +77,8 @@ def get_latest_nicei_publication_url() -> tuple[str, int, str]:
 
     Example:
         >>> url, year, quarter = get_latest_nicei_publication_url()
+        >>> url.startswith('https://')
+        True
     """
     from bs4 import BeautifulSoup
 
@@ -220,7 +219,6 @@ def parse_nicei_contributions(file_path: str | Path) -> pd.DataFrame:
 
     Example:
         >>> df = parse_nicei_contributions('/path/to/nicei.xlsx')
-        >>> # Find quarter with largest services contribution
     """
     logger.info(f"Parsing NICEI sector contributions from: {file_path}")
 
@@ -284,6 +282,8 @@ def get_latest_nicei(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_nicei()
+        >>> 'nicei' in df.columns
+        True
     """
     excel_url, year, quarter = get_latest_nicei_publication_url()
 
@@ -307,7 +307,8 @@ def get_latest_nicei_contributions(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_nicei_contributions()
-        >>> latest = df.iloc[-1]
+        >>> 'services_contribution' in df.columns
+        True
     """
     excel_url, year, quarter = get_latest_nicei_publication_url()
 
@@ -330,6 +331,8 @@ def get_nicei_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
     Example:
         >>> df = get_latest_nicei()
         >>> df_2024 = get_nicei_by_year(df, 2024)
+        >>> len(df_2024) <= 4
+        True
     """
     return df[df["year"] == year].reset_index(drop=True)
 
@@ -348,6 +351,8 @@ def get_nicei_by_quarter(df: pd.DataFrame, year: int, quarter: int) -> pd.DataFr
     Example:
         >>> df = get_latest_nicei()
         >>> q2_2024 = get_nicei_by_quarter(df, 2024, 2)
+        >>> len(q2_2024) <= 1
+        True
     """
     return df[(df["year"] == year) & (df["quarter"] == quarter)].reset_index(drop=True)
 

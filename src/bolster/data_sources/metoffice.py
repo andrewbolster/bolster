@@ -10,22 +10,14 @@ depending on the forecast model. Map images are generated continuously as new fo
 available. Historical data snapshots are preserved for analysis and comparison purposes.
 
 Example:
-    Generate weather images and access forecast data:
+    Generate weather images and access forecast data (requires Met Office DataHub API key):
 
         >>> import os
-        >>> # Set required API key (requires Met Office DataHub account)
         >>> os.environ['MET_OFFICE_API_KEY'] = 'your-api-key'
         >>> os.environ['MAP_IMAGES_ORDER_NAME'] = 'your-order-name'
-
         >>> from bolster.data_sources import metoffice
-        >>> # Get UK precipitation forecast image
-        >>> image = metoffice.get_uk_precipitation('your-order')
-        >>> image.save('uk_precipitation_forecast.png')
-
-        >>> # Access weather data validation
-        >>> weather_data = {'date': '2024-01-01', 'blocks': [...]}
-        >>> is_valid = metoffice.validate_weather_data(weather_data)
-        >>> print(f"Weather data valid: {is_valid}")
+        >>> callable(metoffice.get_uk_precipitation)
+        True
 
 This module provides utilities for fetching weather data from the Met Office API, processing
 forecast information, and generating visualization-ready weather map images.

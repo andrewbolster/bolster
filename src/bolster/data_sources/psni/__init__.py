@@ -11,20 +11,15 @@ with other NISRA datasets.
 
 Example:
     >>> from bolster.data_sources.psni import crime_statistics, road_traffic_collisions
-    >>> # Get latest crime data
     >>> df = crime_statistics.get_latest_crime_statistics()
-    >>>
-    >>> # Filter to Belfast
-    >>> belfast = crime_statistics.filter_by_district(df, "Belfast City")
-    >>>
-    >>> # Get LGD code for cross-referencing
+    >>> 'lgd_code' in df.columns
+    True
     >>> lgd_code = crime_statistics.get_lgd_code("Belfast City")
-    >>> print(f"Belfast LGD: {lgd_code}")  # N09000003
-    >>>
-    >>> # Get road traffic collision data
-    >>> collisions = road_traffic_collisions.get_collisions()
+    >>> lgd_code
+    'N09000003'
     >>> casualties = road_traffic_collisions.get_casualties()
-    >>> print(f"Fatal casualties: {len(casualties[casualties['severity'] == 'Fatal'])}")
+    >>> 'severity' in casualties.columns
+    True
 
 See individual module docstrings for detailed documentation.
 """

@@ -13,13 +13,12 @@ Example:
     Retrieve election results for specific years and constituencies:
 
         >>> from bolster.data_sources import eoni
-        >>> # Get available election results
         >>> results_2022 = eoni.get_election_results(2022)
-
-        >>> # Get specific constituency data
+        >>> len(results_2022) > 0
+        True
         >>> belfast_east = eoni.get_constituency_results("Belfast East", 2022)
-        >>> for candidate in belfast_east['candidates']:
-        ...     print(f"{candidate['name']}: {candidate['votes']} votes")
+        >>> 'candidates' in belfast_east
+        True
 
 The module supports automated ingestion of NI Assembly election results with constituency-level
 detail and candidate performance data.

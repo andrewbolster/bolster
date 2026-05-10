@@ -30,13 +30,18 @@ Examples:
     >>> from bolster.data_sources.nisra import ashe
     >>> # Get latest weekly earnings timeseries
     >>> df = ashe.get_latest_ashe_timeseries(metric='weekly')
+    >>> sorted(df.columns.tolist())
+    ['median_weekly_earnings', 'work_pattern', 'year']
 
     >>> # Get geographic earnings by workplace
     >>> df_geo = ashe.get_latest_ashe_geography(basis='workplace')
+    >>> 'median_weekly_earnings' in df_geo.columns
+    True
 
     >>> # Get public vs private sector comparison
     >>> df_sector = ashe.get_latest_ashe_sector()
-    >>> print(df_sector[df_sector['year'] == 2025])
+    >>> 'location' in df_sector.columns
+    True
 
 Publication Details:
     - Frequency: Annual (October publication)
@@ -76,6 +81,8 @@ def get_latest_ashe_publication_url() -> tuple[str, int]:
 
     Example:
         >>> url, year = get_latest_ashe_publication_url()
+        >>> url.startswith('https://')
+        True
     """
     from bs4 import BeautifulSoup
 
@@ -121,6 +128,8 @@ def get_ashe_file_url(year: int, file_type: str = "timeseries") -> str:
 
     Example:
         >>> url = get_ashe_file_url(2025, 'timeseries')
+        >>> url.startswith('https://')
+        True
     """
     # ASHE is published in October
     month = 10
@@ -384,7 +393,8 @@ def get_latest_ashe_timeseries(metric: str = "weekly", force_refresh: bool = Fal
 
     Example:
         >>> df = get_latest_ashe_timeseries(metric='weekly')
-        >>> latest = df[df['year'] == df['year'].max()]
+        >>> sorted(df.columns.tolist())
+        ['median_weekly_earnings', 'work_pattern', 'year']
     """
     _, year = get_latest_ashe_publication_url()
     file_url = get_ashe_file_url(year, file_type="timeseries")
@@ -416,6 +426,8 @@ def get_latest_ashe_geography(basis: str = "workplace", force_refresh: bool = Fa
 
     Example:
         >>> df = get_latest_ashe_geography(basis='workplace')
+        >>> 'median_weekly_earnings' in df.columns
+        True
     """
     _, year = get_latest_ashe_publication_url()
     file_url = get_ashe_file_url(year, file_type="linked")
@@ -440,8 +452,8 @@ def get_latest_ashe_sector(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_ashe_sector()
-        >>> latest = df[df['year'] == df['year'].max()]
-        >>> ni_latest = latest[latest['location'] == 'Northern Ireland']
+        >>> 'location' in df.columns
+        True
     """
     _, year = get_latest_ashe_publication_url()
     file_url = get_ashe_file_url(year, file_type="linked")
@@ -470,6 +482,8 @@ def get_earnings_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
     Example:
         >>> df = get_latest_ashe_timeseries('weekly')
         >>> df_2025 = get_earnings_by_year(df, 2025)
+        >>> 'median_weekly_earnings' in df_2025.columns
+        True
     """
     return df[df["year"] == year].reset_index(drop=True)
 
@@ -487,7 +501,8 @@ def calculate_growth_rates(df: pd.DataFrame, periods: int = 1) -> pd.DataFrame:
     Example:
         >>> df = get_latest_ashe_timeseries('weekly')
         >>> df_growth = calculate_growth_rates(df)
-        >>> recent = df_growth[df_growth['work_pattern'] == 'All'].tail(5)
+        >>> 'yoy_growth' in df_growth.columns
+        True
     """
     result = df.copy()
 
@@ -1020,7 +1035,8 @@ def get_gender_pay_gap(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_gender_pay_gap()
-        >>> ni = df[df['location'] == 'Northern Ireland']
+        >>> 'gender_pay_gap_pct' in df.columns
+        True
     """
     return parse_ashe_gender_pay_gap(_get_linked_file(force_refresh=force_refresh))
 
@@ -1044,7 +1060,8 @@ def get_hourly_earnings_by_sector_gender(force_refresh: bool = False) -> pd.Data
 
     Example:
         >>> df = get_hourly_earnings_by_sector_gender()
-        >>> latest = df[df['year'] == df['year'].max()]
+        >>> 'median_hourly_earnings' in df.columns
+        True
     """
     return parse_ashe_hourly_earnings_by_sector_gender(_get_linked_file(force_refresh=force_refresh))
 
@@ -1067,8 +1084,8 @@ def get_hourly_earnings_by_age_gender(force_refresh: bool = False) -> pd.DataFra
 
     Example:
         >>> df = get_hourly_earnings_by_age_gender()
-        >>> wide = df.pivot(index='age_group', columns='sex', values='median_hourly_earnings')
-        >>> wide['gpg_pct'] = (wide['Male'] - wide['Female']) / wide['Male'] * 100
+        >>> 'median_hourly_earnings' in df.columns
+        True
     """
     return parse_ashe_hourly_earnings_by_age_gender(_get_linked_file(force_refresh=force_refresh))
 
@@ -1091,8 +1108,8 @@ def get_hourly_earnings_by_occupation_gender(force_refresh: bool = False) -> pd.
 
     Example:
         >>> df = get_hourly_earnings_by_occupation_gender()
-        >>> wide = df.pivot(index='occupation', columns='sex', values='median_hourly_earnings')
-        >>> wide['gpg_pct'] = (wide['Male'] - wide['Female']) / wide['Male'] * 100
+        >>> 'median_hourly_earnings' in df.columns
+        True
     """
     return parse_ashe_hourly_earnings_by_occupation_gender(_get_linked_file(force_refresh=force_refresh))
 
@@ -1115,6 +1132,8 @@ def get_hourly_earnings_by_pattern_gender(force_refresh: bool = False) -> pd.Dat
 
     Example:
         >>> df = get_hourly_earnings_by_pattern_gender()
+        >>> 'median_hourly_earnings' in df.columns
+        True
     """
     return parse_ashe_hourly_earnings_by_pattern_gender(_get_linked_file(force_refresh=force_refresh))
 
@@ -1130,6 +1149,8 @@ def get_ni_uk_earnings_comparison(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_ni_uk_earnings_comparison()
+        >>> 'median_weekly_earnings_fulltime' in df.columns
+        True
     """
     return parse_ashe_ni_uk_earnings_comparison(_get_linked_file(force_refresh=force_refresh))
 
@@ -1145,7 +1166,8 @@ def get_uk_regional_pay_ratio(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_uk_regional_pay_ratio()
-        >>> ni = df[df['region'] == 'Northern Ireland']
+        >>> 'ratio' in df.columns
+        True
     """
     return parse_ashe_uk_regional_pay_ratio(_get_linked_file(force_refresh=force_refresh))
 
@@ -1161,6 +1183,8 @@ def get_hours_distribution(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_hours_distribution()
+        >>> 'percentage' in df.columns
+        True
     """
     return parse_ashe_hours_distribution(_get_linked_file(force_refresh=force_refresh))
 
@@ -1176,6 +1200,8 @@ def get_working_pattern_pay_gap(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_working_pattern_pay_gap()
+        >>> 'working_pattern_pay_gap_pct' in df.columns
+        True
     """
     return parse_ashe_working_pattern_pay_gap(_get_linked_file(force_refresh=force_refresh))
 
@@ -1191,6 +1217,8 @@ def get_mean_hours_by_pattern_gender(force_refresh: bool = False) -> pd.DataFram
 
     Example:
         >>> df = get_mean_hours_by_pattern_gender()
+        >>> 'male_mean_hours' in df.columns
+        True
     """
     return parse_ashe_mean_hours_by_pattern_gender(_get_linked_file(force_refresh=force_refresh))
 

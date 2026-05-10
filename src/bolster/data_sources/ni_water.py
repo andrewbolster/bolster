@@ -15,15 +15,12 @@ Example:
     Access water quality data and zone information:
 
         >>> from bolster.data_sources import ni_water
-        >>> # Get water quality data for all zones
         >>> quality_data = ni_water.get_water_quality()
-
-        >>> # Check hardness classification distribution
-        >>> hardness_counts = quality_data['NI Hardness Classification'].value_counts()
-
-        >>> # Get water quality for a specific zone
+        >>> 'NI Hardness Classification' in quality_data.columns
+        True
         >>> belfast_data = ni_water.get_water_quality_by_zone('BALM')
-        >>> print(f"Belfast area hardness: {belfast_data['NI Hardness Classification']}")
+        >>> 'NI Hardness Classification' in belfast_data
+        True
 
 The module provides utilities for analyzing water quality across Northern Ireland's supply zones,
 with support for both current quality data and historical zone mapping.
