@@ -1427,7 +1427,7 @@ def nisra_deaths_cmd(latest, dimension, output_format, force_refresh, save):
     - Place of death (hospital, home, care home, etc.)
 
     Examples:
-    --------
+    ---------
     Get COVID-19 and flu/pneumonia deaths::
 
         bolster nisra deaths --latest --dimension totals
@@ -1449,7 +1449,7 @@ def nisra_deaths_cmd(latest, dimension, output_format, force_refresh, save):
         bolster nisra deaths --latest --force-refresh
 
     Notes:
-    -----
+    ------
     - Based on registration date, not death occurrence date
     - Most deaths registered within 5 days in Northern Ireland
     - Weekly files are provisional and subject to revision
@@ -1589,7 +1589,7 @@ def nisra_labour_market_cmd(latest, table, output_format, force_refresh, save):
     internationally agreed concepts and definitions.
 
     Examples:
-    --------
+    ---------
     Get latest employment data by age and sex::
 
         bolster nisra labour-market --latest --table employment
@@ -1615,7 +1615,7 @@ def nisra_labour_market_cmd(latest, table, output_format, force_refresh, save):
         bolster nisra labour-market --latest --force-refresh
 
     Notes:
-    -----
+    ------
     - Survey data with sampling variability (see NISRA notes on confidence intervals)
     - Quarterly publications covering 3-month rolling periods
     - Some estimates based on small samples (indicated by shading in source)
@@ -1794,7 +1794,7 @@ def nisra_births_cmd(latest, event_type, output_format, force_refresh, save):
     Most births are registered within 42 days in Northern Ireland.
 
     Examples:
-    --------
+    ---------
     Get latest births by registration date::
 
         bolster nisra births --latest --event-type registration
@@ -1820,7 +1820,7 @@ def nisra_births_cmd(latest, event_type, output_format, force_refresh, save):
         bolster nisra births --latest --force-refresh
 
     Notes:
-    -----
+    ------
     - Monthly time series from 2006 to present
     - Final data for years up to and including 2024
     - Provisional and subject to change for current year
@@ -1846,7 +1846,7 @@ def nisra_births_cmd(latest, event_type, output_format, force_refresh, save):
         • Helps identify registration delays/backlogs
 
     Returns:
-    -------
+    --------
     DataFrame
         - month: First day of month (datetime)
         - sex: Persons (total), Male, or Female
@@ -1986,7 +1986,7 @@ def nisra_population_cmd(latest, area, year, output_format, force_refresh, save)
     Mid-year estimates are referenced to June 30th of each year.
 
     Examples:
-    --------
+    ---------
     Get latest NI overall population::
 
         bolster nisra population --latest
@@ -2012,7 +2012,7 @@ def nisra_population_cmd(latest, area, year, output_format, force_refresh, save)
         bolster nisra population --latest --format json
 
     Notes:
-    -----
+    ------
     - Published annually ~6 months after reference date
     - Reference date: June 30th of each year
     - Historical data for NI overall from 1971
@@ -2032,7 +2032,7 @@ def nisra_population_cmd(latest, area, year, output_format, force_refresh, save)
         All geographic breakdowns
 
     Returns:
-    -------
+    --------
     DataFrame
         - area, area_code, area_name: Geographic identifiers
         - year: Reference year (mid-year estimate as of June 30th)
@@ -2131,7 +2131,7 @@ def nisra_marriages_cmd(latest, year, output_format, force_refresh, save):
     current year and final figures for previous years.
 
     Examples:
-    --------
+    ---------
     Get latest marriages data::
 
         bolster nisra marriages --latest
@@ -2153,7 +2153,7 @@ def nisra_marriages_cmd(latest, year, output_format, force_refresh, save):
         bolster nisra marriages --latest --force-refresh
 
     Notes:
-    -----
+    ------
     - Monthly time series from 2006 to present
     - Final data for years up to and including 2024
     - Provisional and subject to change for current year
@@ -2168,7 +2168,7 @@ def nisra_marriages_cmd(latest, year, output_format, force_refresh, save):
     • January-February typically have the lowest numbers
 
     Returns:
-    -------
+    --------
     DataFrame
         - date: First day of month (datetime)
         - year: Year of registration
@@ -2432,7 +2432,7 @@ def nisra_occupancy_cmd(latest, year, accommodation, data_type, output_format, f
         sold : Number of rooms and beds sold monthly
 
     Examples:
-    --------
+    ---------
     Get latest hotel occupancy rates (default)::
 
         bolster nisra occupancy --latest
@@ -2466,7 +2466,7 @@ def nisra_occupancy_cmd(latest, year, accommodation, data_type, output_format, f
         bolster nisra occupancy --latest --save occupancy.csv
 
     Notes:
-    -----
+    ------
     - Hotel data: 2011-present (~65% average room occupancy)
     - SSA data: 2013-present (~33% average room occupancy)
     - Room occupancy is typically higher than bed occupancy
@@ -2481,7 +2481,7 @@ def nisra_occupancy_cmd(latest, year, accommodation, data_type, output_format, f
     - January-February typically have the lowest occupancy
 
     Returns:
-    -------
+    --------
     DataFrame (rates)
         - date: First day of month (datetime)
         - year: Year
@@ -3406,7 +3406,7 @@ def nisra_index_of_production_cmd(
 def nisra_construction_output_cmd(
     latest, year, quarter, start_year, end_year, output_format, force_refresh, save, summary, growth
 ):
-    """NISRA Construction Output Statistics - Quarterly Economic Indicator.
+    r"""NISRA Construction Output Statistics - Quarterly Economic Indicator.
 
     Measures volume and value of construction output in Northern Ireland across
     all work, new work, and repair & maintenance. Chained volume measure data
@@ -3465,7 +3465,7 @@ def nisra_construction_output_cmd(
             - all_work_index: Total construction output index (NSA)
             - new_work_index: New construction work index (NSA)
             - repair_maintenance_index: Repair & maintenance index (SA)
-            - *_yoy_growth: YoY % change (if --growth specified)
+            - \*_yoy_growth: YoY % change (if --growth specified)
 
     Note:
         Source: NISRA Economic & Labour Market Statistics Branch
@@ -3974,12 +3974,12 @@ def nisra_wellbeing_cmd(latest, metric, year, output_format, force_refresh, save
         force_refresh: Force re-download even if cached
         save: Save data to file (specify filename)
 
-    Metrics:
-        personal: ONS4 measures: Life Satisfaction, Worthwhile, Happiness, Anxiety
-            Scores from 0-10 (higher is better, except Anxiety where lower is better)
-        loneliness: Proportion feeling lonely at least some of the time
-        self-efficacy: Mean self-efficacy scores (range 5-25)
-        summary: Combined latest values for all measures
+    Metrics (personal, loneliness, self-efficacy, summary):
+        personal - ONS4 measures (Life Satisfaction, Worthwhile, Happiness, Anxiety);
+        scores 0-10 (higher is better, except Anxiety).
+        loneliness - Proportion feeling lonely at least some of the time.
+        self-efficacy - Mean self-efficacy scores (range 5-25).
+        summary - Combined latest values for all measures.
 
     Examples:
         Get personal wellbeing (ONS4 measures)::
@@ -4144,57 +4144,22 @@ def nisra_cancer_cmd(latest, target, dimension, year, output_format, force_refre
     Retrieves cancer waiting times performance data for Northern Ireland from the
     Department of Health, tracking progress against ministerial targets.
 
-    Parameters
-    ----------
-    target : str
-        14-day : Urgent breast referrals seen within 14 days (breast cancer only)
-        31-day : Treatment within 31 days of decision to treat (all cancers)
-        62-day : Treatment within 62 days of urgent GP referral (all cancers)
-        referrals : Monthly breast cancer referral volumes
-    dimension : str
-        trust : Breakdown by HSC Trust (Belfast, Northern, South Eastern, Southern, Western)
-        tumour : Breakdown by Tumour Site (Breast, Lung, Skin, Urological, etc.)
-                 Note: 14-day target only available for breast cancer
+    Targets: 14-day (urgent breast referrals), 31-day (decision to treat),
+    62-day (urgent GP referral), referrals (monthly breast volumes).
+    Dimensions: trust (HSC Trust breakdown) or tumour (tumour site breakdown).
 
-    Examples:
-    --------
-    Get latest 31-day performance by trust::
+    Examples::
 
         bolster nisra cancer-waiting-times --latest
-
-    Get 62-day performance by tumour site::
-
         bolster nisra cancer-waiting-times --latest --target 62-day --dimension tumour
-
-    Get 14-day breast cancer performance::
-
         bolster nisra cancer-waiting-times --latest --target 14-day
-
-    Get NI-wide summary for 2024::
-
         bolster nisra cancer-waiting-times --latest --year 2024 --summary
-
-    Save to file::
-
         bolster nisra cancer-waiting-times --latest --save cancer.csv
 
-    Key Insights (as of 2025)
-    -------------------------
-    - 31-day target (95%): NI achieving ~90% average
-    - 62-day target (95%): Performance collapsed to ~32% (crisis level)
-    - 14-day breast target: Dropped from 77% (2020) to 17% (2025)
-    - Trust disparities: Belfast 82% vs Western 97% for 31-day
+    Key insights (as of 2025): 31-day target NI at ~90%; 62-day collapsed to ~32%;
+    14-day breast dropped from 77% (2020) to 17% (2025). Data from Q1 2008 to present.
 
-    Notes:
-    -----
-    - Data from Q1 2008 to present (monthly)
-    - Some Belfast Trust data missing Q2-Q3 2024 (encompass system rollout)
-    - Regional breast service transition from May 2025
-    - COVID-19 impact visible in 2020 volumes and post-2020 backlogs
-
-    Source
-    ------
-    https://www.health-ni.gov.uk/articles/cancer-waiting-times
+    Source: https://www.health-ni.gov.uk/articles/cancer-waiting-times
     """
     console = Console()
 
@@ -4343,7 +4308,7 @@ def nisra_emergency_care_cmd(output_format, trust, attendance_type, year, save):
         Belfast, Northern, South Eastern, Southern, Western
 
     Examples:
-    --------
+    ---------
     Get all data as CSV::
 
         bolster nisra emergency-care

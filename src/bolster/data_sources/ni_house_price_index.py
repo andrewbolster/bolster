@@ -566,22 +566,11 @@ def get_all_tables(force_refresh: bool = False) -> dict[str, pd.DataFrame]:
         force_refresh: If True, bypass cache and download fresh data
 
     Returns:
-        Dictionary mapping table names to cleaned DataFrames.
-        Available tables include:
-            - Table 1: NI HPI Trends
-            - Table 2: HPI by Property Type (summary)
-            - Table 2a-d: HPI by Property Type (detailed)
-            - Table 3: HPI by New/Existing Dwelling
-            - Table 3a-c: New/Existing Dwelling details
-            - Table 4: Sales Volumes by Property Type
-            - Table 5: HPI by Local Government District
-            - Table 5a: Sales Volumes by LGD
-            - Table 6: HPI by Urban/Rural
-            - Table 7: HPI by Rural Drive Times
-            - Table 8: Sales Volumes by Urban/Rural/Drive Times
-            - Table 9: Average Sale Prices
-            - Table 9a-d: Average Prices by Property Type
-            - Table 10a-k: Sales Volumes by Property Type per LGD
+        Dictionary mapping table names to cleaned DataFrames. Tables include:
+        Table 1 (NI HPI Trends), Table 2/2a-d (HPI by Property Type),
+        Table 3/3a-c (New/Existing Dwelling), Table 4 (Sales Volumes by Property Type),
+        Table 5/5a (HPI/Sales by LGD), Table 6-8 (Urban/Rural/Drive Times),
+        Table 9/9a-d (Average Sale Prices), Table 10a-k (Sales Volumes by Property Type per LGD).
 
     Example:
         >>> tables = get_all_tables()

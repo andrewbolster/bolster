@@ -75,7 +75,7 @@ def drop_totals(
         Whether to modify the DataFrame in place, by default True.
 
     Returns:
-    -------
+    --------
     pd.DataFrame
         The DataFrame with totals removed.
 
@@ -111,7 +111,7 @@ def fix_datetime_tz_columns(df: pd.DataFrame, inplace=True) -> pd.DataFrame:
 
 
     Returns:
-    -------
+    --------
     df
 
     """
@@ -134,7 +134,7 @@ def top_n(df: pd.DataFrame, n: int, others: AnyStr = "others") -> pd.DataFrame:
         The number of top rows to keep.
 
     Returns:
-    -------
+    --------
     pd.DataFrame
         The truncated DataFrame with an 'others' row.
 

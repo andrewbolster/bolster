@@ -33,6 +33,8 @@ integrations.
 
    contributing
    data_source_development
+   development/auto-versioning
+   quality-gate-system
    authors
    history
 
