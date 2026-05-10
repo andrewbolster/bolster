@@ -286,8 +286,8 @@ def parse_14_day_breast(file_path: str | Path) -> pd.DataFrame:
         From May 2025, breast cancer services became regional. Historic data
         (pre-May 2025) is by individual Trust. Regional data shows NI-wide figures.
     """
-    xl = pd.ExcelFile(file_path)
-    sheet_names = xl.sheet_names
+    with pd.ExcelFile(file_path) as xl:
+        sheet_names = xl.sheet_names
 
     if SHEET_14_DAY_HISTORIC in sheet_names:
         # New split format (Q4 2024-25 onwards)

@@ -610,11 +610,11 @@ def parse_ssa_occupancy_rates(file_path: str | Path) -> pd.DataFrame:
         # SSA files have trailing space on some sheet names
         # Try both "Table 1" and "Table 1 "
         sheet_name = None
-        xl = pd.ExcelFile(file_path)
-        for name in xl.sheet_names:
-            if name.strip() == "Table 1":
-                sheet_name = name
-                break
+        with pd.ExcelFile(file_path) as xl:
+            for name in xl.sheet_names:
+                if name.strip() == "Table 1":
+                    sheet_name = name
+                    break
 
         if not sheet_name:
             raise NISRAValidationError("Could not find Table 1 in SSA file")

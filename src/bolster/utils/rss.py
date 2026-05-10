@@ -112,20 +112,25 @@ def parse_feed_entry(entry: feedparser.FeedParserDict) -> FeedEntry:
     if hasattr(entry, "tags"):
         categories = [tag.get("term", "") for tag in entry.tags if tag.get("term")]
 
-    # Extract dates - try updated first since some feeds only have updated
+    # Extract dates - access underlying dict directly to bypass feedparser's deprecated
+    # updated→published fallback (feedparser issue #310). Both .get() and attribute access
+    # go through FeedParserDict.__getitem__ which triggers the DeprecationWarning.
+    _d = dict.__getitem__  # shorthand for direct dict access
+    _has = dict.__contains__
+
     updated = None
-    if hasattr(entry, "updated"):
-        updated = parse_date(entry.updated)
-    elif hasattr(entry, "updated_parsed") and entry.updated_parsed:
+    if _has(entry, "updated"):
+        updated = parse_date(_d(entry, "updated"))
+    elif _has(entry, "updated_parsed") and _d(entry, "updated_parsed"):
         with contextlib.suppress(TypeError, ValueError):
-            updated = datetime(*entry.updated_parsed[:6])
+            updated = datetime(*_d(entry, "updated_parsed")[:6])
 
     published = None
-    if hasattr(entry, "published"):
-        published = parse_date(entry.published)
-    elif hasattr(entry, "published_parsed") and entry.published_parsed:
+    if _has(entry, "published"):
+        published = parse_date(_d(entry, "published"))
+    elif _has(entry, "published_parsed") and _d(entry, "published_parsed"):
         with contextlib.suppress(TypeError, ValueError):
-            published = datetime(*entry.published_parsed[:6])
+            published = datetime(*_d(entry, "published_parsed")[:6])
 
     # Fall back to updated if published is not available
     if published is None and updated is not None:
@@ -218,13 +223,15 @@ def parse_rss_feed(feed_url: str, timeout: int = 30) -> Feed:
     # Extract feed metadata
     feed_info = parsed.get("feed", {})
 
-    # Extract feed updated date
+    # Extract feed updated date - bypass feedparser's deprecated fallback (issue #310)
     updated = None
-    if hasattr(feed_info, "updated"):
-        updated = parse_date(feed_info.updated)
-    elif hasattr(feed_info, "updated_parsed") and feed_info.updated_parsed:
-        with contextlib.suppress(TypeError, ValueError):
-            updated = datetime(*feed_info.updated_parsed[:6])
+    if isinstance(feed_info, dict) and dict.__contains__(feed_info, "updated"):
+        updated = parse_date(dict.__getitem__(feed_info, "updated"))
+    elif isinstance(feed_info, dict) and dict.__contains__(feed_info, "updated_parsed"):
+        up = dict.__getitem__(feed_info, "updated_parsed")
+        if up:
+            with contextlib.suppress(TypeError, ValueError):
+                updated = datetime(*up[:6])
 
     # Parse entries
     entries = [parse_feed_entry(entry) for entry in parsed.entries]

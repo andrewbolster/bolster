@@ -94,6 +94,9 @@ markers = [
     "network: marks tests requiring network access (deselect with '-m \"not network\"')",
     "integration: marks optional integration tests requiring real network (run with '-m integration')"
 ]
+filterwarnings = [
+    "ignore::UserWarning:openpyxl",  # header/footer parse errors in government Excel files
+]
 
 [tool.ruff]
 # Select rule categories - adding more for quality gate
