@@ -26,13 +26,11 @@ Base Year: 2020=100
 Example:
     >>> from bolster.data_sources.nisra import index_of_services as ios
     >>> df = ios.get_latest_ios()
-    >>> print(df.tail())
-
-    >>> # Services sector growth
-    >>> from bolster.data_sources.nisra import index_of_services as ios
-    >>> df = ios.get_latest_ios()
+    >>> 'ni_index' in df.columns
+    True
     >>> growth = ios.get_ios_growth(df)
-    >>> print(growth[['quarter_label', 'ni_yoy']].tail(4))
+    >>> 'ni_yoy' in growth.columns
+    True
 """
 
 import logging
@@ -183,10 +181,8 @@ def get_latest_ios(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_ios()
-        >>> print(df.tail(4))
-        >>> # Services as driver of NI growth
-        >>> latest = df.iloc[-1]
-        >>> print(f"NI Services {latest['quarter_label']}: {latest['ni_index']:.1f} (UK: {latest['uk_index']:.1f})")
+        >>> 'ni_index' in df.columns
+        True
     """
     excel_url, year, quarter = get_latest_ios_publication_url()
     logger.info(f"Downloading IOS Q{quarter} {year} from: {excel_url}")
@@ -236,7 +232,8 @@ def get_ios_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
     Example:
         >>> df = get_latest_ios()
         >>> df_2024 = get_ios_by_year(df, 2024)
-        >>> print(df_2024[['quarter_label', 'ni_index', 'uk_index']])
+        >>> len(df_2024) <= 4
+        True
     """
     return df[df["year"] == year].reset_index(drop=True)
 
@@ -257,7 +254,8 @@ def get_ios_growth(df: pd.DataFrame) -> pd.DataFrame:
     Example:
         >>> df = get_latest_ios()
         >>> growth = get_ios_growth(df)
-        >>> print(growth[['quarter_label', 'ni_yoy', 'uk_yoy']].tail(8))
+        >>> 'ni_yoy' in growth.columns
+        True
     """
     result = df.copy()
     result["ni_qoq"] = result["ni_index"].pct_change(1).mul(100).round(2)

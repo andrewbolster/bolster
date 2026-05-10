@@ -33,15 +33,18 @@ Example:
     >>>
     >>> # Get official NISRA migration statistics
     >>> official = migration.get_official_migration()
-    >>> print(official.head())
-    >>>
+    >>> sorted(official.columns.tolist())
+    ['date', 'net_migration', 'year']
+
     >>> # Get derived migration estimates (from demographic equation)
     >>> derived = migration.get_derived_migration()
-    >>> print(derived.head())
-    >>>
+    >>> 'net_migration' in derived.columns
+    True
+
     >>> # Compare official vs derived for validation
     >>> comparison = migration.compare_official_vs_derived(official, derived)
-    >>> print(comparison[comparison['exceeds_threshold']])
+    >>> 'absolute_difference' in comparison.columns
+    True
 """
 
 import logging
@@ -227,19 +230,11 @@ def get_latest_migration(force_refresh: bool = False) -> pd.DataFrame:
             - migration_rate: float (per 1,000 population)
 
     Example:
-        >>> # Get all migration data
         >>> df = get_latest_migration()
-
-        >>> # Get recent migration trends
-        >>> recent = df[df['year'] >= 2010]
-        >>> print(recent[['year', 'net_migration', 'migration_rate']])
-
-        >>> # Check if migration is positive or negative
-        >>> df_2024 = df[df['year'] == 2024]
-        >>> if df_2024['net_migration'].values[0] > 0:
-        >>>     print("Net immigration")
-        >>> else:
-        >>>     print("Net emigration")
+        >>> 'net_migration' in df.columns
+        True
+        >>> len(df) > 0
+        True
     """
     logger.info("Fetching data sources for migration calculation...")
 
@@ -306,7 +301,8 @@ def get_migration_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
     Example:
         >>> df = get_latest_migration()
         >>> df_2024 = get_migration_by_year(df, 2024)
-        >>> print(f"Net migration in 2024: {df_2024['net_migration'].values[0]:+,}")
+        >>> 'net_migration' in df_2024.columns
+        True
     """
     return df[df["year"] == year].reset_index(drop=True)
 
@@ -336,8 +332,8 @@ def get_migration_summary_statistics(
     Example:
         >>> df = get_latest_migration()
         >>> stats = get_migration_summary_statistics(df, start_year=2010)
-        >>> print(f"Average migration 2010-present: {stats['avg_net_migration']:+,.0f}")
-        >>> print(f"Years with net immigration: {stats['positive_years']}")
+        >>> 'avg_net_migration' in stats
+        True
     """
     # Filter by year range if specified
     filtered = df.copy()
@@ -596,12 +592,11 @@ def get_official_migration(force_refresh: bool = False) -> pd.DataFrame:
         NISRAValidationError: If data fails validation
 
     Example:
-        >>> # Get official migration data
         >>> official = get_official_migration()
-        >>>
-        >>> # Filter to recent years
-        >>> recent = official[official['year'] >= 2010]
-        >>> print(recent[['year', 'net_migration']])
+        >>> sorted(official.columns.tolist())
+        ['date', 'net_migration', 'year']
+        >>> len(official) > 0
+        True
     """
     logger.info("Fetching latest official migration statistics...")
 
@@ -651,12 +646,8 @@ def compare_official_vs_derived(
         >>> official = get_official_migration()
         >>> derived = get_derived_migration()
         >>> comparison = compare_official_vs_derived(official, derived)
-        >>>
-        >>> # Show years with significant discrepancies
-        >>> print(comparison[comparison['exceeds_threshold']])
-        >>>
-        >>> # Calculate mean error
-        >>> print(f"Mean absolute error: {comparison['absolute_difference'].mean():,.0f}")
+        >>> sorted(comparison.columns.tolist())
+        ['absolute_difference', 'derived_net_migration', 'exceeds_threshold', 'official_net_migration', 'percent_difference', 'year']
     """
     # Merge on year (inner join to get only overlapping years)
     comparison = official_df[["year", "net_migration"]].merge(

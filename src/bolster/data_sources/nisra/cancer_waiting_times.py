@@ -38,15 +38,13 @@ Example:
     >>> from bolster.data_sources.nisra import cancer_waiting_times as cwt
     >>> # Get latest 31-day waiting times by HSC Trust
     >>> df = cwt.get_latest_31_day_by_trust()
-    >>> print(df.tail())
+    >>> sorted(df.columns.tolist())
+    ['date', 'month', 'over_target', 'performance_rate', 'total', 'trust', 'within_target', 'year']
 
     >>> # Get 62-day waiting times by tumour site
     >>> df_tumour = cwt.get_latest_62_day_by_tumour()
-    >>> print(df_tumour[df_tumour['tumour_site'] == 'Lung Cancer'].tail())
-
-    >>> # Calculate performance rates
-    >>> summary = cwt.get_performance_summary()
-    >>> print(summary)
+    >>> 'tumour_site' in df_tumour.columns
+    True
 
 Publication Details:
     - Frequency: Quarterly (published ~3 months after quarter end)
@@ -288,8 +286,8 @@ def parse_14_day_breast(file_path: str | Path) -> pd.DataFrame:
         From May 2025, breast cancer services became regional. Historic data
         (pre-May 2025) is by individual Trust. Regional data shows NI-wide figures.
     """
-    xl = pd.ExcelFile(file_path)
-    sheet_names = xl.sheet_names
+    with pd.ExcelFile(file_path) as xl:
+        sheet_names = xl.sheet_names
 
     if SHEET_14_DAY_HISTORIC in sheet_names:
         # New split format (Q4 2024-25 onwards)

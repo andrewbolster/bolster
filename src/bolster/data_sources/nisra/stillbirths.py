@@ -18,11 +18,13 @@ Geographic Coverage: Northern Ireland (resident stillbirths)
 Example:
     >>> from bolster.data_sources.nisra import stillbirths
     >>> df = stillbirths.get_latest_stillbirths()
-    >>> print(df.head())
+    >>> sorted(df.columns.tolist())
+    ['date', 'month', 'stillbirths', 'year']
 
     >>> # Total stillbirths in 2024
     >>> total_2024 = df[df['year'] == 2024]['stillbirths'].sum()
-    >>> print(f"Stillbirths in 2024: {total_2024}")
+    >>> bool(total_2024 >= 0)
+    True
 """
 
 import logging
@@ -203,8 +205,11 @@ def get_latest_stillbirths(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_stillbirths()
+        >>> sorted(df.columns.tolist())
+        ['date', 'month', 'stillbirths', 'year']
         >>> annual = df.groupby('year')['stillbirths'].sum()
-        >>> print(annual.tail())
+        >>> len(annual) > 0
+        True
     """
     excel_url = get_latest_stillbirths_publication_url()
     logger.info(f"Downloading stillbirths data from: {excel_url}")
@@ -256,7 +261,8 @@ def get_stillbirths_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
     Example:
         >>> df = get_latest_stillbirths()
         >>> df_2024 = get_stillbirths_by_year(df, 2024)
-        >>> print(df_2024['stillbirths'].sum())
+        >>> 'stillbirths' in df_2024.columns
+        True
     """
     return df[df["year"] == year].reset_index(drop=True)
 
@@ -280,7 +286,6 @@ def get_stillbirth_rate(
         >>> sb = stillbirths.get_latest_stillbirths()
         >>> lb = births.get_latest_births(event_type='registration')
         >>> rate = stillbirths.get_stillbirth_rate(sb, lb)
-        >>> print(rate[['year', 'month', 'stillbirth_rate']].tail(12))
     """
     # births_df has 'tests_conducted' or 'births_persons' depending on event_type
     births_col = next(
@@ -290,7 +295,11 @@ def get_stillbirth_rate(
     if births_col is None:
         raise NISRAValidationError("Could not identify births count column in births DataFrame")
 
-    live = births_df[["date", births_col]].rename(columns={births_col: "live_births"})
+    # births_df has 'month' and a 'sex' column; filter to Persons and align on date
+    if "sex" in births_df.columns:
+        births_df = births_df[births_df["sex"] == "Persons"].copy()
+    date_col = "date" if "date" in births_df.columns else "month"
+    live = births_df[[date_col, births_col]].rename(columns={date_col: "date", births_col: "live_births"})
     merged = stillbirths_df.merge(live, on="date", how="inner")
     merged["total_births"] = merged["live_births"] + merged["stillbirths"]
     merged["stillbirth_rate"] = ((merged["stillbirths"] / merged["total_births"]) * 1000).round(2)
@@ -309,7 +318,8 @@ def get_annual_summary(df: pd.DataFrame) -> pd.DataFrame:
     Example:
         >>> df = get_latest_stillbirths()
         >>> summary = get_annual_summary(df)
-        >>> print(summary.tail(5))
+        >>> sorted(summary.columns.tolist())
+        ['total_stillbirths', 'year', 'yoy_change', 'yoy_pct_change']
     """
     annual = df.groupby("year")["stillbirths"].sum().reset_index()
     annual = annual.rename(columns={"stillbirths": "total_stillbirths"})

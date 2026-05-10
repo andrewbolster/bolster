@@ -102,7 +102,7 @@ language = "en"
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "autoapi/**"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # -- Options for doctest extension ------------------------------------
 
@@ -204,7 +204,7 @@ texinfo_documents = [
         "Bolster Documentation",
         author,
         "bolster",
-        "One line description of project.",
+        "Python utilities and standardised access to Northern Ireland and UK public data sources.",
         "Miscellaneous",
     )
 ]
@@ -241,7 +241,7 @@ autoapi_options = [
     "imported-members",
 ]
 # Exclude examples directory from API docs
-autoapi_ignore = ["**/examples/*"]
+autoapi_ignore = ["**/examples/*", "**/.ipynb_checkpoints/**"]
 
 # Keep generated files for debugging (set to False in production)
 autoapi_keep_files = True

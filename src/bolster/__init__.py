@@ -13,7 +13,9 @@ What's in here:
 Quick examples:
 
     >>> from bolster.data_sources import ni_water
-    >>> quality_data = ni_water.get_water_quality_by_zone('BALM')
+    >>> quality_data = ni_water.get_water_quality()
+    >>> 'NI Hardness Classification' in quality_data.columns
+    True
 
     >>> from bolster.stats import add_totals
     >>> import pandas as pd

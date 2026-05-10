@@ -25,76 +25,73 @@ Available modules:
 Examples:
     >>> from bolster.data_sources.nisra import ashe
     >>> earnings_df = ashe.get_latest_ashe_timeseries('weekly')
-    >>> latest = earnings_df[earnings_df['year'] == earnings_df['year'].max()]
-    >>> print(f"Latest NI median weekly earnings: £{latest[latest['work_pattern']=='All']['median_weekly_earnings'].values[0]:.2f}")
+    >>> 'median_weekly_earnings' in earnings_df.columns
+    True
 
     >>> from bolster.data_sources.nisra import emergency_care_waiting_times as ecwt
     >>> df = ecwt.get_latest_data()
-    >>> type1 = df[df['attendance_type'] == 'Type 1']
-    >>> print(type1.groupby('trust')['pct_within_4hrs'].mean().sort_values())
+    >>> 'pct_within_4hrs' in df.columns
+    True
 
     >>> from bolster.data_sources.nisra import births
     >>> birth_data = births.get_latest_births(event_type='both')
-    >>> print(birth_data['registration'].head())
+    >>> 'births' in birth_data['registration'].columns
+    True
 
     >>> from bolster.data_sources.nisra import composite_index
     >>> nicei_df = composite_index.get_latest_nicei()
-    >>> latest = nicei_df.iloc[-1]
-    >>> print(f"Latest NICEI (Q{latest['quarter']} {latest['year']}): {latest['nicei']:.2f}")
+    >>> 'nicei' in nicei_df.columns
+    True
 
     >>> from bolster.data_sources.nisra import construction_output
     >>> construction_df = construction_output.get_latest_construction_output()
-    >>> print(f"Latest All Work Index: {construction_df.iloc[-1]['all_work_index']:.1f}")
+    >>> 'all_work_index' in construction_df.columns
+    True
 
     >>> from bolster.data_sources.nisra import deaths
     >>> df = deaths.get_latest_deaths(dimension='demographics')
-    >>> print(df.head())
+    >>> 'deaths' in df.columns
+    True
 
     >>> from bolster.data_sources.nisra import economic_indicators
     >>> ios_df = economic_indicators.get_latest_index_of_services()
-    >>> iop_df = economic_indicators.get_latest_index_of_production()
-    >>> print(f"Latest NI services index: {ios_df.iloc[-1]['ni_index']}")
+    >>> 'ni_index' in ios_df.columns
+    True
 
     >>> from bolster.data_sources.nisra import labour_market
     >>> emp_df = labour_market.get_latest_employment()
-    >>> inact_df = labour_market.get_latest_economic_inactivity()
+    >>> 'percentage' in emp_df.columns
+    True
 
     >>> from bolster.data_sources.nisra import marriages
     >>> marriages_df = marriages.get_latest_marriages()
-    >>> df_2024 = marriages.get_marriages_by_year(marriages_df, 2024)
-    >>> print(f"Total marriages in 2024: {df_2024['marriages'].sum():,}")
+    >>> 'marriages' in marriages_df.columns
+    True
 
     >>> from bolster.data_sources.nisra.tourism import occupancy
     >>> occ_df = occupancy.get_latest_hotel_occupancy()
-    >>> avg_2024 = occ_df[occ_df['year'] == 2024]['room_occupancy'].mean()
-    >>> print(f"2024 average room occupancy: {avg_2024:.1%}")
-
-    >>> # SSA (B&B/guest house) occupancy
-    >>> ssa_df = occupancy.get_latest_ssa_occupancy()
-    >>> print(f"SSA room occupancy: {ssa_df['room_occupancy'].mean():.1%}")
-
-    >>> # Compare hotel vs SSA
-    >>> combined = occupancy.get_combined_occupancy()
-    >>> print(combined.groupby('accommodation_type')['room_occupancy'].mean())
+    >>> 'room_occupancy' in occ_df.columns
+    True
 
     >>> from bolster.data_sources.nisra import migration
     >>> migration_df = migration.get_latest_migration()
-    >>> df_2024 = migration.get_migration_by_year(migration_df, 2024)
-    >>> print(f"Net migration in 2024: {df_2024['net_migration'].values[0]:+,}")
+    >>> 'net_migration' in migration_df.columns
+    True
 
     >>> from bolster.data_sources.nisra import registrar_general
     >>> data = registrar_general.get_quarterly_vital_statistics()
-    >>> births = data['births']
-    >>> print(f"Quarterly births from {births['year'].min()} to {births['year'].max()}")
+    >>> sorted(data.keys())
+    ['births', 'deaths', 'lgd']
 
     >>> from bolster.data_sources.nisra import population
     >>> pop_df = population.get_latest_population(area='Northern Ireland')
-    >>> print(f"NI population 2024: {pop_df[pop_df['year'] == 2024]['population'].sum():,}")
+    >>> 'population' in pop_df.columns
+    True
 
     >>> from bolster.data_sources.nisra import wellbeing
     >>> df = wellbeing.get_latest_personal_wellbeing()
-    >>> latest = df.iloc[-1]
-    >>> print(f"Life satisfaction {latest['year']}: {latest['life_satisfaction']}")
+    >>> 'life_satisfaction' in df.columns
+    True
 """
 
 from . import (

@@ -112,20 +112,25 @@ def parse_feed_entry(entry: feedparser.FeedParserDict) -> FeedEntry:
     if hasattr(entry, "tags"):
         categories = [tag.get("term", "") for tag in entry.tags if tag.get("term")]
 
-    # Extract dates - try updated first since some feeds only have updated
+    # Extract dates - access underlying dict directly to bypass feedparser's deprecated
+    # updated→published fallback (feedparser issue #310). Both .get() and attribute access
+    # go through FeedParserDict.__getitem__ which triggers the DeprecationWarning.
+    _d = dict.__getitem__  # shorthand for direct dict access
+    _has = dict.__contains__
+
     updated = None
-    if hasattr(entry, "updated"):
-        updated = parse_date(entry.updated)
-    elif hasattr(entry, "updated_parsed") and entry.updated_parsed:
+    if _has(entry, "updated"):
+        updated = parse_date(_d(entry, "updated"))
+    elif _has(entry, "updated_parsed") and _d(entry, "updated_parsed"):
         with contextlib.suppress(TypeError, ValueError):
-            updated = datetime(*entry.updated_parsed[:6])
+            updated = datetime(*_d(entry, "updated_parsed")[:6])
 
     published = None
-    if hasattr(entry, "published"):
-        published = parse_date(entry.published)
-    elif hasattr(entry, "published_parsed") and entry.published_parsed:
+    if _has(entry, "published"):
+        published = parse_date(_d(entry, "published"))
+    elif _has(entry, "published_parsed") and _d(entry, "published_parsed"):
         with contextlib.suppress(TypeError, ValueError):
-            published = datetime(*entry.published_parsed[:6])
+            published = datetime(*_d(entry, "published_parsed")[:6])
 
     # Fall back to updated if published is not available
     if published is None and updated is not None:
@@ -174,10 +179,27 @@ def parse_rss_feed(feed_url: str, timeout: int = 30) -> Feed:
         ValueError: If the feed cannot be parsed
 
     Example:
-        >>> feed = parse_rss_feed("https://example.com/feed.xml")
-        >>> print(f"Feed: {feed.title}")
-        >>> for entry in feed.entries:
-        ...     print(f"  - {entry.title}")
+        >>> feed = parse_rss_feed(
+        ...     "https://www.gov.uk/search/research-and-statistics.atom?"
+        ...     "content_store_document_type=all_research_and_statistics&"
+        ...     "organisations%5B%5D=northern-ireland-statistics-and-research-agency"
+        ... )
+        >>> feed.title
+        'Research and statistics from Northern Ireland Statistics and Research Agency (NISRA)'
+        >>> sorted(feed.__dataclass_fields__)
+        ['description', 'entries', 'language', 'link', 'title', 'updated']
+        >>> len(feed.entries) > 0
+        True
+        >>> entry = feed.entries[0]
+        >>> sorted(entry.__dataclass_fields__)
+        ['author', 'categories', 'content', 'id', 'link', 'published', 'summary', 'title', 'updated']
+        >>> isinstance(entry.title, str) and isinstance(entry.link, str)
+        True
+        >>> entry.link.startswith("http")
+        True
+        >>> from datetime import datetime
+        >>> isinstance(entry.published, datetime)
+        True
     """
     # Fetch the feed
     try:
@@ -201,13 +223,15 @@ def parse_rss_feed(feed_url: str, timeout: int = 30) -> Feed:
     # Extract feed metadata
     feed_info = parsed.get("feed", {})
 
-    # Extract feed updated date
+    # Extract feed updated date - bypass feedparser's deprecated fallback (issue #310)
     updated = None
-    if hasattr(feed_info, "updated"):
-        updated = parse_date(feed_info.updated)
-    elif hasattr(feed_info, "updated_parsed") and feed_info.updated_parsed:
-        with contextlib.suppress(TypeError, ValueError):
-            updated = datetime(*feed_info.updated_parsed[:6])
+    if isinstance(feed_info, dict) and dict.__contains__(feed_info, "updated"):
+        updated = parse_date(dict.__getitem__(feed_info, "updated"))
+    elif isinstance(feed_info, dict) and dict.__contains__(feed_info, "updated_parsed"):
+        up = dict.__getitem__(feed_info, "updated_parsed")
+        if up:
+            with contextlib.suppress(TypeError, ValueError):
+                updated = datetime(*up[:6])
 
     # Parse entries
     entries = [parse_feed_entry(entry) for entry in parsed.entries]
@@ -242,12 +266,16 @@ def filter_entries(
         Filtered list of FeedEntry objects
 
     Example:
-        >>> feed = parse_rss_feed("https://example.com/feed.xml")
-        >>> recent = filter_entries(
-        ...     feed.entries,
-        ...     title_contains="statistics",
-        ...     after_date="2024-01-01"
-        ... )
+        >>> from bolster.utils.rss import FeedEntry, filter_entries
+        >>> from datetime import datetime
+        >>> entries = [
+        ...     FeedEntry("Births Statistics April 2024", "http://example.com/1", published=datetime(2024, 4, 1)),
+        ...     FeedEntry("Deaths Statistics April 2024", "http://example.com/2", published=datetime(2024, 4, 2)),
+        ...     FeedEntry("Old Statistics 2023", "http://example.com/3", published=datetime(2023, 6, 1)),
+        ... ]
+        >>> recent = filter_entries(entries, title_contains="births", after_date="2024-01-01")
+        >>> [e.title for e in recent]
+        ['Births Statistics April 2024']
     """
     filtered = entries
 
@@ -292,9 +320,7 @@ def get_nisra_statistics_feed(order: str = "recent", timeout: int = 30, limit: i
 
     Example:
         >>> feed = get_nisra_statistics_feed()
-        >>> print(f"Found {len(feed.entries)} NISRA publications")
         >>> feed100 = get_nisra_statistics_feed(limit=100)
-        >>> print(f"Found {len(feed100.entries)} NISRA publications")
     """
     order_param = "&order=release-date-oldest" if order == "oldest" else ""
     base_url = (

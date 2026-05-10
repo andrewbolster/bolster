@@ -13,16 +13,11 @@ Example:
     Basic usage for querying company data:
 
         >>> from bolster.data_sources import companies_house
-        >>> # Get all companies (warning: this is very large!)
-        >>> for company in companies_house.query_basic_company_data():
-        ...     print(company['CompanyName'], company['CompanyNumber'])
-        ...     break  # Just show first result
-
-        >>> # Query companies that might be associated with Farset Labs
         >>> farset_companies = list(companies_house.query_basic_company_data(
         ...     companies_house.companies_house_record_might_be_farset
         ... ))
-        >>> print(f"Found {len(farset_companies)} potential Farset-related companies")
+        >>> len(farset_companies) > 0
+        True
 
 The module provides utilities for downloading and parsing the complete UK company registry,
 with built-in filtering capabilities for targeted analysis.
@@ -48,7 +43,7 @@ def get_basic_company_data_url() -> str:
     """
     base_url = "http://download.companieshouse.gov.uk/en_output.html"
     # TODO: Network integration testing - requires active Companies House website
-    s = bs4.BeautifulSoup(session.get(base_url).content)  # pragma: no cover
+    s = bs4.BeautifulSoup(session.get(base_url).content, features="lxml")  # pragma: no cover
     for a in s.find_all("a"):  # pragma: no cover
         if a.get("href").startswith("BasicCompanyDataAsOneFile"):  # pragma: no cover
             url = f"http://download.companieshouse.gov.uk/{a.get('href')}"  # pragma: no cover

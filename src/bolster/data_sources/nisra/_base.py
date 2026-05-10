@@ -153,9 +153,12 @@ def find_header_row(sheet, expected_columns: list[str], max_rows: int = 20) -> i
         1-based row number where headers are found, or None if not found
 
     Example:
-        >>> sheet = wb['Table 1a']
-        >>> header_row = find_header_row(sheet, ['Week Ending', 'Total Deaths'])
-        >>> # Returns 4 if headers are in row 4
+        >>> import openpyxl
+        >>> wb = openpyxl.Workbook()
+        >>> ws = wb.active
+        >>> _ = ws.append(['Week Ending', 'Total Deaths'])
+        >>> find_header_row(ws, ['Week Ending', 'Total Deaths'])
+        1
     """
     for row_idx, row in enumerate(sheet.iter_rows(min_row=1, max_row=max_rows, values_only=True), 1):
         # Convert row to lowercase strings for comparison
@@ -189,9 +192,12 @@ def extract_column_mapping(sheet, header_row: int, column_names: list[str]) -> d
         Dictionary mapping column names to 0-based column indices
 
     Example:
-        >>> mapping = extract_column_mapping(sheet, 4, ['Week Ending', 'Total Deaths'])
-        >>> # Returns {'Week Ending': 1, 'Total Deaths': 3}
-        >>> week_ending_idx = mapping['Week Ending']
+        >>> import openpyxl
+        >>> wb = openpyxl.Workbook()
+        >>> ws = wb.active
+        >>> _ = ws.append(['Week Ending', 'Total Deaths'])
+        >>> extract_column_mapping(ws, 1, ['Week Ending', 'Total Deaths'])
+        {'Week Ending': 0, 'Total Deaths': 1}
     """
     headers = list(sheet[header_row])
     mapping = {}
@@ -278,6 +284,7 @@ def add_date_columns(df: pd.DataFrame, source_col: str, date_col: str = "date") 
         DataFrame with added columns (rows with invalid dates are dropped)
 
     Example:
+        >>> import pandas as pd
         >>> df = pd.DataFrame({"treatment_month": ["April 2008", "May 2008"]})
         >>> df = add_date_columns(df, "treatment_month")
         >>> df.columns.tolist()
@@ -314,9 +321,10 @@ def parse_age_breakdowns(row, age_columns_map: dict[str, int], start_idx: int = 
         List of dicts with 'age_range' and 'deaths' keys
 
     Example:
+        >>> row = (None,) * 20 + (5, 3, 1)
         >>> age_map = {'0-7 days': 20, '7 days-1 year': 21, '1-14': 22}
-        >>> result = parse_age_breakdowns(row, age_map)
-        >>> # [{'age_range': '0-7 days', 'deaths': 1}, ...]
+        >>> parse_age_breakdowns(row, age_map)
+        [{'age_range': '0-7 days', 'deaths': 5}, {'age_range': '7 days-1 year', 'deaths': 3}, {'age_range': '1-14', 'deaths': 1}]
     """
     age_breakdowns = []
 

@@ -28,17 +28,12 @@ Metrics Provided:
 
 Example:
     >>> from bolster.data_sources import gender_pay_gap
-    >>> # Get all UK employers for 2024 reporting year
     >>> df = gender_pay_gap.get_data(year=2024)
-    >>> print(df.head())
-
-    >>> # Get NI employers only (BT postcode prefix)
+    >>> 'employer_name' in df.columns
+    True
     >>> ni_df = gender_pay_gap.get_data(year=2024, postcode_prefix="BT")
-    >>> print(f"NI employers reporting: {len(ni_df)}")
-
-    >>> # Get all available years combined, filtered to NI
-    >>> all_df = gender_pay_gap.get_all_years(postcode_prefix="BT")
-    >>> print(all_df.groupby('reporting_year')['diff_mean_hourly_percent'].median())
+    >>> len(ni_df) > 0
+    True
 """
 
 import logging
@@ -125,7 +120,8 @@ def get_available_years() -> list[int]:
 
     Example:
         >>> years = get_available_years()
-        >>> print(f"Data available from {min(years)} to {max(years)}")
+        >>> len(years) > 0
+        True
     """
     current_year = pd.Timestamp.now().year
     # Data for year Y is typically published in April of year Y+1
@@ -192,16 +188,12 @@ def get_data(
         GenderPayGapError: If the download or parse fails.
 
     Example:
-        >>> # All UK employers
         >>> df = get_data(year=2024)
-        >>> print(f"Total UK employers: {len(df)}")
-
-        >>> # Northern Ireland only
+        >>> 'employer_name' in df.columns
+        True
         >>> ni = get_data(year=2024, postcode_prefix="BT")
-        >>> print(f"NI employers: {len(ni)}")
-
-        >>> # Edinburgh employers
-        >>> edinburgh = get_data(year=2024, postcode_prefix="EH")
+        >>> len(ni) > 0
+        True
     """
     available = get_available_years()
     if year not in available:
@@ -269,13 +261,9 @@ def get_all_years(postcode_prefix: str | None = None) -> pd.DataFrame:
         See :func:`get_data` for full column documentation.
 
     Example:
-        >>> # NI employer median pay gap trend
         >>> df = get_all_years(postcode_prefix="BT")
-        >>> trend = df.groupby('reporting_year')['diff_median_hourly_percent'].median()
-        >>> print(trend)
-
-        >>> # All UK employers across all years
-        >>> df = get_all_years()
+        >>> 'reporting_year' in df.columns
+        True
     """
     frames = []
     for year in get_available_years():

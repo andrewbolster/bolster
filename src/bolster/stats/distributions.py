@@ -1,3 +1,20 @@
+"""Statistical distribution fitting utilities.
+
+Provides :func:`best_fit_distribution`, which tests a large set of
+``scipy.stats`` continuous distributions against observed data and returns
+the one with the lowest sum-of-squared-errors against the empirical
+histogram.
+
+Intended for exploratory data analysis where you want a quick sanity-check
+on which parametric family best describes your data before committing to a
+more rigorous approach.
+
+Note:
+    This module depends on :mod:`scipy` and :mod:`numpy`.  The fitting loop
+    is marked ``# pragma: no cover`` because it is compute-intensive and not
+    suitable for CI; validate results manually or in a notebook.
+"""
+
 import warnings
 from time import time
 

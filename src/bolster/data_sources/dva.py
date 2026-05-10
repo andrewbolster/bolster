@@ -29,19 +29,23 @@ Example:
     >>> from bolster.data_sources import dva
     >>> # Get latest vehicle test statistics
     >>> df = dva.get_latest_vehicle_tests()
-    >>> print(df.tail())
+    >>> 'tests_conducted' in df.columns
+    True
 
     >>> # Get latest driver test statistics
     >>> df = dva.get_latest_driver_tests()
-    >>> print(f"Latest month: {df.iloc[-1]['month']}")
+    >>> len(df) > 0
+    True
 
     >>> # Get latest theory test statistics
     >>> df = dva.get_latest_theory_tests()
-    >>> print(f"Total tests: {df['tests_conducted'].sum():,}")
+    >>> len(df) > 0
+    True
 
     >>> # Get all test types combined
     >>> data = dva.get_latest_all_tests()
-    >>> print(data.keys())  # ['vehicle', 'driver', 'theory']
+    >>> sorted(data.keys())
+    ['driver', 'theory', 'vehicle']
 """
 
 import contextlib
@@ -136,7 +140,8 @@ def get_latest_dva_publication_url() -> tuple[str, str, datetime]:
 
     Example:
         >>> url, title, pub_date = get_latest_dva_publication_url()
-        >>> print(f"Latest: {title} (published {pub_date.strftime('%Y-%m-%d')})")
+        >>> url.startswith('https://')
+        True
     """
     from dateutil.relativedelta import relativedelta
 
@@ -263,8 +268,13 @@ def parse_vehicle_tests(file_path: str | Path) -> pd.DataFrame:
             - rolling_12_month_total: int (optional, rolling 12-month sum)
 
     Example:
-        >>> df = parse_vehicle_tests("dva-monthly-tests-december-2025.xlsx")
-        >>> print(df.tail())
+        >>> url, _, _ = get_latest_dva_publication_url()
+        >>> path = _download_file(url)
+        >>> df = parse_vehicle_tests(path)
+        >>> 'tests_conducted' in df.columns
+        True
+        >>> len(df) > 0
+        True
     """
     from openpyxl import load_workbook
 
@@ -342,8 +352,13 @@ def parse_driver_tests(file_path: str | Path) -> pd.DataFrame:
             - rolling_12_month_total: int (optional, rolling 12-month sum)
 
     Example:
-        >>> df = parse_driver_tests("dva-monthly-tests-december-2025.xlsx")
-        >>> print(df.tail())
+        >>> url, _, _ = get_latest_dva_publication_url()
+        >>> path = _download_file(url)
+        >>> df = parse_driver_tests(path)
+        >>> 'tests_conducted' in df.columns
+        True
+        >>> len(df) > 0
+        True
     """
     from openpyxl import load_workbook
 
@@ -421,8 +436,13 @@ def parse_theory_tests(file_path: str | Path) -> pd.DataFrame:
             - rolling_12_month_total: int (optional, rolling 12-month sum)
 
     Example:
-        >>> df = parse_theory_tests("dva-monthly-tests-december-2025.xlsx")
-        >>> print(df.tail())
+        >>> url, _, _ = get_latest_dva_publication_url()
+        >>> path = _download_file(url)
+        >>> df = parse_theory_tests(path)
+        >>> 'tests_conducted' in df.columns
+        True
+        >>> len(df) > 0
+        True
     """
     from openpyxl import load_workbook
 
@@ -502,8 +522,8 @@ def get_latest_vehicle_tests(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_vehicle_tests()
-        >>> print(f"Latest month: {df.iloc[-1]['month']} {df.iloc[-1]['year']}")
-        >>> print(f"Tests conducted: {df.iloc[-1]['tests_conducted']:,}")
+        >>> 'tests_conducted' in df.columns
+        True
     """
     excel_url, _, _ = get_latest_dva_publication_url()
     file_path = _download_file(excel_url, cache_ttl_hours=168, force_refresh=force_refresh)
@@ -524,8 +544,8 @@ def get_latest_driver_tests(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_driver_tests()
-        >>> print(f"Latest month: {df.iloc[-1]['month']} {df.iloc[-1]['year']}")
-        >>> print(f"Tests conducted: {df.iloc[-1]['tests_conducted']:,}")
+        >>> len(df) > 0
+        True
     """
     excel_url, _, _ = get_latest_dva_publication_url()
     file_path = _download_file(excel_url, cache_ttl_hours=168, force_refresh=force_refresh)
@@ -546,8 +566,8 @@ def get_latest_theory_tests(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_theory_tests()
-        >>> print(f"Latest month: {df.iloc[-1]['month']} {df.iloc[-1]['year']}")
-        >>> print(f"Tests conducted: {df.iloc[-1]['tests_conducted']:,}")
+        >>> len(df) > 0
+        True
     """
     excel_url, _, _ = get_latest_dva_publication_url()
     file_path = _download_file(excel_url, cache_ttl_hours=168, force_refresh=force_refresh)
@@ -567,9 +587,8 @@ def get_latest_all_tests(force_refresh: bool = False) -> dict[str, pd.DataFrame]
 
     Example:
         >>> data = get_latest_all_tests()
-        >>> print(f"Vehicle tests: {len(data['vehicle'])} months")
-        >>> print(f"Driver tests: {len(data['driver'])} months")
-        >>> print(f"Theory tests: {len(data['theory'])} months")
+        >>> sorted(data.keys())
+        ['driver', 'theory', 'vehicle']
     """
     excel_url, _, _ = get_latest_dva_publication_url()
     file_path = _download_file(excel_url, cache_ttl_hours=168, force_refresh=force_refresh)
@@ -599,7 +618,8 @@ def get_tests_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
     Example:
         >>> df = get_latest_vehicle_tests()
         >>> df_2024 = get_tests_by_year(df, 2024)
-        >>> print(f"2024 total: {df_2024['tests_conducted'].sum():,}")
+        >>> 'tests_conducted' in df_2024.columns
+        True
     """
     return df[df["year"] == year].reset_index(drop=True)
 
@@ -618,7 +638,8 @@ def get_tests_by_month(df: pd.DataFrame, month: str, year: int) -> pd.DataFrame:
     Example:
         >>> df = get_latest_vehicle_tests()
         >>> dec_2025 = get_tests_by_month(df, 'December', 2025)
-        >>> print(f"December 2025: {dec_2025['tests_conducted'].values[0]:,}")
+        >>> 'tests_conducted' in dec_2025.columns
+        True
     """
     return df[(df["month"] == month) & (df["year"] == year)].reset_index(drop=True)
 
@@ -637,7 +658,8 @@ def calculate_growth_rates(df: pd.DataFrame, periods: int = 12) -> pd.DataFrame:
     Example:
         >>> df = get_latest_vehicle_tests()
         >>> df_growth = calculate_growth_rates(df)
-        >>> print(df_growth[['date', 'tests_conducted', 'yoy_growth']].tail())
+        >>> 'yoy_growth' in df_growth.columns
+        True
     """
     result = df.copy()
     result["yoy_growth"] = result["tests_conducted"].pct_change(periods=periods) * 100
@@ -664,7 +686,8 @@ def get_summary_statistics(df: pd.DataFrame, start_year: int | None = None, end_
     Example:
         >>> df = get_latest_vehicle_tests()
         >>> stats = get_summary_statistics(df, start_year=2020)
-        >>> print(f"Average monthly tests since 2020: {stats['monthly_mean']:,.0f}")
+        >>> sorted(stats.keys())
+        ['monthly_max', 'monthly_mean', 'monthly_min', 'months_count', 'period', 'total_tests']
     """
     filtered = df.copy()
 

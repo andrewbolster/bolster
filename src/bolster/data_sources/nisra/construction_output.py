@@ -25,22 +25,15 @@ Data Coverage:
 
 Examples:
     >>> from bolster.data_sources.nisra import construction_output
-    >>> # Get latest construction output data
     >>> df = construction_output.get_latest_construction_output()
-    >>> print(df.head())
-
-    >>> # Filter for specific year
+    >>> 'all_work_index' in df.columns
+    True
     >>> df_2024 = construction_output.get_construction_by_year(df, 2024)
-    >>> print(f"Q4 2024 All Work: {df_2024[df_2024['quarter']=='Q4']['all_work_index'].values[0]}")
-
-    >>> # Get specific quarter
-    >>> q2_2025 = construction_output.get_construction_by_quarter(df, 'Q2', 2025)
-    >>> print(f"Q2 2025: All Work={q2_2025['all_work_index'].values[0]:.1f}")
-
-    >>> # Calculate growth rates
+    >>> len(df_2024) <= 4
+    True
     >>> df_growth = construction_output.calculate_growth_rates(df)
-    >>> recent = df_growth.tail(4)
-    >>> print(recent[['quarter', 'year', 'all_work_index', 'all_work_yoy_growth']])
+    >>> 'all_work_yoy_growth' in df_growth.columns
+    True
 
 Publication Details:
     - Frequency: Quarterly
@@ -80,7 +73,8 @@ def get_latest_construction_publication_url() -> tuple[str, datetime]:
 
     Example:
         >>> url, pub_date = get_latest_construction_publication_url()
-        >>> print(f"Latest published: {pub_date.strftime('%Y-%m-%d')}")
+        >>> url.startswith('https://')
+        True
     """
     from bs4 import BeautifulSoup
 
@@ -154,8 +148,11 @@ def parse_construction_file(file_path: str | Path) -> pd.DataFrame:
             - repair_maintenance_index: float (repair and maintenance, SA)
 
     Example:
-        >>> df = parse_construction_file("construction-tables-q2-2025.xlsx")
-        >>> print(df[df['year'] == 2025].tail())
+        >>> url, _ = get_latest_construction_publication_url()
+        >>> path = download_file(url, cache_ttl_hours=168)
+        >>> df = parse_construction_file(path)
+        >>> 'all_work_index' in df.columns
+        True
     """
     logger.info(f"Parsing Construction Output file: {file_path}")
 
@@ -249,8 +246,8 @@ def get_latest_construction_output(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_construction_output()
-        >>> print(f"Latest quarter: {df.iloc[-1]['quarter']} {df.iloc[-1]['year']}")
-        >>> print(f"All Work Index: {df.iloc[-1]['all_work_index']:.1f}")
+        >>> 'all_work_index' in df.columns
+        True
     """
     excel_url, pub_date = get_latest_construction_publication_url()
 
@@ -278,7 +275,8 @@ def get_construction_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
     Example:
         >>> df = get_latest_construction_output()
         >>> df_2024 = get_construction_by_year(df, 2024)
-        >>> print(df_2024)
+        >>> len(df_2024) <= 4
+        True
     """
     return df[df["year"] == year].reset_index(drop=True)
 
@@ -297,7 +295,8 @@ def get_construction_by_quarter(df: pd.DataFrame, quarter: str, year: int) -> pd
     Example:
         >>> df = get_latest_construction_output()
         >>> q2_2025 = get_construction_by_quarter(df, 'Q2', 2025)
-        >>> print(f"Q2 2025 All Work: {q2_2025['all_work_index'].values[0]:.1f}")
+        >>> len(q2_2025) <= 1
+        True
     """
     return df[(df["quarter"] == quarter) & (df["year"] == year)].reset_index(drop=True)
 
@@ -318,8 +317,8 @@ def calculate_growth_rates(df: pd.DataFrame, periods: int = 4) -> pd.DataFrame:
     Example:
         >>> df = get_latest_construction_output()
         >>> df_growth = calculate_growth_rates(df)
-        >>> recent = df_growth.tail(4)
-        >>> print(recent[['quarter', 'year', 'all_work_index', 'all_work_yoy_growth']])
+        >>> 'all_work_yoy_growth' in df_growth.columns
+        True
     """
     result = df.copy()
 
@@ -352,7 +351,8 @@ def get_summary_statistics(df: pd.DataFrame, start_year: int | None = None, end_
     Example:
         >>> df = get_latest_construction_output()
         >>> stats = get_summary_statistics(df, start_year=2020)
-        >>> print(f"All Work mean since 2020: {stats['all_work_mean']:.1f}")
+        >>> 'all_work_mean' in stats
+        True
     """
     filtered = df.copy()
 

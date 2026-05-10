@@ -28,18 +28,12 @@ Time Coverage: 2013 to present
 
 Example:
     >>> from bolster.data_sources.psni import road_traffic_collisions
-    >>> # Get latest collision data
     >>> df = road_traffic_collisions.get_collisions()
-    >>> print(df.head())
-    >>>
-    >>> # Get casualties with decoded values
-    >>> casualties = road_traffic_collisions.get_casualties()
-    >>> fatal = casualties[casualties['severity'] == 'Fatal']
-    >>> print(f"Fatal casualties: {len(fatal)}")
-    >>>
-    >>> # Get summary statistics
+    >>> 'severity' in road_traffic_collisions.get_casualties().columns
+    True
     >>> summary = road_traffic_collisions.get_annual_summary()
-    >>> print(summary)
+    >>> 'year' in summary.columns
+    True
 """
 
 import logging
@@ -229,7 +223,8 @@ def get_available_years() -> list[int]:
 
     Example:
         >>> years = get_available_years()
-        >>> print(years)  # e.g., [2024, 2023, 2022, ...]
+        >>> len(years) > 0
+        True
     """
     datasets = _get_available_datasets()
     return [d["year"] for d in datasets]
@@ -310,8 +305,8 @@ def get_collisions(
 
     Example:
         >>> df = get_collisions(2024)
-        >>> print(f"Total collisions: {len(df)}")
-        >>> print(df.groupby('district')['casualties'].sum())
+        >>> 'severity' in df.columns or 'district' in df.columns
+        True
     """
     if year is None:
         years = get_available_years()
@@ -404,9 +399,8 @@ def get_casualties(
 
     Example:
         >>> df = get_casualties(2024)
-        >>> print(df['severity'].value_counts())
-        >>> fatal = df[df['severity'] == 'Fatal']
-        >>> print(f"Fatal casualties: {len(fatal)}")
+        >>> 'severity' in df.columns
+        True
     """
     if year is None:
         years = get_available_years()
@@ -476,7 +470,8 @@ def get_vehicles(
 
     Example:
         >>> df = get_vehicles(2024)
-        >>> print(df['vehicle_type'].value_counts())
+        >>> 'vehicle_id' in df.columns
+        True
     """
     if year is None:
         years = get_available_years()
@@ -527,9 +522,8 @@ def get_casualties_with_collision_details(
 
     Example:
         >>> df = get_casualties_with_collision_details(2024)
-        >>> # Fatal casualties by district
-        >>> fatal_by_district = df[df['severity'] == 'Fatal'].groupby('district').size()
-        >>> print(fatal_by_district.sort_values(ascending=False))
+        >>> 'severity' in df.columns
+        True
     """
     casualties = get_casualties(year, force_refresh=force_refresh)
     collisions = get_collisions(year, force_refresh=force_refresh)
@@ -583,9 +577,8 @@ def get_annual_summary(
 
     Example:
         >>> summary = get_annual_summary()
-        >>> print(summary)
-        >>> # Plot fatality trend
-        >>> summary.plot(x='year', y='fatal', kind='line')
+        >>> 'fatal' in summary.columns
+        True
     """
     if years is None:
         years = get_available_years()
@@ -646,7 +639,8 @@ def get_casualties_by_district(
 
     Example:
         >>> by_district = get_casualties_by_district(2024)
-        >>> print(by_district.sort_values('fatal', ascending=False))
+        >>> 'district' in by_district.columns
+        True
     """
     df = get_casualties_with_collision_details(year, force_refresh=force_refresh)
 
@@ -694,7 +688,8 @@ def get_casualties_by_road_user(
 
     Example:
         >>> by_user = get_casualties_by_road_user(2024)
-        >>> print(by_user)
+        >>> 'casualty_class' in by_user.columns
+        True
     """
     df = get_casualties(year, force_refresh=force_refresh)
 

@@ -28,15 +28,18 @@ Example:
     >>> from bolster.data_sources.nisra import marriages
     >>> # Get latest marriage registrations
     >>> df = marriages.get_latest_marriages()
-    >>> print(df.head())
+    >>> sorted(df.columns.tolist())
+    ['date', 'marriages', 'month', 'year']
 
     >>> # Get latest civil partnership registrations
     >>> cp_df = marriages.get_latest_civil_partnerships()
-    >>> print(f"Total civil partnerships in 2024: {cp_df[cp_df['year']==2024]['civil_partnerships'].sum()}")
+    >>> sorted(cp_df.columns.tolist())
+    ['civil_partnerships', 'date', 'month', 'year']
 
     >>> # Filter for a specific year
     >>> df_2024 = df[df['year'] == 2024]
-    >>> print(f"Total marriages in 2024: {df_2024['marriages'].sum():,}")
+    >>> len(df_2024) > 0
+    True
 """
 
 import logging
@@ -278,17 +281,14 @@ def get_latest_marriages(force_refresh: bool = False) -> pd.DataFrame:
         NISRAValidationError: If file structure is unexpected
 
     Example:
-        >>> # Get all data
         >>> df = get_latest_marriages()
+        >>> sorted(df.columns.tolist())
+        ['date', 'marriages', 'month', 'year']
 
-        >>> # Filter for 2024
         >>> df_2024 = df[df['year'] == 2024]
         >>> total_2024 = df_2024['marriages'].sum()
-        >>> print(f"Total marriages in 2024: {total_2024:,}")
-
-        >>> # Get monthly average by month across all years
-        >>> monthly_avg = df.groupby('month')['marriages'].mean()
-        >>> print(monthly_avg.sort_values(ascending=False))
+        >>> bool(total_2024 > 0)
+        True
     """
     # Discover latest publication
     excel_url, pub_date = get_latest_marriages_publication_url()
@@ -346,7 +346,8 @@ def get_marriages_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
         >>> df = get_latest_marriages()
         >>> df_2024 = get_marriages_by_year(df, 2024)
         >>> total = df_2024['marriages'].sum()
-        >>> print(f"Total marriages in 2024: {total:,}")
+        >>> bool(total > 0)
+        True
     """
     return df[df["year"] == year].reset_index(drop=True)
 
@@ -367,7 +368,8 @@ def get_marriages_summary_by_year(df: pd.DataFrame) -> pd.DataFrame:
     Example:
         >>> df = get_latest_marriages()
         >>> summary = get_marriages_summary_by_year(df)
-        >>> print(summary.tail(10))  # Last 10 years
+        >>> sorted(summary.columns.tolist())
+        ['avg_per_month', 'months_reported', 'total_marriages', 'year']
     """
     summary = (
         df.groupby("year")
@@ -635,9 +637,12 @@ def get_latest_civil_partnerships(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_civil_partnerships()
+        >>> sorted(df.columns.tolist())
+        ['civil_partnerships', 'date', 'month', 'year']
         >>> df_2024 = df[df['year'] == 2024]
         >>> total = df_2024['civil_partnerships'].sum()
-        >>> print(f"Total civil partnerships in 2024: {total}")
+        >>> bool(total >= 0)
+        True
     """
     excel_url, pub_date = get_latest_civil_partnerships_publication_url()
 

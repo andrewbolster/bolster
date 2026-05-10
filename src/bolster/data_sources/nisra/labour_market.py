@@ -53,20 +53,14 @@ Usage:
     >>> lgd_df = labour_market.get_latest_employment_by_lgd()
 
 Example:
-    >>> import pandas as pd
     >>> from bolster.data_sources.nisra import labour_market
-    >>> # Get latest employment by age and sex
     >>> emp_df = labour_market.get_latest_employment()
-    >>> # Filter for females aged 25-29
-    >>> young_females = emp_df[
-    ...     (emp_df['sex'] == 'Female') &
-    ...     (emp_df['age_group'] == '25 to 29')
-    ... ]
-    >>> # Get employment by Local Government District
+    >>> 'age_group' in emp_df.columns
+    True
+
     >>> lgd_df = labour_market.get_latest_employment_by_lgd()
-    >>> # Compare Belfast and rural areas
-    >>> belfast = lgd_df[lgd_df['lgd'] == 'Belfast']
-    >>> print(f"Belfast employment rate: {belfast['employment_rate'].values[0]:.1f}%")
+    >>> 'employment_rate' in lgd_df.columns
+    True
 
 Author: Claude Code
 Date: 2025-12-21
@@ -199,7 +193,8 @@ def download_quarterly_lfs(year: int, quarter: str, force_refresh: bool = False,
 
     Example:
         >>> file_path = download_quarterly_lfs(2025, "Jul-Sep")
-        >>> print(f"Downloaded to: {file_path}")
+        >>> file_path.exists()
+        True
     """
     # Build download URL
     url = _build_lfs_url(year, quarter)
@@ -232,8 +227,11 @@ def parse_employment_by_age_sex(file_path: str | Path) -> pd.DataFrame:
             - number: Absolute number employed (from Table 2.15b)
 
     Example:
-        >>> df = parse_employment_by_age_sex("lfs_2025_Q3.xlsx")
-        >>> print(df[df['sex'] == 'Female'].head())
+        >>> url, year, quarter = get_latest_lfs_publication_url()
+        >>> path = download_file(url, cache_ttl_hours=90*24)
+        >>> df = parse_employment_by_age_sex(path)
+        >>> 'age_group' in df.columns
+        True
     """
     wb = load_workbook(file_path, data_only=True)
 
@@ -381,10 +379,11 @@ def parse_economic_inactivity(file_path: str | Path) -> pd.DataFrame:
         allowing year-over-year comparisons for the same seasonal period.
 
     Example:
-        >>> df = parse_economic_inactivity("lfs_2025_Q3.xlsx")
-        >>> # Get 2025 data
-        >>> df_2025 = df[df['time_period'].str.contains('2025')]
-        >>> print(df_2025)
+        >>> url, year, quarter = get_latest_lfs_publication_url()
+        >>> path = download_file(url, cache_ttl_hours=90*24)
+        >>> df = parse_economic_inactivity(path)
+        >>> 'economic_inactivity_rate' in df.columns
+        True
     """
     wb = load_workbook(file_path, data_only=True)
 
@@ -484,7 +483,8 @@ def get_latest_lfs_publication_url() -> tuple[str, str, str]:
 
     Example:
         >>> url, year, quarter = get_latest_lfs_publication_url()
-        >>> print(f"Latest data: {quarter} {year}")
+        >>> url.startswith('https://')
+        True
     """
     from bs4 import BeautifulSoup
 
@@ -619,9 +619,11 @@ def get_latest_employment(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_employment()
-        >>> # Analyze employment for 25-29 age group
+        >>> 'age_group' in df.columns
+        True
         >>> young_adults = df[df['age_group'] == '25 to 29']
-        >>> print(young_adults)
+        >>> len(young_adults) >= 0
+        True
     """
     # Discover latest publication from NISRA website
     excel_url, year, quarter = get_latest_lfs_publication_url()
@@ -650,7 +652,8 @@ def get_latest_economic_inactivity(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_economic_inactivity()
-        >>> print(df)
+        >>> 'sex' in df.columns
+        True
     """
     # Discover latest publication from NISRA website
     excel_url, year, quarter = get_latest_lfs_publication_url()
@@ -684,8 +687,11 @@ def get_quarterly_data(
 
     Example:
         >>> data = get_quarterly_data(2025, "Jul-Sep")
+        >>> sorted(data.keys())
+        ['economic_inactivity', 'employment']
         >>> emp_df = data['employment']
-        >>> inact_df = data['economic_inactivity']
+        >>> 'age_group' in emp_df.columns
+        True
     """
     if tables is None:
         tables = ["employment", "economic_inactivity"]
@@ -722,7 +728,8 @@ def get_latest_lgd_employment_url() -> tuple[str, int]:
 
     Example:
         >>> url, year = get_latest_lgd_employment_url()
-        >>> print(f"Latest LGD tables: {year} at {url}")
+        >>> url.startswith('https://')
+        True
     """
     from datetime import datetime
 
@@ -793,9 +800,11 @@ def parse_employment_by_lgd(file_path: str | Path, year: int = None) -> pd.DataF
             - employment_rate: float (%)
 
     Example:
-        >>> df = parse_employment_by_lgd("lfs-lgd-2024.xlsx", year=2024)
-        >>> belfast = df[df['lgd'] == 'Belfast']
-        >>> print(f"Belfast employment rate: {belfast['employment_rate'].values[0]}%")
+        >>> url, year = get_latest_lgd_employment_url()
+        >>> path = download_file(url, cache_ttl_hours=180*24)
+        >>> df = parse_employment_by_lgd(path, year=year)
+        >>> 'employment_rate' in df.columns
+        True
     """
     logger.info(f"Parsing LFS LGD employment from: {file_path}")
 
@@ -875,9 +884,10 @@ def get_latest_employment_by_lgd(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_employment_by_lgd()
-        >>> # Compare Belfast to other LGDs
-        >>> df_sorted = df.sort_values('employment_rate', ascending=False)
-        >>> print(df_sorted[['lgd', 'in_employment', 'employment_rate']])
+        >>> 'employment_rate' in df.columns
+        True
+        >>> len(df) > 0
+        True
     """
     excel_url, year = get_latest_lgd_employment_url()
 

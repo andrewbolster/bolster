@@ -7,10 +7,14 @@ structure, where ``x["data"]`` is a list of column arrays (not row arrays) and
 ``x["container"]`` holds the HTML table header with column names.
 
 Example:
-    >>> from bolster.utils.datatables import fetch_datatables_json, datatables_to_dataframe
-    >>> payload = fetch_datatables_json("https://datavis.nisra.gov.uk/health/my-data.html")
+    >>> from bolster.utils.datatables import datatables_to_dataframe
+    >>> payload = {
+    ...     "data": [["A", "B"], [1, 2]],
+    ...     "container": "<table><thead><tr><th>Name</th><th>Value</th></tr></thead></table>",
+    ... }
     >>> df = datatables_to_dataframe(payload)
-    >>> print(df.head())
+    >>> list(df.columns)
+    ['Name', 'Value']
 """
 
 import json
@@ -47,9 +51,29 @@ def fetch_datatables_json(url: str, timeout: int = 30) -> dict:
         DataTablesError: If the page cannot be fetched or no DT payload is found.
 
     Example:
-        >>> payload = fetch_datatables_json("https://example.com/data.html")
-        >>> len(payload["data"])   # number of columns
-        11
+        >>> from bolster.utils.datatables import DataTablesError
+        >>> try:
+        ...     fetch_datatables_json("https://example.com/data.html")
+        ... except DataTablesError:
+        ...     print("DataTablesError raised for invalid page")
+        DataTablesError raised for invalid page
+
+        A successful call returns a dict extracted from the page's DT widget.
+        The shape mirrors what ``_extract_datatables_payload`` returns:
+
+        >>> sample_html = (
+        ...     '<script type="application/json">'
+        ...     '{"x": {"data": [["Belfast", "Derry"], [1200, 800]],'
+        ...     ' "container": "<thead><tr><th>City</th><th>Count</th></tr></thead>"}}'
+        ...     "</script>"
+        ... )
+        >>> payload = _extract_datatables_payload(sample_html)
+        >>> sorted(payload.keys())
+        ['container', 'data']
+        >>> len(payload["data"])
+        2
+        >>> payload["data"][0]
+        ['Belfast', 'Derry']
     """
     try:
         response = session.get(url, timeout=timeout)

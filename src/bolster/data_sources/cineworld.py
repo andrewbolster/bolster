@@ -18,19 +18,11 @@ Example:
     Retrieve current cinema listings for Belfast Cineworld:
 
         >>> from bolster.data_sources import cineworld
-        >>> # Get today's listings for Belfast cinema (site code 117)
         >>> listings = cineworld.get_cinema_listings(117)
-        >>> print(f"Found {len(listings)} films showing today")
-
-        >>> # Check what data is available for each film
-        >>> first_film = listings[0]
-        >>> print(f"Film: {first_film['name']}")
-        >>> print(f"Release Year: {first_film['releaseYear']}")
-
-        >>> # Get listings for a specific date
-        >>> from datetime import date, timedelta
-        >>> tomorrow = date.today() + timedelta(days=1)
-        >>> tomorrow_listings = cineworld.get_cinema_listings(117, tomorrow)
+        >>> len(listings) > 0
+        True
+        >>> 'name' in listings[0]
+        True
 
 Site Code 117 maps to Belfast, you're on your own for the rest.
 """

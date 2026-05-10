@@ -4,48 +4,40 @@
 Installation
 ============
 
-
 Stable release
 --------------
 
-To install Bolster, run this command in your terminal:
+Install Bolster from PyPI with ``pip``:
 
 .. code-block:: console
 
     $ pip install bolster
 
-This is the preferred method to install Bolster, as it will always install the most recent stable release.
+Or with `uv <https://docs.astral.sh/uv/>`_ (recommended for development):
 
-If you don't have `pip`_ installed, this `Python installation guide`_ can guide
-you through the process.
+.. code-block:: console
 
-.. _pip: https://pip.pypa.io
-.. _Python installation guide: http://docs.python-guide.org/en/latest/starting/installation/
-
+    $ uv add bolster
 
 From sources
 ------------
 
-The sources for Bolster can be downloaded from the `Github repo`_.
-
-You can either clone the public repository:
+Clone the repository and install in editable mode using ``uv``:
 
 .. code-block:: console
 
-    $ git clone git://github.com/andrewbolster/bolster
+    $ git clone https://github.com/andrewbolster/bolster.git
+    $ cd bolster
+    $ uv sync --all-extras
 
-Or download the `tarball`_:
+This installs all runtime and development dependencies (test, docs, cloud
+extras) into an isolated virtual environment managed by ``uv``.
+
+To activate the environment or run a one-off command:
 
 .. code-block:: console
 
-    $ curl -OJL https://github.com/andrewbolster/bolster/tarball/master
-
-Once you have a copy of the source, you can install it with:
-
-.. code-block:: console
-
-    $ python setup.py install
-
+    $ uv run pytest tests/ -v
+    $ uv run bolster --help
 
 .. _Github repo: https://github.com/andrewbolster/bolster
-.. _tarball: https://github.com/andrewbolster/bolster/tarball/master

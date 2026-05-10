@@ -26,20 +26,18 @@ Example:
     >>> from bolster.data_sources.nisra import economic_indicators
     >>> # Get latest Index of Services data
     >>> ios_df = economic_indicators.get_latest_index_of_services()
-    >>> print(ios_df.head())
+    >>> sorted(ios_df.columns.tolist())
+    ['date', 'ni_index', 'quarter', 'uk_index', 'year']
 
     >>> # Get latest Index of Production data
     >>> iop_df = economic_indicators.get_latest_index_of_production()
-    >>> print(iop_df.head())
+    >>> 'ni_index' in iop_df.columns
+    True
 
     >>> # Filter for specific year
     >>> ios_2024 = economic_indicators.get_ios_by_year(ios_df, 2024)
-    >>> print(f"NI Services Q4 2024: {ios_2024[ios_2024['quarter']=='Q4']['ni_index'].values[0]}")
-
-    >>> # Compare NI vs UK performance
-    >>> latest_q = ios_df.iloc[-1]
-    >>> print(f"Latest quarter: {latest_q['quarter']} {latest_q['year']}")
-    >>> print(f"NI: {latest_q['ni_index']}, UK: {latest_q['uk_index']}")
+    >>> len(ios_2024) <= 4
+    True
 
 Publication Details:
     - Frequency: Quarterly
@@ -78,8 +76,8 @@ def get_latest_ios_publication_url() -> tuple[str, datetime]:
 
     Example:
         >>> url, pub_date = get_latest_ios_publication_url()
-        >>> print(f"Latest IOS published: {pub_date.strftime('%Y-%m-%d')}")
-        >>> print(f"Data URL: {url}")
+        >>> url.startswith('https://')
+        True
     """
     from bs4 import BeautifulSoup
 
@@ -146,7 +144,8 @@ def get_latest_iop_publication_url() -> tuple[str, datetime]:
 
     Example:
         >>> url, pub_date = get_latest_iop_publication_url()
-        >>> print(f"Latest IOP published: {pub_date.strftime('%Y-%m-%d')}")
+        >>> url.startswith('https://')
+        True
     """
     from bs4 import BeautifulSoup
 
@@ -216,8 +215,11 @@ def parse_ios_file(file_path: str | Path) -> pd.DataFrame:
             - uk_index: float (UK index value)
 
     Example:
-        >>> df = parse_ios_file("ios-q3-2025-tables.xlsx")
-        >>> print(df[df['year'] == 2025].tail())
+        >>> url, _ = get_latest_ios_publication_url()
+        >>> path = download_file(url, cache_ttl_hours=168)
+        >>> df = parse_ios_file(path)
+        >>> 'ni_index' in df.columns
+        True
     """
     logger.info(f"Parsing Index of Services file: {file_path}")
 
@@ -264,8 +266,11 @@ def parse_iop_file(file_path: str | Path) -> pd.DataFrame:
             - uk_index: float (UK index value)
 
     Example:
-        >>> df = parse_iop_file("iop-q3-2025-tables.xlsx")
-        >>> print(df[df['year'] == 2025].tail())
+        >>> url, _ = get_latest_iop_publication_url()
+        >>> path = download_file(url, cache_ttl_hours=168)
+        >>> df = parse_iop_file(path)
+        >>> 'ni_index' in df.columns
+        True
     """
     logger.info(f"Parsing Index of Production file: {file_path}")
 
@@ -312,8 +317,8 @@ def get_latest_index_of_services(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_index_of_services()
-        >>> print(f"Latest quarter: {df.iloc[-1]['quarter']} {df.iloc[-1]['year']}")
-        >>> print(f"NI Index: {df.iloc[-1]['ni_index']}")
+        >>> sorted(df.columns.tolist())
+        ['date', 'ni_index', 'quarter', 'uk_index', 'year']
     """
     excel_url, pub_date = get_latest_ios_publication_url()
 
@@ -337,8 +342,8 @@ def get_latest_index_of_production(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_index_of_production()
-        >>> print(f"Latest quarter: {df.iloc[-1]['quarter']} {df.iloc[-1]['year']}")
-        >>> print(f"NI Index: {df.iloc[-1]['ni_index']}")
+        >>> sorted(df.columns.tolist())
+        ['date', 'ni_index', 'quarter', 'uk_index', 'year']
     """
     excel_url, pub_date = get_latest_iop_publication_url()
 
@@ -366,7 +371,8 @@ def get_ios_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
     Example:
         >>> ios_df = get_latest_index_of_services()
         >>> ios_2024 = get_ios_by_year(ios_df, 2024)
-        >>> print(ios_2024)
+        >>> len(ios_2024) <= 4
+        True
     """
     return df[df["year"] == year].reset_index(drop=True)
 
@@ -384,7 +390,8 @@ def get_iop_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
     Example:
         >>> iop_df = get_latest_index_of_production()
         >>> iop_2024 = get_iop_by_year(iop_df, 2024)
-        >>> print(iop_2024)
+        >>> len(iop_2024) <= 4
+        True
     """
     return df[df["year"] == year].reset_index(drop=True)
 
@@ -403,7 +410,8 @@ def get_ios_by_quarter(df: pd.DataFrame, quarter: str, year: int) -> pd.DataFram
     Example:
         >>> ios_df = get_latest_index_of_services()
         >>> q3_2025 = get_ios_by_quarter(ios_df, 'Q3', 2025)
-        >>> print(f"Q3 2025 NI: {q3_2025['ni_index'].values[0]}")
+        >>> 'ni_index' in q3_2025.columns
+        True
     """
     return df[(df["quarter"] == quarter) & (df["year"] == year)].reset_index(drop=True)
 
@@ -422,7 +430,8 @@ def get_iop_by_quarter(df: pd.DataFrame, quarter: str, year: int) -> pd.DataFram
     Example:
         >>> iop_df = get_latest_index_of_production()
         >>> q3_2025 = get_iop_by_quarter(iop_df, 'Q3', 2025)
-        >>> print(f"Q3 2025 NI: {q3_2025['ni_index'].values[0]}")
+        >>> 'ni_index' in q3_2025.columns
+        True
     """
     return df[(df["quarter"] == quarter) & (df["year"] == year)].reset_index(drop=True)
 
@@ -442,8 +451,8 @@ def calculate_ios_growth_rate(df: pd.DataFrame, periods: int = 4) -> pd.DataFram
     Example:
         >>> ios_df = get_latest_index_of_services()
         >>> ios_growth = calculate_ios_growth_rate(ios_df)
-        >>> recent = ios_growth.tail(4)
-        >>> print(recent[['quarter', 'year', 'ni_index', 'ni_growth_rate']])
+        >>> 'ni_growth_rate' in ios_growth.columns
+        True
     """
     result = df.copy()
 
@@ -469,8 +478,8 @@ def calculate_iop_growth_rate(df: pd.DataFrame, periods: int = 4) -> pd.DataFram
     Example:
         >>> iop_df = get_latest_index_of_production()
         >>> iop_growth = calculate_iop_growth_rate(iop_df)
-        >>> recent = iop_growth.tail(4)
-        >>> print(recent[['quarter', 'year', 'ni_index', 'ni_growth_rate']])
+        >>> 'ni_growth_rate' in iop_growth.columns
+        True
     """
     result = df.copy()
 
@@ -503,7 +512,8 @@ def get_ios_summary_statistics(df: pd.DataFrame, start_year: int | None = None, 
     Example:
         >>> ios_df = get_latest_index_of_services()
         >>> stats = get_ios_summary_statistics(ios_df, start_year=2020)
-        >>> print(f"NI mean index since 2020: {stats['ni_mean']:.1f}")
+        >>> 'ni_mean' in stats
+        True
     """
     filtered = df.copy()
 
@@ -538,7 +548,8 @@ def get_iop_summary_statistics(df: pd.DataFrame, start_year: int | None = None, 
     Example:
         >>> iop_df = get_latest_index_of_production()
         >>> stats = get_iop_summary_statistics(iop_df, start_year=2020)
-        >>> print(f"NI mean index since 2020: {stats['ni_mean']:.1f}")
+        >>> 'ni_mean' in stats
+        True
     """
     filtered = df.copy()
 

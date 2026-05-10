@@ -23,11 +23,11 @@ Time Series: Q1 2005 to present (seasonally adjusted); Q1 2005 unadjusted
 Example:
     >>> from bolster.data_sources.nisra import quarterly_employment_survey as qes
     >>> df = qes.get_latest_qes()
-    >>> print(df.tail(4))
-
-    >>> # Total employee jobs trend
+    >>> 'total_jobs' in df.columns
+    True
     >>> growth = qes.get_qes_growth(df)
-    >>> print(growth[['quarter_label', 'total_jobs', 'total_yoy']].tail(8))
+    >>> 'total_yoy' in growth.columns
+    True
 """
 
 import logging
@@ -264,9 +264,8 @@ def get_latest_qes(force_refresh: bool = False, adjusted: bool = True) -> pd.Dat
 
     Example:
         >>> df = get_latest_qes()
-        >>> latest = df.iloc[-1]
-        >>> print(f"NI employee jobs {latest['quarter_label']}: {latest['total_jobs']:,}")
-        NI employee jobs Q4 2025: 843,860
+        >>> 'total_jobs' in df.columns
+        True
     """
     excel_url = get_latest_qes_publication_url()
     logger.info(f"Downloading QES supplementary tables from: {excel_url}")
@@ -332,7 +331,8 @@ def get_qes_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
     Example:
         >>> df = get_latest_qes()
         >>> df_2024 = get_qes_by_year(df, 2024)
-        >>> print(df_2024[['quarter_label', 'total_jobs']])
+        >>> len(df_2024) <= 4
+        True
     """
     return df[df["year"] == year].reset_index(drop=True)
 
@@ -353,7 +353,8 @@ def get_qes_growth(df: pd.DataFrame) -> pd.DataFrame:
     Example:
         >>> df = get_latest_qes()
         >>> growth = get_qes_growth(df)
-        >>> print(growth[['quarter_label', 'total_jobs', 'total_yoy']].tail(8))
+        >>> 'total_yoy' in growth.columns
+        True
     """
     result = df.copy()
     result["total_qoq"] = result["total_jobs"].diff(1)
@@ -379,8 +380,8 @@ def get_sector_shares(df: pd.DataFrame) -> pd.DataFrame:
     Example:
         >>> df = get_latest_qes()
         >>> shares = get_sector_shares(df)
-        >>> latest = shares.iloc[-1]
-        >>> print(f"Services share: {latest['services_share']:.1f}%")
+        >>> 'services_share' in shares.columns
+        True
     """
     result = df.copy()
     for sector in ("manufacturing", "construction", "services", "other"):

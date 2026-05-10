@@ -9,9 +9,12 @@ Cache Location:
     based on URL hashes. Each data source uses its own namespace.
 
 Example:
-    >>> from bolster.utils.cache import CachedDownloader
+    >>> from bolster.utils.cache import CachedDownloader, hash_url
+    >>> hash_url("https://example.com/data.csv")
+    '2a01ab0de708440185cbb6473893860c'
     >>> downloader = CachedDownloader("my_source")
-    >>> path = downloader.download("https://example.com/data.csv", cache_ttl_hours=24)
+    >>> downloader.namespace
+    'my_source'
 """
 
 import hashlib
@@ -67,10 +70,12 @@ class CachedDownloader:
 
     Example:
         >>> downloader = CachedDownloader("psni", timeout=60)
-        >>> path = downloader.download(
-        ...     "https://example.com/data.csv",
-        ...     cache_ttl_hours=24
-        ... )  # doctest: +SKIP
+        >>> downloader.namespace
+        'psni'
+        >>> downloader.timeout
+        60
+        >>> downloader.cache_dir.parts[-2:]
+        ('bolster', 'psni')
     """
 
     def __init__(self, namespace: str, timeout: int = 60):

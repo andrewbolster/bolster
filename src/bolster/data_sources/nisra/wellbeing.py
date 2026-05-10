@@ -31,17 +31,15 @@ Demographics available:
 
 Examples:
     >>> from bolster.data_sources.nisra import wellbeing
-    >>> # Get latest personal wellbeing timeseries (ONS4 measures)
     >>> df = wellbeing.get_latest_personal_wellbeing()
-    >>> print(df.tail())
-
-    >>> # Get loneliness data
+    >>> 'life_satisfaction' in df.columns
+    True
     >>> df_lonely = wellbeing.get_latest_loneliness()
-    >>> print(df_lonely[df_lonely['year'] == '2024/25'])
-
-    >>> # Get summary across all measures
+    >>> 'lonely_some_of_time' in df_lonely.columns
+    True
     >>> summary = wellbeing.get_wellbeing_summary()
-    >>> print(summary)
+    >>> 'life_satisfaction' in summary.columns
+    True
 
 Publication Details:
     - Frequency: Annual (January publication)
@@ -80,7 +78,8 @@ def get_latest_wellbeing_publication_url() -> tuple[str, str]:
 
     Example:
         >>> url, year = get_latest_wellbeing_publication_url()
-        >>> print(f"Latest Wellbeing: {year} at {url}")
+        >>> url.startswith('https://')
+        True
     """
     from bs4 import BeautifulSoup
 
@@ -139,7 +138,8 @@ def get_wellbeing_file_url(year_str: str) -> str:
 
     Example:
         >>> url = get_wellbeing_file_url("2024/25")
-        >>> print(url)
+        >>> url.startswith('https://')
+        True
     """
     # Convert "2024/25" to "202425"
     year_code = year_str.replace("/", "")
@@ -175,8 +175,11 @@ def parse_personal_wellbeing(file_path: str | Path) -> pd.DataFrame:
             - anxiety: float (mean score 0-10, lower is better)
 
     Example:
-        >>> df = parse_personal_wellbeing("individual-wellbeing-ni-202425-data-tables.xlsx")
-        >>> print(df.tail())
+        >>> _, year = get_latest_wellbeing_publication_url()
+        >>> path = download_file(get_wellbeing_file_url(year), cache_ttl_hours=90*24)
+        >>> df = parse_personal_wellbeing(path)
+        >>> 'life_satisfaction' in df.columns
+        True
     """
     logger.info(f"Parsing personal wellbeing from {file_path}")
 
@@ -250,8 +253,11 @@ def parse_loneliness(file_path: str | Path) -> pd.DataFrame:
             - confidence_interval: str (e.g., "+/- 1.1")
 
     Example:
-        >>> df = parse_loneliness("individual-wellbeing-ni-202425-data-tables.xlsx")
-        >>> print(df.tail())
+        >>> _, year = get_latest_wellbeing_publication_url()
+        >>> path = download_file(get_wellbeing_file_url(year), cache_ttl_hours=90*24)
+        >>> df = parse_loneliness(path)
+        >>> 'lonely_some_of_time' in df.columns
+        True
     """
     logger.info(f"Parsing loneliness from {file_path}")
 
@@ -304,8 +310,11 @@ def parse_self_efficacy(file_path: str | Path) -> pd.DataFrame:
             - confidence_interval: str (e.g., "+/- 0.1")
 
     Example:
-        >>> df = parse_self_efficacy("individual-wellbeing-ni-202425-data-tables.xlsx")
-        >>> print(df.tail())
+        >>> _, year = get_latest_wellbeing_publication_url()
+        >>> path = download_file(get_wellbeing_file_url(year), cache_ttl_hours=90*24)
+        >>> df = parse_self_efficacy(path)
+        >>> 'self_efficacy_mean' in df.columns
+        True
     """
     logger.info(f"Parsing self-efficacy from {file_path}")
 
@@ -362,8 +371,8 @@ def get_latest_personal_wellbeing(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_personal_wellbeing()
-        >>> latest = df.iloc[-1]
-        >>> print(f"Life Satisfaction {latest['year']}: {latest['life_satisfaction']}")
+        >>> 'life_satisfaction' in df.columns
+        True
     """
     _, year_str = get_latest_wellbeing_publication_url()
     file_url = get_wellbeing_file_url(year_str)
@@ -391,8 +400,8 @@ def get_latest_loneliness(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_loneliness()
-        >>> latest = df.iloc[-1]
-        >>> print(f"Loneliness {latest['year']}: {latest['lonely_some_of_time']:.1%}")
+        >>> 'lonely_some_of_time' in df.columns
+        True
     """
     _, year_str = get_latest_wellbeing_publication_url()
     file_url = get_wellbeing_file_url(year_str)
@@ -419,8 +428,8 @@ def get_latest_self_efficacy(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_self_efficacy()
-        >>> latest = df.iloc[-1]
-        >>> print(f"Self-efficacy {latest['year']}: {latest['self_efficacy_mean']}")
+        >>> 'self_efficacy_mean' in df.columns
+        True
     """
     _, year_str = get_latest_wellbeing_publication_url()
     file_url = get_wellbeing_file_url(year_str)
@@ -451,7 +460,8 @@ def get_wellbeing_summary(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> summary = get_wellbeing_summary()
-        >>> print(summary.T)  # Transpose for readable output
+        >>> 'life_satisfaction' in summary.columns
+        True
     """
     # Get all data
     df_personal = get_latest_personal_wellbeing(force_refresh=force_refresh)
@@ -496,6 +506,8 @@ def get_personal_wellbeing_by_year(df: pd.DataFrame, year: str) -> pd.DataFrame:
     Example:
         >>> df = get_latest_personal_wellbeing()
         >>> df_2024 = get_personal_wellbeing_by_year(df, "2024/25")
+        >>> 'life_satisfaction' in df_2024.columns
+        True
     """
     return df[df["year"] == year].copy()
 

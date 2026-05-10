@@ -27,22 +27,15 @@ Data Coverage:
 
 Examples:
     >>> from bolster.data_sources.nisra import composite_index
-    >>> # Get latest NICEI data
     >>> nicei_df = composite_index.get_latest_nicei()
-    >>> print(nicei_df.tail())
-
-    >>> # Get sector contributions
+    >>> 'nicei' in nicei_df.columns
+    True
     >>> contrib_df = composite_index.get_latest_nicei_contributions()
-    >>> print(contrib_df.tail())
-
-    >>> # Filter for specific year
+    >>> 'services_contribution' in contrib_df.columns
+    True
     >>> nicei_2024 = composite_index.get_nicei_by_year(nicei_df, 2024)
-    >>> print(f"Annual average 2024: {nicei_2024['nicei'].mean():.2f}")
-
-    >>> # Analyze sectoral performance
-    >>> latest = nicei_df.iloc[-1]
-    >>> print(f"Q{latest['quarter']} {latest['year']} NICEI: {latest['nicei']:.2f}")
-    >>> print(f"Services: {latest['services']:.2f}, Construction: {latest['construction']:.2f}")
+    >>> len(nicei_2024) <= 4
+    True
 
 Publication Details:
     - Frequency: Quarterly (published ~3 months after quarter end)
@@ -84,7 +77,8 @@ def get_latest_nicei_publication_url() -> tuple[str, int, str]:
 
     Example:
         >>> url, year, quarter = get_latest_nicei_publication_url()
-        >>> print(f"Latest NICEI: Q{quarter} {year}")
+        >>> url.startswith('https://')
+        True
     """
     from bs4 import BeautifulSoup
 
@@ -167,8 +161,11 @@ def parse_nicei_indices(file_path: str | Path) -> pd.DataFrame:
             - agriculture: float
 
     Example:
-        >>> df = parse_nicei_indices('/path/to/nicei.xlsx')
-        >>> print(df[df['year'] == 2024].mean())
+        >>> url, _, _ = get_latest_nicei_publication_url()
+        >>> path = download_file(url, cache_ttl_hours=90*24)
+        >>> df = parse_nicei_indices(path)
+        >>> 'nicei' in df.columns
+        True
     """
     logger.info(f"Parsing NICEI indices from: {file_path}")
 
@@ -225,9 +222,11 @@ def parse_nicei_contributions(file_path: str | Path) -> pd.DataFrame:
             - agriculture_contribution: float
 
     Example:
-        >>> df = parse_nicei_contributions('/path/to/nicei.xlsx')
-        >>> # Find quarter with largest services contribution
-        >>> print(df.loc[df['services_contribution'].idxmax()])
+        >>> url, _, _ = get_latest_nicei_publication_url()
+        >>> path = download_file(url, cache_ttl_hours=90*24)
+        >>> df = parse_nicei_contributions(path)
+        >>> 'nicei' in df.columns
+        True
     """
     logger.info(f"Parsing NICEI sector contributions from: {file_path}")
 
@@ -291,7 +290,8 @@ def get_latest_nicei(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_nicei()
-        >>> print(f"Latest NICEI: {df.iloc[-1]['nicei']:.2f}")
+        >>> 'nicei' in df.columns
+        True
     """
     excel_url, year, quarter = get_latest_nicei_publication_url()
 
@@ -315,9 +315,8 @@ def get_latest_nicei_contributions(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_nicei_contributions()
-        >>> latest = df.iloc[-1]
-        >>> print(f"Q{latest['quarter']} {latest['year']} contributions:")
-        >>> print(f"  Services: {latest['services_contribution']:.2f}")
+        >>> 'services_contribution' in df.columns
+        True
     """
     excel_url, year, quarter = get_latest_nicei_publication_url()
 
@@ -340,7 +339,8 @@ def get_nicei_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
     Example:
         >>> df = get_latest_nicei()
         >>> df_2024 = get_nicei_by_year(df, 2024)
-        >>> print(f"2024 average NICEI: {df_2024['nicei'].mean():.2f}")
+        >>> len(df_2024) <= 4
+        True
     """
     return df[df["year"] == year].reset_index(drop=True)
 
@@ -359,7 +359,8 @@ def get_nicei_by_quarter(df: pd.DataFrame, year: int, quarter: int) -> pd.DataFr
     Example:
         >>> df = get_latest_nicei()
         >>> q2_2024 = get_nicei_by_quarter(df, 2024, 2)
-        >>> print(f"Q2 2024 NICEI: {q2_2024['nicei'].values[0]:.2f}")
+        >>> len(q2_2024) <= 1
+        True
     """
     return df[(df["year"] == year) & (df["quarter"] == quarter)].reset_index(drop=True)
 

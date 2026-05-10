@@ -27,10 +27,13 @@ Example:
     >>> from bolster.data_sources.nisra import population
     >>> # Get latest population estimates for all geographies
     >>> df = population.get_latest_population()
-    >>> print(df.head())
+    >>> 'population' in df.columns
+    True
 
     >>> # Get only Northern Ireland overall
     >>> ni_df = population.get_latest_population(area='Northern Ireland')
+    >>> len(ni_df) > 0
+    True
 """
 
 import logging
@@ -250,15 +253,13 @@ def get_latest_population(
         NISRAValidationError: If file structure is unexpected
 
     Example:
-        >>> # Get all data
         >>> df = get_latest_population()
+        >>> 'population' in df.columns
+        True
 
-        >>> # Get only Northern Ireland overall
         >>> ni_df = get_latest_population(area='Northern Ireland')
-
-        >>> # Calculate total NI population in latest year
-        >>> ni_2024 = ni_df[(ni_df['year'] == 2024) & (ni_df['sex'] == 'All persons')]
-        >>> total = ni_2024['population'].sum()
+        >>> sorted(df.columns.tolist())
+        ['age_5', 'age_band', 'age_broad', 'area', 'area_code', 'area_name', 'population', 'sex', 'year']
     """
     # Discover latest publication
     excel_url, year = get_latest_population_publication_url()
@@ -321,8 +322,9 @@ def get_population_by_year(
     Example:
         >>> df = get_latest_population(area='Northern Ireland')
         >>> pop_2024 = get_population_by_year(df, 2024)
-        >>> # Calculate total population
         >>> total = pop_2024['population'].sum()
+        >>> bool(total > 0)
+        True
     """
     filtered = df[df["year"] == year].copy()
 
@@ -356,10 +358,8 @@ def get_population_pyramid_data(
     Example:
         >>> df = get_latest_population(area='Northern Ireland')
         >>> pyramid = get_population_pyramid_data(df, 2024)
-        >>> # Plot with matplotlib/plotly
-        >>> import matplotlib.pyplot as plt
-        >>> plt.barh(pyramid['age_5'], pyramid['males'], label='Males')
-        >>> plt.barh(pyramid['age_5'], pyramid['females'], label='Females')
+        >>> sorted(pyramid.columns.tolist())
+        ['age_5', 'females', 'males']
     """
     filtered = df[(df["year"] == year) & (df["area_name"] == area_name)].copy()
 

@@ -46,7 +46,7 @@ The system uses multiple signals to determine version bump:
 
 ### Workflow Steps
 
-```mermaid
+```text
 graph TD
     A[PR Merged to main] --> B[Analyze Changes]
     B --> C{Should Release?}
