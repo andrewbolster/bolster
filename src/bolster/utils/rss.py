@@ -174,9 +174,27 @@ def parse_rss_feed(feed_url: str, timeout: int = 30) -> Feed:
         ValueError: If the feed cannot be parsed
 
     Example:
-        >>> feed = parse_rss_feed("https://example.com/feed.xml")
-        >>> for entry in feed.entries:
-        ...     print(f"  - {entry.title}")
+        >>> feed = parse_rss_feed(
+        ...     "https://www.gov.uk/search/research-and-statistics.atom?"
+        ...     "content_store_document_type=all_research_and_statistics&"
+        ...     "organisations%5B%5D=northern-ireland-statistics-and-research-agency"
+        ... )
+        >>> feed.title
+        'Research and statistics from Northern Ireland Statistics and Research Agency (NISRA)'
+        >>> sorted(feed.__dataclass_fields__)
+        ['description', 'entries', 'language', 'link', 'title', 'updated']
+        >>> len(feed.entries) > 0
+        True
+        >>> entry = feed.entries[0]
+        >>> sorted(entry.__dataclass_fields__)
+        ['author', 'categories', 'content', 'id', 'link', 'published', 'summary', 'title', 'updated']
+        >>> isinstance(entry.title, str) and isinstance(entry.link, str)
+        True
+        >>> entry.link.startswith("http")
+        True
+        >>> from datetime import datetime
+        >>> isinstance(entry.published, datetime)
+        True
     """
     # Fetch the feed
     try:
