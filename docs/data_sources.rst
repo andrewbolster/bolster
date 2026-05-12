@@ -141,6 +141,9 @@ Annual workplace earnings data for Northern Ireland.
 Quarterly Employment Survey
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+Quarterly survey of employee jobs across the public and private sectors,
+providing estimates of employment levels broken down by industry grouping.
+
 .. code-block:: python
 
     from bolster.data_sources.nisra import quarterly_employment_survey as qes
@@ -282,10 +285,6 @@ and outcome.
     from bolster.data_sources.psni import crime_statistics
 
     df = crime_statistics.get_latest_crime_statistics()
-
-.. code-block:: console
-
-    $ bolster nisra crime-statistics   # proxied via nisra group
 
 Road Traffic Collisions
 ~~~~~~~~~~~~~~~~~~~~~~~
