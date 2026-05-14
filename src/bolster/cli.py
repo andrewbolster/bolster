@@ -1565,11 +1565,12 @@ def nisra_deaths_cmd(latest, dimension, output_format, force_refresh, save):
 @nisra.command(name="labour-market")
 @click.option("--latest", is_flag=True, help="Get the most recent labour market data available")
 @click.option(
-    "--table",
+    "--dimension",
     type=click.Choice(["employment", "economic_inactivity", "lgd", "all"], case_sensitive=False),
     default="all",
-    help="Which table to retrieve (default: all)",
+    help="Which dimension to retrieve (default: all)",
 )
+@click.option("--table", "table_deprecated", hidden=True, default=None)
 @click.option(
     "--format",
     "output_format",
@@ -1579,7 +1580,7 @@ def nisra_deaths_cmd(latest, dimension, output_format, force_refresh, save):
 )
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
-def nisra_labour_market_cmd(latest, table, output_format, force_refresh, save):
+def nisra_labour_market_cmd(latest, dimension, table_deprecated, output_format, force_refresh, save):
     """NISRA Labour Force Survey Statistics.
 
     Retrieves Labour Force Survey (LFS) data for Northern Ireland including:
@@ -1594,23 +1595,23 @@ def nisra_labour_market_cmd(latest, table, output_format, force_refresh, save):
     ---------
     Get latest employment data by age and sex::
 
-        bolster nisra labour-market --latest --table employment
+        bolster nisra labour-market --latest --dimension employment
 
     Get economic inactivity time series (2012-2025)::
 
-        bolster nisra labour-market --latest --table economic_inactivity
+        bolster nisra labour-market --latest --dimension economic_inactivity
 
     Get employment by Local Government District (annual)::
 
-        bolster nisra labour-market --latest --table lgd
+        bolster nisra labour-market --latest --dimension lgd
 
-    Get all tables as JSON::
+    Get all dimensions as JSON::
 
-        bolster nisra labour-market --latest --table all --format json
+        bolster nisra labour-market --latest --dimension all --format json
 
     Save employment data to analyze age distribution::
 
-        bolster nisra labour-market --latest --table employment --save employment.csv
+        bolster nisra labour-market --latest --dimension employment --save employment.csv
 
     Force refresh cached data::
 
@@ -1662,6 +1663,10 @@ def nisra_labour_market_cmd(latest, table, output_format, force_refresh, save):
     """
     console = Console()
 
+    if table_deprecated is not None:
+        click.echo("Warning: --table is deprecated, use --dimension instead", err=True)
+        dimension = table_deprecated
+
     if not latest:
         console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
         console.print("[dim]Future versions will support specific quarters/years[/dim]")
@@ -1669,28 +1674,28 @@ def nisra_labour_market_cmd(latest, table, output_format, force_refresh, save):
 
     try:
         with console.status("[bold green]Downloading latest NISRA labour market data..."):
-            if table == "all":
+            if dimension == "all":
                 data = nisra_labour_market.get_quarterly_data(
                     year=2025,
                     quarter="Jul-Sep",
                     tables=["employment", "economic_inactivity"],
                     force_refresh=force_refresh,
                 )
-            elif table == "employment":
+            elif dimension == "employment":
                 data = nisra_labour_market.get_latest_employment(force_refresh=force_refresh)
-            elif table == "economic_inactivity":
+            elif dimension == "economic_inactivity":
                 data = nisra_labour_market.get_latest_economic_inactivity(force_refresh=force_refresh)
-            elif table == "lgd":
+            elif dimension == "lgd":
                 data = nisra_labour_market.get_latest_employment_by_lgd(force_refresh=force_refresh)
 
         # Handle the result based on whether it's a single DataFrame or dict of DataFrames
-        if table == "all":
-            console.print("[green]✅ Retrieved all tables successfully[/green]")
+        if dimension == "all":
+            console.print("[green]✅ Retrieved all dimensions successfully[/green]")
             total_records = sum(len(df) for df in data.values())
             console.print(f"[cyan]📊 Total records: {total_records}[/cyan]")
 
-            for table_name, df in data.items():
-                console.print(f"   • {table_name}: {len(df)} records")
+            for dim_name, df in data.items():
+                console.print(f"   • {dim_name}: {len(df)} records")
                 if not df.empty and "quarter_period" in df.columns:
                     periods = df["quarter_period"].unique()
                     console.print(f"     [dim]Period: {periods[0]}[/dim]")
@@ -1700,7 +1705,7 @@ def nisra_labour_market_cmd(latest, table, output_format, force_refresh, save):
                         f"     [dim]Time series: {len(periods)} periods ({periods[0]} to {periods[-1]})[/dim]"
                     )
         else:
-            console.print(f"[green]✅ Retrieved {table} table successfully[/green]")
+            console.print(f"[green]✅ Retrieved {dimension} dimension successfully[/green]")
             console.print(f"[cyan]📊 Total records: {len(data)}[/cyan]")
             if not data.empty:
                 if "quarter_period" in data.columns:
@@ -1713,19 +1718,19 @@ def nisra_labour_market_cmd(latest, table, output_format, force_refresh, save):
         # Handle file saving
         if save:
             try:
-                if table == "all":
-                    # Save each table to a separate file
-                    for table_name, df in data.items():
+                if dimension == "all":
+                    # Save each dimension to a separate file
+                    for dim_name, df in data.items():
                         filename = (
-                            f"{save.rsplit('.', 1)[0]}_{table_name}.{save.rsplit('.', 1)[-1] if '.' in save else 'csv'}"
+                            f"{save.rsplit('.', 1)[0]}_{dim_name}.{save.rsplit('.', 1)[-1] if '.' in save else 'csv'}"
                         )
                         if output_format == "json" or filename.endswith(".json"):
                             df.to_json(filename, orient="records", date_format="iso", indent=2)
                         else:
                             df.to_csv(filename, index=False)
-                        console.print(f"[green]💾 Saved {table_name} to: {filename}[/green]")
+                        console.print(f"[green]💾 Saved {dim_name} to: {filename}[/green]")
                 else:
-                    # Save single table
+                    # Save single dimension
                     if output_format == "json" or save.endswith(".json"):
                         data.to_json(save, orient="records", date_format="iso", indent=2)
                     else:
@@ -1744,16 +1749,16 @@ def nisra_labour_market_cmd(latest, table, output_format, force_refresh, save):
         if output_format == "json":
             import json
 
-            if table == "all":
+            if dimension == "all":
                 # Convert DataFrames to JSON-serializable format
-                output = {table_name: df.to_dict(orient="records") for table_name, df in data.items()}
+                output = {dim_name: df.to_dict(orient="records") for dim_name, df in data.items()}
                 click.echo(json.dumps(output, indent=2, default=str))
             else:
                 click.echo(data.to_json(orient="records", date_format="iso", indent=2))
         else:  # csv format
-            if table == "all":
-                console.print("\n[yellow]💡 Tip: For 'all' tables, use --save to export to files[/yellow]")
-                console.print("[yellow]   Displaying employment table only:[/yellow]\n")
+            if dimension == "all":
+                console.print("\n[yellow]💡 Tip: For 'all' dimensions, use --save to export to files[/yellow]")
+                console.print("[yellow]   Displaying employment dimension only:[/yellow]\n")
                 click.echo(data["employment"].to_csv(index=False))
             else:
                 click.echo(data.to_csv(index=False))
@@ -3747,11 +3752,12 @@ def nisra_ashe_cmd(latest, metric, dimension, basis, year, output_format, force_
 @nisra.command(name="composite-index")
 @click.option("--latest", is_flag=True, help="Get the most recent NICEI data")
 @click.option(
-    "--table",
+    "--dimension",
     type=click.Choice(["indices", "contributions", "all"], case_sensitive=False),
     default="indices",
-    help="Which table to retrieve (default: indices)",
+    help="Which dimension to retrieve (default: indices)",
 )
+@click.option("--table", "table_deprecated", hidden=True, default=None)
 @click.option("--year", type=int, help="Filter data for specific year")
 @click.option("--quarter", type=int, help="Filter data for specific quarter (1-4)")
 @click.option(
@@ -3763,7 +3769,7 @@ def nisra_ashe_cmd(latest, metric, dimension, basis, year, output_format, force_
 )
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
-def nisra_composite_index_cmd(latest, table, year, quarter, output_format, force_refresh, save):
+def nisra_composite_index_cmd(latest, dimension, table_deprecated, year, quarter, output_format, force_refresh, save):
     """NISRA Northern Ireland Composite Economic Index (NICEI) - Experimental Economic Indicator.
 
     Quarterly measure of NI economic performance tracking five key sectors:
@@ -3772,7 +3778,8 @@ def nisra_composite_index_cmd(latest, table, year, quarter, output_format, force
 
     Args:
         latest: Get the most recent NICEI data
-        table: Which table to retrieve (indices, contributions, or all)
+        dimension: Which dimension to retrieve (indices, contributions, or all)
+        table_deprecated: Deprecated alias for --dimension (use --dimension instead)
         year: Filter data for specific year
         quarter: Filter data for specific quarter (1-4)
         output_format: Output format (csv or json)
@@ -3786,11 +3793,11 @@ def nisra_composite_index_cmd(latest, table, year, quarter, output_format, force
 
         Get sector contributions to quarterly change::
 
-            bolster nisra composite-index --latest --table contributions
+            bolster nisra composite-index --latest --dimension contributions
 
-        Get all tables::
+        Get all dimensions::
 
-            bolster nisra composite-index --latest --table all
+            bolster nisra composite-index --latest --dimension all
 
         Filter for specific year::
 
@@ -3837,25 +3844,29 @@ def nisra_composite_index_cmd(latest, table, year, quarter, output_format, force
     """
     console = Console()
 
+    if table_deprecated is not None:
+        click.echo("Warning: --table is deprecated, use --dimension instead", err=True)
+        dimension = table_deprecated
+
     if not latest:
         console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
         return
 
     try:
         with console.status("[bold green]Fetching NICEI data..."):
-            if table in ("indices", "all"):
+            if dimension in ("indices", "all"):
                 indices_data = nisra_composite.get_latest_nicei(force_refresh=force_refresh)
-            if table in ("contributions", "all"):
+            if dimension in ("contributions", "all"):
                 contrib_data = nisra_composite.get_latest_nicei_contributions(force_refresh=force_refresh)
 
         # Apply filters
-        if table == "indices":
+        if dimension == "indices":
             data = indices_data
             if year:
                 data = nisra_composite.get_nicei_by_year(data, year)
                 if quarter:
                     data = nisra_composite.get_nicei_by_quarter(data, year, quarter)
-        elif table == "contributions":
+        elif dimension == "contributions":
             data = contrib_data
             if year:
                 data = data[data["year"] == year]
@@ -3872,7 +3883,7 @@ def nisra_composite_index_cmd(latest, table, year, quarter, output_format, force
                     data["contributions"] = data["contributions"][data["contributions"]["quarter"] == quarter]
 
         # Check for empty results
-        if table in ("indices", "contributions"):
+        if dimension in ("indices", "contributions"):
             if data.empty:
                 console.print("[yellow]⚠️  No data found for the specified filters[/yellow]")
                 return
@@ -3882,36 +3893,40 @@ def nisra_composite_index_cmd(latest, table, year, quarter, output_format, force
                 return
 
         # Display success message
-        if table == "all":
-            console.print("[green]✅ Retrieved all tables successfully[/green]")
+        if dimension == "all":
+            console.print("[green]✅ Retrieved all dimensions successfully[/green]")
             total_records = sum(len(df) for df in data.values())
             console.print(f"[cyan]📊 Total records: {total_records}[/cyan]")
-            for table_name, df in data.items():
-                console.print(f"   • {table_name}: {len(df)} records")
+            for dim_name, df in data.items():
+                console.print(f"   • {dim_name}: {len(df)} records")
         else:
-            console.print(f"[green]✅ Retrieved {table} table successfully[/green]")
+            console.print(f"[green]✅ Retrieved {dimension} dimension successfully[/green]")
             console.print(f"[cyan]📊 Total records: {len(data)}[/cyan]")
 
-        if not (isinstance(data, dict) and all(df.empty for df in data.values())) and table != "all" and not data.empty:
+        if (
+            not (isinstance(data, dict) and all(df.empty for df in data.values()))
+            and dimension != "all"
+            and not data.empty
+        ):
             years = data["year"].unique()
             console.print(f"[dim]Years: {min(years)} - {max(years)}[/dim]")
 
         # Handle file saving
         if save:
             try:
-                if table == "all":
-                    # Save each table to a separate file
-                    for table_name, df in data.items():
+                if dimension == "all":
+                    # Save each dimension to a separate file
+                    for dim_name, df in data.items():
                         filename = (
-                            f"{save.rsplit('.', 1)[0]}_{table_name}.{save.rsplit('.', 1)[-1] if '.' in save else 'csv'}"
+                            f"{save.rsplit('.', 1)[0]}_{dim_name}.{save.rsplit('.', 1)[-1] if '.' in save else 'csv'}"
                         )
                         if output_format == "json" or filename.endswith(".json"):
                             df.to_json(filename, orient="records", date_format="iso", indent=2)
                         else:
                             df.to_csv(filename, index=False)
-                        console.print(f"[green]💾 Saved {table_name} to: {filename}[/green]")
+                        console.print(f"[green]💾 Saved {dim_name} to: {filename}[/green]")
                 else:
-                    # Save single table
+                    # Save single dimension
                     if output_format == "json" or save.endswith(".json"):
                         data.to_json(save, orient="records", date_format="iso", indent=2)
                     else:
@@ -3923,9 +3938,9 @@ def nisra_composite_index_cmd(latest, table, year, quarter, output_format, force
                 return
 
         # Output to console
-        if table == "all":
-            for table_name, df in data.items():
-                console.print(f"\n[bold]{table_name.upper()}:[/bold]")
+        if dimension == "all":
+            for dim_name, df in data.items():
+                console.print(f"\n[bold]{dim_name.upper()}:[/bold]")
                 if output_format == "json":
                     click.echo(df.to_json(orient="records", date_format="iso", indent=2))
                 else:
@@ -3947,11 +3962,12 @@ def nisra_composite_index_cmd(latest, table, year, quarter, output_format, force
 @nisra.command(name="wellbeing")
 @click.option("--latest", is_flag=True, help="Get the most recent wellbeing data available")
 @click.option(
-    "--metric",
+    "--dimension",
     type=click.Choice(["personal", "loneliness", "self-efficacy", "summary"], case_sensitive=False),
     default="personal",
-    help="Type of wellbeing data to retrieve (default: personal)",
+    help="Which dimension to retrieve (default: personal)",
 )
+@click.option("--metric", "metric_deprecated", hidden=True, default=None)
 @click.option("--year", type=str, help="Filter data for specific year (format: 2024/25)")
 @click.option(
     "--format",
@@ -3962,7 +3978,7 @@ def nisra_composite_index_cmd(latest, table, year, quarter, output_format, force
 )
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
-def nisra_wellbeing_cmd(latest, metric, year, output_format, force_refresh, save):
+def nisra_wellbeing_cmd(latest, dimension, metric_deprecated, year, output_format, force_refresh, save):
     """NISRA Individual Wellbeing Statistics.
 
     Retrieves individual wellbeing statistics for Northern Ireland, measuring
@@ -3970,13 +3986,14 @@ def nisra_wellbeing_cmd(latest, metric, year, output_format, force_refresh, save
 
     Args:
         latest: Get the most recent wellbeing data available
-        metric: Type of wellbeing data to retrieve (personal, loneliness, self-efficacy, or summary)
+        dimension: Which dimension to retrieve (personal, loneliness, self-efficacy, or summary)
+        metric_deprecated: Deprecated alias for --dimension (use --dimension instead)
         year: Filter data for specific year (format: 2024/25)
         output_format: Output format (csv or json)
         force_refresh: Force re-download even if cached
         save: Save data to file (specify filename)
 
-    Metrics (personal, loneliness, self-efficacy, summary):
+    Dimensions (personal, loneliness, self-efficacy, summary):
         personal - ONS4 measures (Life Satisfaction, Worthwhile, Happiness, Anxiety);
         scores 0-10 (higher is better, except Anxiety).
         loneliness - Proportion feeling lonely at least some of the time.
@@ -3990,11 +4007,11 @@ def nisra_wellbeing_cmd(latest, metric, year, output_format, force_refresh, save
 
         Get loneliness statistics::
 
-            bolster nisra wellbeing --latest --metric loneliness
+            bolster nisra wellbeing --latest --dimension loneliness
 
-        Get summary of all metrics for latest year::
+        Get summary of all dimensions for latest year::
 
-            bolster nisra wellbeing --latest --metric summary
+            bolster nisra wellbeing --latest --dimension summary
 
         Filter for a specific year::
 
@@ -4023,6 +4040,10 @@ def nisra_wellbeing_cmd(latest, metric, year, output_format, force_refresh, save
     """
     console = Console()
 
+    if metric_deprecated is not None:
+        click.echo("Warning: --metric is deprecated, use --dimension instead", err=True)
+        dimension = metric_deprecated
+
     if not latest:
         console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
         console.print("[dim]Use --latest to get the most recent wellbeing data[/dim]")
@@ -4030,28 +4051,28 @@ def nisra_wellbeing_cmd(latest, metric, year, output_format, force_refresh, save
 
     try:
         with console.status("[bold green]Downloading latest NISRA wellbeing data..."):
-            if metric == "personal":
+            if dimension == "personal":
                 data = nisra_wellbeing.get_latest_personal_wellbeing(force_refresh=force_refresh)
-            elif metric == "loneliness":
+            elif dimension == "loneliness":
                 data = nisra_wellbeing.get_latest_loneliness(force_refresh=force_refresh)
-            elif metric == "self-efficacy":
+            elif dimension == "self-efficacy":
                 data = nisra_wellbeing.get_latest_self_efficacy(force_refresh=force_refresh)
-            elif metric == "summary":
+            elif dimension == "summary":
                 data = nisra_wellbeing.get_wellbeing_summary(force_refresh=force_refresh)
 
         # Filter by year if specified
-        if year and metric == "personal":
+        if year and dimension == "personal":
             data = nisra_wellbeing.get_personal_wellbeing_by_year(data, year)
             if data.empty:
                 console.print(f"[yellow]⚠️  No data found for year {year}[/yellow]")
                 return
-        elif year and metric != "summary":
+        elif year and dimension != "summary":
             data = data[data["year"] == year]
             if data.empty:
                 console.print(f"[yellow]⚠️  No data found for year {year}[/yellow]")
                 return
 
-        console.print(f"[green]✅ Retrieved {metric} wellbeing data successfully[/green]")
+        console.print(f"[green]✅ Retrieved {dimension} wellbeing data successfully[/green]")
         console.print(f"[cyan]📊 Total records: {len(data)}[/cyan]")
 
         if not data.empty:
@@ -4061,23 +4082,23 @@ def nisra_wellbeing_cmd(latest, metric, year, output_format, force_refresh, save
             else:
                 console.print(f"[dim]Year: {years[0]}[/dim]")
 
-            # Show summary based on metric type
-            if metric == "personal":
+            # Show summary based on dimension type
+            if dimension == "personal":
                 latest_row = data.iloc[-1]
                 console.print("\n[bold]Latest Values:[/bold]")
                 console.print(f"   Life Satisfaction: {latest_row['life_satisfaction']:.1f}/10")
                 console.print(f"   Worthwhile: {latest_row['worthwhile']:.1f}/10")
                 console.print(f"   Happiness: {latest_row['happiness']:.1f}/10")
                 console.print(f"   Anxiety: {latest_row['anxiety']:.1f}/10 (lower is better)")
-            elif metric == "loneliness":
+            elif dimension == "loneliness":
                 latest_row = data.iloc[-1]
                 console.print("\n[bold]Latest Values:[/bold]")
                 console.print(f"   Lonely (some of time): {latest_row['lonely_some_of_time']:.1%}")
-            elif metric == "self-efficacy":
+            elif dimension == "self-efficacy":
                 latest_row = data.iloc[-1]
                 console.print("\n[bold]Latest Values:[/bold]")
                 console.print(f"   Self-efficacy mean: {latest_row['self_efficacy_mean']:.1f}/25")
-            elif metric == "summary":
+            elif dimension == "summary":
                 row = data.iloc[0]
                 console.print("\n[bold]Wellbeing Summary:[/bold]")
                 console.print(f"   Life Satisfaction: {row['life_satisfaction']:.1f}/10")
@@ -4417,11 +4438,12 @@ def nisra_emergency_care_cmd(output_format, trust, attendance_type, year, save):
 @click.option("--lgd", is_flag=True, help="Show LGD (Local Government District) breakdown")
 @click.option("--validate", is_flag=True, help="Run cross-validation against monthly data")
 @click.option(
-    "--table",
+    "--dimension",
     type=click.Choice(["births", "deaths", "all"], case_sensitive=False),
     default="all",
-    help="Which table to retrieve (default: all)",
+    help="Which dimension to retrieve (default: all)",
 )
+@click.option("--table", "table_deprecated", hidden=True, default=None)
 @click.option("--year", type=int, help="Filter data for specific year")
 @click.option("--quarter", type=int, help="Filter data for specific quarter (1-4)")
 @click.option(
@@ -4434,7 +4456,7 @@ def nisra_emergency_care_cmd(output_format, trust, attendance_type, year, save):
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
 def nisra_registrar_general_cmd(
-    latest, quarterly, lgd, validate, table, year, quarter, output_format, force_refresh, save
+    latest, quarterly, lgd, validate, dimension, table_deprecated, year, quarter, output_format, force_refresh, save
 ):
     """NISRA Registrar General Quarterly Tables.
 
@@ -4447,7 +4469,8 @@ def nisra_registrar_general_cmd(
         quarterly: Show full quarterly time series
         lgd: Show LGD (Local Government District) breakdown
         validate: Run cross-validation against monthly data
-        table: Which table to retrieve (births, deaths, or all)
+        dimension: Which dimension to retrieve (births, deaths, or all)
+        table_deprecated: Deprecated alias for --dimension (use --dimension instead)
         year: Filter data for specific year
         quarter: Filter data for specific quarter (1-4)
         output_format: Output format (csv or json)
@@ -4466,7 +4489,7 @@ def nisra_registrar_general_cmd(
 
         Get quarterly births time series::
 
-            bolster nisra registrar-general --quarterly --table births
+            bolster nisra registrar-general --quarterly --dimension births
 
         Get LGD breakdown for current quarter::
 
@@ -4505,6 +4528,10 @@ def nisra_registrar_general_cmd(
         Source: https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/registrar-general-quarterly-report
     """
     console = Console()
+
+    if table_deprecated is not None:
+        click.echo("Warning: --table is deprecated, use --dimension instead", err=True)
+        dimension = table_deprecated
 
     if not any([latest, quarterly, lgd, validate]):
         console.print("[yellow]⚠️  Please specify an option: --latest, --quarterly, --lgd, or --validate[/yellow]")
@@ -4575,7 +4602,7 @@ def nisra_registrar_general_cmd(
             return
 
         # Handle quarterly time series or latest
-        if table == "births" or table == "all":
+        if dimension == "births" or dimension == "all":
             births_data = data["births"]
             if not births_data.empty:
                 # Filter by year/quarter if specified
@@ -4584,12 +4611,12 @@ def nisra_registrar_general_cmd(
                 if quarter:
                     births_data = births_data[births_data["quarter"] == quarter]
 
-                if table == "births" or (table == "all" and not quarterly):
+                if dimension == "births" or (dimension == "all" and not quarterly):
                     output_data = births_data
                 else:
-                    output_data = births_data if table == "births" else None
+                    output_data = births_data if dimension == "births" else None
 
-        if table == "deaths" or table == "all":
+        if dimension == "deaths" or dimension == "all":
             deaths_data = data["deaths"]
             if not deaths_data.empty:
                 if year:
@@ -4597,7 +4624,7 @@ def nisra_registrar_general_cmd(
                 if quarter:
                     deaths_data = deaths_data[deaths_data["quarter"] == quarter]
 
-                if table == "deaths":
+                if dimension == "deaths":
                     output_data = deaths_data
 
         # Show summary for --latest
@@ -4637,7 +4664,7 @@ def nisra_registrar_general_cmd(
 
         # Handle full data output for --quarterly
         if quarterly:
-            if table == "all":
+            if dimension == "all":
                 console.print("[bold cyan]Quarterly Vital Statistics[/bold cyan]")
                 console.print("\n[bold]Births Data:[/bold]")
                 if not data["births"].empty:
@@ -4677,14 +4704,14 @@ def nisra_registrar_general_cmd(
                         else:
                             console.print(output.to_csv(index=False), end="")
             else:
-                # Single table output
-                output_data = data["births"] if table == "births" else data["deaths"]
+                # Single dimension output
+                output_data = data["births"] if dimension == "births" else data["deaths"]
                 if year:
                     output_data = output_data[output_data["year"] == year]
                 if quarter:
                     output_data = output_data[output_data["quarter"] == quarter]
 
-                console.print(f"[bold cyan]Quarterly {table.title()} Data[/bold cyan]")
+                console.print(f"[bold cyan]Quarterly {dimension.title()} Data[/bold cyan]")
                 console.print(f"[dim]{len(output_data)} records[/dim]\n")
 
                 if save:

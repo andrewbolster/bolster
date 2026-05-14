@@ -442,7 +442,7 @@ df = labour_market.get_latest_employment()
 print(df[df["age_range"] == "16-24"]["employment_thousands"].mean())
 
 # As CLI (for quick checks)
-$ bolster nisra labour-market --latest --table employment
+$ bolster nisra labour-market --latest --dimension employment
 ```
 
 **Benefits**:
@@ -578,10 +578,10 @@ bolster nisra births --latest --event-type both --save births.csv
 bolster nisra deaths --latest --dimension all --format csv --save deaths_latest.csv
 
 # Get latest labour market employment data
-bolster nisra labour-market --latest --table employment
+bolster nisra labour-market --latest --dimension employment
 
 # Get economic inactivity breakdown
-bolster nisra labour-market --latest --table economic_inactivity --format json
+bolster nisra labour-market --latest --dimension economic_inactivity --format json
 
 # Get latest marriage registrations
 bolster nisra marriages --latest
@@ -602,7 +602,7 @@ bolster nisra migration --latest --year 2024 --save migration_2024.csv
 bolster nisra registrar-general --latest
 
 # Get quarterly births time series
-bolster nisra registrar-general --quarterly --table births
+bolster nisra registrar-general --quarterly --dimension births
 
 # Get LGD-level statistics for current quarter
 bolster nisra registrar-general --lgd
