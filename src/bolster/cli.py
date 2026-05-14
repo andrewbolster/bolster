@@ -29,6 +29,7 @@ from .data_sources.nisra import emergency_care_waiting_times as nisra_emergency
 from .data_sources.nisra import labour_market as nisra_labour_market
 from .data_sources.nisra import marriages as nisra_marriages
 from .data_sources.nisra import migration as nisra_migration
+from .data_sources.nisra import planning_statistics as nisra_planning
 from .data_sources.nisra import population as nisra_population
 from .data_sources.nisra import registrar_general as nisra_registrar_general
 from .data_sources.nisra import wellbeing as nisra_wellbeing
@@ -1344,6 +1345,7 @@ def nisra_feed(limit: int, title_filter: str, days: int, check_coverage: bool):
         "nicei": "composite-index",
         "wellbeing": "wellbeing",
         "cancer waiting": "cancer-waiting-times",
+        "planning": "planning-statistics",
     }
 
     with console.status("Fetching NISRA RSS feed..."):
@@ -4866,6 +4868,117 @@ def psni_rtc_cmd(year, data_type, by, output_format, save, force_refresh):
 
     except Exception as e:
         console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        raise click.Abort() from e
+
+
+@nisra.command(name="planning-statistics")
+@click.option(
+    "--dimension",
+    type=click.Choice(["ni", "council", "annual", "council-summary"], case_sensitive=False),
+    default="ni",
+    help=(
+        "Which view to retrieve: 'ni' (quarterly NI-wide, default), "
+        "'council' (per-council quarterly), 'annual' (NI financial-year totals), "
+        "'council-summary' (per-council aggregate)."
+    ),
+)
+@click.option("--financial-year", help="Filter by financial year, e.g. '2024/25'")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics instead of full data")
+def nisra_planning_statistics_cmd(dimension, financial_year, output_format, force_refresh, save, summary):
+    """NISRA Planning Activity Statistics (Department for Infrastructure).
+
+    Quarterly Northern Ireland planning application statistics: applications
+    received, decided, approved, withdrawn, and approval rate. NI-wide series
+    goes back to Q1 2002/03; council-area breakdowns cover recent quarters
+    across the 11 local councils.
+
+    Examples:
+        Quarterly NI-wide series (default)::
+
+            bolster nisra planning-statistics
+
+        Per-council quarterly data for the latest financial year::
+
+            bolster nisra planning-statistics --dimension council --financial-year 2024/25
+
+        Annual financial-year totals::
+
+            bolster nisra planning-statistics --dimension annual
+
+        Council summary for 2024/25::
+
+            bolster nisra planning-statistics --dimension council-summary --financial-year 2024/25
+
+        Save to file::
+
+            bolster nisra planning-statistics --save planning.csv
+
+    Source:
+        https://www.infrastructure-ni.gov.uk/articles/planning-activity-statistics
+    """
+    console = Console()
+
+    try:
+        dim = dimension.lower()
+        with console.status("[bold green]Fetching NI planning statistics..."):
+            if dim in ("ni", "annual"):
+                data = nisra_planning.get_latest_data(force_refresh=force_refresh)
+            else:
+                data = nisra_planning.get_latest_council_data(force_refresh=force_refresh)
+
+        if dim == "annual":
+            data = nisra_planning.get_annual_totals(data)
+        elif dim == "council-summary":
+            data = nisra_planning.get_council_summary(data, financial_year=financial_year)
+        elif financial_year is not None:
+            data = data[data["financial_year"] == financial_year]
+
+        if data.empty:
+            console.print("[yellow]No data found for the specified filters[/yellow]")
+            return
+
+        console.print("[green]Planning statistics fetched successfully[/green]")
+        console.print(f"[cyan]Rows: {len(data)}[/cyan]")
+
+        if summary and dim in ("ni",):
+            total_received = int(data["applications_received"].sum())
+            total_decided = int(data["applications_decided"].sum())
+            total_approved = int(data["applications_approved"].sum())
+            overall_rate = total_approved / total_decided if total_decided else 0.0
+            console.print(f"   Applications received: {total_received:,}")
+            console.print(f"   Applications decided:  {total_decided:,}")
+            console.print(f"   Applications approved: {total_approved:,}")
+            console.print(f"   Approval rate:         {overall_rate:.1%}")
+            if not save:
+                return
+
+        if save:
+            if output_format == "json" or save.endswith(".json"):
+                data.to_json(save, orient="records", date_format="iso", indent=2)
+            else:
+                data.to_csv(save, index=False)
+            console.print(f"[green]Saved to: {save}[/green]")
+            return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
         raise click.Abort() from e
 
 
