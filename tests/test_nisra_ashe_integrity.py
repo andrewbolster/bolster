@@ -622,3 +622,232 @@ class TestASHEMeanHoursByPatternGender:
         """Female part-time mean hours exceed male part-time mean hours in NI."""
         pt = df[df["work_pattern"] == "Part-time"].iloc[0]
         assert pt["female_mean_hours"] > pt["male_mean_hours"]
+
+
+class TestASHERealEarnings:
+    """Integrity tests for ASHE Figure 2: nominal vs real weekly earnings (NI)."""
+
+    @pytest.fixture(scope="class")
+    def df(self):
+        return ashe.get_real_earnings()
+
+    def test_required_columns(self, df):
+        assert set(df.columns) == {"year", "nominal_weekly_earnings", "real_weekly_earnings"}
+
+    def test_dtypes(self, df):
+        assert pd.api.types.is_integer_dtype(df["year"])
+        assert pd.api.types.is_float_dtype(df["nominal_weekly_earnings"])
+        assert pd.api.types.is_float_dtype(df["real_weekly_earnings"])
+
+    def test_starts_2005(self, df):
+        assert df["year"].min() == 2005
+
+    def test_recent_year_present(self, df):
+        assert df["year"].max() >= 2025
+
+    def test_earnings_positive(self, df):
+        assert (df["nominal_weekly_earnings"] > 0).all()
+        assert (df["real_weekly_earnings"] > 0).all()
+
+    def test_real_above_nominal_pre_latest(self, df):
+        """For all years before the latest publication year, real earnings (in
+        latest-year prices) should exceed nominal — reflecting historical inflation."""
+        latest = df["year"].max()
+        prior = df[df["year"] < latest]
+        assert (prior["real_weekly_earnings"] > prior["nominal_weekly_earnings"]).all()
+
+    def test_real_equals_nominal_at_latest(self, df):
+        """At the latest reference year, nominal equals real (deflator base = 1.0)."""
+        latest = df[df["year"] == df["year"].max()].iloc[0]
+        # Allow tiny rounding (NISRA publishes to 1 decimal place)
+        assert abs(latest["real_weekly_earnings"] - latest["nominal_weekly_earnings"]) < 1.0
+
+    def test_nominal_growing(self, df):
+        """Nominal earnings should be higher in the latest year than in 2005."""
+        first = df[df["year"] == df["year"].min()].iloc[0]["nominal_weekly_earnings"]
+        last = df[df["year"] == df["year"].max()].iloc[0]["nominal_weekly_earnings"]
+        assert last > first
+
+
+class TestASHERealEarningsChangeByPattern:
+    """Integrity tests for ASHE Figure 3: annual % change by work pattern (NI)."""
+
+    @pytest.fixture(scope="class")
+    def df(self):
+        return ashe.get_real_earnings_change_by_pattern()
+
+    def test_required_columns(self, df):
+        assert set(df.columns) == {"work_pattern", "nominal_change_pct", "real_change_pct"}
+
+    def test_three_work_patterns(self, df):
+        # NISRA labels: 'Part-time', 'Full-time', 'All employees'
+        assert df["work_pattern"].nunique() == 3
+        # all-employees label has slight casing variation across publications
+        labels = {wp.lower() for wp in df["work_pattern"].unique()}
+        assert "part-time" in labels
+        assert "full-time" in labels
+
+    def test_real_below_nominal_when_inflation_positive(self, df):
+        """When nominal change is positive, real change should be lower (inflation eats into nominal growth)."""
+        for _, row in df.iterrows():
+            if row["nominal_change_pct"] > 0:
+                assert row["real_change_pct"] < row["nominal_change_pct"]
+
+    def test_changes_in_plausible_range(self, df):
+        """Annual changes should be within +/- 50% — a sanity bound."""
+        assert df["nominal_change_pct"].between(-50, 50).all()
+        assert df["real_change_pct"].between(-50, 50).all()
+
+
+class TestASHERealEarningsIndexBySector:
+    """Integrity tests for ASHE Figure 6: real earnings index by sector (NI)."""
+
+    @pytest.fixture(scope="class")
+    def df(self):
+        return ashe.get_real_earnings_index_by_sector()
+
+    def test_required_columns(self, df):
+        assert set(df.columns) == {"year", "sector", "real_earnings_index"}
+
+    def test_sectors(self, df):
+        assert set(df["sector"].unique()) == {"Public", "Private"}
+
+    def test_two_records_per_year(self, df):
+        counts = df.groupby("year").size()
+        assert (counts == 2).all()
+
+    def test_base_year_is_100(self, df):
+        """Base year of the index should have value 100 for both sectors."""
+        base = df[df["real_earnings_index"] == 100.0]
+        # Both sectors should hit 100 in the same base year
+        assert len(base) == 2
+        assert base["year"].nunique() == 1
+        # Base year should be in the early span (typically 6 years before latest)
+        assert base["year"].iloc[0] < df["year"].max()
+
+    def test_index_positive(self, df):
+        assert (df["real_earnings_index"] > 0).all()
+
+    def test_index_in_plausible_range(self, df):
+        """Year-on-year real earnings changes are bounded — index values should
+        stay within +/- 50% of the base."""
+        assert df["real_earnings_index"].between(50, 150).all()
+
+
+class TestASHEAnnualChangeByOccupation:
+    """Integrity tests for ASHE Figure 7: annual % change in earnings by occupation."""
+
+    @pytest.fixture(scope="class")
+    def df(self):
+        return ashe.get_annual_change_by_occupation()
+
+    def test_required_columns(self, df):
+        assert set(df.columns) == {"occupation", "annual_change_pct"}
+
+    def test_nine_occupation_groups(self, df):
+        # SOC has 9 major groups
+        assert df["occupation"].nunique() == 9
+
+    def test_managers_present(self, df):
+        assert df["occupation"].str.contains("Managers", case=False, na=False).any()
+
+    def test_changes_in_plausible_range(self, df):
+        assert df["annual_change_pct"].between(-50, 50).all()
+
+
+class TestASHEAnnualChangeByIndustry:
+    """Integrity tests for ASHE Figure 8: annual % change in earnings by industry."""
+
+    @pytest.fixture(scope="class")
+    def df(self):
+        return ashe.get_annual_change_by_industry()
+
+    def test_required_columns(self, df):
+        assert set(df.columns) == {"industry", "annual_change_pct"}
+
+    def test_multiple_industries(self, df):
+        # SIC sections — NISRA reports up to ~16 in NI (some are aggregated)
+        assert df["industry"].nunique() >= 10
+
+    def test_industries_distinct_from_occupations(self, df):
+        """Industry labels should not match SOC occupation labels."""
+        occ_labels = {"Managers, directors & senior officials", "Elementary occupations"}
+        assert not (set(df["industry"]) & occ_labels)
+
+    def test_changes_in_plausible_range(self, df):
+        assert df["annual_change_pct"].between(-50, 50).all()
+
+
+class TestASHEPayDistributionTimeseries:
+    """Integrity tests for ASHE Figure 11: low/middle/high-paid proportions over time."""
+
+    @pytest.fixture(scope="class")
+    def df(self):
+        return ashe.get_pay_distribution_timeseries()
+
+    def test_required_columns(self, df):
+        assert set(df.columns) == {"year", "low_paid_pct", "middle_paid_pct", "high_paid_pct"}
+
+    def test_starts_2005(self, df):
+        assert df["year"].min() == 2005
+
+    def test_recent_year_present(self, df):
+        assert df["year"].max() >= 2025
+
+    def test_one_record_per_year(self, df):
+        counts = df.groupby("year").size()
+        assert (counts == 1).all()
+
+    def test_proportions_sum_to_100(self, df):
+        """Low + middle + high proportions should sum to ~100% in every year."""
+        totals = df["low_paid_pct"] + df["middle_paid_pct"] + df["high_paid_pct"]
+        # Allow 0.5pp rounding tolerance
+        assert (totals - 100).abs().max() < 1.0
+
+    def test_all_proportions_positive(self, df):
+        for col in ("low_paid_pct", "middle_paid_pct", "high_paid_pct"):
+            assert (df[col] > 0).all()
+
+    def test_middle_paid_is_majority(self, df):
+        """Middle-paid jobs should be the largest band in every year."""
+        for _, row in df.iterrows():
+            assert row["middle_paid_pct"] > row["low_paid_pct"]
+            assert row["middle_paid_pct"] > row["high_paid_pct"]
+
+
+class TestASHEPayDistributionByClassification:
+    """Integrity tests for ASHE Figure 12: pay distribution by classification."""
+
+    @pytest.fixture(scope="class")
+    def df(self):
+        return ashe.get_pay_distribution_by_classification()
+
+    def test_required_columns(self, df):
+        assert set(df.columns) == {
+            "classification",
+            "subset",
+            "low_paid_pct",
+            "middle_paid_pct",
+            "high_paid_pct",
+        }
+
+    def test_classifications_present(self, df):
+        """Should contain at least working pattern, age, industry, occupation breakdowns."""
+        classifications = {c.lower() for c in df["classification"].unique()}
+        for expected in ("working pattern", "age group", "industry", "occupation"):
+            assert expected in classifications, f"Missing classification: {expected}"
+
+    def test_proportions_sum_to_100(self, df):
+        """Each row's three proportions should sum to ~100%."""
+        totals = df["low_paid_pct"] + df["middle_paid_pct"] + df["high_paid_pct"]
+        assert (totals - 100).abs().max() < 1.5
+
+    def test_proportions_non_negative(self, df):
+        for col in ("low_paid_pct", "middle_paid_pct", "high_paid_pct"):
+            assert (df[col] >= 0).all()
+
+    def test_young_workers_low_paid_concentration(self, df):
+        """The 16-21 age band should have a higher share of low-paid jobs than older bands."""
+        age_df = df[df["classification"].str.lower() == "age group"].set_index("subset")
+        if "16-21" in age_df.index and "40-49" in age_df.index:
+            assert age_df.loc["16-21", "low_paid_pct"] > age_df.loc["40-49", "low_paid_pct"]
