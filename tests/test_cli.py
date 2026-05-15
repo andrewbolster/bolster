@@ -268,3 +268,95 @@ class TestErrorHandling:
         # get-precipitation help
         result = runner.invoke(cli, ["get-precipitation", "--help"])
         assert result.exit_code == 0
+
+
+class TestNisraDimensionFlag:
+    """Test that --dimension flag is registered on affected nisra commands."""
+
+    def test_labour_market_dimension_flag(self):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["nisra", "labour-market", "--help"])
+        assert result.exit_code == 0
+        assert "--dimension" in result.output
+
+    def test_composite_index_dimension_flag(self):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["nisra", "composite-index", "--help"])
+        assert result.exit_code == 0
+        assert "--dimension" in result.output
+
+    def test_wellbeing_dimension_flag(self):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["nisra", "wellbeing", "--help"])
+        assert result.exit_code == 0
+        assert "--dimension" in result.output
+
+    def test_registrar_general_dimension_flag(self):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["nisra", "registrar-general", "--help"])
+        assert result.exit_code == 0
+        assert "--dimension" in result.output
+
+    def test_labour_market_table_flag_hidden(self):
+        """--table should be hidden (not appear in --help)."""
+        runner = CliRunner()
+        result = runner.invoke(cli, ["nisra", "labour-market", "--help"])
+        assert "--table" not in result.output
+
+    def test_wellbeing_metric_flag_hidden(self):
+        """--metric should be hidden (not appear in --help)."""
+        runner = CliRunner()
+        result = runner.invoke(cli, ["nisra", "wellbeing", "--help"])
+        assert "--metric" not in result.output
+
+
+class TestDeprecatedDimensionAliases:
+    """Test that deprecated --table/--metric aliases warn and forward to --dimension."""
+
+    def test_labour_market_deprecated_table_warns(self):
+        """--table on nisra labour-market emits deprecation warning."""
+        runner = CliRunner()
+        with patch("bolster.data_sources.nisra.labour_market.get_latest_employment") as mock:
+            import pandas as pd
+
+            mock.return_value = pd.DataFrame(
+                {"quarter_period": ["2024Q4"], "age_group": ["All"], "sex": ["All"], "percentage": [70.0]}
+            )
+            result = runner.invoke(cli, ["nisra", "labour-market", "--latest", "--table", "employment"])
+        assert "deprecated" in result.output.lower()
+        assert "--dimension" in result.output
+
+    def test_composite_index_deprecated_table_warns(self):
+        """--table on nisra composite-index emits deprecation warning."""
+        runner = CliRunner()
+        with patch("bolster.data_sources.nisra.composite_index.get_latest_nicei") as mock:
+            import pandas as pd
+
+            mock.return_value = pd.DataFrame({"date": ["2024-01-01"], "ni_index": [100.0]})
+            result = runner.invoke(cli, ["nisra", "composite-index", "--latest", "--table", "indices"])
+        assert "deprecated" in result.output.lower()
+        assert "--dimension" in result.output
+
+    def test_wellbeing_deprecated_metric_warns(self):
+        """--metric on nisra wellbeing emits deprecation warning."""
+        runner = CliRunner()
+        with patch("bolster.data_sources.nisra.wellbeing.get_latest_personal_wellbeing") as mock:
+            import pandas as pd
+
+            mock.return_value = pd.DataFrame(
+                {"year": ["2024/25"], "measure": ["Life satisfaction"], "mean": [7.5]}
+            )
+            result = runner.invoke(cli, ["nisra", "wellbeing", "--latest", "--metric", "personal"])
+        assert "deprecated" in result.output.lower()
+        assert "--dimension" in result.output
+
+    def test_registrar_general_deprecated_table_warns(self):
+        """--table on nisra registrar-general emits deprecation warning."""
+        runner = CliRunner()
+        with patch("bolster.data_sources.nisra.registrar_general.get_quarterly_births") as mock:
+            import pandas as pd
+
+            mock.return_value = pd.DataFrame({"year": [2024], "quarter": [1], "births": [5000]})
+            result = runner.invoke(cli, ["nisra", "registrar-general", "--latest", "--table", "births"])
+        assert "deprecated" in result.output.lower()
+        assert "--dimension" in result.output
