@@ -2,6 +2,7 @@
 
 import ssl
 import urllib.request
+from pathlib import Path
 
 import pytest
 
@@ -28,6 +29,15 @@ def _check_ssl_available():
 def pytest_configure(config):
     """Register custom markers."""
     config.addinivalue_line("markers", "network: marks tests requiring network access")
+
+
+def pytest_terminal_summary(terminalreporter, exitstatus, config):
+    """Report page cache size at end of test session."""
+    cache_dir = Path.home() / ".cache" / "bolster" / "_pages"
+    if cache_dir.exists():
+        files = list(cache_dir.glob("*.html"))
+        total_bytes = sum(f.stat().st_size for f in files)
+        terminalreporter.write_sep("-", f"page cache: {len(files)} entries, {total_bytes / 1024:.1f} KB ({cache_dir})")
 
 
 def pytest_collection_modifyitems(config, items):

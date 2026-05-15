@@ -17,11 +17,14 @@ Example:
     'Session'
 """
 
+import hashlib
 import io
 import logging
 import zipfile
 from collections.abc import Generator
+from datetime import datetime
 from io import BytesIO
+from pathlib import Path
 
 import pandas as pd
 import requests
@@ -35,60 +38,107 @@ from . import version_no
 logger = logging.getLogger(__name__)
 ua = f"@Bolster/{version_no} (+http://bolster.online/)"
 
+_PAGE_CACHE_DIR = Path.home() / ".cache" / "bolster" / "_pages"
+_PAGE_CACHE_TTL_SECONDS = 3600  # 1 hour for successful responses
+_PAGE_CACHE_404_TTL_SECONDS = 600  # 10 minutes for 404s
+
 
 class RateLimitAwareRetry(Retry):
-    """Custom retry strategy that handles 429 (Too Many Requests) with longer backoffs."""
-
-    # Hard cap: no single backoff sleep can exceed 60 seconds
-    MAX_BACKOFF = 60
-
-    def get_backoff_time(self):
-        """Calculate backoff time, with special handling for 429 responses."""
-        is_rate_limited = False
-        if self.history:
-            last_request = self.history[-1]
-            if hasattr(last_request, "status") and last_request.status == 429:
-                is_rate_limited = True
-
-        if is_rate_limited:
-            retry_count = max(0, len(self.history) - 1)
-            backoff_value = min(30 * (2**retry_count), self.MAX_BACKOFF)
-            logger.warning(
-                f"Rate limited (429) - backing off for {backoff_value:.1f}s (retry {retry_count + 1}/{self.total})"
-            )
-            return backoff_value
-        return min(super().get_backoff_time(), self.MAX_BACKOFF)
+    """Retry strategy that logs HTTP errors and connection failures for diagnosis."""
 
     def increment(self, method=None, url=None, response=None, error=None, _pool=None, _stacktrace=None):
         """Override increment to track the last response status."""
         if response is not None:
             self._last_status = response.status
+            retry_num = len(self.history) + 1
+            reason = getattr(response, "reason", "unknown")
             if response.status == 429:
                 logger.warning(
-                    f"Received 429 Too Many Requests from {url}. "
-                    f"Server may be rate limiting requests. Will retry with extended backoff."
+                    f"HTTP 429 Too Many Requests from {url} "
+                    f"(retry {retry_num}/{self.total}) — rate limited, extended backoff"
                 )
+            elif response.status in (500, 502, 503, 504):
+                logger.warning(f"HTTP {response.status} {reason} from {url} (retry {retry_num}/{self.total})")
+        elif error is not None:
+            retry_num = len(self.history) + 1
+            logger.warning(f"Connection error to {url} (retry {retry_num}/{self.total}): {error}")
 
         return super().increment(method, url, response, error, _pool, _stacktrace)
 
 
 # Configure retry strategy for transient failures
 # Retries on: connection errors, 429, 500, 502, 503, 504 status codes
-# Total worst-case wait: 4 retries × 60s cap = ~4 minutes before giving up
+# urllib3 default backoff: 0s, 2s, 4s, 8s (factor=1) — ~14s worst case
 _retry_strategy = RateLimitAwareRetry(
     total=4,
-    backoff_factor=1,  # 1s, 2s, 4s for normal errors (capped at 60s)
-    backoff_max=60,  # urllib3 hard cap on computed backoff
+    backoff_factor=1,
     status_forcelist=[429, 500, 502, 503, 504],
     allowed_methods=["HEAD", "GET", "OPTIONS"],
     raise_on_status=True,
-    # Respect Retry-After but only up to MAX_BACKOFF — prevents a server
-    # sending Retry-After: 86400 from hanging CI for hours
     respect_retry_after_header=False,
 )
 _adapter = HTTPAdapter(max_retries=_retry_strategy)
 
-session = requests.Session()
+
+class CachingSession(requests.Session):
+    """requests.Session that caches GET responses to disk with a TTL.
+
+    Only caches responses whose Content-Type starts with "text/" (HTML, plain
+    text) — binary downloads (Excel, ZIP, etc.) bypass the cache and should
+    go through CachedDownloader instead.
+
+    Cache lives in ~/.cache/bolster/_pages/ keyed by URL hash.
+    TTL is controlled by _PAGE_CACHE_TTL_SECONDS (default: 1 hour).
+
+    Example:
+        >>> from bolster.utils.web import session
+        >>> type(session).__name__
+        'CachingSession'
+    """
+
+    def get(self, url, **kwargs):  # noqa: D102
+        _PAGE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        url_hash = hashlib.md5(url.encode()).hexdigest()
+        cache_path = _PAGE_CACHE_DIR / f"{url_hash}.html"
+        cache_404_path = _PAGE_CACHE_DIR / f"{url_hash}.404"
+
+        now = datetime.now()
+
+        if cache_404_path.exists():
+            age = (now - datetime.fromtimestamp(cache_404_path.stat().st_mtime)).total_seconds()
+            if age < _PAGE_CACHE_404_TTL_SECONDS:
+                logger.debug(f"Page cache hit (404): {url}")
+                cached = requests.Response()
+                cached.status_code = 404
+                cached._content = b"cached 404"
+                cached._content_consumed = True
+                return cached
+
+        if cache_path.exists():
+            age = (now - datetime.fromtimestamp(cache_path.stat().st_mtime)).total_seconds()
+            if age < _PAGE_CACHE_TTL_SECONDS:
+                logger.debug(f"Page cache hit: {url}")
+                cached = requests.Response()
+                cached.status_code = 200
+                cached._content = cache_path.read_bytes()
+                cached._content_consumed = True
+                cached.headers["Content-Type"] = "text/html"
+                return cached
+
+        response = super().get(url, **kwargs)
+
+        content_type = response.headers.get("Content-Type", "")
+        if response.status_code == 404:
+            cache_404_path.write_bytes(b"")
+            logger.debug(f"Page 404 cached: {url}")
+        elif response.ok and "text/html" in content_type:
+            cache_path.write_bytes(response.content)
+            logger.debug(f"Page cached: {url}")
+
+        return response
+
+
+session = CachingSession()
 session.headers.update({"User-Agent": ua})
 session.mount("http://", _adapter)
 session.mount("https://", _adapter)

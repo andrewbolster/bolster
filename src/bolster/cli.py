@@ -1406,7 +1406,6 @@ def nisra_feed(limit: int, title_filter: str, days: int, check_coverage: bool):
 
 
 @nisra.command(name="deaths")
-@click.option("--latest", is_flag=True, help="Get the most recent deaths data available")
 @click.option(
     "--dimension",
     type=click.Choice(["totals", "demographics", "geography", "place", "all"], case_sensitive=False),
@@ -1422,7 +1421,7 @@ def nisra_feed(limit: int, title_filter: str, days: int, check_coverage: bool):
 )
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
-def nisra_deaths_cmd(latest, dimension, output_format, force_refresh, save):
+def nisra_deaths_cmd(dimension, output_format, force_refresh, save):
     """NISRA Weekly Deaths Statistics.
 
     Retrieves weekly death registrations in Northern Ireland with breakdowns by:
@@ -1435,23 +1434,23 @@ def nisra_deaths_cmd(latest, dimension, output_format, force_refresh, save):
     ---------
     Get COVID-19 and flu/pneumonia deaths::
 
-        bolster nisra deaths --latest --dimension totals
+        bolster nisra deaths --dimension totals
 
     Get latest demographics breakdown as CSV::
 
-        bolster nisra deaths --latest --dimension demographics
+        bolster nisra deaths --dimension demographics
 
     Get all dimensions as JSON::
 
-        bolster nisra deaths --latest --dimension all --format json
+        bolster nisra deaths --dimension all --format json
 
     Save totals data to analyze COVID trends::
 
-        bolster nisra deaths --latest --dimension totals --save deaths_totals.csv
+        bolster nisra deaths --dimension totals --save deaths_totals.csv
 
     Force refresh cached data::
 
-        bolster nisra deaths --latest --force-refresh
+        bolster nisra deaths --force-refresh
 
     Notes:
     ------
@@ -1480,11 +1479,6 @@ def nisra_deaths_cmd(latest, dimension, output_format, force_refresh, save):
     https://www.nisra.gov.uk/statistics/death-statistics/weekly-death-registrations-northern-ireland
     """
     console = Console()
-
-    if not latest:
-        console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
-        console.print("[dim]Future versions will support specific dates/weeks[/dim]")
-        return
 
     try:
         with console.status("[bold green]Downloading latest NISRA deaths data..."):
@@ -1566,7 +1560,6 @@ def nisra_deaths_cmd(latest, dimension, output_format, force_refresh, save):
 
 
 @nisra.command(name="labour-market")
-@click.option("--latest", is_flag=True, help="Get the most recent labour market data available")
 @click.option(
     "--dimension",
     type=click.Choice(["employment", "economic_inactivity", "lgd", "all"], case_sensitive=False),
@@ -1583,7 +1576,7 @@ def nisra_deaths_cmd(latest, dimension, output_format, force_refresh, save):
 )
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
-def nisra_labour_market_cmd(latest, dimension, table_deprecated, output_format, force_refresh, save):
+def nisra_labour_market_cmd(dimension, table_deprecated, output_format, force_refresh, save):
     """NISRA Labour Force Survey Statistics.
 
     Retrieves Labour Force Survey (LFS) data for Northern Ireland including:
@@ -1598,27 +1591,27 @@ def nisra_labour_market_cmd(latest, dimension, table_deprecated, output_format, 
     ---------
     Get latest employment data by age and sex::
 
-        bolster nisra labour-market --latest --dimension employment
+        bolster nisra labour-market --dimension employment
 
     Get economic inactivity time series (2012-2025)::
 
-        bolster nisra labour-market --latest --dimension economic_inactivity
+        bolster nisra labour-market --dimension economic_inactivity
 
     Get employment by Local Government District (annual)::
 
-        bolster nisra labour-market --latest --dimension lgd
+        bolster nisra labour-market --dimension lgd
 
     Get all dimensions as JSON::
 
-        bolster nisra labour-market --latest --dimension all --format json
+        bolster nisra labour-market --dimension all --format json
 
     Save employment data to analyze age distribution::
 
-        bolster nisra labour-market --latest --dimension employment --save employment.csv
+        bolster nisra labour-market --dimension employment --save employment.csv
 
     Force refresh cached data::
 
-        bolster nisra labour-market --latest --force-refresh
+        bolster nisra labour-market --force-refresh
 
     Notes:
     ------
@@ -1669,11 +1662,6 @@ def nisra_labour_market_cmd(latest, dimension, table_deprecated, output_format, 
     if table_deprecated is not None:
         click.echo("Warning: --table is deprecated, use --dimension instead", err=True)
         dimension = table_deprecated
-
-    if not latest:
-        console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
-        console.print("[dim]Future versions will support specific quarters/years[/dim]")
-        return
 
     try:
         with console.status("[bold green]Downloading latest NISRA labour market data..."):
@@ -1776,7 +1764,6 @@ def nisra_labour_market_cmd(latest, dimension, table_deprecated, output_format, 
 
 
 @nisra.command(name="births")
-@click.option("--latest", is_flag=True, help="Get the most recent births data available")
 @click.option(
     "--event-type",
     type=click.Choice(["registration", "occurrence", "both"], case_sensitive=False),
@@ -1792,7 +1779,7 @@ def nisra_labour_market_cmd(latest, dimension, table_deprecated, output_format, 
 )
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
-def nisra_births_cmd(latest, event_type, output_format, force_refresh, save):
+def nisra_births_cmd(event_type, output_format, force_refresh, save):
     """NISRA Monthly Birth Registrations Statistics.
 
     Retrieves monthly birth registration data for Northern Ireland including:
@@ -1807,27 +1794,27 @@ def nisra_births_cmd(latest, event_type, output_format, force_refresh, save):
     ---------
     Get latest births by registration date::
 
-        bolster nisra births --latest --event-type registration
+        bolster nisra births --event-type registration
 
     Get latest births by occurrence (actual birth date)::
 
-        bolster nisra births --latest --event-type occurrence
+        bolster nisra births --event-type occurrence
 
     Get both registration and occurrence data::
 
-        bolster nisra births --latest --event-type both
+        bolster nisra births --event-type both
 
     Save registration data to file::
 
-        bolster nisra births --latest --event-type registration --save births_reg.csv
+        bolster nisra births --event-type registration --save births_reg.csv
 
     Get data as JSON::
 
-        bolster nisra births --latest --event-type both --format json
+        bolster nisra births --event-type both --format json
 
     Force refresh cached data::
 
-        bolster nisra births --latest --force-refresh
+        bolster nisra births --force-refresh
 
     Notes:
     ------
@@ -1867,11 +1854,6 @@ def nisra_births_cmd(latest, event_type, output_format, force_refresh, save):
     https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/births
     """
     console = Console()
-
-    if not latest:
-        console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
-        console.print("[dim]Future versions will support specific months/years[/dim]")
-        return
 
     try:
         with console.status("[bold green]Downloading latest NISRA births data..."):
@@ -1960,7 +1942,6 @@ def nisra_births_cmd(latest, event_type, output_format, force_refresh, save):
 
 
 @nisra.command(name="population")
-@click.option("--latest", is_flag=True, help="Get the most recent population estimates available")
 @click.option(
     "--area",
     type=click.Choice(
@@ -1984,7 +1965,7 @@ def nisra_births_cmd(latest, event_type, output_format, force_refresh, save):
 )
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
-def nisra_population_cmd(latest, area, year, output_format, force_refresh, save):
+def nisra_population_cmd(area, year, output_format, force_refresh, save):
     """NISRA Mid-Year Population Estimates.
 
     Retrieves annual mid-year population estimates for Northern Ireland with breakdowns by:
@@ -1999,27 +1980,27 @@ def nisra_population_cmd(latest, area, year, output_format, force_refresh, save)
     ---------
     Get latest NI overall population::
 
-        bolster nisra population --latest
+        bolster nisra population
 
     Get all geographic areas::
 
-        bolster nisra population --latest --area all
+        bolster nisra population --area all
 
     Get specific year::
 
-        bolster nisra population --latest --year 2024
+        bolster nisra population --year 2024
 
     Get Parliamentary Constituencies::
 
-        bolster nisra population --latest --area "Parliamentary Constituencies (2024)"
+        bolster nisra population --area "Parliamentary Constituencies (2024)"
 
     Save to file::
 
-        bolster nisra population --latest --save population.csv
+        bolster nisra population --save population.csv
 
     Get as JSON::
 
-        bolster nisra population --latest --format json
+        bolster nisra population --format json
 
     Notes:
     ------
@@ -2056,11 +2037,6 @@ def nisra_population_cmd(latest, area, year, output_format, force_refresh, save)
     https://www.nisra.gov.uk/statistics/people-and-communities/population
     """
     console = Console()
-
-    if not latest:
-        console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
-        console.print("[dim]Future versions will support historical publications[/dim]")
-        return
 
     try:
         with console.status("[bold green]Downloading latest NISRA population estimates..."):
@@ -2120,7 +2096,6 @@ def nisra_population_cmd(latest, area, year, output_format, force_refresh, save)
 
 
 @nisra.command(name="marriages")
-@click.option("--latest", is_flag=True, help="Get the most recent marriages data available")
 @click.option("--year", type=int, help="Filter data for specific year")
 @click.option(
     "--format",
@@ -2131,7 +2106,7 @@ def nisra_population_cmd(latest, area, year, output_format, force_refresh, save)
 )
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
-def nisra_marriages_cmd(latest, year, output_format, force_refresh, save):
+def nisra_marriages_cmd(year, output_format, force_refresh, save):
     """NISRA Monthly Marriage Registrations Statistics.
 
     Retrieves monthly marriage registration data for Northern Ireland.
@@ -2144,23 +2119,23 @@ def nisra_marriages_cmd(latest, year, output_format, force_refresh, save):
     ---------
     Get latest marriages data::
 
-        bolster nisra marriages --latest
+        bolster nisra marriages
 
     Filter for a specific year::
 
-        bolster nisra marriages --latest --year 2024
+        bolster nisra marriages --year 2024
 
     Save to file::
 
-        bolster nisra marriages --latest --save marriages.csv
+        bolster nisra marriages --save marriages.csv
 
     Get data as JSON::
 
-        bolster nisra marriages --latest --format json
+        bolster nisra marriages --format json
 
     Force refresh cached data::
 
-        bolster nisra marriages --latest --force-refresh
+        bolster nisra marriages --force-refresh
 
     Notes:
     ------
@@ -2190,11 +2165,6 @@ def nisra_marriages_cmd(latest, year, output_format, force_refresh, save):
     https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/marriages
     """
     console = Console()
-
-    if not latest:
-        console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
-        console.print("[dim]Future versions will support specific months[/dim]")
-        return
 
     try:
         with console.status("[bold green]Downloading latest NISRA marriages data..."):
@@ -2907,7 +2877,6 @@ def nisra_visitors_cmd(latest, market, output_format, force_refresh, save, summa
 
 
 @nisra.command(name="migration")
-@click.option("--latest", is_flag=True, help="Get the most recent migration estimates")
 @click.option("--year", type=int, help="Filter data for specific year")
 @click.option("--start-year", type=int, help="Start year for summary statistics")
 @click.option("--end-year", type=int, help="End year for summary statistics")
@@ -2921,7 +2890,7 @@ def nisra_visitors_cmd(latest, market, output_format, force_refresh, save, summa
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
 @click.option("--summary", is_flag=True, help="Show summary statistics only")
-def nisra_migration_cmd(latest, year, start_year, end_year, output_format, force_refresh, save, summary):
+def nisra_migration_cmd(year, start_year, end_year, output_format, force_refresh, save, summary):
     """NISRA Migration Estimates (Derived from Demographic Components).
 
     Calculates net migration using the demographic accounting equation:
@@ -2936,7 +2905,6 @@ def nisra_migration_cmd(latest, year, start_year, end_year, output_format, force
     The demographic equation must hold: Pop(t+1) = Pop(t) + Births - Deaths + Migration
 
     Args:
-        latest: Get the most recent migration data
         year: Filter data for specific year
         start_year: Start year for data range
         end_year: End year for data range
@@ -2948,27 +2916,27 @@ def nisra_migration_cmd(latest, year, start_year, end_year, output_format, force
     Examples:
         Get all migration data::
 
-            bolster nisra migration --latest
+            bolster nisra migration
 
         Filter for specific year::
 
-            bolster nisra migration --latest --year 2024
+            bolster nisra migration --year 2024
 
         Show summary statistics for 2010-2024::
 
-            bolster nisra migration --latest --start-year 2010 --summary
+            bolster nisra migration --start-year 2010 --summary
 
         Save to file::
 
-            bolster nisra migration --latest --save migration.csv
+            bolster nisra migration --save migration.csv
 
         Get data as JSON::
 
-            bolster nisra migration --latest --format json
+            bolster nisra migration --format json
 
         Force refresh all source data::
 
-            bolster nisra migration --latest --force-refresh
+            bolster nisra migration --force-refresh
 
     Data Notes:
         - Coverage: 2011-2024 (limited by historical deaths data)
@@ -3000,11 +2968,6 @@ def nisra_migration_cmd(latest, year, start_year, end_year, output_format, force
             - Deaths: https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/deaths
     """
     console = Console()
-
-    if not latest:
-        console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
-        console.print("[dim]Future versions will support historical years[/dim]")
-        return
 
     try:
         with console.status("[bold green]Calculating migration estimates from demographic components..."):
@@ -3084,7 +3047,6 @@ def nisra_migration_cmd(latest, year, start_year, end_year, output_format, force
 
 
 @nisra.command(name="index-of-services")
-@click.option("--latest", is_flag=True, help="Get the most recent Index of Services data")
 @click.option("--year", type=int, help="Filter data for specific year")
 @click.option("--quarter", help="Filter data for specific quarter (e.g., 'Q1', 'Q2')")
 @click.option("--start-year", type=int, help="Start year for summary statistics")
@@ -3101,7 +3063,7 @@ def nisra_migration_cmd(latest, year, start_year, end_year, output_format, force
 @click.option("--summary", is_flag=True, help="Show summary statistics only")
 @click.option("--growth", is_flag=True, help="Include year-on-year growth rates")
 def nisra_index_of_services_cmd(
-    latest, year, quarter, start_year, end_year, output_format, force_refresh, save, summary, growth
+    year, quarter, start_year, end_year, output_format, force_refresh, save, summary, growth
 ):
     """NISRA Index of Services (IOS) - Quarterly Economic Indicator.
 
@@ -3110,7 +3072,6 @@ def nisra_index_of_services_cmd(
     data from Q1 2005 to present.
 
     Args:
-        latest: Get latest data only
         year: Filter by specific year
         quarter: Filter by specific quarter (Q1, Q2, Q3, Q4)
         start_year: Start year for filtering
@@ -3124,27 +3085,27 @@ def nisra_index_of_services_cmd(
     Examples:
         Get all Index of Services data::
 
-            bolster nisra index-of-services --latest
+            bolster nisra index-of-services
 
         Filter for specific year::
 
-            bolster nisra index-of-services --latest --year 2024
+            bolster nisra index-of-services --year 2024
 
         Get specific quarter::
 
-            bolster nisra index-of-services --latest --year 2025 --quarter Q3
+            bolster nisra index-of-services --year 2025 --quarter Q3
 
         Show summary statistics for 2020-2025::
 
-            bolster nisra index-of-services --latest --start-year 2020 --summary
+            bolster nisra index-of-services --start-year 2020 --summary
 
         Include year-on-year growth rates::
 
-            bolster nisra index-of-services --latest --growth
+            bolster nisra index-of-services --growth
 
         Save to file::
 
-            bolster nisra index-of-services --latest --save ios.csv
+            bolster nisra index-of-services --save ios.csv
 
     Data Notes:
         - Coverage: Q1 2005 - Q3 2025 (quarterly)
@@ -3168,10 +3129,6 @@ def nisra_index_of_services_cmd(
         https://www.nisra.gov.uk/statistics/economic-output/index-services
     """
     console = Console()
-
-    if not latest:
-        console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
-        return
 
     try:
         with console.status("[bold green]Fetching Index of Services data..."):
@@ -3243,7 +3200,6 @@ def nisra_index_of_services_cmd(
 
 
 @nisra.command(name="index-of-production")
-@click.option("--latest", is_flag=True, help="Get the most recent Index of Production data")
 @click.option("--year", type=int, help="Filter data for specific year")
 @click.option("--quarter", help="Filter data for specific quarter (e.g., 'Q1', 'Q2')")
 @click.option("--start-year", type=int, help="Start year for summary statistics")
@@ -3260,7 +3216,7 @@ def nisra_index_of_services_cmd(
 @click.option("--summary", is_flag=True, help="Show summary statistics only")
 @click.option("--growth", is_flag=True, help="Include year-on-year growth rates")
 def nisra_index_of_production_cmd(
-    latest, year, quarter, start_year, end_year, output_format, force_refresh, save, summary, growth
+    year, quarter, start_year, end_year, output_format, force_refresh, save, summary, growth
 ):
     """NISRA Index of Production (IOP) - Quarterly Economic Indicator.
 
@@ -3268,7 +3224,6 @@ def nisra_index_of_production_cmd(
     mining, and utilities. Seasonally adjusted quarterly data from Q1 2005 to present.
 
     Args:
-        latest: Get the most recent Index of Production data
         year: Filter data for specific year
         quarter: Filter data for specific quarter (e.g., 'Q1', 'Q2')
         start_year: Start year for summary statistics
@@ -3282,27 +3237,27 @@ def nisra_index_of_production_cmd(
     Examples:
         Get all Index of Production data::
 
-            bolster nisra index-of-production --latest
+            bolster nisra index-of-production
 
         Filter for specific year::
 
-            bolster nisra index-of-production --latest --year 2024
+            bolster nisra index-of-production --year 2024
 
         Get specific quarter::
 
-            bolster nisra index-of-production --latest --year 2025 --quarter Q3
+            bolster nisra index-of-production --year 2025 --quarter Q3
 
         Show summary statistics::
 
-            bolster nisra index-of-production --latest --start-year 2020 --summary
+            bolster nisra index-of-production --start-year 2020 --summary
 
         Include growth rates::
 
-            bolster nisra index-of-production --latest --growth
+            bolster nisra index-of-production --growth
 
         Save as JSON::
 
-            bolster nisra index-of-production --latest --format json --save iop.json
+            bolster nisra index-of-production --format json --save iop.json
 
     Data Notes:
         - Coverage: Q1 2005 - Q3 2025 (quarterly)
@@ -3326,10 +3281,6 @@ def nisra_index_of_production_cmd(
         https://www.nisra.gov.uk/statistics/economic-output/index-production
     """
     console = Console()
-
-    if not latest:
-        console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
-        return
 
     try:
         with console.status("[bold green]Fetching Index of Production data..."):
@@ -3401,7 +3352,6 @@ def nisra_index_of_production_cmd(
 
 
 @nisra.command(name="construction-output")
-@click.option("--latest", is_flag=True, help="Get the most recent Construction Output data")
 @click.option("--year", type=int, help="Filter data for specific year")
 @click.option("--quarter", help="Filter data for specific quarter (e.g., 'Q1', 'Q2')")
 @click.option("--start-year", type=int, help="Start year for summary statistics")
@@ -3418,7 +3368,7 @@ def nisra_index_of_production_cmd(
 @click.option("--summary", is_flag=True, help="Show summary statistics only")
 @click.option("--growth", is_flag=True, help="Include year-on-year growth rates")
 def nisra_construction_output_cmd(
-    latest, year, quarter, start_year, end_year, output_format, force_refresh, save, summary, growth
+    year, quarter, start_year, end_year, output_format, force_refresh, save, summary, growth
 ):
     r"""NISRA Construction Output Statistics - Quarterly Economic Indicator.
 
@@ -3427,7 +3377,6 @@ def nisra_construction_output_cmd(
     (base year 2022=100) from Q2 2000 to present.
 
     Args:
-        latest: Get the most recent Construction Output data
         year: Filter data for specific year
         quarter: Filter data for specific quarter (e.g., 'Q1', 'Q2')
         start_year: Start year for summary statistics
@@ -3441,27 +3390,27 @@ def nisra_construction_output_cmd(
     Examples:
         Get all Construction Output data::
 
-            bolster nisra construction-output --latest
+            bolster nisra construction-output
 
         Filter for specific year::
 
-            bolster nisra construction-output --latest --year 2024
+            bolster nisra construction-output --year 2024
 
         Get specific quarter::
 
-            bolster nisra construction-output --latest --year 2025 --quarter Q2
+            bolster nisra construction-output --year 2025 --quarter Q2
 
         Show summary statistics for 2020-2025::
 
-            bolster nisra construction-output --latest --start-year 2020 --summary
+            bolster nisra construction-output --start-year 2020 --summary
 
         Include year-on-year growth rates::
 
-            bolster nisra construction-output --latest --growth
+            bolster nisra construction-output --growth
 
         Save to file::
 
-            bolster nisra construction-output --latest --save construction.csv
+            bolster nisra construction-output --save construction.csv
 
     Data Notes:
         - Coverage: Q2 2000 - Q2 2025 (quarterly)
@@ -3486,10 +3435,6 @@ def nisra_construction_output_cmd(
         https://www.nisra.gov.uk/statistics/economic-output/construction-output-statistics
     """
     console = Console()
-
-    if not latest:
-        console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
-        return
 
     try:
         with console.status("[bold green]Fetching Construction Output data..."):
@@ -3564,7 +3509,6 @@ def nisra_construction_output_cmd(
 
 
 @nisra.command(name="ashe")
-@click.option("--latest", is_flag=True, help="Get the most recent ASHE data")
 @click.option(
     "--metric",
     type=click.Choice(["weekly", "hourly", "annual"], case_sensitive=False),
@@ -3593,7 +3537,7 @@ def nisra_construction_output_cmd(
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
 @click.option("--growth", is_flag=True, help="Include year-on-year growth rates (timeseries only)")
-def nisra_ashe_cmd(latest, metric, dimension, basis, year, output_format, force_refresh, save, growth):
+def nisra_ashe_cmd(metric, dimension, basis, year, output_format, force_refresh, save, growth):
     """NISRA Annual Survey of Hours and Earnings (ASHE) - Employee Earnings Statistics.
 
     Annual survey measuring employee earnings in Northern Ireland across multiple dimensions
@@ -3601,7 +3545,6 @@ def nisra_ashe_cmd(latest, metric, dimension, basis, year, output_format, force_
     of each year, published in October.
 
     Args:
-        latest: Get the most recent ASHE data
         metric: Type of earnings metric (weekly, hourly, or annual)
         dimension: Data dimension to retrieve (timeseries, geography, or sector)
         basis: Geographic basis (workplace or residence, for geography dimension only)
@@ -3614,39 +3557,39 @@ def nisra_ashe_cmd(latest, metric, dimension, basis, year, output_format, force_
     Examples:
         Get weekly earnings timeseries (1997-2025)::
 
-            bolster nisra ashe --latest
+            bolster nisra ashe
 
         Get hourly earnings timeseries::
 
-            bolster nisra ashe --latest --metric hourly
+            bolster nisra ashe --metric hourly
 
         Get annual earnings timeseries::
 
-            bolster nisra ashe --latest --metric annual
+            bolster nisra ashe --metric annual
 
         Get geographic earnings by workplace::
 
-            bolster nisra ashe --latest --dimension geography
+            bolster nisra ashe --dimension geography
 
         Get geographic earnings by residence::
 
-            bolster nisra ashe --latest --dimension geography --basis residence
+            bolster nisra ashe --dimension geography --basis residence
 
         Get public vs private sector comparison::
 
-            bolster nisra ashe --latest --dimension sector
+            bolster nisra ashe --dimension sector
 
         Include year-on-year growth rates::
 
-            bolster nisra ashe --latest --growth
+            bolster nisra ashe --growth
 
         Filter for specific year::
 
-            bolster nisra ashe --latest --year 2025
+            bolster nisra ashe --year 2025
 
         Save to file::
 
-            bolster nisra ashe --latest --save earnings.csv --format csv
+            bolster nisra ashe --save earnings.csv --format csv
 
     Data Notes:
         - Coverage: April 1997 - 2025 (annual, timeseries)
@@ -3692,10 +3635,6 @@ def nisra_ashe_cmd(latest, metric, dimension, basis, year, output_format, force_
         https://www.nisra.gov.uk/statistics/work-pay-and-benefits/annual-survey-hours-and-earnings
     """
     console = Console()
-
-    if not latest:
-        console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
-        return
 
     try:
         # Determine what data to fetch
@@ -3757,7 +3696,6 @@ def nisra_ashe_cmd(latest, metric, dimension, basis, year, output_format, force_
 
 
 @nisra.command(name="composite-index")
-@click.option("--latest", is_flag=True, help="Get the most recent NICEI data")
 @click.option(
     "--dimension",
     type=click.Choice(["indices", "contributions", "all"], case_sensitive=False),
@@ -3776,7 +3714,7 @@ def nisra_ashe_cmd(latest, metric, dimension, basis, year, output_format, force_
 )
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
-def nisra_composite_index_cmd(latest, dimension, table_deprecated, year, quarter, output_format, force_refresh, save):
+def nisra_composite_index_cmd(dimension, table_deprecated, year, quarter, output_format, force_refresh, save):
     """NISRA Northern Ireland Composite Economic Index (NICEI) - Experimental Economic Indicator.
 
     Quarterly measure of NI economic performance tracking five key sectors:
@@ -3784,7 +3722,6 @@ def nisra_composite_index_cmd(latest, dimension, table_deprecated, year, quarter
     Base period 2022=100, quarterly data from Q1 2006 to present.
 
     Args:
-        latest: Get the most recent NICEI data
         dimension: Which dimension to retrieve (indices, contributions, or all)
         table_deprecated: Deprecated alias for --dimension (use --dimension instead)
         year: Filter data for specific year
@@ -3796,27 +3733,27 @@ def nisra_composite_index_cmd(latest, dimension, table_deprecated, year, quarter
     Examples:
         Get latest NICEI indices::
 
-            bolster nisra composite-index --latest
+            bolster nisra composite-index
 
         Get sector contributions to quarterly change::
 
-            bolster nisra composite-index --latest --dimension contributions
+            bolster nisra composite-index --dimension contributions
 
         Get all dimensions::
 
-            bolster nisra composite-index --latest --dimension all
+            bolster nisra composite-index --dimension all
 
         Filter for specific year::
 
-            bolster nisra composite-index --latest --year 2024
+            bolster nisra composite-index --year 2024
 
         Get specific quarter::
 
-            bolster nisra composite-index --latest --year 2025 --quarter 2
+            bolster nisra composite-index --year 2025 --quarter 2
 
         Save to file::
 
-            bolster nisra composite-index --latest --save nicei.csv
+            bolster nisra composite-index --save nicei.csv
 
     Data Notes:
         - Coverage: Q1 2006 - Q2 2025 (quarterly)
@@ -3854,10 +3791,6 @@ def nisra_composite_index_cmd(latest, dimension, table_deprecated, year, quarter
     if table_deprecated is not None:
         click.echo("Warning: --table is deprecated, use --dimension instead", err=True)
         dimension = table_deprecated
-
-    if not latest:
-        console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
-        return
 
     try:
         with console.status("[bold green]Fetching NICEI data..."):
@@ -3967,7 +3900,6 @@ def nisra_composite_index_cmd(latest, dimension, table_deprecated, year, quarter
 
 
 @nisra.command(name="wellbeing")
-@click.option("--latest", is_flag=True, help="Get the most recent wellbeing data available")
 @click.option(
     "--dimension",
     type=click.Choice(["personal", "loneliness", "self-efficacy", "summary"], case_sensitive=False),
@@ -3985,14 +3917,13 @@ def nisra_composite_index_cmd(latest, dimension, table_deprecated, year, quarter
 )
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
-def nisra_wellbeing_cmd(latest, dimension, metric_deprecated, year, output_format, force_refresh, save):
+def nisra_wellbeing_cmd(dimension, metric_deprecated, year, output_format, force_refresh, save):
     """NISRA Individual Wellbeing Statistics.
 
     Retrieves individual wellbeing statistics for Northern Ireland, measuring
     subjective wellbeing across the population aged 16 and over.
 
     Args:
-        latest: Get the most recent wellbeing data available
         dimension: Which dimension to retrieve (personal, loneliness, self-efficacy, or summary)
         metric_deprecated: Deprecated alias for --dimension (use --dimension instead)
         year: Filter data for specific year (format: 2024/25)
@@ -4010,23 +3941,23 @@ def nisra_wellbeing_cmd(latest, dimension, metric_deprecated, year, output_forma
     Examples:
         Get personal wellbeing (ONS4 measures)::
 
-            bolster nisra wellbeing --latest
+            bolster nisra wellbeing
 
         Get loneliness statistics::
 
-            bolster nisra wellbeing --latest --dimension loneliness
+            bolster nisra wellbeing --dimension loneliness
 
         Get summary of all dimensions for latest year::
 
-            bolster nisra wellbeing --latest --dimension summary
+            bolster nisra wellbeing --dimension summary
 
         Filter for a specific year::
 
-            bolster nisra wellbeing --latest --year "2023/24"
+            bolster nisra wellbeing --year "2023/24"
 
         Save to file::
 
-            bolster nisra wellbeing --latest --save wellbeing.csv
+            bolster nisra wellbeing --save wellbeing.csv
 
     Data Notes:
         - Personal wellbeing: Annual from 2014/15 to present
@@ -4050,11 +3981,6 @@ def nisra_wellbeing_cmd(latest, dimension, metric_deprecated, year, output_forma
     if metric_deprecated is not None:
         click.echo("Warning: --metric is deprecated, use --dimension instead", err=True)
         dimension = metric_deprecated
-
-    if not latest:
-        console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
-        console.print("[dim]Use --latest to get the most recent wellbeing data[/dim]")
-        return
 
     try:
         with console.status("[bold green]Downloading latest NISRA wellbeing data..."):
@@ -4144,7 +4070,6 @@ def nisra_wellbeing_cmd(latest, dimension, metric_deprecated, year, output_forma
 
 
 @nisra.command(name="cancer-waiting-times")
-@click.option("--latest", is_flag=True, help="Get the most recent cancer waiting times data available")
 @click.option(
     "--target",
     type=click.Choice(["14-day", "31-day", "62-day", "referrals"], case_sensitive=False),
@@ -4168,7 +4093,7 @@ def nisra_wellbeing_cmd(latest, dimension, metric_deprecated, year, output_forma
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
 @click.option("--summary", is_flag=True, help="Show NI-wide summary instead of raw data")
-def nisra_cancer_cmd(latest, target, dimension, year, output_format, force_refresh, save, summary):
+def nisra_cancer_cmd(target, dimension, year, output_format, force_refresh, save, summary):
     """NISRA Cancer Waiting Times Statistics.
 
     Retrieves cancer waiting times performance data for Northern Ireland from the
@@ -4180,11 +4105,11 @@ def nisra_cancer_cmd(latest, target, dimension, year, output_format, force_refre
 
     Examples::
 
-        bolster nisra cancer-waiting-times --latest
-        bolster nisra cancer-waiting-times --latest --target 62-day --dimension tumour
-        bolster nisra cancer-waiting-times --latest --target 14-day
-        bolster nisra cancer-waiting-times --latest --year 2024 --summary
-        bolster nisra cancer-waiting-times --latest --save cancer.csv
+        bolster nisra cancer-waiting-times
+        bolster nisra cancer-waiting-times --target 62-day --dimension tumour
+        bolster nisra cancer-waiting-times --target 14-day
+        bolster nisra cancer-waiting-times --year 2024 --summary
+        bolster nisra cancer-waiting-times --save cancer.csv
 
     Key insights (as of 2025): 31-day target NI at ~90%; 62-day collapsed to ~32%;
     14-day breast dropped from 77% (2020) to 17% (2025). Data from Q1 2008 to present.
@@ -4192,11 +4117,6 @@ def nisra_cancer_cmd(latest, target, dimension, year, output_format, force_refre
     Source: https://www.health-ni.gov.uk/articles/cancer-waiting-times
     """
     console = Console()
-
-    if not latest:
-        console.print("[yellow]⚠️  Only --latest is currently supported[/yellow]")
-        console.print("[dim]Use --latest to get the most recent cancer waiting times data[/dim]")
-        return
 
     try:
         with console.status("[bold green]Downloading latest NISRA cancer waiting times data..."):

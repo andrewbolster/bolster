@@ -125,17 +125,16 @@ class TestRateLimitAwareRetry:
         assert backoff_time >= 0  # Should be a valid backoff time
 
     def test_get_backoff_time_rate_limited(self):
-        """Test extended backoff calculation for 429 errors."""
+        """Test that 429 uses standard urllib3 backoff (no special override)."""
         retry = RateLimitAwareRetry(total=3, backoff_factor=1)
 
-        # Mock a 429 response in history
         mock_response = Mock()
         mock_response.status = 429
         retry.history = [mock_response]
 
-        # Should use extended backoff for 429, capped at MAX_BACKOFF
+        # 429 now uses standard urllib3 backoff — first retry is 0s
         backoff_time = retry.get_backoff_time()
-        assert 0 < backoff_time <= RateLimitAwareRetry.MAX_BACKOFF
+        assert backoff_time >= 0
 
     def test_get_backoff_time_empty_history(self):
         """Test backoff with empty history."""
@@ -164,27 +163,26 @@ class TestRateLimitAwareRetry:
 
             # Should have logged the 429 warning
             mock_logger.assert_called_once()
-            assert "429 Too Many Requests" in mock_logger.call_args[0][0]
-            assert "rate limiting" in mock_logger.call_args[0][0]
+            assert "429" in mock_logger.call_args[0][0]
+            assert "rate limited" in mock_logger.call_args[0][0]
 
     def test_increment_with_non_429_response(self):
-        """Test increment method with normal response."""
+        """Test increment method with 5xx response logs status and reason."""
         retry = RateLimitAwareRetry(total=3, backoff_factor=1)
 
-        # Mock a normal error response
         mock_response = Mock()
         mock_response.status = 500
+        mock_response.reason = "Internal Server Error"
 
-        # Should not trigger 429-specific logging
         with patch('bolster.utils.web.logger.warning') as mock_logger:
-            new_retry = retry.increment(
+            retry.increment(
                 method='GET',
                 url='https://example.com/test',
                 response=mock_response
             )
 
-            # Should not log 429-specific warnings
-            mock_logger.assert_not_called()
+            mock_logger.assert_called_once()
+            assert "500" in mock_logger.call_args[0][0]
 
 
 class TestResilientGet:
