@@ -5,4 +5,7 @@ coverage:
   status:
     patch:
       default:
-        enabled: no
+        target: auto
+        threshold: 5%
+        paths:
+          - "!src/bolster/cli.py"
