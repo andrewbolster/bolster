@@ -322,7 +322,7 @@ class TestDeprecatedDimensionAliases:
             mock.return_value = pd.DataFrame(
                 {"quarter_period": ["2024Q4"], "age_group": ["All"], "sex": ["All"], "percentage": [70.0]}
             )
-            result = runner.invoke(cli, ["nisra", "labour-market", "--latest", "--table", "employment"])
+            result = runner.invoke(cli, ["nisra", "labour-market", "--table", "employment"])
         assert "deprecated" in result.output.lower()
         assert "--dimension" in result.output
 
@@ -333,7 +333,7 @@ class TestDeprecatedDimensionAliases:
             import pandas as pd
 
             mock.return_value = pd.DataFrame({"date": ["2024-01-01"], "ni_index": [100.0]})
-            result = runner.invoke(cli, ["nisra", "composite-index", "--latest", "--table", "indices"])
+            result = runner.invoke(cli, ["nisra", "composite-index", "--table", "indices"])
         assert "deprecated" in result.output.lower()
         assert "--dimension" in result.output
 
@@ -346,7 +346,7 @@ class TestDeprecatedDimensionAliases:
             mock.return_value = pd.DataFrame(
                 {"year": ["2024/25"], "measure": ["Life satisfaction"], "mean": [7.5]}
             )
-            result = runner.invoke(cli, ["nisra", "wellbeing", "--latest", "--metric", "personal"])
+            result = runner.invoke(cli, ["nisra", "wellbeing", "--metric", "personal"])
         assert "deprecated" in result.output.lower()
         assert "--dimension" in result.output
 
