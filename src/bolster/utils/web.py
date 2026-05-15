@@ -17,11 +17,14 @@ Example:
     'Session'
 """
 
+import hashlib
 import io
 import logging
 import zipfile
 from collections.abc import Generator
+from datetime import datetime
 from io import BytesIO
+from pathlib import Path
 
 import pandas as pd
 import requests
@@ -34,6 +37,9 @@ from . import version_no
 
 logger = logging.getLogger(__name__)
 ua = f"@Bolster/{version_no} (+http://bolster.online/)"
+
+_PAGE_CACHE_DIR = Path.home() / ".cache" / "bolster" / "_pages"
+_PAGE_CACHE_TTL_SECONDS = 3600  # 1 hour
 
 
 class RateLimitAwareRetry(Retry):
@@ -72,7 +78,48 @@ _retry_strategy = RateLimitAwareRetry(
 )
 _adapter = HTTPAdapter(max_retries=_retry_strategy)
 
-session = requests.Session()
+
+class CachingSession(requests.Session):
+    """requests.Session that caches GET responses to disk with a TTL.
+
+    Only caches responses whose Content-Type starts with "text/" (HTML, plain
+    text) — binary downloads (Excel, ZIP, etc.) bypass the cache and should
+    go through CachedDownloader instead.
+
+    Cache lives in ~/.cache/bolster/_pages/ keyed by URL hash.
+    TTL is controlled by _PAGE_CACHE_TTL_SECONDS (default: 1 hour).
+
+    Example:
+        >>> from bolster.utils.web import session
+        >>> type(session).__name__
+        'CachingSession'
+    """
+
+    def get(self, url, **kwargs):  # noqa: D102
+        _PAGE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        cache_path = _PAGE_CACHE_DIR / f"{hashlib.md5(url.encode()).hexdigest()}.html"
+
+        if cache_path.exists():
+            age = (datetime.now() - datetime.fromtimestamp(cache_path.stat().st_mtime)).total_seconds()
+            if age < _PAGE_CACHE_TTL_SECONDS:
+                logger.debug(f"Page cache hit: {url}")
+                cached = requests.Response()
+                cached.status_code = 200
+                cached._content = cache_path.read_bytes()
+                cached.headers["Content-Type"] = "text/html"
+                return cached
+
+        response = super().get(url, **kwargs)
+
+        content_type = response.headers.get("Content-Type", "")
+        if response.ok and content_type.startswith("text/"):
+            cache_path.write_bytes(response.content)
+            logger.debug(f"Page cached: {url}")
+
+        return response
+
+
+session = CachingSession()
 session.headers.update({"User-Agent": ua})
 session.mount("http://", _adapter)
 session.mount("https://", _adapter)
