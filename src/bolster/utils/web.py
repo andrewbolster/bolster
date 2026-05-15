@@ -111,6 +111,7 @@ class CachingSession(requests.Session):
                 cached = requests.Response()
                 cached.status_code = 404
                 cached._content = b"cached 404"
+                cached._content_consumed = True
                 return cached
 
         if cache_path.exists():
@@ -120,6 +121,7 @@ class CachingSession(requests.Session):
                 cached = requests.Response()
                 cached.status_code = 200
                 cached._content = cache_path.read_bytes()
+                cached._content_consumed = True
                 cached.headers["Content-Type"] = "text/html"
                 return cached
 
@@ -129,7 +131,7 @@ class CachingSession(requests.Session):
         if response.status_code == 404:
             cache_404_path.write_bytes(b"")
             logger.debug(f"Page 404 cached: {url}")
-        elif response.ok and content_type.startswith("text/"):
+        elif response.ok and "text/html" in content_type:
             cache_path.write_bytes(response.content)
             logger.debug(f"Page cached: {url}")
 
