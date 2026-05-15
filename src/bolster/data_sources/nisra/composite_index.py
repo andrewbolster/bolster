@@ -41,7 +41,7 @@ Publication Details:
     - Frequency: Quarterly (published ~3 months after quarter end)
     - Published by: NISRA Economic & Labour Market Statistics Branch
     - Contact: economicstats@nisra.gov.uk
-    - Mother page: https://www.nisra.gov.uk/statistics/economic-output-statistics/ni-composite-economic-index
+    - Mother page: https://www.nisra.gov.uk/statistics/economic-output/ni-composite-economic-index
     - Note: NICEI is an experimental statistic subject to revision
 
 Author: Claude Code
@@ -61,7 +61,7 @@ logger = logging.getLogger(__name__)
 
 # Base URL for NICEI publications
 NICEI_BASE_URL = "https://www.nisra.gov.uk"
-NICEI_STATS_URL = "https://www.nisra.gov.uk/statistics/economic-output-statistics/ni-composite-economic-index"
+NICEI_STATS_URL = "https://www.nisra.gov.uk/statistics/economic-output/ni-composite-economic-index"
 
 
 def get_latest_nicei_publication_url() -> tuple[str, int, str]:
