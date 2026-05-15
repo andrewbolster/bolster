@@ -39,7 +39,8 @@ logger = logging.getLogger(__name__)
 ua = f"@Bolster/{version_no} (+http://bolster.online/)"
 
 _PAGE_CACHE_DIR = Path.home() / ".cache" / "bolster" / "_pages"
-_PAGE_CACHE_TTL_SECONDS = 3600  # 1 hour
+_PAGE_CACHE_TTL_SECONDS = 3600  # 1 hour for successful responses
+_PAGE_CACHE_404_TTL_SECONDS = 600  # 10 minutes for 404s
 
 
 class RateLimitAwareRetry(Retry):
@@ -97,10 +98,23 @@ class CachingSession(requests.Session):
 
     def get(self, url, **kwargs):  # noqa: D102
         _PAGE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        cache_path = _PAGE_CACHE_DIR / f"{hashlib.md5(url.encode()).hexdigest()}.html"
+        url_hash = hashlib.md5(url.encode()).hexdigest()
+        cache_path = _PAGE_CACHE_DIR / f"{url_hash}.html"
+        cache_404_path = _PAGE_CACHE_DIR / f"{url_hash}.404"
+
+        now = datetime.now()
+
+        if cache_404_path.exists():
+            age = (now - datetime.fromtimestamp(cache_404_path.stat().st_mtime)).total_seconds()
+            if age < _PAGE_CACHE_404_TTL_SECONDS:
+                logger.debug(f"Page cache hit (404): {url}")
+                cached = requests.Response()
+                cached.status_code = 404
+                cached._content = b"cached 404"
+                return cached
 
         if cache_path.exists():
-            age = (datetime.now() - datetime.fromtimestamp(cache_path.stat().st_mtime)).total_seconds()
+            age = (now - datetime.fromtimestamp(cache_path.stat().st_mtime)).total_seconds()
             if age < _PAGE_CACHE_TTL_SECONDS:
                 logger.debug(f"Page cache hit: {url}")
                 cached = requests.Response()
@@ -112,7 +126,10 @@ class CachingSession(requests.Session):
         response = super().get(url, **kwargs)
 
         content_type = response.headers.get("Content-Type", "")
-        if response.ok and content_type.startswith("text/"):
+        if response.status_code == 404:
+            cache_404_path.write_bytes(b"")
+            logger.debug(f"Page 404 cached: {url}")
+        elif response.ok and content_type.startswith("text/"):
             cache_path.write_bytes(response.content)
             logger.debug(f"Page cached: {url}")
 
