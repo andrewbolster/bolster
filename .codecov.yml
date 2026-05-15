@@ -1,5 +1,5 @@
 ignore:
-  - "src/bolster/cli.py"
+  - "**/cli.py"
 
 coverage:
   status:
@@ -7,5 +7,3 @@ coverage:
       default:
         target: auto
         threshold: 5%
-        paths:
-          - "!src/bolster/cli.py"

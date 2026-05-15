@@ -21,6 +21,8 @@ Invoke with: "Use the data-explore agent to..."
 - Use `uv run` for all Python commands (not `python` or `pip`)
 - Use `gh` CLI for GitHub operations
 - Run `pre-commit` before committing
+- Run `uv run pytest tests/ -q --no-cov` (full suite) before committing — never commit with failing tests
+- Before pushing a codecov-sensitive change, generate `cov.xml` with `uv run pytest tests/ --cov=src/bolster --cov-report=xml:cov.xml` and verify `cli.py` is absent and patch coverage looks healthy
 
 ### Git Workflow — IMPORTANT
 
