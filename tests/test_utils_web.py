@@ -42,32 +42,19 @@ class TestRetryStatusList:
 
 
 class TestRateLimitBackoff:
-    def test_first_429_triggers_30s_backoff(self):
+    def test_429_uses_standard_urllib3_backoff(self):
+        # 429 now uses the same urllib3 exponential backoff as other errors
         r = _make_retry_with_history(429)
-        assert r.get_backoff_time() == 30
-
-    def test_second_429_triggers_60s_cap(self):
-        r = _make_retry_with_history(429, 429)
-        assert r.get_backoff_time() == 60
-
-    def test_third_429_still_capped_at_60s(self):
-        r = _make_retry_with_history(429, 429, 429)
-        assert r.get_backoff_time() == 60
-
-    def test_max_backoff_constant(self):
-        assert RateLimitAwareRetry.MAX_BACKOFF == 60
+        assert r.get_backoff_time() == 0  # first retry: 0s
 
     def test_non_429_uses_standard_backoff(self):
-        # Standard urllib3 exponential backoff; with backoff_factor=1 and 1
-        # history entry the first computed value is 0 (urllib3 only starts
-        # backing off from the second consecutive error onwards).
         r = _make_retry_with_history(500)
-        assert r.get_backoff_time() == 0
+        assert r.get_backoff_time() == 0  # first retry: 0s
 
-    def test_non_429_backoff_capped_at_60s(self):
-        # After many standard errors the cap applies
-        r = _make_retry_with_history(500, 500, 500, 500)
-        assert r.get_backoff_time() <= 60
+    def test_backoff_increases_with_history(self):
+        # urllib3 with backoff_factor=1: 0, 2, 4, 8...
+        r = _make_retry_with_history(500, 500)
+        assert r.get_backoff_time() == 2
 
 
 class TestSessionConfiguration:

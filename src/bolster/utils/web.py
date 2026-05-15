@@ -37,27 +37,7 @@ ua = f"@Bolster/{version_no} (+http://bolster.online/)"
 
 
 class RateLimitAwareRetry(Retry):
-    """Custom retry strategy that handles 429 (Too Many Requests) with longer backoffs."""
-
-    # Hard cap: no single backoff sleep can exceed 60 seconds
-    MAX_BACKOFF = 60
-
-    def get_backoff_time(self):
-        """Calculate backoff time, with special handling for 429 responses."""
-        is_rate_limited = False
-        if self.history:
-            last_request = self.history[-1]
-            if hasattr(last_request, "status") and last_request.status == 429:
-                is_rate_limited = True
-
-        if is_rate_limited:
-            retry_count = max(0, len(self.history) - 1)
-            backoff_value = min(30 * (2**retry_count), self.MAX_BACKOFF)
-            logger.warning(
-                f"Rate limited (429) - backing off for {backoff_value:.1f}s (retry {retry_count + 1}/{self.total})"
-            )
-            return backoff_value
-        return min(super().get_backoff_time(), self.MAX_BACKOFF)
+    """Retry strategy that logs HTTP errors and connection failures for diagnosis."""
 
     def increment(self, method=None, url=None, response=None, error=None, _pool=None, _stacktrace=None):
         """Override increment to track the last response status."""
@@ -81,16 +61,13 @@ class RateLimitAwareRetry(Retry):
 
 # Configure retry strategy for transient failures
 # Retries on: connection errors, 429, 500, 502, 503, 504 status codes
-# Total worst-case wait: 4 retries × 60s cap = ~4 minutes before giving up
+# urllib3 default backoff: 0s, 2s, 4s, 8s (factor=1) — ~14s worst case
 _retry_strategy = RateLimitAwareRetry(
     total=4,
-    backoff_factor=1,  # 1s, 2s, 4s for normal errors (capped at 60s)
-    backoff_max=60,  # urllib3 hard cap on computed backoff
+    backoff_factor=1,
     status_forcelist=[429, 500, 502, 503, 504],
     allowed_methods=["HEAD", "GET", "OPTIONS"],
     raise_on_status=True,
-    # Respect Retry-After but only up to MAX_BACKOFF — prevents a server
-    # sending Retry-After: 86400 from hanging CI for hours
     respect_retry_after_header=False,
 )
 _adapter = HTTPAdapter(max_retries=_retry_strategy)
