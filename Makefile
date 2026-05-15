@@ -2,7 +2,7 @@ precommit:
 	pre-commit run --all-files
 
 test:
-	uv run pytest
+	uv run pytest tests/ -q --cov=src/bolster --cov-report=xml:cov.xml
 
 ready:
 	$(MAKE) precommit

@@ -64,6 +64,16 @@ repos:
             # Only run on Python files in src/ to match other checks
             files: ^src/.*\.py$
 
+          - id: coverage-check
+            name: Run tests with coverage (pre-push gate)
+            entry: bash
+            language: system
+            args:
+                - -c
+                - uv run pytest tests/ -q --cov=src/bolster --cov-report=xml:cov.xml --cov-fail-under=80
+            pass_filenames: false
+            stages: [pre-push]
+
     # - repo: https://github.com/kynan/nbstripout
     #   rev: 0.8.1
     #   hooks:

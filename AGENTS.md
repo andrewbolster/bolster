@@ -36,11 +36,14 @@ Keep flat modules when the data source is standalone.
 ## Commands
 
 ```bash
-uv run pytest tests/ -v                              # Run tests
-uv run pytest tests/ --cov=src/bolster               # With coverage
+uv run pytest tests/ -q --no-cov                     # Quick local run (no coverage)
+uv run pytest tests/ -q --cov=src/bolster --cov-report=xml:cov.xml  # Full run with coverage (required before push)
+make test                                            # Same as above via Makefile
 uv run pre-commit run --all-files                    # Lint/format
 uv run bolster --help                                # CLI
 ```
+
+**Coverage gate**: always run the full coverage suite before pushing. The `pre-push` hook in `.pre-commit-config.yaml` enforces this automatically when using `git push`. `cli.py` is omitted from coverage by design — confirm it's absent from `cov.xml` with `grep cli cov.xml` (should return nothing).
 
 ## Standards
 
@@ -127,8 +130,8 @@ Three specialized agents for the data source development lifecycle.
    - CLI command in `src/bolster/cli.py`
    - README coverage table update
 1. **Quality checks**:
-   - Run `uv run pytest tests/ -v` - ALL tests must pass (not just new ones)
-   - Run `uv run pytest --cov=src/bolster` - >90% coverage on new code
+   - Run `uv run pytest tests/ -q --no-cov` - ALL tests must pass (not just new ones)
+   - Run `make test` (or `uv run pytest tests/ -q --cov=src/bolster --cov-report=xml:cov.xml`) - >90% coverage on new code, required before push
    - Run `uv run pre-commit run --all-files` - must be clean
 1. **PR** - Create with `gh pr create`, include insights from the data
 1. **Verify CI** - After PR, run `gh pr checks` to confirm CI passes
