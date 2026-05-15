@@ -270,6 +270,46 @@ class TestErrorHandling:
         assert result.exit_code == 0
 
 
+class TestNisraDimensionFlag:
+    """Test that --dimension flag is registered on affected nisra commands."""
+
+    def test_labour_market_dimension_flag(self):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["nisra", "labour-market", "--help"])
+        assert result.exit_code == 0
+        assert "--dimension" in result.output
+
+    def test_composite_index_dimension_flag(self):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["nisra", "composite-index", "--help"])
+        assert result.exit_code == 0
+        assert "--dimension" in result.output
+
+    def test_wellbeing_dimension_flag(self):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["nisra", "wellbeing", "--help"])
+        assert result.exit_code == 0
+        assert "--dimension" in result.output
+
+    def test_registrar_general_dimension_flag(self):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["nisra", "registrar-general", "--help"])
+        assert result.exit_code == 0
+        assert "--dimension" in result.output
+
+    def test_labour_market_table_flag_hidden(self):
+        """--table should be hidden (not appear in --help)."""
+        runner = CliRunner()
+        result = runner.invoke(cli, ["nisra", "labour-market", "--help"])
+        assert "--table" not in result.output
+
+    def test_wellbeing_metric_flag_hidden(self):
+        """--metric should be hidden (not appear in --help)."""
+        runner = CliRunner()
+        result = runner.invoke(cli, ["nisra", "wellbeing", "--help"])
+        assert "--metric" not in result.output
+
+
 class TestDeprecatedDimensionAliases:
     """Test that deprecated --table/--metric aliases warn and forward to --dimension."""
 
