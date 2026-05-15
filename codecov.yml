@@ -11,7 +11,5 @@ coverage:
         threshold: 5%
     patch:
       default:
-        # target: auto would require cli.py to be covered — see issue #1807
-        # for the proper fix using flags. Using fixed target as workaround.
         target: 55%
         threshold: 0%
