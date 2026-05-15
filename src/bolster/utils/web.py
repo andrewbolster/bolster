@@ -63,11 +63,18 @@ class RateLimitAwareRetry(Retry):
         """Override increment to track the last response status."""
         if response is not None:
             self._last_status = response.status
+            retry_num = len(self.history) + 1
+            reason = getattr(response, "reason", "unknown")
             if response.status == 429:
                 logger.warning(
-                    f"Received 429 Too Many Requests from {url}. "
-                    f"Server may be rate limiting requests. Will retry with extended backoff."
+                    f"HTTP 429 Too Many Requests from {url} "
+                    f"(retry {retry_num}/{self.total}) — rate limited, extended backoff"
                 )
+            elif response.status in (500, 502, 503, 504):
+                logger.warning(f"HTTP {response.status} {reason} from {url} (retry {retry_num}/{self.total})")
+        elif error is not None:
+            retry_num = len(self.history) + 1
+            logger.warning(f"Connection error to {url} (retry {retry_num}/{self.total}): {error}")
 
         return super().increment(method, url, response, error, _pool, _stacktrace)
 
