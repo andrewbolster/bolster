@@ -1,0 +1,9 @@
+coverage:
+  status:
+    patch:
+      default:
+        target: auto
+        threshold: 5%
+
+ignore:
+  - "src/bolster/cli.py"
