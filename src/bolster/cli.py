@@ -55,7 +55,8 @@ def cli(verbose, args=None):
     Government & Politics:
         * ni-executive         NI Executive historical data
         * ni-elections         NI Assembly election results (2016-2022)
-        * nisra                NISRA statistics (deaths, labour market, crime)
+        * nisra                NISRA statistics (deaths, births, population, economic indicators)
+        * psni                 PSNI statistics (road traffic collisions)
 
     Business & Property:
         * companies-house      UK Companies House data queries
@@ -1283,9 +1284,11 @@ def nisra():
 
     Access official statistics and research publications from NISRA including:
     - Weekly death registrations with demographic breakdowns
-    - Labour market statistics (coming soon)
-    - Crime statistics (coming soon)
-    - Economic indicators (coming soon)
+    - Labour market statistics (employment, economic inactivity)
+    - Economic indicators (Index of Production, Index of Services, Construction Output, Composite Index)
+    - Population estimates, births, marriages, migration
+    - Tourism (accommodation occupancy, visitor statistics)
+    - Cancer and emergency care waiting times
 
     All data is sourced directly from NISRA publications and cached locally
     for performance. Use --force-refresh to bypass cache and download fresh data.
@@ -2431,15 +2434,15 @@ def nisra_occupancy_cmd(latest, year, accommodation, data_type, output_format, f
     Parameters
     ----------
     accommodation : str
-        hotel : Hotels (2011-present, ~65% avg occupancy)
-        ssa : Small Service Accommodation: B&Bs, guest houses (2013-present, ~33% avg)
-        combined : Both types with accommodation_type column
+        Type of accommodation: ``hotel`` (Hotels, 2011-present, ~65% avg occupancy),
+        ``ssa`` (Small Service Accommodation: B&Bs/guest houses, 2013-present, ~33% avg),
+        or ``combined`` (both types with accommodation_type column).
     data_type : str
-        rates : Room and bed occupancy rates (0-1 scale)
-        sold : Number of rooms and beds sold monthly
+        Data to retrieve: ``rates`` (room and bed occupancy rates, 0-1 scale)
+        or ``sold`` (number of rooms and beds sold monthly).
 
-    Examples:
-    ---------
+    .. rubric:: Examples
+
     Get latest hotel occupancy rates (default)::
 
         bolster nisra occupancy --latest
@@ -2472,39 +2475,43 @@ def nisra_occupancy_cmd(latest, year, accommodation, data_type, output_format, f
 
         bolster nisra occupancy --latest --save occupancy.csv
 
-    Notes:
-    ------
+    .. rubric:: Notes
+
     - Hotel data: 2011-present (~65% average room occupancy)
     - SSA data: 2013-present (~33% average room occupancy)
     - Room occupancy is typically higher than bed occupancy
     - COVID-19 Note: 2020-2021 shows dramatic impact on tourism
       (all accommodation closed March-July 2020, Oct-Dec 2020, Jan-May 2021)
 
-    Seasonal Patterns
-    -----------------
+    .. rubric:: Seasonal Patterns
+
     Summer months (June-September) are peak tourism season:
+
     - August typically has the highest occupancy (~80% hotel, ~55% SSA)
     - July-September are consistently strong
     - January-February typically have the lowest occupancy
 
-    Returns:
-    --------
-    DataFrame (rates)
-        - date: First day of month (datetime)
-        - year: Year
-        - month: Month name
-        - room_occupancy: Room occupancy rate (0-1)
-        - bed_occupancy: Bed occupancy rate (0-1)
-        - accommodation_type: (combined only) 'hotel' or 'ssa'
-    DataFrame (sold)
-        - date: First day of month (datetime)
-        - year: Year
-        - month: Month name
-        - rooms_sold: Number of rooms sold
-        - beds_sold: Number of beds sold
+    .. rubric:: Returns
 
-    Source
-    ------
+    DataFrame (rates):
+
+    - date: First day of month (datetime)
+    - year: Year
+    - month: Month name
+    - room_occupancy: Room occupancy rate (0-1)
+    - bed_occupancy: Bed occupancy rate (0-1)
+    - accommodation_type: (combined only) 'hotel' or 'ssa'
+
+    DataFrame (sold):
+
+    - date: First day of month (datetime)
+    - year: Year
+    - month: Month name
+    - rooms_sold: Number of rooms sold
+    - beds_sold: Number of beds sold
+
+    .. rubric:: Source
+
     https://www.nisra.gov.uk/statistics/tourism/occupancy-surveys
     """
     console = Console()
