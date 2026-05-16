@@ -58,18 +58,64 @@ from ._base import (
 
 logger = logging.getLogger(__name__)
 
-# Publication URLs — update these when a new biennial vintage is released
-PROJECTIONS_PRINCIPAL_URL = "https://www.nisra.gov.uk/publications/2024-based-population-projections-northern-ireland"
-PROJECTIONS_VARIANTS_URL = (
-    "https://www.nisra.gov.uk/publications/2024-based-population-projections-northern-ireland-variant-projections"
-)
+# Discovery page — lists all projection vintages; scrape this to find the latest series
+PROJECTIONS_INDEX_URL = "https://www.nisra.gov.uk/statistics/people-and-communities/population"
+
+
+def _discover_latest_projection_series_url(variant: bool = False) -> tuple[str, int]:
+    """Scrape the NISRA population statistics index to find the latest projection series.
+
+    Args:
+        variant: If True, return the variant projections URL; otherwise principal.
+
+    Returns:
+        Tuple of (publication_page_url, base_year)
+
+    Raises:
+        NISRADataNotFoundError: If no projection series link found
+    """
+    import re
+
+    try:
+        response = session.get(PROJECTIONS_INDEX_URL, timeout=30)
+        response.raise_for_status()
+    except Exception as e:
+        raise NISRADataNotFoundError(f"Failed to fetch projections index page: {e}") from e
+
+    soup = BeautifulSoup(response.content, "html.parser")
+
+    candidates = []
+    for a in soup.find_all("a", href=True):
+        text = a.get_text(strip=True)
+        href = a["href"]
+        m = re.search(r"(\d{4})-based Population Projections for Northern Ireland", text)
+        if not m:
+            continue
+        if any(x in text.lower() for x in ("variant", "bulletin", "chart", "infographic")):
+            continue
+        if "sub-national" in href.lower():
+            continue
+        year = int(m.group(1))
+        if not href.startswith("http"):
+            href = f"https://www.nisra.gov.uk{href}"
+        candidates.append((year, href))
+
+    if not candidates:
+        raise NISRADataNotFoundError("No projection series found on NISRA population index page")
+
+    base_year, principal_url = max(candidates)
+    logger.info(f"Latest projection series: {base_year}-based at {principal_url}")
+
+    pub_url = f"{principal_url}-variant-projections" if variant else principal_url
+
+    return pub_url, base_year
 
 
 def get_latest_projections_publication_url(variant: str = "principal") -> tuple[str, int]:
     """Discover latest population projections publication URL and base year.
 
-    Uses link text matching rather than filename patterns so the selector
-    remains valid across biennial vintages (e.g. NPP22 → NPP24 filename changes).
+    Auto-discovers the current projection series from the NISRA statistics index
+    so the module stays current when NISRA publishes a new biennial vintage.
 
     Args:
         variant: Projection variant ('principal', 'hhh', 'lll', etc.). Default: 'principal'
@@ -80,14 +126,9 @@ def get_latest_projections_publication_url(variant: str = "principal") -> tuple[
     Raises:
         NISRADataNotFoundError: If publication cannot be found
     """
-    import re
-
-    if variant == "principal":
-        pub_url = PROJECTIONS_PRINCIPAL_URL
-        link_text_pattern = "age and sex"
-    else:
-        pub_url = PROJECTIONS_VARIANTS_URL
-        link_text_pattern = "age and sex"
+    is_variant = variant != "principal"
+    pub_url, base_year = _discover_latest_projection_series_url(variant=is_variant)
+    link_text_pattern = "age and sex"
 
     try:
         response = session.get(pub_url, timeout=30)
@@ -117,10 +158,6 @@ def get_latest_projections_publication_url(variant: str = "principal") -> tuple[
 
     if not excel_url:
         raise NISRADataNotFoundError(f"Could not find '{link_text_pattern}' Excel file on {pub_url}")
-
-    # Extract base year from the publication URL (e.g. "2024-based-population-projections" → 2024)
-    year_match = re.search(r"/(\d{4})-based-population-projections", pub_url)
-    base_year = int(year_match.group(1)) if year_match else 2024
 
     return excel_url, base_year
 
