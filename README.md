@@ -180,7 +180,7 @@ deaths_df = deaths.get_latest_deaths()
 migration_df = migration.get_latest_migration()
 ```
 
-Additional NISRA modules: `labour_market`, `economic_indicators`, `construction_output`, `composite_index`, `marriages`, `ashe` (earnings survey).
+Additional NISRA modules: `labour_market`, `economic_indicators`, `index_of_production`, `index_of_services`, `construction_output`, `composite_index`, `marriages`, `ashe` (earnings survey), `quarterly_employment_survey`, `emergency_care_waiting_times`, `stillbirths`.
 
 See [NISRA module documentation](https://bolster.readthedocs.io/en/latest/data_sources/nisra.html) for full API reference.
 
@@ -196,7 +196,12 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Monthly Marriages & Civil Partnerships | `nisra.marriages` | ✅ |
 | NI Composite Economic Index | `nisra.composite_index` | ✅ |
 | Construction Bulletin | `nisra.construction_output` | ✅ |
-| Index of Services/Production | `nisra.economic_indicators` | ✅ |
+| Index of Services/Production (legacy) | `nisra.economic_indicators` | ✅ |
+| Index of Production | `nisra.index_of_production` | ✅ |
+| Index of Services | `nisra.index_of_services` | ✅ |
+| Quarterly Employment Survey | `nisra.quarterly_employment_survey` | ✅ |
+| Emergency Care Waiting Times | `nisra.emergency_care_waiting_times` | ✅ |
+| Monthly Stillbirths | `nisra.stillbirths` | ✅ |
 | Population Estimates | `nisra.population` | ✅ |
 | Migration Estimates (Derived + Official LTI) | `nisra.migration` | ✅ |
 | Population Projections (2022-based, 2022–2072) | `nisra.population_projections` | ✅ |
@@ -212,6 +217,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Tourism - Visitor Statistics | `nisra.tourism.visitor_statistics` | ✅ |
 | Security Situation Statistics | - | Planned |
 | Road Traffic Collisions | `psni.road_traffic_collisions` | ✅ |
+| PSNI Crime Statistics | `psni.crime_statistics` | ⚠️ stale (to Dec 2021) |
 
 #### Infrastructure NI Publication Discovery
 
