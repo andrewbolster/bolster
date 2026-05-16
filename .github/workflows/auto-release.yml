@@ -248,39 +248,11 @@ jobs:
         git push origin "$BRANCH"
         git push origin "v${NEW_VERSION}"
 
-        # Write PR body to a file so that multi-line changelog content and any
-        # special shell characters are not interpreted by bash.
-        python3 - <<'PYEOF'
-        import os
-        from pathlib import Path
-
-        version = os.environ["NEW_VERSION"]
-        changelog = os.environ.get("CHANGELOG_ENTRY", "")
-
-        body = f"""Automated version bump to {version}.
-
-## Changes in this release
-
-{changelog}
-
-## Installation
-
-```bash
-pip install bolster=={version}
-```
-
-## Documentation
-
-- [Documentation](https://bolster.help)
-- [PyPI Package](https://pypi.org/project/bolster/{version}/)
-
----
-*This PR was automatically created by the release workflow. It will be merged automatically once CI passes.*
-
-> **Note**: The `v{version}` tag has already been pushed. PyPI publishing is triggered by the tag and will proceed independently."""
-
-        Path("/tmp/pr-body.md").write_text(body)
-        PYEOF
+        # Write PR body to a file. Use printf with a format string to avoid
+        # YAML parsing issues with backticks and braces in heredoc content.
+        printf 'Automated version bump to %s.\n\n## Changes in this release\n\n%s\n\n## Installation\n\n```bash\npip install bolster==%s\n```\n\n## Documentation\n\n- [Documentation](https://bolster.help)\n- [PyPI Package](https://pypi.org/project/bolster/%s/)\n\n---\n*This PR was automatically created by the release workflow.*\n' \
+          "${NEW_VERSION}" "${CHANGELOG_ENTRY}" "${NEW_VERSION}" "${NEW_VERSION}" \
+          > /tmp/pr-body.md
 
         # automerge.yml handles auto-merge for github-actions[bot] PRs;
         # do not pass --auto-merge here as it can fail if the repo feature
