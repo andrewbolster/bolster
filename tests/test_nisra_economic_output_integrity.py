@@ -86,6 +86,25 @@ class TestIndexOfProductionIntegrity:
         uk_avg = recent["uk_index"].mean()
         assert ni_avg > uk_avg, f"NI ({ni_avg:.1f}) should exceed UK ({uk_avg:.1f}) production index recently"
 
+    def test_get_iop_by_quarter(self, latest_iop):
+        q1_2024 = iop.get_iop_by_quarter(latest_iop, 1, 2024)
+        assert len(q1_2024) == 1
+        assert q1_2024["quarter"].values[0] == 1
+        assert q1_2024["year"].values[0] == 2024
+
+    def test_summary_statistics(self, latest_iop):
+        stats = iop.get_iop_summary_statistics(latest_iop, start_year=2020)
+        required_keys = {"period", "ni_mean", "ni_min", "ni_max", "uk_mean", "uk_min", "uk_max", "quarters_count"}
+        assert required_keys.issubset(stats.keys())
+        assert stats["ni_mean"] > 0
+        assert stats["ni_min"] < stats["ni_mean"] < stats["ni_max"]
+        assert stats["quarters_count"] > 0
+
+    def test_summary_statistics_date_filtering(self, latest_iop):
+        stats_filtered = iop.get_iop_summary_statistics(latest_iop, start_year=2020, end_year=2024)
+        stats_all = iop.get_iop_summary_statistics(latest_iop)
+        assert stats_filtered["quarters_count"] < stats_all["quarters_count"]
+
 
 class TestIndexOfServicesIntegrity:
     """Test suite for NI Index of Services data."""
@@ -152,6 +171,27 @@ class TestIndexOfServicesIntegrity:
         q2_ni = df_2020[df_2020["quarter"] == 2]["ni_index"].values[0]
         # Q2 2020 NI services should be well below 100
         assert q2_ni < 90, f"Q2 2020 NI services ({q2_ni:.1f}) should show COVID dip"
+
+    def test_get_ios_by_quarter(self, latest_ios):
+        q1_2024 = ios.get_ios_by_quarter(latest_ios, 1, 2024)
+        assert len(q1_2024) == 1
+        assert q1_2024["quarter"].values[0] == 1
+        assert q1_2024["year"].values[0] == 2024
+
+    def test_summary_statistics(self, latest_ios):
+        stats = ios.get_ios_summary_statistics(latest_ios, start_year=2020)
+        required_keys = {"period", "ni_mean", "ni_min", "ni_max", "uk_mean", "uk_min", "uk_max", "quarters_count"}
+        assert required_keys.issubset(stats.keys())
+        assert stats["ni_mean"] > 0
+        assert stats["ni_min"] < stats["ni_mean"] < stats["ni_max"]
+        assert stats["quarters_count"] > 0
+        assert "2020" in stats["period"]
+
+    def test_summary_statistics_date_filtering(self, latest_ios):
+        stats_filtered = ios.get_ios_summary_statistics(latest_ios, start_year=2020, end_year=2024)
+        stats_all = ios.get_ios_summary_statistics(latest_ios)
+        assert stats_filtered["quarters_count"] < stats_all["quarters_count"]
+        assert "2024" in stats_filtered["period"]
 
 
 class TestIopIosAlignment:

@@ -12,7 +12,8 @@ Available modules:
     - composite_index: Northern Ireland Composite Economic Index (experimental quarterly economic indicator)
     - construction_output: Quarterly construction output statistics (all work, new work, repair & maintenance)
     - deaths: Weekly death registrations with demographic, geographic, and place breakdowns
-    - economic_indicators: Quarterly Index of Services and Index of Production
+    - index_of_services: Quarterly Index of Services (IOS) — canonical module
+    - index_of_production: Quarterly Index of Production (IOP) — canonical module
     - labour_market: Quarterly Labour Force Survey statistics (employment, economic inactivity)
     - marriages: Monthly marriage registrations
     - migration: Official and derived migration estimates (demographic components)
@@ -54,8 +55,8 @@ Examples:
     >>> 'deaths' in df.columns
     True
 
-    >>> from bolster.data_sources.nisra import economic_indicators
-    >>> ios_df = economic_indicators.get_latest_index_of_services()
+    >>> from bolster.data_sources.nisra import index_of_services as ios
+    >>> ios_df = ios.get_latest_ios()
     >>> 'ni_index' in ios_df.columns
     True
 
@@ -102,7 +103,6 @@ from . import (
     composite_index,
     construction_output,
     deaths,
-    economic_indicators,
     emergency_care_waiting_times,
     index_of_production,
     index_of_services,
@@ -126,7 +126,6 @@ __all__ = [
     "composite_index",
     "construction_output",
     "deaths",
-    "economic_indicators",
     "emergency_care_waiting_times",
     "index_of_production",
     "index_of_services",

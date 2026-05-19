@@ -180,7 +180,7 @@ deaths_df = deaths.get_latest_deaths()
 migration_df = migration.get_latest_migration()
 ```
 
-Additional NISRA modules: `labour_market`, `economic_indicators`, `index_of_production`, `index_of_services`, `construction_output`, `composite_index`, `marriages`, `ashe` (earnings survey), `quarterly_employment_survey`, `emergency_care_waiting_times`, `stillbirths`.
+Additional NISRA modules: `labour_market`, `index_of_production`, `index_of_services`, `construction_output`, `composite_index`, `marriages`, `ashe` (earnings survey), `quarterly_employment_survey`, `emergency_care_waiting_times`, `stillbirths`.
 
 See [NISRA module documentation](https://bolster.readthedocs.io/en/latest/data_sources/nisra.html) for full API reference.
 
@@ -196,7 +196,6 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Monthly Marriages & Civil Partnerships | `nisra.marriages` | ✅ |
 | NI Composite Economic Index | `nisra.composite_index` | ✅ |
 | Construction Bulletin | `nisra.construction_output` | ✅ |
-| Index of Services/Production (legacy) | `nisra.economic_indicators` | ✅ |
 | Index of Production | `nisra.index_of_production` | ✅ |
 | Index of Services | `nisra.index_of_services` | ✅ |
 | Quarterly Employment Survey | `nisra.quarterly_employment_survey` | ✅ |

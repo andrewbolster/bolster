@@ -24,8 +24,9 @@ from .data_sources.nisra import cancer_waiting_times as nisra_cancer
 from .data_sources.nisra import composite_index as nisra_composite
 from .data_sources.nisra import construction_output as nisra_construction
 from .data_sources.nisra import deaths as nisra_deaths
-from .data_sources.nisra import economic_indicators as nisra_economic
 from .data_sources.nisra import emergency_care_waiting_times as nisra_emergency
+from .data_sources.nisra import index_of_production as nisra_iop
+from .data_sources.nisra import index_of_services as nisra_ios
 from .data_sources.nisra import labour_market as nisra_labour_market
 from .data_sources.nisra import marriages as nisra_marriages
 from .data_sources.nisra import migration as nisra_migration
@@ -3132,17 +3133,18 @@ def nisra_index_of_services_cmd(
 
     try:
         with console.status("[bold green]Fetching Index of Services data..."):
-            data = nisra_economic.get_latest_index_of_services(force_refresh=force_refresh)
+            data = nisra_ios.get_latest_ios(force_refresh=force_refresh)
 
         # Add growth rates if requested
         if growth:
-            data = nisra_economic.calculate_ios_growth_rate(data)
+            data = nisra_ios.get_ios_growth(data)
 
         # Filter by year and/or quarter if specified
         if year:
-            data = nisra_economic.get_ios_by_year(data, year)
+            data = nisra_ios.get_ios_by_year(data, year)
             if quarter:
-                data = nisra_economic.get_ios_by_quarter(data, quarter, year)
+                quarter_num = int(quarter.lstrip("Qq"))
+                data = nisra_ios.get_ios_by_quarter(data, quarter_num, year)
 
         if data.empty:
             console.print("[yellow]⚠️  No data found for the specified filters[/yellow]")
@@ -3152,13 +3154,13 @@ def nisra_index_of_services_cmd(
         console.print(f"[cyan]📊 Total quarters: {len(data)}[/cyan]")
 
         if not data.empty:
-            earliest = f"{data.iloc[0]['quarter']} {data.iloc[0]['year']}"
-            latest_q = f"{data.iloc[-1]['quarter']} {data.iloc[-1]['year']}"
+            earliest = data.iloc[0]["quarter_label"]
+            latest_q = data.iloc[-1]["quarter_label"]
             console.print(f"[dim]Period: {earliest} to {latest_q}[/dim]")
 
         # Show summary statistics if requested
         if summary:
-            stats = nisra_economic.get_ios_summary_statistics(data, start_year=start_year, end_year=end_year)
+            stats = nisra_ios.get_ios_summary_statistics(data, start_year=start_year, end_year=end_year)
 
             console.print(f"\n[bold]Summary Statistics ({stats['period']}):[/bold]")
             console.print(f"   Total quarters: {stats['quarters_count']}")
@@ -3284,17 +3286,18 @@ def nisra_index_of_production_cmd(
 
     try:
         with console.status("[bold green]Fetching Index of Production data..."):
-            data = nisra_economic.get_latest_index_of_production(force_refresh=force_refresh)
+            data = nisra_iop.get_latest_iop(force_refresh=force_refresh)
 
         # Add growth rates if requested
         if growth:
-            data = nisra_economic.calculate_iop_growth_rate(data)
+            data = nisra_iop.get_iop_growth(data)
 
         # Filter by year and/or quarter if specified
         if year:
-            data = nisra_economic.get_iop_by_year(data, year)
+            data = nisra_iop.get_iop_by_year(data, year)
             if quarter:
-                data = nisra_economic.get_iop_by_quarter(data, quarter, year)
+                quarter_num = int(quarter.lstrip("Qq"))
+                data = nisra_iop.get_iop_by_quarter(data, quarter_num, year)
 
         if data.empty:
             console.print("[yellow]⚠️  No data found for the specified filters[/yellow]")
@@ -3304,13 +3307,13 @@ def nisra_index_of_production_cmd(
         console.print(f"[cyan]📊 Total quarters: {len(data)}[/cyan]")
 
         if not data.empty:
-            earliest = f"{data.iloc[0]['quarter']} {data.iloc[0]['year']}"
-            latest_q = f"{data.iloc[-1]['quarter']} {data.iloc[-1]['year']}"
+            earliest = data.iloc[0]["quarter_label"]
+            latest_q = data.iloc[-1]["quarter_label"]
             console.print(f"[dim]Period: {earliest} to {latest_q}[/dim]")
 
         # Show summary statistics if requested
         if summary:
-            stats = nisra_economic.get_iop_summary_statistics(data, start_year=start_year, end_year=end_year)
+            stats = nisra_iop.get_iop_summary_statistics(data, start_year=start_year, end_year=end_year)
 
             console.print(f"\n[bold]Summary Statistics ({stats['period']}):[/bold]")
             console.print(f"   Total quarters: {stats['quarters_count']}")
