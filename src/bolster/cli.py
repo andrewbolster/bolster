@@ -3520,7 +3520,21 @@ def nisra_construction_output_cmd(
 )
 @click.option(
     "--dimension",
-    type=click.Choice(["timeseries", "geography", "sector"], case_sensitive=False),
+    type=click.Choice(
+        [
+            "timeseries",
+            "geography",
+            "sector",
+            "real-earnings",
+            "real-earnings-change",
+            "real-earnings-index",
+            "occupation-change",
+            "industry-change",
+            "pay-distribution",
+            "pay-distribution-by-classification",
+        ],
+        case_sensitive=False,
+    ),
     help="Data dimension to retrieve",
 )
 @click.option(
@@ -3647,6 +3661,27 @@ def nisra_ashe_cmd(metric, dimension, basis, year, output_format, force_refresh,
         elif dimension == "sector":
             with console.status("[bold green]Fetching ASHE sector earnings..."):
                 data = nisra_ashe.get_latest_ashe_sector(force_refresh=force_refresh)
+        elif dimension == "real-earnings":
+            with console.status("[bold green]Fetching ASHE real earnings (Figure 2)..."):
+                data = nisra_ashe.get_real_earnings(force_refresh=force_refresh)
+        elif dimension == "real-earnings-change":
+            with console.status("[bold green]Fetching ASHE real earnings change by pattern (Figure 3)..."):
+                data = nisra_ashe.get_real_earnings_change_by_pattern(force_refresh=force_refresh)
+        elif dimension == "real-earnings-index":
+            with console.status("[bold green]Fetching ASHE real earnings index by sector (Figure 6)..."):
+                data = nisra_ashe.get_real_earnings_index_by_sector(force_refresh=force_refresh)
+        elif dimension == "occupation-change":
+            with console.status("[bold green]Fetching ASHE earnings change by occupation (Figure 7)..."):
+                data = nisra_ashe.get_annual_change_by_occupation(force_refresh=force_refresh)
+        elif dimension == "industry-change":
+            with console.status("[bold green]Fetching ASHE earnings change by industry (Figure 8)..."):
+                data = nisra_ashe.get_annual_change_by_industry(force_refresh=force_refresh)
+        elif dimension == "pay-distribution":
+            with console.status("[bold green]Fetching ASHE pay distribution timeseries (Figure 11)..."):
+                data = nisra_ashe.get_pay_distribution_timeseries(force_refresh=force_refresh)
+        elif dimension == "pay-distribution-by-classification":
+            with console.status("[bold green]Fetching ASHE pay distribution by classification (Figure 12)..."):
+                data = nisra_ashe.get_pay_distribution_by_classification(force_refresh=force_refresh)
         else:
             # Default to timeseries
             with console.status(f"[bold green]Fetching ASHE {metric} earnings..."):

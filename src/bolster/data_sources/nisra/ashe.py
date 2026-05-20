@@ -600,6 +600,40 @@ _SHEET_SIGNATURES: dict[str, dict] = {
     "mean_hours_by_pattern_gender": {
         "cols": ("Working pattern", "Males", "Females", "All"),
     },
+    # Real earnings timeseries — nominal vs real (latest-year base) weekly earnings
+    "real_earnings_timeseries": {
+        "cols": ("Year", "Nominal earnings", "Real earnings"),
+    },
+    # Annual % change in nominal vs real weekly earnings by work pattern (snapshot)
+    "real_earnings_change_by_pattern": {
+        "cols": ("Work pattern", "Nominal Change (%)", "Real change (%)"),
+    },
+    # Real earnings index by sector (base latest-year=100). Fig 6 sheet has two
+    # tables; both share ('Year','Public','Private'). We want the *index* one
+    # which appears first; the second is a real-earnings level table.
+    "real_earnings_index_by_sector": {
+        "cols": ("Year", "Public", "Private"),
+        "subtitle_keywords": ["annual index"],
+    },
+    # Annual % change in weekly earnings by occupation (NI, full-time).
+    # Note: NISRA mislabels the column "Industry" but the rows are occupations;
+    # disambiguated from Fig 8 by subtitle keyword "by occupation".
+    "annual_change_by_occupation": {
+        "cols": ("Industry", "Annual change (%)"),
+        "subtitle_keywords": ["by occupation"],
+    },
+    "annual_change_by_industry": {
+        "cols": ("Industry", "Annual change (%)"),
+        "subtitle_keywords": ["by industry"],
+    },
+    # Pay distribution timeseries (low/middle/high)
+    "pay_distribution_timeseries": {
+        "cols": ("Year", "Low-paid jobs", "Middle-paid jobs", "High-paid jobs"),
+    },
+    # Pay distribution by classification (work pattern / age / industry / occupation)
+    "pay_distribution_by_classification": {
+        "cols": ("Classification", "Subset", "Low-paid jobs", "Middle-paid jobs", "High-paid jobs"),
+    },
 }
 
 
@@ -1278,6 +1312,431 @@ def get_mean_hours_by_pattern_gender(force_refresh: bool = False) -> pd.DataFram
         True
     """
     return parse_ashe_mean_hours_by_pattern_gender(_get_linked_file(force_refresh=force_refresh))
+
+
+# ---------------------------------------------------------------------------
+# Figures 2, 3, 6 — real earnings (issue #1743)
+# ---------------------------------------------------------------------------
+
+
+def parse_ashe_real_earnings(file_path: str | Path) -> pd.DataFrame:
+    """Parse ASHE Figure 2: nominal vs real weekly earnings timeseries for NI.
+
+    Identified by column signature ['Year', 'Nominal earnings', 'Real earnings'].
+    Real earnings are inflation-adjusted to the latest publication year using
+    NISRA's deflator. The series covers full-time employees, April 2005 onwards.
+
+    Args:
+        file_path: Path to the ASHE linked tables Excel file
+
+    Returns:
+        DataFrame with columns:
+
+        - year: int
+        - nominal_weekly_earnings: float (£, in nominal terms)
+        - real_weekly_earnings: float (£, inflation-adjusted to latest year)
+
+    Example:
+        >>> _, year = get_latest_ashe_publication_url()
+        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> df = parse_ashe_real_earnings(path)
+        >>> sorted(df.columns.tolist())
+        ['nominal_weekly_earnings', 'real_weekly_earnings', 'year']
+    """
+    df = _find_linked_sheet(file_path, "real_earnings_timeseries")
+    df.columns = ["year", "nominal_weekly_earnings", "real_weekly_earnings"]
+    df = df.dropna(subset=["year"])
+    df["year"] = pd.to_numeric(df["year"], errors="coerce")
+    df = df[df["year"].notna()].copy()
+    df["year"] = df["year"].astype(int)
+    for col in ("nominal_weekly_earnings", "real_weekly_earnings"):
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+    result = df.dropna().reset_index(drop=True)
+    logger.info(f"Parsed {len(result)} real earnings records ({result['year'].min()}–{result['year'].max()})")
+    return result
+
+
+def parse_ashe_real_earnings_change_by_pattern(file_path: str | Path) -> pd.DataFrame:
+    """Parse ASHE Figure 3: annual % change in weekly earnings by work pattern (NI).
+
+    Snapshot for the latest reference year showing nominal vs real (inflation-
+    adjusted) annual change for each working pattern.
+
+    Args:
+        file_path: Path to the ASHE linked tables Excel file
+
+    Returns:
+        DataFrame with columns:
+
+        - work_pattern: str ('Part-time', 'Full-time', 'All employees')
+        - nominal_change_pct: float (annual % change in nominal terms)
+        - real_change_pct: float (annual % change in real terms)
+
+    Example:
+        >>> _, year = get_latest_ashe_publication_url()
+        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> df = parse_ashe_real_earnings_change_by_pattern(path)
+        >>> sorted(df.columns.tolist())
+        ['nominal_change_pct', 'real_change_pct', 'work_pattern']
+    """
+    df = _find_linked_sheet(file_path, "real_earnings_change_by_pattern")
+    df.columns = ["work_pattern", "nominal_change_pct", "real_change_pct"]
+    df = df.dropna(subset=["work_pattern"]).copy()
+    for col in ("nominal_change_pct", "real_change_pct"):
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+    return df.dropna().reset_index(drop=True)
+
+
+def parse_ashe_real_earnings_index_by_sector(file_path: str | Path) -> pd.DataFrame:
+    """Parse ASHE Figure 6: real earnings index (2019=100) by sector for NI.
+
+    Identified by column signature ['Year', 'Public', 'Private'] with subtitle
+    containing 'annual index'. Indexed real (inflation-adjusted) median weekly
+    earnings for full-time employees, base year = six years before the latest
+    publication year (typically 2019 in the 2025 publication).
+
+    Args:
+        file_path: Path to the ASHE linked tables Excel file
+
+    Returns:
+        DataFrame with columns:
+
+        - year: int
+        - sector: str ('Public' or 'Private')
+        - real_earnings_index: float (index, base year = 100)
+
+    Example:
+        >>> _, year = get_latest_ashe_publication_url()
+        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> df = parse_ashe_real_earnings_index_by_sector(path)
+        >>> sorted(df.columns.tolist())
+        ['real_earnings_index', 'sector', 'year']
+    """
+    # Figure 6 has *two* tables stacked in one sheet sharing the same column
+    # signature (the 2019=100 index and a 2005-onward real-earnings level
+    # series). We use the scanner to locate the sheet+header, then walk the
+    # sheet rows directly to stop at the first all-None separator row.
+    import openpyxl
+
+    # Re-locate the sheet by signature so we don't hard-code its name
+    sig = _SHEET_SIGNATURES["real_earnings_index_by_sector"]
+    required_cols = tuple(c.lower() for c in sig["cols"])
+    keywords = [k.lower() for k in sig.get("subtitle_keywords", [])]
+    wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
+    matched_sheet = None
+    header_idx = None
+    try:
+        for sheet_name in wb.sheetnames:
+            ws = wb[sheet_name]
+            rows = list(ws.iter_rows(values_only=True))
+            non_empty = [r for r in rows if any(v is not None for v in r)]
+            if len(non_empty) < 4:
+                continue
+            subtitle = str(non_empty[1][0] or "").lower()
+            if keywords and not any(k in subtitle for k in keywords):
+                continue
+            for i, row in enumerate(rows):
+                row_vals = tuple(str(v).lower() for v in row if v is not None)
+                if all(rc in row_vals for rc in required_cols):
+                    matched_sheet = sheet_name
+                    header_idx = i
+                    break
+            if matched_sheet:
+                break
+
+        if matched_sheet is None:
+            raise NISRADataNotFoundError("Could not find real earnings index sheet (Figure 6)")
+
+        ws = wb[matched_sheet]
+        rows = list(ws.iter_rows(values_only=True))
+        # Read data rows from just after the header until first all-None row
+        data = []
+        for row in rows[header_idx + 1 :]:
+            if all(v is None for v in row):
+                break
+            data.append(row[:3])
+    finally:
+        wb.close()
+
+    df = pd.DataFrame(data, columns=["year", "Public", "Private"])
+    df = df.dropna(subset=["year"]).copy()
+    df["year"] = pd.to_numeric(df["year"], errors="coerce")
+    df = df[df["year"].notna()].copy()
+    df["year"] = df["year"].astype(int)
+    for col in ("Public", "Private"):
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+    melted = df.melt(id_vars="year", var_name="sector", value_name="real_earnings_index")
+    return melted.dropna(subset=["real_earnings_index"]).sort_values(["year", "sector"]).reset_index(drop=True)
+
+
+# ---------------------------------------------------------------------------
+# Figures 7, 8 — earnings by occupation and industry (issue #1744)
+# ---------------------------------------------------------------------------
+
+
+def parse_ashe_annual_change_by_occupation(file_path: str | Path) -> pd.DataFrame:
+    """Parse ASHE Figure 7: annual % change in weekly earnings by occupation (NI, FT).
+
+    Full-time employees only. NISRA labels the column "Industry" in the source
+    spreadsheet, but the rows are SOC major occupation groups — disambiguated
+    from Figure 8 by subtitle keyword 'by occupation'.
+
+    Args:
+        file_path: Path to the ASHE linked tables Excel file
+
+    Returns:
+        DataFrame with columns:
+
+        - occupation: str (SOC major group label)
+        - annual_change_pct: float (% change in median gross weekly earnings)
+
+    Example:
+        >>> _, year = get_latest_ashe_publication_url()
+        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> df = parse_ashe_annual_change_by_occupation(path)
+        >>> sorted(df.columns.tolist())
+        ['annual_change_pct', 'occupation']
+    """
+    df = _find_linked_sheet(file_path, "annual_change_by_occupation")
+    df.columns = ["occupation", "annual_change_pct"]
+    df = df.dropna(subset=["occupation"]).copy()
+    df["occupation"] = df["occupation"].astype(str).str.strip()
+    df["annual_change_pct"] = pd.to_numeric(df["annual_change_pct"], errors="coerce")
+    return df.dropna().reset_index(drop=True)
+
+
+def parse_ashe_annual_change_by_industry(file_path: str | Path) -> pd.DataFrame:
+    """Parse ASHE Figure 8: annual % change in weekly earnings by industry (NI, FT).
+
+    Full-time employees by SIC industry section. Disambiguated from Figure 7
+    by subtitle keyword 'by industry'.
+
+    Args:
+        file_path: Path to the ASHE linked tables Excel file
+
+    Returns:
+        DataFrame with columns:
+
+        - industry: str (SIC section label)
+        - annual_change_pct: float (% change in median gross weekly earnings)
+
+    Example:
+        >>> _, year = get_latest_ashe_publication_url()
+        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> df = parse_ashe_annual_change_by_industry(path)
+        >>> sorted(df.columns.tolist())
+        ['annual_change_pct', 'industry']
+    """
+    df = _find_linked_sheet(file_path, "annual_change_by_industry")
+    df.columns = ["industry", "annual_change_pct"]
+    df = df.dropna(subset=["industry"]).copy()
+    df["industry"] = df["industry"].astype(str).str.strip()
+    df["annual_change_pct"] = pd.to_numeric(df["annual_change_pct"], errors="coerce")
+    return df.dropna().reset_index(drop=True)
+
+
+# ---------------------------------------------------------------------------
+# Figures 11, 12, 13 — pay distribution (issue #1745)
+# Note: Fig 13 (regional pay ratio) is already exposed via
+# ``get_uk_regional_pay_ratio`` higher up in this module.
+# ---------------------------------------------------------------------------
+
+
+def parse_ashe_pay_distribution_timeseries(file_path: str | Path) -> pd.DataFrame:
+    """Parse ASHE Figure 11: proportion of low/middle/high-paid employee jobs in NI.
+
+    Identified by column signature ['Year', 'Low-paid jobs', 'Middle-paid jobs',
+    'High-paid jobs']. Covers April 2005 to the latest publication year.
+
+    NISRA defines pay bands relative to UK median hourly earnings:
+    low-paid = below two-thirds, high-paid = above 1.5x, middle-paid = the rest.
+
+    Args:
+        file_path: Path to the ASHE linked tables Excel file
+
+    Returns:
+        DataFrame with columns:
+
+        - year: int
+        - low_paid_pct: float
+        - middle_paid_pct: float
+        - high_paid_pct: float
+
+    Example:
+        >>> _, year = get_latest_ashe_publication_url()
+        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> df = parse_ashe_pay_distribution_timeseries(path)
+        >>> sorted(df.columns.tolist())
+        ['high_paid_pct', 'low_paid_pct', 'middle_paid_pct', 'year']
+    """
+    df = _find_linked_sheet(file_path, "pay_distribution_timeseries")
+    df.columns = ["year", "low_paid_pct", "middle_paid_pct", "high_paid_pct"]
+    df = df.dropna(subset=["year"]).copy()
+    df["year"] = pd.to_numeric(df["year"], errors="coerce")
+    df = df[df["year"].notna()].copy()
+    df["year"] = df["year"].astype(int)
+    for col in ("low_paid_pct", "middle_paid_pct", "high_paid_pct"):
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+    return df.dropna().sort_values("year").reset_index(drop=True)
+
+
+def parse_ashe_pay_distribution_by_classification(file_path: str | Path) -> pd.DataFrame:
+    """Parse ASHE Figure 12: pay distribution by working pattern, age, industry, occupation.
+
+    Cross-sectional breakdown of low/middle/high-paid proportions for the latest
+    reference year, with multiple classification axes stacked in a single sheet.
+
+    Args:
+        file_path: Path to the ASHE linked tables Excel file
+
+    Returns:
+        DataFrame with columns:
+
+        - classification: str (e.g. 'Working pattern', 'Age group', 'Industry', 'Occupation')
+        - subset: str (the specific category, e.g. 'Full-time', '22-29', 'Education')
+        - low_paid_pct: float
+        - middle_paid_pct: float
+        - high_paid_pct: float
+
+    Example:
+        >>> _, year = get_latest_ashe_publication_url()
+        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> df = parse_ashe_pay_distribution_by_classification(path)
+        >>> sorted(df.columns.tolist())
+        ['classification', 'high_paid_pct', 'low_paid_pct', 'middle_paid_pct', 'subset']
+    """
+    df = _find_linked_sheet(file_path, "pay_distribution_by_classification")
+    df.columns = ["classification", "subset", "low_paid_pct", "middle_paid_pct", "high_paid_pct"]
+    df = df.dropna(subset=["classification", "subset"]).copy()
+    df["classification"] = df["classification"].astype(str).str.strip()
+    df["subset"] = df["subset"].astype(str).str.strip()
+    for col in ("low_paid_pct", "middle_paid_pct", "high_paid_pct"):
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+    return df.dropna().reset_index(drop=True)
+
+
+# ---------------------------------------------------------------------------
+# Public get_* wrappers
+# ---------------------------------------------------------------------------
+
+
+def get_real_earnings(force_refresh: bool = False) -> pd.DataFrame:
+    """Get ASHE nominal vs real weekly earnings timeseries for NI (Figure 2).
+
+    Args:
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with columns: year, nominal_weekly_earnings, real_weekly_earnings
+
+    Example:
+        >>> df = get_real_earnings()
+        >>> 'real_weekly_earnings' in df.columns
+        True
+    """
+    return parse_ashe_real_earnings(_get_linked_file(force_refresh=force_refresh))
+
+
+def get_real_earnings_change_by_pattern(force_refresh: bool = False) -> pd.DataFrame:
+    """Get ASHE annual % change in weekly earnings by work pattern (Figure 3).
+
+    Args:
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with columns: work_pattern, nominal_change_pct, real_change_pct
+
+    Example:
+        >>> df = get_real_earnings_change_by_pattern()
+        >>> 'real_change_pct' in df.columns
+        True
+    """
+    return parse_ashe_real_earnings_change_by_pattern(_get_linked_file(force_refresh=force_refresh))
+
+
+def get_real_earnings_index_by_sector(force_refresh: bool = False) -> pd.DataFrame:
+    """Get ASHE real earnings index by sector for NI (Figure 6).
+
+    Args:
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with columns: year, sector, real_earnings_index
+
+    Example:
+        >>> df = get_real_earnings_index_by_sector()
+        >>> 'real_earnings_index' in df.columns
+        True
+    """
+    return parse_ashe_real_earnings_index_by_sector(_get_linked_file(force_refresh=force_refresh))
+
+
+def get_annual_change_by_occupation(force_refresh: bool = False) -> pd.DataFrame:
+    """Get ASHE annual % change in weekly earnings by occupation, NI (Figure 7).
+
+    Args:
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with columns: occupation, annual_change_pct
+
+    Example:
+        >>> df = get_annual_change_by_occupation()
+        >>> 'annual_change_pct' in df.columns
+        True
+    """
+    return parse_ashe_annual_change_by_occupation(_get_linked_file(force_refresh=force_refresh))
+
+
+def get_annual_change_by_industry(force_refresh: bool = False) -> pd.DataFrame:
+    """Get ASHE annual % change in weekly earnings by industry, NI (Figure 8).
+
+    Args:
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with columns: industry, annual_change_pct
+
+    Example:
+        >>> df = get_annual_change_by_industry()
+        >>> 'annual_change_pct' in df.columns
+        True
+    """
+    return parse_ashe_annual_change_by_industry(_get_linked_file(force_refresh=force_refresh))
+
+
+def get_pay_distribution_timeseries(force_refresh: bool = False) -> pd.DataFrame:
+    """Get ASHE low/middle/high-paid proportion timeseries for NI (Figure 11).
+
+    Args:
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with columns: year, low_paid_pct, middle_paid_pct, high_paid_pct
+
+    Example:
+        >>> df = get_pay_distribution_timeseries()
+        >>> 'low_paid_pct' in df.columns
+        True
+    """
+    return parse_ashe_pay_distribution_timeseries(_get_linked_file(force_refresh=force_refresh))
+
+
+def get_pay_distribution_by_classification(force_refresh: bool = False) -> pd.DataFrame:
+    """Get ASHE pay distribution by classification, NI, latest year (Figure 12).
+
+    Args:
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with columns: classification, subset, low_paid_pct, middle_paid_pct, high_paid_pct
+
+    Example:
+        >>> df = get_pay_distribution_by_classification()
+        >>> 'classification' in df.columns
+        True
+    """
+    return parse_ashe_pay_distribution_by_classification(_get_linked_file(force_refresh=force_refresh))
 
 
 def validate_ashe_data(df: pd.DataFrame) -> bool:  # pragma: no cover
