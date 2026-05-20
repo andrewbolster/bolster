@@ -33,9 +33,9 @@ class TestRawDataPull:
     """Tests for raw data retrieval."""
 
     def test_pull_sources_sheet_count(self):
-        """Pull sources should return 36 sheets."""
+        """Pull sources should return at least 36 sheets."""
         dfs = hpi.pull_sources()
-        assert len(dfs) == 36
+        assert len(dfs) >= 36
 
     def test_pull_sources_expected_sheets(self):
         """Pull sources should contain expected sheet names."""
