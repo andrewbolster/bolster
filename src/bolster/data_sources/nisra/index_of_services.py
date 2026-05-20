@@ -238,6 +238,62 @@ def get_ios_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
     return df[df["year"] == year].reset_index(drop=True)
 
 
+def get_ios_by_quarter(df: pd.DataFrame, quarter: int, year: int) -> pd.DataFrame:
+    """Filter IOS data to a specific quarter.
+
+    Args:
+        df: DataFrame from get_latest_ios()
+        quarter: Quarter number (1-4)
+        year: Year
+
+    Returns:
+        Filtered DataFrame (single row)
+
+    Example:
+        >>> df = get_latest_ios()
+        >>> q1_2024 = get_ios_by_quarter(df, 1, 2024)
+        >>> len(q1_2024) == 1
+        True
+    """
+    return df[(df["quarter"] == quarter) & (df["year"] == year)].reset_index(drop=True)
+
+
+def get_ios_summary_statistics(df: pd.DataFrame, start_year: int | None = None, end_year: int | None = None) -> dict:
+    """Calculate summary statistics for a period of IOS data.
+
+    Args:
+        df: DataFrame from get_latest_ios()
+        start_year: Optional start year filter (inclusive)
+        end_year: Optional end year filter (inclusive)
+
+    Returns:
+        Dictionary with keys: period, ni_mean, ni_min, ni_max,
+        uk_mean, uk_min, uk_max, quarters_count
+
+    Example:
+        >>> df = get_latest_ios()
+        >>> stats = get_ios_summary_statistics(df, start_year=2020)
+        >>> 'ni_mean' in stats
+        True
+    """
+    filtered = df.copy()
+    if start_year is not None:
+        filtered = filtered[filtered["year"] >= start_year]
+    if end_year is not None:
+        filtered = filtered[filtered["year"] <= end_year]
+
+    return {
+        "period": f"{filtered['year'].min()}-{filtered['year'].max()}",
+        "ni_mean": float(filtered["ni_index"].mean()),
+        "ni_min": float(filtered["ni_index"].min()),
+        "ni_max": float(filtered["ni_index"].max()),
+        "uk_mean": float(filtered["uk_index"].mean()),
+        "uk_min": float(filtered["uk_index"].min()),
+        "uk_max": float(filtered["uk_index"].max()),
+        "quarters_count": len(filtered),
+    }
+
+
 def get_ios_growth(df: pd.DataFrame) -> pd.DataFrame:
     """Calculate quarter-on-quarter and year-on-year growth rates.
 
