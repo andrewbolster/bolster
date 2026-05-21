@@ -14,11 +14,13 @@ from . import __version__
 from .data_sources import dva, gender_pay_gap
 from .data_sources.cineworld import get_cinema_listings
 from .data_sources.companies_house import get_companies_house_records_that_might_be_in_farset, query_basic_company_data
+from .data_sources.daera_waste import get_latest_waste_statistics, validate_waste_data
 from .data_sources.eoni import get_results as get_ni_election_results
 from .data_sources.metoffice import get_uk_precipitation
 from .data_sources.ni_house_price_index import build as get_ni_house_prices
 from .data_sources.ni_water import get_postcode_to_water_supply_zone, get_water_quality_by_zone
 from .data_sources.nisra import ashe as nisra_ashe
+from .data_sources.nisra import baby_names as nisra_baby_names
 from .data_sources.nisra import births as nisra_births
 from .data_sources.nisra import cancer_waiting_times as nisra_cancer
 from .data_sources.nisra import composite_index as nisra_composite
@@ -59,6 +61,7 @@ def cli(verbose, args=None):
         * ni-elections         NI Assembly election results (2016-2022)
         * nisra                NISRA statistics (deaths, births, population, economic indicators)
         * psni                 PSNI statistics (road traffic collisions)
+        * daera                DAERA statistics (municipal waste)
 
     Business & Property:
         * companies-house      UK Companies House data queries
@@ -984,6 +987,122 @@ def ni_elections(election_year, output_format, save):
 
     except Exception as e:
         click.echo(f"Error retrieving election data: {e}")
+
+
+@cli.group()
+def daera():
+    """DAERA (Department of Agriculture, Environment and Rural Affairs) statistics.
+
+    Commands for accessing Northern Ireland environmental and agricultural
+    statistics published by DAERA.
+    """
+    pass
+
+
+@daera.command(name="waste")
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--council", help="Filter by council area name (partial match)")
+@click.option("--financial-year", help="Filter by financial year (e.g. 2024/25)")
+@click.option("--summary", is_flag=True, help="Show summary statistics only")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"]),
+    default="table",
+    help="Output format",
+)
+def daera_waste_cmd(force_refresh, council, financial_year, summary, save, output_format):
+    r"""DAERA NI LAC Municipal Waste statistics.
+
+    Downloads the latest quarterly waste management time-series from DAERA,
+    covering all NI council areas from 2006/07 onwards.
+
+    Examples:
+    
+        bolster daera waste                               # All waste statistics
+        bolster daera waste --council Belfast             # Filter by council
+        bolster daera waste --financial-year 2024/25     # Latest year
+        bolster daera waste --summary                     # Summary only
+        bolster daera waste --save waste.csv              # Save to CSV
+    """
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading DAERA waste statistics..."):
+            df = get_latest_waste_statistics(force_refresh=force_refresh)
+            validate_waste_data(df)
+
+        if council:
+            df = df[df["council_area"].str.contains(council, case=False, na=False)]
+            if df.empty:
+                console.print(f"[yellow]No data found for council matching '{council}'[/yellow]")
+                return
+
+        if financial_year:
+            df = df[df["financial_year"] == financial_year]
+            if df.empty:
+                console.print(f"[yellow]No data found for financial year '{financial_year}'[/yellow]")
+                return
+
+        if save:
+            if save.endswith(".json"):
+                df.to_json(save, orient="records", indent=2)
+            else:
+                df.to_csv(save, index=False)
+            console.print(f"[green]Saved {len(df)} rows to {save}[/green]")
+            return
+
+        if summary:
+            console.print(
+                Panel(
+                    f"[bold cyan]DAERA NI LAC Municipal Waste Statistics[/bold cyan]\n"
+                    f"[green]Rows:[/green] {len(df):,}\n"
+                    f"[green]Financial years:[/green] {df['financial_year'].nunique()} "
+                    f"({df['financial_year'].min()} \u2013 {df['financial_year'].max()})\n"
+                    f"[green]Council areas:[/green] {df['council_area'].nunique()}\n"
+                    f"[green]Data status:[/green] {', '.join(sorted(df['data_status'].dropna().unique()))}",
+                    title="Summary",
+                    border_style="cyan",
+                )
+            )
+            ni_latest = df[
+                (df["council_area"] == "Northern Ireland") & (df["financial_year"] == df["financial_year"].max())
+            ]
+            if not ni_latest.empty:
+                arisings = ni_latest["lac_waste_arisings_tonnes"].sum()
+                recycling_rate = ni_latest["lac_dry_recycling_composting_rate_pct"].mean()
+                console.print(f"\n[bold]Latest year NI totals ({df['financial_year'].max()}):[/bold]")
+                console.print(f"  LAC waste arisings: {arisings:,.0f} tonnes")
+                if pd.notna(recycling_rate):
+                    console.print(f"  Dry recycling & composting rate: {recycling_rate:.1f}%")
+            return
+
+        if output_format == "json":
+            click.echo(df.to_json(orient="records", indent=2))
+        elif output_format == "csv":
+            click.echo(df.to_csv(index=False))
+        else:
+            display_cols = [
+                "financial_year",
+                "quarter_code",
+                "council_area",
+                "data_status",
+                "lac_waste_arisings_tonnes",
+                "lac_dry_recycling_composting_rate_pct",
+                "lac_landfill_rate_pct",
+                "hh_waste_arisings_tonnes",
+            ]
+            available_cols = [c for c in display_cols if c in df.columns]
+            out = df[available_cols].copy()
+            if len(out) > 50:
+                console.print(f"[dim]Showing first 50 of {len(out):,} rows[/dim]")
+                out = out.head(50)
+            click.echo(out.to_string(index=False))
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise SystemExit(1) from e
 
 
 @cli.group()
@@ -5041,6 +5160,117 @@ def nisra_planning_statistics_cmd(dimension, financial_year, output_format, forc
 
         if output_format == "json":
             click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@nisra.command(name="baby-names")
+@click.option("--year", type=int, default=None, help="Filter data for a specific year")
+@click.option(
+    "--sex",
+    type=click.Choice(["Boys", "Girls", "both"], case_sensitive=False),
+    default="both",
+    help="Filter by sex: Boys, Girls, or both (default: both)",
+)
+@click.option("--top", "top_n", type=int, default=None, help="Show only the top N names by rank")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_baby_names_cmd(year, sex, top_n, output_format, force_refresh, save):
+    """NISRA Baby Names for Northern Ireland (1997 to present).
+
+    Retrieves the full historical list of first forenames given to babies registered
+    in Northern Ireland, including rank and count for each name, year, and sex.
+
+    Data covers registrations from 1997 to the most recent publication year and is
+    published annually in April. Names with fewer than 3 occurrences are suppressed.
+
+    Examples:
+    ---------
+    Get all historical baby names::
+
+        bolster nisra baby-names
+
+    Get top 10 names for 2025::
+
+        bolster nisra baby-names --year 2025 --top 10
+
+    Get top 20 girls names::
+
+        bolster nisra baby-names --sex Girls --top 20
+
+    Save to CSV::
+
+        bolster nisra baby-names --save baby_names.csv
+
+    Get as JSON::
+
+        bolster nisra baby-names --year 2025 --format json
+
+    Source
+    ------
+    https://www.nisra.gov.uk/statistics/births/baby-names
+    """
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading NISRA baby names data..."):
+            data = nisra_baby_names.get_baby_names(force_refresh=force_refresh)
+
+        # Filter by year
+        if year is not None:
+            data = data[data["year"] == year]
+            if data.empty:
+                console.print(f"[yellow]No data found for year {year}[/yellow]")
+                return
+
+        # Filter by sex
+        if sex != "both":
+            # Normalise title case
+            sex_filter = sex.title()
+            data = data[data["sex"] == sex_filter]
+            if data.empty:
+                console.print(f"[yellow]No data found for sex {sex_filter!r}[/yellow]")
+                return
+
+        # Apply top N filter (per year/sex group)
+        if top_n is not None:
+            data = data[data["rank"] <= top_n]
+
+        console.print(f"[green]Retrieved {len(data):,} baby name records[/green]")
+        if not data.empty:
+            console.print(
+                f"[dim]Years: {data['year'].min()}\u2013{data['year'].max()} | "
+                f"Sexes: {sorted(data['sex'].unique())}[/dim]"
+            )
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
         else:
             console.print(data.to_csv(index=False), end="")
 

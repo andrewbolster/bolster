@@ -215,6 +215,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Tourism - Hotel Occupancy | `nisra.tourism.occupancy` | ✅ |
 | Tourism - SSA Occupancy | `nisra.tourism.occupancy` | ✅ |
 | Tourism - Visitor Statistics | `nisra.tourism.visitor_statistics` | ✅ |
+| Baby Names NI (annual, 1997–present) | `nisra.baby_names` | ✅ |
 | Security Situation Statistics | - | Planned |
 | Road Traffic Collisions | `psni.road_traffic_collisions` | ✅ |
 | PSNI Crime Statistics | `psni.crime_statistics` | ⚠️ stale (to Dec 2021) |
