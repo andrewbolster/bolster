@@ -14,6 +14,7 @@ from . import __version__
 from .data_sources import dva, gender_pay_gap
 from .data_sources.cineworld import get_cinema_listings
 from .data_sources.companies_house import get_companies_house_records_that_might_be_in_farset, query_basic_company_data
+from .data_sources.daera_waste import get_latest_waste_statistics, validate_waste_data
 from .data_sources.eoni import get_results as get_ni_election_results
 from .data_sources.metoffice import get_uk_precipitation
 from .data_sources.ni_house_price_index import build as get_ni_house_prices
@@ -59,6 +60,7 @@ def cli(verbose, args=None):
         * ni-elections         NI Assembly election results (2016-2022)
         * nisra                NISRA statistics (deaths, births, population, economic indicators)
         * psni                 PSNI statistics (road traffic collisions)
+        * daera                DAERA statistics (municipal waste)
 
     Business & Property:
         * companies-house      UK Companies House data queries
@@ -984,6 +986,122 @@ def ni_elections(election_year, output_format, save):
 
     except Exception as e:
         click.echo(f"Error retrieving election data: {e}")
+
+
+@cli.group()
+def daera():
+    """DAERA (Department of Agriculture, Environment and Rural Affairs) statistics.
+
+    Commands for accessing Northern Ireland environmental and agricultural
+    statistics published by DAERA.
+    """
+    pass
+
+
+@daera.command(name="waste")
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--council", help="Filter by council area name (partial match)")
+@click.option("--financial-year", help="Filter by financial year (e.g. 2024/25)")
+@click.option("--summary", is_flag=True, help="Show summary statistics only")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"]),
+    default="table",
+    help="Output format",
+)
+def daera_waste_cmd(force_refresh, council, financial_year, summary, save, output_format):
+    r"""DAERA NI LAC Municipal Waste statistics.
+
+    Downloads the latest quarterly waste management time-series from DAERA,
+    covering all NI council areas from 2006/07 onwards.
+
+    Examples:
+    
+        bolster daera waste                               # All waste statistics
+        bolster daera waste --council Belfast             # Filter by council
+        bolster daera waste --financial-year 2024/25     # Latest year
+        bolster daera waste --summary                     # Summary only
+        bolster daera waste --save waste.csv              # Save to CSV
+    """
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading DAERA waste statistics..."):
+            df = get_latest_waste_statistics(force_refresh=force_refresh)
+            validate_waste_data(df)
+
+        if council:
+            df = df[df["council_area"].str.contains(council, case=False, na=False)]
+            if df.empty:
+                console.print(f"[yellow]No data found for council matching '{council}'[/yellow]")
+                return
+
+        if financial_year:
+            df = df[df["financial_year"] == financial_year]
+            if df.empty:
+                console.print(f"[yellow]No data found for financial year '{financial_year}'[/yellow]")
+                return
+
+        if save:
+            if save.endswith(".json"):
+                df.to_json(save, orient="records", indent=2)
+            else:
+                df.to_csv(save, index=False)
+            console.print(f"[green]Saved {len(df)} rows to {save}[/green]")
+            return
+
+        if summary:
+            console.print(
+                Panel(
+                    f"[bold cyan]DAERA NI LAC Municipal Waste Statistics[/bold cyan]\n"
+                    f"[green]Rows:[/green] {len(df):,}\n"
+                    f"[green]Financial years:[/green] {df['financial_year'].nunique()} "
+                    f"({df['financial_year'].min()} \u2013 {df['financial_year'].max()})\n"
+                    f"[green]Council areas:[/green] {df['council_area'].nunique()}\n"
+                    f"[green]Data status:[/green] {', '.join(sorted(df['data_status'].dropna().unique()))}",
+                    title="Summary",
+                    border_style="cyan",
+                )
+            )
+            ni_latest = df[
+                (df["council_area"] == "Northern Ireland") & (df["financial_year"] == df["financial_year"].max())
+            ]
+            if not ni_latest.empty:
+                arisings = ni_latest["lac_waste_arisings_tonnes"].sum()
+                recycling_rate = ni_latest["lac_dry_recycling_composting_rate_pct"].mean()
+                console.print(f"\n[bold]Latest year NI totals ({df['financial_year'].max()}):[/bold]")
+                console.print(f"  LAC waste arisings: {arisings:,.0f} tonnes")
+                if pd.notna(recycling_rate):
+                    console.print(f"  Dry recycling & composting rate: {recycling_rate:.1f}%")
+            return
+
+        if output_format == "json":
+            click.echo(df.to_json(orient="records", indent=2))
+        elif output_format == "csv":
+            click.echo(df.to_csv(index=False))
+        else:
+            display_cols = [
+                "financial_year",
+                "quarter_code",
+                "council_area",
+                "data_status",
+                "lac_waste_arisings_tonnes",
+                "lac_dry_recycling_composting_rate_pct",
+                "lac_landfill_rate_pct",
+                "hh_waste_arisings_tonnes",
+            ]
+            available_cols = [c for c in display_cols if c in df.columns]
+            out = df[available_cols].copy()
+            if len(out) > 50:
+                console.print(f"[dim]Showing first 50 of {len(out):,} rows[/dim]")
+                out = out.head(50)
+            click.echo(out.to_string(index=False))
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise SystemExit(1) from e
 
 
 @cli.group()
