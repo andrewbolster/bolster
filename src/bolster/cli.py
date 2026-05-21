@@ -20,7 +20,6 @@ from .data_sources.metoffice import get_uk_precipitation
 from .data_sources.ni_house_price_index import build as get_ni_house_prices
 from .data_sources.ni_water import get_postcode_to_water_supply_zone, get_water_quality_by_zone
 from .data_sources.nisra import ashe as nisra_ashe
-from .data_sources.nisra import baby_names as nisra_baby_names
 from .data_sources.nisra import births as nisra_births
 from .data_sources.nisra import cancer_waiting_times as nisra_cancer
 from .data_sources.nisra import composite_index as nisra_composite
@@ -5160,117 +5159,6 @@ def nisra_planning_statistics_cmd(dimension, financial_year, output_format, forc
 
         if output_format == "json":
             click.echo(data.to_json(orient="records", date_format="iso", indent=2))
-        else:
-            console.print(data.to_csv(index=False), end="")
-
-    except Exception as e:
-        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
-        console.print("\n[yellow]Troubleshooting:[/yellow]")
-        console.print("   - Check your internet connection")
-        console.print("   - Try again with --force-refresh to bypass cache")
-        raise click.Abort() from e
-
-
-@nisra.command(name="baby-names")
-@click.option("--year", type=int, default=None, help="Filter data for a specific year")
-@click.option(
-    "--sex",
-    type=click.Choice(["Boys", "Girls", "both"], case_sensitive=False),
-    default="both",
-    help="Filter by sex: Boys, Girls, or both (default: both)",
-)
-@click.option("--top", "top_n", type=int, default=None, help="Show only the top N names by rank")
-@click.option(
-    "--format",
-    "output_format",
-    type=click.Choice(["csv", "json"], case_sensitive=False),
-    default="csv",
-    help="Output format (default: csv)",
-)
-@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
-@click.option("--save", help="Save data to file (specify filename)")
-def nisra_baby_names_cmd(year, sex, top_n, output_format, force_refresh, save):
-    """NISRA Baby Names for Northern Ireland (1997 to present).
-
-    Retrieves the full historical list of first forenames given to babies registered
-    in Northern Ireland, including rank and count for each name, year, and sex.
-
-    Data covers registrations from 1997 to the most recent publication year and is
-    published annually in April. Names with fewer than 3 occurrences are suppressed.
-
-    Examples:
-    ---------
-    Get all historical baby names::
-
-        bolster nisra baby-names
-
-    Get top 10 names for 2025::
-
-        bolster nisra baby-names --year 2025 --top 10
-
-    Get top 20 girls names::
-
-        bolster nisra baby-names --sex Girls --top 20
-
-    Save to CSV::
-
-        bolster nisra baby-names --save baby_names.csv
-
-    Get as JSON::
-
-        bolster nisra baby-names --year 2025 --format json
-
-    Source
-    ------
-    https://www.nisra.gov.uk/statistics/births/baby-names
-    """
-    console = Console()
-
-    try:
-        with console.status("[bold green]Downloading NISRA baby names data..."):
-            data = nisra_baby_names.get_baby_names(force_refresh=force_refresh)
-
-        # Filter by year
-        if year is not None:
-            data = data[data["year"] == year]
-            if data.empty:
-                console.print(f"[yellow]No data found for year {year}[/yellow]")
-                return
-
-        # Filter by sex
-        if sex != "both":
-            # Normalise title case
-            sex_filter = sex.title()
-            data = data[data["sex"] == sex_filter]
-            if data.empty:
-                console.print(f"[yellow]No data found for sex {sex_filter!r}[/yellow]")
-                return
-
-        # Apply top N filter (per year/sex group)
-        if top_n is not None:
-            data = data[data["rank"] <= top_n]
-
-        console.print(f"[green]Retrieved {len(data):,} baby name records[/green]")
-        if not data.empty:
-            console.print(
-                f"[dim]Years: {data['year'].min()}\u2013{data['year'].max()} | "
-                f"Sexes: {sorted(data['sex'].unique())}[/dim]"
-            )
-
-        if save:
-            try:
-                if output_format == "json" or save.endswith(".json"):
-                    data.to_json(save, orient="records", indent=2)
-                else:
-                    data.to_csv(save, index=False)
-                console.print(f"[green]Saved to: {save}[/green]")
-                return
-            except Exception as e:
-                console.print(f"[red]Error saving file: {e}[/red]")
-                return
-
-        if output_format == "json":
-            click.echo(data.to_json(orient="records", indent=2))
         else:
             console.print(data.to_csv(index=False), end="")
 
