@@ -4593,6 +4593,127 @@ def nisra_emergency_care_cmd(output_format, trust, attendance_type, year, save):
         raise click.Abort() from e
 
 
+@nisra.command(name="elective-waiting-times")
+@click.option(
+    "--type",
+    "waiting_type",
+    type=click.Choice(["all", "inpatient_day_case", "outpatient"], case_sensitive=False),
+    default="all",
+    help="Series to retrieve: all (default), inpatient_day_case, or outpatient",
+)
+@click.option("--trust", help="Filter by HSC Trust name (e.g. Belfast)")
+@click.option("--year", type=int, help="Filter data for a specific calendar year")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save output to file (specify filename)")
+def nisra_elective_waiting_times_cmd(waiting_type, trust, year, output_format, force_refresh, save):
+    r"""NISRA Elective/Outpatient Waiting Times Statistics.
+
+    \b
+    Two quarterly series from the Department of Health NI:
+
+      inpatient_day_case  Patients waiting for inpatient/day case admission,
+                          by weeks-waited band, specialty, and HSC Trust.
+                          Data from Q1 2007-08 (June 2007) to present.
+
+      outpatient          Referrals waiting for an outpatient appointment,
+                          by weeks-waited band, specialty, and HSC Trust.
+                          Data from Q1 2008-09 (June 2008) to present.
+
+    \b
+    HSC Trusts: Belfast, Northern, South Eastern, Southern, Western
+
+    \b
+    Examples::
+
+        bolster nisra elective-waiting-times
+        bolster nisra elective-waiting-times --type outpatient
+        bolster nisra elective-waiting-times --trust Belfast --year 2024
+        bolster nisra elective-waiting-times --type inpatient_day_case --save inpatient.csv
+        bolster nisra elective-waiting-times --format json
+
+    \b
+    Key insights (as of 2025): over 400,000 outpatient referrals waiting;
+    median outpatient wait exceeding 43 weeks; inpatient waits exceeding
+    104 weeks visible across multiple specialties and trusts.
+
+    \b
+    Sources:
+        https://www.health-ni.gov.uk/articles/inpatient-waiting-times
+        https://www.health-ni.gov.uk/articles/outpatient-waiting-times
+    """
+    from rich.console import Console
+
+    from bolster.data_sources.nisra import elective_waiting_times as ewt
+
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading latest elective waiting times data..."):
+            data = ewt.get_latest_elective_waiting_times(force_refresh=force_refresh)
+
+        # Filter by waiting_type
+        if waiting_type != "all":
+            data = data[data["waiting_type"] == waiting_type]
+            if data.empty:
+                console.print(f"[yellow]No data found for waiting_type='{waiting_type}'[/yellow]")
+                return
+
+        # Filter by trust
+        if trust:
+            data = data[data["trust"].str.contains(trust, case=False, na=False)]
+            if data.empty:
+                console.print(f"[yellow]No data found for trust matching '{trust}'[/yellow]")
+                return
+
+        # Filter by year
+        if year:
+            data = data[data["year"] == year]
+            if data.empty:
+                console.print(f"[yellow]No data found for year {year}[/yellow]")
+                return
+
+        console.print(f"[green]Retrieved {len(data):,} records[/green]")
+
+        if not data.empty:
+            min_year = int(data["year"].min())
+            max_year = int(data["year"].max())
+            console.print(f"[dim]Years: {min_year} - {max_year}[/dim]")
+            total_waiting = data["patients_waiting"].sum()
+            console.print(f"[dim]Total patient-band records: {total_waiting:,.0f}[/dim]")
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", date_format="iso", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Data saved to: {save}[/green]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            console.print("\n[bold]Data:[/bold]")
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
 @nisra.command(name="registrar-general")
 @click.option("--latest", is_flag=True, help="Get the most recent quarterly tables data")
 @click.option("--quarterly", is_flag=True, help="Show full quarterly time series")
