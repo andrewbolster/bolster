@@ -22,7 +22,9 @@ Available modules:
     - population_projections: Population projections by age, sex, and geography (2022-2072)
     - registrar_general: Registrar General Quarterly Tables (quarterly births, deaths, marriages, LGD breakdowns)
     - tourism: Tourism statistics including occupancy surveys, visitor stats (subpackage)
+    - baby_names: Annual baby name registrations (1997–present) by sex and rank
     - wellbeing: Individual wellbeing statistics (life satisfaction, happiness, anxiety, loneliness)
+    - work_quality: Work Quality NI — seventeen indicators of job quality for employees
 
 Examples:
     >>> from bolster.data_sources.nisra import ashe
@@ -98,6 +100,7 @@ Examples:
 
 from . import (
     ashe,
+    baby_names,
     births,
     cancer_waiting_times,
     composite_index,
@@ -117,10 +120,12 @@ from . import (
     stillbirths,
     tourism,
     wellbeing,
+    work_quality,
 )
 
 __all__ = [
     "ashe",
+    "baby_names",
     "births",
     "cancer_waiting_times",
     "composite_index",
@@ -140,4 +145,5 @@ __all__ = [
     "stillbirths",
     "tourism",
     "wellbeing",
+    "work_quality",
 ]

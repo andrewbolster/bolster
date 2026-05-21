@@ -8,8 +8,14 @@ from bolster.data_sources.psni import crime_statistics
 
 @pytest.fixture(scope="module")
 def data():
-    """Load data once for all tests."""
-    return crime_statistics.get_latest_crime_statistics()
+    """Load historical data once for all tests."""
+    return crime_statistics.get_historical_crime_statistics()
+
+
+def test_get_latest_raises_stale_error():
+    """get_latest_crime_statistics() must raise PSNIDataStaleError."""
+    with pytest.raises(crime_statistics.PSNIDataStaleError):
+        crime_statistics.get_latest_crime_statistics()
 
 
 class TestDataStructure:
