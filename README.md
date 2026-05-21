@@ -210,11 +210,15 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | UK Gender Pay Gap Reporting | `gender_pay_gap` | ✅ |
 | Individual Wellbeing | `nisra.wellbeing` | ✅ |
 | Cancer Waiting Times | `nisra.cancer_waiting_times` | ✅ |
+| Child Protection Statistics | `nisra.child_protection` | ✅ |
 | NI Planning Activity Statistics (DfI) | `nisra.planning_statistics` | ✅ |
 | Registrar General Quarterly Tables | `nisra.registrar_general` | ✅ |
 | Tourism - Hotel Occupancy | `nisra.tourism.occupancy` | ✅ |
 | Tourism - SSA Occupancy | `nisra.tourism.occupancy` | ✅ |
 | Tourism - Visitor Statistics | `nisra.tourism.visitor_statistics` | ✅ |
+| Baby Names NI (annual, 1997–present) | `nisra.baby_names` | ✅ |
+| NI School Suspensions (DE) | `education_suspensions` | ✅ |
+| Work Quality NI (NISRA) | `nisra.work_quality` | ✅ |
 | Security Situation Statistics | - | Planned |
 | Road Traffic Collisions | `psni.road_traffic_collisions` | ✅ |
 | PSNI Crime Statistics | `psni.crime_statistics` | ⚠️ stale (to Dec 2021) |

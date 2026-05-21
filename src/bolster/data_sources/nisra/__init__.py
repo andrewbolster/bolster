@@ -8,6 +8,7 @@ Available modules:
     - ashe: Annual Survey of Hours and Earnings (employee earnings statistics)
     - births: Monthly birth registrations by registration and occurrence date
     - cancer_waiting_times: Cancer treatment waiting times (14-day, 31-day, 62-day targets)
+    - child_protection: Children's Social Care child protection statistics (referrals, CPR, investigations)
     - emergency_care_waiting_times: Emergency care (A&E) waiting times against the 4-hour target
     - composite_index: Northern Ireland Composite Economic Index (experimental quarterly economic indicator)
     - construction_output: Quarterly construction output statistics (all work, new work, repair & maintenance)
@@ -21,8 +22,10 @@ Available modules:
     - planning_statistics: NI Planning Activity Statistics - quarterly applications, by council
     - population_projections: Population projections by age, sex, and geography (2022-2072)
     - registrar_general: Registrar General Quarterly Tables (quarterly births, deaths, marriages, LGD breakdowns)
+    - baby_names: Annual baby name registrations (1997–present) by sex and rank
     - tourism: Tourism statistics including occupancy surveys, visitor stats (subpackage)
     - wellbeing: Individual wellbeing statistics (life satisfaction, happiness, anxiety, loneliness)
+    - work_quality: Work Quality NI — seventeen indicators of job quality for employees
 
 Examples:
     >>> from bolster.data_sources.nisra import ashe
@@ -94,12 +97,19 @@ Examples:
     >>> df = wellbeing.get_latest_personal_wellbeing()
     >>> 'life_satisfaction' in df.columns
     True
+
+    >>> from bolster.data_sources.nisra import child_protection as cp
+    >>> cp_df = cp.get_latest_child_protection()
+    >>> 'measure' in cp_df.columns
+    True
 """
 
 from . import (
     ashe,
+    baby_names,
     births,
     cancer_waiting_times,
+    child_protection,
     composite_index,
     construction_output,
     deaths,
@@ -117,12 +127,15 @@ from . import (
     stillbirths,
     tourism,
     wellbeing,
+    work_quality,
 )
 
 __all__ = [
     "ashe",
+    "baby_names",
     "births",
     "cancer_waiting_times",
+    "child_protection",
     "composite_index",
     "construction_output",
     "deaths",
@@ -140,4 +153,5 @@ __all__ = [
     "stillbirths",
     "tourism",
     "wellbeing",
+    "work_quality",
 ]
