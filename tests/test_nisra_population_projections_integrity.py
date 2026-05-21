@@ -138,3 +138,85 @@ class TestValidation:
         )
         with pytest.raises(NISRAValidationError, match="sex totals mismatch"):
             population_projections.validate_projections_totals(invalid_df)
+
+
+class TestLGDProjectionsIntegrity:
+    """Integration tests for LGD sub-area population projections (2022-based)."""
+
+    @pytest.fixture(scope="class")
+    def lgd_data(self):
+        return population_projections.get_lgd_projections()
+
+    def test_required_columns(self, lgd_data):
+        required = {"lgd_name", "lgd_code", "year", "base_year", "sex", "age", "age_group", "population"}
+        assert required.issubset(set(lgd_data.columns))
+
+    def test_eleven_lgds(self, lgd_data):
+        assert lgd_data["lgd_code"].nunique() == 11
+
+    def test_lgd_codes_format(self, lgd_data):
+        codes = lgd_data["lgd_code"].unique()
+        assert all(c.startswith("N09") for c in codes)
+
+    def test_known_lgds_present(self, lgd_data):
+        expected = {
+            "Antrim and Newtownabbey", "Ards and North Down", "Armagh City, Banbridge and Craigavon",
+            "Belfast", "Causeway Coast and Glens", "Derry City and Strabane", "Fermanagh and Omagh",
+            "Lisburn and Castlereagh", "Mid Ulster", "Mid and East Antrim", "Newry, Mourne and Down",
+        }
+        assert expected == set(lgd_data["lgd_name"].unique())
+
+    def test_year_range(self, lgd_data):
+        assert lgd_data["year"].min() == 2022
+        assert lgd_data["year"].max() == 2047
+
+    def test_base_year(self, lgd_data):
+        assert (lgd_data["base_year"] == 2022).all()
+
+    def test_no_negative_population(self, lgd_data):
+        assert (lgd_data["population"] >= 0).all()
+
+    def test_sex_values(self, lgd_data):
+        assert set(lgd_data["sex"].unique()) == {"All persons", "Male", "Female"}
+
+    def test_sex_totals_consistent(self, lgd_data):
+        # All persons should equal Male + Female for each LGD/year/age group
+        for (lgd, year, age), grp in lgd_data.groupby(["lgd_code", "year", "age_group"]):
+            all_p = grp[grp["sex"] == "All persons"]["population"].sum()
+            male = grp[grp["sex"] == "Male"]["population"].sum()
+            female = grp[grp["sex"] == "Female"]["population"].sum()
+            if all_p > 0:
+                assert abs((male + female) - all_p) <= 5, (
+                    f"{lgd} year {year} age {age}: Male+Female={male+female} != All persons={all_p}"
+                )
+
+    def test_filter_by_lgd_name(self, lgd_data):
+        belfast = population_projections.get_lgd_projections(lgd="Belfast")
+        assert (belfast["lgd_name"] == "Belfast").all()
+        assert belfast["lgd_code"].iloc[0] == "N09000003"
+
+    def test_filter_by_lgd_code(self, lgd_data):
+        df = population_projections.get_lgd_projections(lgd="N09000003")
+        assert (df["lgd_code"] == "N09000003").all()
+
+    def test_filter_by_year(self, lgd_data):
+        df = population_projections.get_lgd_projections(start_year=2030, end_year=2035)
+        assert df["year"].min() >= 2030
+        assert df["year"].max() <= 2035
+
+    def test_validate_rejects_empty(self):
+        with pytest.raises(NISRAValidationError, match="empty"):
+            population_projections.validate_lgd_projections(pd.DataFrame())
+
+    def test_validate_rejects_wrong_lgd_count(self):
+        bad = pd.DataFrame({
+            "lgd_name": ["Belfast"], "lgd_code": ["N09000003"],
+            "year": [2025], "sex": ["Male"], "age_group": ["00-04"], "population": [1000],
+        })
+        with pytest.raises(NISRAValidationError, match="11 LGDs"):
+            population_projections.validate_lgd_projections(bad)
+
+    def test_chronological_years(self, lgd_data):
+        years = sorted(lgd_data["year"].unique())
+        for i in range(len(years) - 1):
+            assert years[i + 1] - years[i] == 1, f"Gap between {years[i]} and {years[i+1]}"

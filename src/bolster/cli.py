@@ -32,6 +32,7 @@ from .data_sources.nisra import marriages as nisra_marriages
 from .data_sources.nisra import migration as nisra_migration
 from .data_sources.nisra import planning_statistics as nisra_planning
 from .data_sources.nisra import population as nisra_population
+from .data_sources.nisra import population_projections as nisra_projections
 from .data_sources.nisra import registrar_general as nisra_registrar_general
 from .data_sources.nisra import wellbeing as nisra_wellbeing
 from .data_sources.nisra.tourism import occupancy as nisra_occupancy
@@ -2093,6 +2094,83 @@ def nisra_population_cmd(area, year, output_format, force_refresh, save):
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
         console.print("   • Visit NISRA website to verify data availability")
+        raise click.Abort() from e
+
+
+@nisra.command(name="population-projections")
+@click.option("--lgd", is_flag=True, default=False, help="Show LGD sub-area projections instead of NI-level")
+@click.option("--lgd-name", default=None, help="Filter LGD projections to a specific LGD name or code")
+@click.option("--start-year", type=int, default=None, help="Filter projections from this year (inclusive)")
+@click.option("--end-year", type=int, default=None, help="Filter projections to this year (inclusive)")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, default=False, help="Bypass cache and download fresh data")
+@click.option("--save", type=click.Path(), default=None, help="Save output to file")
+def nisra_population_projections_cmd(lgd, lgd_name, start_year, end_year, output_format, force_refresh, save):
+    r"""NISRA Population Projections for Northern Ireland.
+
+    By default returns NI-level principal projections (2024-based, to 2074).
+    Use --lgd to get LGD sub-area projections (2022-based, 11 districts, to 2047).
+
+    \b
+    Examples:
+        bolster nisra population-projections
+        bolster nisra population-projections --start-year 2025 --end-year 2035
+        bolster nisra population-projections --lgd
+        bolster nisra population-projections --lgd --lgd-name Belfast
+        bolster nisra population-projections --lgd --lgd-name N09000003
+    """
+    from rich.console import Console
+
+    console = Console()
+    try:
+        if lgd:
+            data = nisra_projections.get_lgd_projections(
+                lgd=lgd_name,
+                start_year=start_year,
+                end_year=end_year,
+                force_refresh=force_refresh,
+            )
+            console.print(
+                f"[bold]NI LGD Population Projections (2022-based)[/bold] — "
+                f"{data['lgd_name'].nunique()} LGDs, "
+                f"{data['year'].min()}–{data['year'].max()}"
+            )
+        else:
+            data = nisra_projections.get_latest_projections(
+                start_year=start_year,
+                end_year=end_year,
+                force_refresh=force_refresh,
+            )
+            base = data["base_year"].iloc[0] if not data.empty else "?"
+            console.print(
+                f"[bold]NI Population Projections ({base}-based)[/bold] — {data['year'].min()}–{data['year'].max()}"
+            )
+
+        if save:
+            try:
+                if output_format == "json":
+                    data.to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]✓ Saved to {save}[/green]")
+                return
+            except Exception as e:
+                console.print(f"[red]❌ Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
         raise click.Abort() from e
 
 
