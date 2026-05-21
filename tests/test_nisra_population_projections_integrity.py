@@ -220,3 +220,43 @@ class TestLGDProjectionsIntegrity:
         years = sorted(lgd_data["year"].unique())
         for i in range(len(years) - 1):
             assert years[i + 1] - years[i] == 1, f"Gap between {years[i]} and {years[i+1]}"
+
+
+class TestLGDValidationUnit:
+    """Unit tests for LGD validation error paths — no network calls."""
+
+    def test_validate_rejects_negative_population(self):
+        bad = pd.DataFrame({
+            "lgd_name": ["Belfast"] * 11,
+            "lgd_code": [f"N090000{i:02d}" for i in range(1, 12)],
+            "year": [2025] * 11,
+            "sex": ["Male"] * 11,
+            "age_group": ["00-04"] * 11,
+            "population": [-1] * 11,
+        })
+        with pytest.raises(NISRAValidationError, match="Negative"):
+            population_projections.validate_lgd_projections(bad)
+
+    def test_validate_rejects_stale_year(self):
+        bad = pd.DataFrame({
+            "lgd_name": ["Belfast"] * 11,
+            "lgd_code": [f"N090000{i:02d}" for i in range(1, 12)],
+            "year": [2030] * 11,
+            "sex": ["Male"] * 11,
+            "age_group": ["00-04"] * 11,
+            "population": [100] * 11,
+        })
+        with pytest.raises(NISRAValidationError, match="2022"):
+            population_projections.validate_lgd_projections(bad)
+
+    def test_parse_lgd_file_missing_columns(self, tmp_path):
+        import openpyxl
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Flat"
+        ws.append(["Wrong", "Column", "Names"])
+        ws.append([1, 2, 3])
+        p = tmp_path / "bad.xlsx"
+        wb.save(p)
+        with pytest.raises(NISRAValidationError, match="Missing expected columns"):
+            population_projections.parse_lgd_projections_file(p)
