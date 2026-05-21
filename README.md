@@ -216,9 +216,15 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Tourism - SSA Occupancy | `nisra.tourism.occupancy` | ✅ |
 | Tourism - Visitor Statistics | `nisra.tourism.visitor_statistics` | ✅ |
 | Baby Names NI (annual, 1997–present) | `nisra.baby_names` | ✅ |
-| Security Situation Statistics | - | Planned |
+| NI School Suspensions (DE) | `education_suspensions` | ✅ |
+| Work Quality NI (NISRA) | `nisra.work_quality` | ✅ |
+| Security Situation Statistics | - | ❌ Cloudflare-blocked |
+| Anti-social Behaviour | - | ❌ Cloudflare-blocked |
+| Domestic Abuse Incidents/Crimes | - | ❌ Cloudflare-blocked |
+| Drug Seizures & Arrests | - | ❌ Cloudflare-blocked |
+| Hate Incidents & Crimes | - | ❌ Cloudflare-blocked |
 | Road Traffic Collisions | `psni.road_traffic_collisions` | ✅ |
-| PSNI Crime Statistics | `psni.crime_statistics` | ⚠️ stale (to Dec 2021) |
+| PSNI Crime Statistics | `psni.crime_statistics` | ⚠️ historical only (Apr 2001–Dec 2021); `get_latest` raises `PSNIDataStaleError` |
 
 #### Infrastructure NI Publication Discovery
 

@@ -6,7 +6,7 @@ Data includes:
 - Monthly crime counts by crime type and policing district
 - Geographic breakdown by 11 policing districts (aligned with LGDs)
 - Outcome data (charges, cautions, etc.) by district
-- Historical time series from April 2001 onwards
+- Historical time series from April 2001 to December 2021
 - Integration with NISRA datasets via LGD and NUTS3 codes
 
 Data Source:
@@ -14,29 +14,32 @@ Data Source:
 
     https://www.opendatani.gov.uk/dataset/police-recorded-crime-in-northern-ireland
 
-    The PSNI website uses Cloudflare protection, so this module uses the
-    OpenDataNI mirror which provides direct CSV downloads. Data is published
-    quarterly by PSNI and made available through OpenDataNI under the Open
-    Government Licence v3.0.
+    **DATA LIMITATION — STALE SINCE JANUARY 2022**:
 
-    **PSNI Official Statistics**: https://www.psni.police.uk/about-us/our-publications-and-reports/official-statistics/police-recorded-crime-statistics
+    The OpenDataNI dataset was last updated 27 January 2022 and only contains
+    data through December 2021. PSNI stopped pushing updates to OpenDataNI after
+    that date. The PSNI official statistics page publishes quarterly Excel files
+    with current data, but psni.police.uk is protected by Cloudflare which
+    blocks automated downloads.
 
-    **DATA LIMITATION**: The OpenDataNI dataset was last updated January 2022
-    and only contains data through December 2021. For 2022-2025 data, consult
-    PSNI's quarterly PDF bulletins at the official statistics website above, or
-    contact PSNI Statistics Branch (statistics@psni.police.uk).
+    Calling ``get_latest_crime_statistics()`` will raise ``PSNIDataStaleError``
+    to make this limitation explicit. The historical data (Apr 2001–Dec 2021)
+    remains accessible via ``get_historical_crime_statistics()``.
 
-Update Frequency: Quarterly (end of Jan, May, Jul, Oct) - **STALE SINCE 2022**
+    For 2022+ data, consult PSNI directly:
+    - Official stats page: https://www.psni.police.uk/about-us/our-publications-and-reports/official-statistics/police-recorded-crime-statistics
+    - Contact: statistics@psni.police.uk
+
+Update Frequency: Quarterly (end of Jan, May, Jul, Oct) — **STALE SINCE 2022**
 Geographic Coverage: Northern Ireland (11 policing districts + NI total)
 Reference Date: Month of crime occurrence
-Time Coverage: April 2001 to December 2021 (OpenDataNI dataset)
+Time Coverage: April 2001 to December 2021
 
 Example:
     >>> from bolster.data_sources.psni import crime_statistics
-    >>> df = crime_statistics.get_latest_crime_statistics()
+    >>> df = crime_statistics.get_historical_crime_statistics()
     >>> sorted(df.columns.tolist())
     ['calendar_year', 'count', 'crime_type', 'data_measure', 'date', 'lgd_code', 'month', 'nuts3_code', 'nuts3_name', 'policing_district']
-    >>> belfast = df[df['policing_district'] == 'Belfast City']
     >>> belfast_lgd = crime_statistics.get_lgd_code('Belfast City')
     >>> belfast_lgd
     'N09000003'
@@ -49,6 +52,7 @@ from pathlib import Path
 import pandas as pd
 
 from ._base import (
+    PSNIDataStaleError,
     PSNIValidationError,
     download_file,
     get_lgd_code,
@@ -230,60 +234,63 @@ def get_latest_crime_statistics(
     force_refresh: bool = False,
     add_geographic_codes: bool = True,
 ) -> pd.DataFrame:
-    """Get the latest police recorded crime statistics.
+    """Raises PSNIDataStaleError — use get_historical_crime_statistics() instead.
 
-    Downloads the crime statistics CSV from OpenDataNI, caches it,
-    and parses it into a pandas DataFrame with optional geographic
-    codes for cross-dataset integration.
+    The OpenDataNI source was last updated January 2022. PSNI's official site
+    publishes current data but is Cloudflare-protected and inaccessible to
+    automated downloads. Use ``get_historical_crime_statistics()`` to access
+    the data available (Apr 2001–Dec 2021).
 
-    **WARNING**: This dataset was last updated in January 2022 and only
-    contains data through December 2021. The function will log a warning
-    if the data is more than 1 year old.
+    Raises:
+        PSNIDataStaleError: Always — this data source has no accessible update.
+    """
+    raise PSNIDataStaleError(
+        "PSNI crime statistics are stale since January 2022 (last data: December 2021). "
+        "The OpenDataNI mirror has not been updated and the official PSNI website "
+        "(psni.police.uk) is Cloudflare-protected, blocking automated access to 2022+ data. "
+        "To access the available historical data (Apr 2001–Dec 2021), use "
+        "get_historical_crime_statistics() instead. "
+        "For current data, visit: https://www.psni.police.uk/about-us/our-publications-and-reports/official-statistics/police-recorded-crime-statistics "
+        "or contact: statistics@psni.police.uk"
+    )
+
+
+def get_historical_crime_statistics(
+    force_refresh: bool = False,
+    add_geographic_codes: bool = True,
+) -> pd.DataFrame:
+    """Get historical police recorded crime statistics (April 2001 – December 2021).
+
+    Downloads the crime statistics CSV from OpenDataNI. This dataset covers
+    April 2001 through December 2021 and has not been updated since January 2022.
+    For 2022+ data, consult PSNI directly.
 
     Args:
         force_refresh: If True, bypass cache and download fresh data
         add_geographic_codes: If True, add LGD and NUTS3 code columns
 
     Returns:
-        DataFrame with crime statistics (see parse_crime_statistics_file for columns)
+        DataFrame with columns: date, calendar_year, month, policing_district,
+        crime_type, data_measure, count, lgd_code, nuts3_code, nuts3_name
 
     Raises:
         PSNIDataNotFoundError: If download fails
         PSNIValidationError: If file structure is unexpected
 
     Example:
-        >>> # Get all crime data (NOTE: only through Dec 2021)
-        >>> df = get_latest_crime_statistics()
+        >>> df = get_historical_crime_statistics()
         >>> sorted(df.columns.tolist())
         ['calendar_year', 'count', 'crime_type', 'data_measure', 'date', 'lgd_code', 'month', 'nuts3_code', 'nuts3_name', 'policing_district']
-        >>>
-        >>> # Filter to recent data
-        >>> recent = df[df['date'] >= '2020-01-01']
-        >>> len(recent) > 0
-        True
+        >>> df['date'].max().year
+        2021
     """
-    logger.info("Fetching PSNI crime statistics from OpenDataNI")
-
-    # Cache for 90 days (quarterly updates, but allow for delays)
-    cache_ttl_hours = 90 * 24
-    file_path = download_file(CRIME_STATISTICS_URL, cache_ttl_hours=cache_ttl_hours, force_refresh=force_refresh)
-
-    # Parse the file
-    df = parse_crime_statistics_file(file_path, add_geographic_codes=add_geographic_codes)
-
-    # Check data staleness and warn users
-    latest_date = df["date"].max()
-    age_days = (datetime.now() - latest_date).days
-    age_years = age_days / 365.25
-
-    if age_days > 365:
-        logger.warning(
-            f"⚠️  Data is {age_years:.1f} years old (latest: {latest_date.strftime('%B %Y')}). "
-            f"OpenDataNI dataset has not been updated since January 2022. "
-            f"For 2022-2025 data, consult PSNI quarterly bulletins or contact statistics@psni.police.uk"
-        )
-
-    return df
+    logger.warning(
+        "Loading historical PSNI crime statistics (Apr 2001–Dec 2021). "
+        "This dataset has not been updated since January 2022. "
+        "For current data visit https://www.psni.police.uk/about-us/our-publications-and-reports/official-statistics/police-recorded-crime-statistics"
+    )
+    file_path = download_file(CRIME_STATISTICS_URL, cache_ttl_hours=24 * 90, force_refresh=force_refresh)
+    return parse_crime_statistics_file(file_path, add_geographic_codes=add_geographic_codes)
 
 
 def validate_crime_statistics(df: pd.DataFrame) -> bool:  # pragma: no cover
