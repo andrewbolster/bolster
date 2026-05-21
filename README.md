@@ -203,7 +203,8 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Monthly Stillbirths | `nisra.stillbirths` | ✅ |
 | Population Estimates | `nisra.population` | ✅ |
 | Migration Estimates (Derived + Official LTI) | `nisra.migration` | ✅ |
-| Population Projections (2022-based, 2022–2072) | `nisra.population_projections` | ✅ |
+| Population Projections (NI-level, biennial vintage) | `nisra.population_projections` | ✅ |
+| Population Projections — LGD sub-areas (2022-based, 2022–2047) | `nisra.population_projections` | ✅ |
 | Annual Survey of Hours & Earnings | `nisra.ashe` | ✅ |
 | DVA Monthly Tests Statistics | `dva` | ✅ |
 | UK Gender Pay Gap Reporting | `gender_pay_gap` | ✅ |
