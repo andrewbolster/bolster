@@ -23,7 +23,6 @@ from .data_sources.nisra import ashe as nisra_ashe
 from .data_sources.nisra import baby_names as nisra_baby_names
 from .data_sources.nisra import births as nisra_births
 from .data_sources.nisra import cancer_waiting_times as nisra_cancer
-from .data_sources.nisra import child_protection as nisra_child_protection
 from .data_sources.nisra import composite_index as nisra_composite
 from .data_sources.nisra import construction_output as nisra_construction
 from .data_sources.nisra import deaths as nisra_deaths
@@ -4593,110 +4592,6 @@ def nisra_emergency_care_cmd(output_format, trust, attendance_type, year, save):
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
         console.print("\n[yellow]Troubleshooting:[/yellow]")
         console.print("   • Check your internet connection")
-        raise click.Abort() from e
-
-
-@nisra.command(name="child-protection")
-@click.option(
-    "--measure",
-    type=click.Choice(
-        ["referrals", "cpr-trend", "investigations", "abuse-categories", "all"],
-        case_sensitive=False,
-    ),
-    default="all",
-    help="Which measure to show (default: all)",
-)
-@click.option("--year", type=int, help="Filter data for a specific year")
-@click.option(
-    "--format",
-    "output_format",
-    type=click.Choice(["csv", "json"], case_sensitive=False),
-    default="csv",
-    help="Output format (default: csv)",
-)
-@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
-@click.option("--save", help="Save output to file (specify filename)")
-def nisra_child_protection_cmd(measure, year, output_format, force_refresh, save):
-    r"""NISRA Children's Social Care — Child Protection Statistics.
-
-    Annual statistics on child protection in Northern Ireland drawn from the
-    Children Order Return (CPR) series, published by the Department of Health.
-
-    Measures available:
-
-    \b
-        referrals         NI-wide and per-trust referral counts (2013/14–present)
-        cpr-trend         Children on the Child Protection Register by trust (2015–present)
-        investigations    CP investigations by trust (2015–present)
-        abuse-categories  Register entries by category of abuse (2015–present)
-        all               All of the above combined (default)
-
-    Examples::
-
-        bolster nisra child-protection
-        bolster nisra child-protection --measure referrals
-        bolster nisra child-protection --measure cpr-trend --year 2023
-        bolster nisra child-protection --save cp_data.csv
-
-    Data source:
-        https://www.health-ni.gov.uk/topics/childrens-services-statistics
-    """
-    console = Console()
-
-    measure_map = {
-        "referrals": ["referrals_ni_total", "referrals_by_trust"],
-        "cpr-trend": ["cpr_registrations_ni_total", "cpr_registrations_trust_snapshot"],
-        "investigations": ["investigations_ni_total", "investigations_by_trust"],
-        "abuse-categories": ["cpr_by_abuse_category"],
-    }
-
-    try:
-        with console.status("[bold green]Downloading latest child protection data..."):
-            df = nisra_child_protection.get_latest_child_protection(force_refresh=force_refresh)
-
-        # Filter by measure
-        if measure != "all":
-            codes = measure_map.get(measure, [])
-            df = df[df["measure"].isin(codes)]
-
-        # Filter by year
-        if year is not None:
-            df = df[df["year"] == year]
-            if df.empty:
-                console.print(f"[yellow]No data found for year {year}[/yellow]")
-                return
-
-        console.print(f"[green]Retrieved {len(df)} child protection records[/green]")
-        if not df.empty:
-            min_year = int(df["year"].min())
-            max_year = int(df["year"].max())
-            console.print(f"[dim]Years: {min_year}–{max_year}[/dim]")
-            console.print(f"[dim]Measures: {', '.join(sorted(df['measure'].unique()))}[/dim]")
-
-        # Save or display
-        if save:
-            try:
-                if output_format == "json" or save.endswith(".json"):
-                    df.to_json(save, orient="records", indent=2)
-                else:
-                    df.to_csv(save, index=False)
-                console.print(f"[green]Data saved to: {save}[/green]")
-                return
-            except Exception as e:
-                console.print(f"[red]Error saving file: {e}[/red]")
-                return
-
-        if output_format == "json":
-            click.echo(df.to_json(orient="records", indent=2))
-        else:
-            console.print("\n[bold]Data:[/bold]")
-            console.print(df.to_csv(index=False), end="")
-
-    except Exception as e:
-        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
-        console.print("\n[yellow]Troubleshooting:[/yellow]")
-        console.print("   • Check your internet connection")
-        console.print("   • Try again with --force-refresh to bypass cache")
         raise click.Abort() from e
 
 
