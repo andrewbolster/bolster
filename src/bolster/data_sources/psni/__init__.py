@@ -26,6 +26,7 @@ Example:
 See individual module docstrings for detailed documentation.
 """
 
+from . import stop_and_search
 from ._base import (
     PSNIDataError,
     PSNIDataNotFoundError,
@@ -78,6 +79,8 @@ from .road_traffic_collisions import (
 )
 
 __all__ = [
+    # Stop and Search module
+    "stop_and_search",
     # Crime Statistics - Main functions
     "get_historical_crime_statistics",
     "get_latest_crime_statistics",
