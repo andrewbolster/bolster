@@ -26,6 +26,7 @@ from .data_sources.nisra import cancer_waiting_times as nisra_cancer
 from .data_sources.nisra import composite_index as nisra_composite
 from .data_sources.nisra import construction_output as nisra_construction
 from .data_sources.nisra import deaths as nisra_deaths
+from .data_sources.nisra import disease_prevalence as nisra_disease_prevalence
 from .data_sources.nisra import emergency_care_waiting_times as nisra_emergency
 from .data_sources.nisra import index_of_production as nisra_iop
 from .data_sources.nisra import index_of_services as nisra_ios
@@ -5701,6 +5702,114 @@ def nisra_public_confidence_cmd(breakdown, output_format, force_refresh, save):
                 rich_table.add_column(col, style="cyan" if col == "year" else "white")
             for _, row in data.iterrows():
                 rich_table.add_row(*[str(v) for v in row])
+            console.print(rich_table)
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@nisra.command(name="disease-prevalence")
+@click.option("--register", default=None, help="Filter by register name (case-insensitive substring match)")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_disease_prevalence_cmd(register, output_format, force_refresh, save):
+    r"""NI Raw Disease Prevalence Statistics (Department of Health).
+
+    \b
+    Annual disease register sizes and prevalence per 1,000 patients for
+    Northern Ireland, covering 2004/05 to the most recently published year.
+    Data originate from GP clinical disease registers (QOF).
+
+    Examples:
+        Full NI disease prevalence time series::
+
+            bolster nisra disease-prevalence
+
+        Filter to hypertension register::
+
+            bolster nisra disease-prevalence --register hypertension
+
+        Export as CSV::
+
+            bolster nisra disease-prevalence --format csv --save disease.csv
+
+        Latest data as JSON::
+
+            bolster nisra disease-prevalence --format json
+
+    Source:
+        https://www.health-ni.gov.uk/articles/prevalence-statistics
+    """
+    from rich.table import Table as RichTable
+
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading NI disease prevalence data..."):
+            data = nisra_disease_prevalence.get_latest_disease_prevalence(force_refresh=force_refresh)
+
+        if register is not None:
+            mask = data["register"].str.contains(register, case=False, na=False)
+            data = data[mask]
+            if data.empty:
+                console.print(f"[yellow]No data found for register matching '{register}'[/yellow]")
+                available = nisra_disease_prevalence.get_latest_disease_prevalence()["register"].unique()
+                console.print(f"[dim]Available registers: {', '.join(sorted(available))}[/dim]")
+                return
+
+        console.print("[green]Disease prevalence data retrieved successfully[/green]")
+        console.print(
+            f"[cyan]Rows: {len(data)} | Registers: {data['register'].nunique()} | "
+            f"Years: {data['financial_year'].nunique()}[/cyan]"
+        )
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        elif output_format == "csv":
+            console.print(data.to_csv(index=False), end="")
+        else:
+            rich_table = RichTable(title="NI Disease Prevalence (NI Summary)")
+            rich_table.add_column("Financial Year", style="cyan", width=14)
+            rich_table.add_column("Register", style="white")
+            rich_table.add_column("Registered Patients", justify="right", style="green")
+            rich_table.add_column("Prevalence /1000", justify="right", style="yellow")
+
+            for _, row in data.iterrows():
+                pat = f"{int(row['registered_patients']):,}" if pd.notna(row["registered_patients"]) else "-"
+                prev = f"{row['prevalence_per_1000']:.1f}" if pd.notna(row["prevalence_per_1000"]) else "-"
+                rich_table.add_row(
+                    str(row["financial_year"]),
+                    str(row["register"]),
+                    pat,
+                    prev,
+                )
+
             console.print(rich_table)
 
     except Exception as e:
