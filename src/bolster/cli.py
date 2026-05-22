@@ -6008,6 +6008,7 @@ def nisra_disease_prevalence_cmd(register, output_format, force_refresh, save):
         elif output_format == "csv":
             console.print(data.to_csv(index=False), end="")
         else:
+            # Rich table — show a summary view
             rich_table = RichTable(title="NI Disease Prevalence (NI Summary)")
             rich_table.add_column("Financial Year", style="cyan", width=14)
             rich_table.add_column("Register", style="white")
