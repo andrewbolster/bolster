@@ -1471,6 +1471,8 @@ def nisra_feed(limit: int, title_filter: str, days: int, check_coverage: bool):
         "wellbeing": "wellbeing",
         "cancer waiting": "cancer-waiting-times",
         "planning": "planning-statistics",
+        "claimant count": "claimant-count",
+        "claimant": "claimant-count",
     }
 
     with console.status("Fetching NISRA RSS feed..."):
@@ -5484,6 +5486,117 @@ def nisra_work_quality_cmd(indicator, year, output_format, force_refresh, save):
         console.print("\n[yellow]Troubleshooting:[/yellow]")
         console.print("   - Check your internet connection")
         console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@nisra.command(name="claimant-count")
+@click.option(
+    "--breakdown",
+    type=click.Choice(["headline", "age", "lgd", "pca", "ttwa"], case_sensitive=False),
+    default="headline",
+    help="Data breakdown to retrieve (default: headline)",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_claimant_count_cmd(breakdown, output_format, force_refresh, save):
+    r"""NISRA Claimant Count statistics (UC + JSA).
+
+    \b
+    Monthly experimental statistics measuring the number of people claiming
+    Universal Credit (UC) or Jobseeker's Allowance (JSA) principally for
+    the reason of being unemployed. Data covers Northern Ireland with
+    multiple geographic and demographic breakdowns.
+
+    Breakdowns available:
+        headline    NI total by sex, seasonally adjusted + non-SA (from 1997)
+        age         NI total by age band: 16-24, 25-49, 50+ (from 2013)
+        lgd         11 Local Government Districts (current month snapshot)
+        pca         18 Parliamentary Constituency Areas (current month snapshot)
+        ttwa        10 Travel-to-Work Areas (current month snapshot)
+
+    Examples:
+        Show latest headline claimant count in a table::
+
+            bolster nisra claimant-count
+
+        Show age breakdown as CSV::
+
+            bolster nisra claimant-count --breakdown age --format csv
+
+        Save LGD data to file::
+
+            bolster nisra claimant-count --breakdown lgd --save lgd.csv
+
+        Export PCA data as JSON::
+
+            bolster nisra claimant-count --breakdown pca --format json --save pca.json
+
+    Source:
+        https://www.nisra.gov.uk/statistics/labour-market-and-social-welfare/claimant-count
+    """
+    from rich.table import Table
+
+    from bolster.data_sources.nisra import claimant_count as cc_module
+
+    console = Console()
+
+    try:
+        with console.status(f"[bold green]Downloading NISRA claimant count ({breakdown})..."):
+            data = cc_module.get_latest_claimant_count(breakdown=breakdown, force_refresh=force_refresh)
+
+        console.print(f"[green]Claimant count ({breakdown}) retrieved successfully[/green]")
+        console.print(f"[cyan]Rows: {len(data)}[/cyan]")
+
+        if not data.empty and "date" in data.columns:
+            min_date = data["date"].min()
+            max_date = data["date"].max()
+            if pd.notna(min_date) and pd.notna(max_date):
+                console.print(f"[dim]Date range: {min_date.strftime('%b %Y')} – {max_date.strftime('%b %Y')}[/dim]")
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", date_format="iso", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "table":
+            table = Table(title=f"Claimant Count — {breakdown}", show_header=True, header_style="bold cyan")
+            for col in data.columns:
+                table.add_column(str(col))
+            for _, row in data.head(50).iterrows():
+                table.add_row(*[str(v) for v in row.values])
+            console.print(table)
+            if len(data) > 50:
+                console.print(f"\n[yellow]Showing first 50 of {len(data)} rows[/yellow]")
+
+        elif output_format == "csv":
+            click.echo(data.to_csv(index=False))
+
+        elif output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        console.print("   - Visit NISRA website to verify data availability")
         raise click.Abort() from e
 
 
