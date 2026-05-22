@@ -35,6 +35,7 @@ from .data_sources.nisra import migration as nisra_migration
 from .data_sources.nisra import planning_statistics as nisra_planning
 from .data_sources.nisra import population as nisra_population
 from .data_sources.nisra import population_projections as nisra_projections
+from .data_sources.nisra import public_confidence as nisra_public_confidence
 from .data_sources.nisra import registrar_general as nisra_registrar_general
 from .data_sources.nisra import wellbeing as nisra_wellbeing
 from .data_sources.nisra import work_quality as nisra_work_quality
@@ -5583,6 +5584,124 @@ def nisra_work_quality_cmd(indicator, year, output_format, force_refresh, save):
             click.echo(data.to_json(orient="records", indent=2))
         else:
             console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@nisra.command(name="public-confidence")
+@click.option(
+    "--breakdown",
+    type=click.Choice(
+        [
+            "awareness",
+            "trust-nisra",
+            "trust-civil-service",
+            "trust-ni-assembly",
+            "trust-media",
+            "trust-nisra-statistics",
+            "all-trust",
+        ],
+        case_sensitive=False,
+    ),
+    default="awareness",
+    help="Which breakdown to retrieve (default: awareness)",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify path)")
+def nisra_public_confidence_cmd(breakdown, output_format, force_refresh, save):
+    r"""NISRA Public Confidence in Official Statistics (PCOS).
+
+    \b
+    Annual survey measuring public awareness of and trust in NISRA and official
+    statistics, drawn from the Northern Ireland Continuous Household Survey (CHS).
+    Data covers 2009–present for awareness and 2014–present for trust measures.
+
+    Breakdowns:
+        awareness             Awareness of NISRA (2009–present)
+        trust-nisra           Trust in NISRA as an institution (2014–present)
+        trust-civil-service   Trust in the Civil Service (2014–present)
+        trust-ni-assembly     Trust in the NI Assembly/elected bodies (2014–present)
+        trust-media           Trust in the Media (2014–present)
+        trust-nisra-statistics Trust in statistics produced by NISRA (2014–present)
+        all-trust             All five trust topics combined (adds topic column)
+
+    Examples:
+        Awareness of NISRA over time::
+
+            bolster nisra public-confidence
+
+        Trust in NISRA statistics::
+
+            bolster nisra public-confidence --breakdown trust-nisra-statistics
+
+        All trust topics as JSON::
+
+            bolster nisra public-confidence --breakdown all-trust --format json
+
+        Save awareness data to CSV::
+
+            bolster nisra public-confidence --save awareness.csv
+
+    Source:
+        https://www.nisra.gov.uk/statistics/people-and-communities/public-awareness-and-trust-confidence-official-statistics-pcos
+    """
+    from rich.table import Table
+
+    console = Console()
+
+    # Normalise hyphenated CLI choice to underscore key expected by the module
+    breakdown_key = breakdown.replace("-", "_")
+
+    try:
+        with console.status("[bold green]Downloading NISRA public confidence data..."):
+            data = nisra_public_confidence.get_latest_public_confidence(
+                breakdown=breakdown_key,
+                force_refresh=force_refresh,
+            )
+
+        console.print("[green]Public confidence data retrieved successfully[/green]")
+        console.print(f"[cyan]Rows: {len(data)}[/cyan]")
+        if not data.empty and "year" in data.columns:
+            console.print(f"[dim]Years: {data['year'].min()}–{data['year'].max()}[/dim]")
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        elif output_format == "csv":
+            console.print(data.to_csv(index=False), end="")
+        else:
+            rich_table = Table(title=f"NISRA Public Confidence — {breakdown}")
+            for col in data.columns:
+                rich_table.add_column(col, style="cyan" if col == "year" else "white")
+            for _, row in data.iterrows():
+                rich_table.add_row(*[str(v) for v in row])
+            console.print(rich_table)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
