@@ -52,6 +52,7 @@ DOH_BASE_URL = "https://www.health-ni.gov.uk"
 # ── Sheet names ───────────────────────────────────────────────────────────────
 _SHEET_TABLE1 = "Table 1 Prevalence Registers"
 _SHEET_TABLE2 = "Table 2 Prevalence per 1000 pts"
+_SHEET_TABLE4 = "Table 4 GP practice details"
 
 # Cache TTL: annual publication → 24*365 hours
 _CACHE_TTL = 24 * 365
@@ -413,6 +414,88 @@ def validate_disease_prevalence(df: pd.DataFrame, level: str = "ni") -> bool:
     return True
 
 
+# ── GP practice lookup (Table 4) ─────────────────────────────────────────────
+
+
+def parse_gp_practice_lookup(file_path, sheet_name: str | None = None) -> pd.DataFrame:
+    """Parse Table 4 (GP practice details) into a lookup DataFrame.
+
+    Table 4 is a single sheet in the workbook that provides the canonical
+    practice name, address, and postcode for every GP practice code.  It
+    is used to populate the ``practice_name`` column that is absent from
+    the Table 5 prevalence sheets.
+
+    The sheet header row is at row index 7 (0-based).  Data rows start
+    immediately below and continue until the last row; all ``Practice ID``
+    values start with ``"Z"``.
+
+    Args:
+        file_path: Path to the downloaded ``.xlsx`` workbook.
+        sheet_name: Sheet name override.  If ``None`` (default), uses the
+            constant ``_SHEET_TABLE4`` (``"Table 4 GP practice details"``).
+
+    Returns:
+        DataFrame with columns:
+            - ``practice_code`` (str): Practice identifier (e.g. ``"Z00001"``)
+            - ``practice_name`` (str): Practice name (e.g. ``"Dr. IRWIN"``)
+            - ``address`` (str or None): Full formatted address (Address1 /
+              Address2 / Address3 joined, NaN parts dropped)
+            - ``postcode`` (str or None): Postcode (e.g. ``"BT4 1NS"``)
+
+    Raises:
+        NISRADataNotFoundError: If the sheet cannot be found in the workbook.
+
+    Example:
+        >>> lkp = parse_gp_practice_lookup("/tmp/rdptd-tables-2026.xlsx")
+        >>> "practice_code" in lkp.columns
+        True
+        >>> lkp["practice_code"].str.startswith("Z").all()
+        True
+    """
+    target_sheet = sheet_name if sheet_name is not None else _SHEET_TABLE4
+    try:
+        raw = pd.read_excel(file_path, sheet_name=target_sheet, header=None, engine="openpyxl")
+    except ValueError as exc:
+        raise NISRADataNotFoundError(f"Sheet {target_sheet!r} not found in workbook {file_path}: {exc}") from exc
+
+    # Row 7 (0-indexed) contains column headers; data starts at row 8.
+    # Columns: 0=Practice number, 1=Practice ID, 2=PracticeName,
+    #          3=Address1, 4=Address2, 5=Address3, 6=Postcode, 7=Comments
+    records: list[dict] = []
+    for row_idx in range(8, len(raw)):
+        practice_id_raw = raw.iloc[row_idx, 1]
+        if pd.isna(practice_id_raw):
+            continue
+        pcode = str(practice_id_raw).strip()
+        if not pcode.startswith("Z"):
+            continue  # skip any footer / summary rows
+
+        name_raw = raw.iloc[row_idx, 2]
+        practice_name: str | None = str(name_raw).strip() if pd.notna(name_raw) else None
+
+        # Build a tidy address by joining non-null address parts
+        addr_parts = []
+        for addr_col in (3, 4, 5):
+            v = raw.iloc[row_idx, addr_col]
+            if pd.notna(v) and str(v).strip():
+                addr_parts.append(str(v).strip())
+        address: str | None = ", ".join(addr_parts) if addr_parts else None
+
+        postcode_raw = raw.iloc[row_idx, 6]
+        postcode: str | None = str(postcode_raw).strip() if pd.notna(postcode_raw) else None
+
+        records.append(
+            {
+                "practice_code": pcode,
+                "practice_name": practice_name,
+                "address": address,
+                "postcode": postcode,
+            }
+        )
+
+    return pd.DataFrame(records)
+
+
 # ── GP-practice-level parsing ─────────────────────────────────────────────────
 
 # Table 5 sheet names contain the calendar year of the end of the financial year.
@@ -637,8 +720,9 @@ def parse_gp_practice(file_path, sheet_name: str) -> pd.DataFrame:
         Long-format DataFrame with columns:
 
         - ``practice_code`` (str): Practice identifier (e.g. ``"Z00001"``)
-        - ``practice_name`` (object): Always ``None``; practice names are not
-          included in Table 5 sheets
+        - ``practice_name`` (object): ``None``; practice names are sourced
+          from Table 4 and are joined in :func:`parse_all_gp_practices`
+          rather than at the individual sheet level
         - ``lcg`` (str or None): Local Commissioning Group name
         - ``federation`` (str or None): Federation name; ``None`` for years
           before 2017/18 when the column was not present
@@ -730,6 +814,19 @@ def parse_all_gp_practices(file_path) -> pd.DataFrame:
         raise NISRADataNotFoundError(f"All Table 5 sheets failed to parse in workbook {file_path}")
 
     combined = pd.concat(frames, ignore_index=True)
+
+    # ── Join Table 4 practice names ────────────────────────────────────────────
+    try:
+        lookup = parse_gp_practice_lookup(file_path)
+        if not lookup.empty:
+            name_map = lookup.set_index("practice_code")["practice_name"]
+            combined["practice_name"] = combined["practice_code"].map(name_map)
+            logger.debug("Populated practice_name for %d practices from Table 4", name_map.shape[0])
+        else:
+            logger.warning("Table 4 lookup returned empty DataFrame; practice_name will be None")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Could not load Table 4 practice lookup: %s; practice_name will be None", exc)
+
     return combined.sort_values(["year", "practice_code", "register"]).reset_index(drop=True)
 
 
@@ -749,7 +846,9 @@ def get_latest_gp_prevalence(force_refresh: bool = False) -> pd.DataFrame:
         Long-format DataFrame with columns:
 
         - ``practice_code`` (str): GP practice identifier (e.g. ``"Z00001"``)
-        - ``practice_name`` (object): Always ``None`` (not in source data)
+        - ``practice_name`` (str or None): Practice name from Table 4 lookup
+          (e.g. ``"Dr. IRWIN"``); ``None`` if the practice code is not found
+          in Table 4 (e.g. historical practices no longer listed)
         - ``lcg`` (str or None): Local Commissioning Group
         - ``federation`` (str or None): Federation name (``None`` pre-2017/18)
         - ``financial_year`` (str): Label such as ``"2025/26"``

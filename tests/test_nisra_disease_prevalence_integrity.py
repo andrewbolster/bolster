@@ -293,6 +293,22 @@ class TestGPPracticeIntegrity:
         n = gp_data["financial_year"].nunique()
         assert n >= 17, f"Expected ≥ 17 financial years, got {n}"
 
+    def test_practice_name_populated(self, gp_data: pd.DataFrame) -> None:
+        """practice_name should be populated from Table 4 — not all-null."""
+        assert "practice_name" in gp_data.columns, "practice_name column missing"
+        non_null = gp_data["practice_name"].notna().sum()
+        assert non_null > 0, "practice_name is all-null; Table 4 join may have failed"
+        # Most recent year should have a high fill rate (Table 4 covers current practices)
+        latest_year = gp_data["year"].max()
+        latest = gp_data[gp_data["year"] == latest_year]
+        unique_codes = latest["practice_code"].nunique()
+        named = latest.dropna(subset=["practice_name"])["practice_code"].nunique()
+        fill_rate = named / unique_codes if unique_codes > 0 else 0.0
+        assert fill_rate >= 0.8, (
+            f"practice_name fill rate for {latest_year} is {fill_rate:.0%} "
+            f"({named}/{unique_codes} practices named)"
+        )
+
     def test_validation_passes(self, gp_data: pd.DataFrame) -> None:
         assert dp.validate_disease_prevalence(gp_data, level="gp") is True
 
