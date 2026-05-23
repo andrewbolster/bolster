@@ -5289,6 +5289,113 @@ def psni_ombudsman_cmd(breakdown, output_format, save, force_refresh):
         raise click.Abort() from e
 
 
+@psni.command(name="stop-search")
+@click.option("--year", help="Filter by financial year, e.g. '2023/24'")
+@click.option("--district", help="No district breakdown is available in this dataset (ignored with warning)")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+def psni_stop_search_cmd(year, district, output_format, save, force_refresh):
+    """PSNI Stop and Search Statistics (2017/18 onwards).
+
+    Retrieves individual stop and search records for Northern Ireland covering:
+    - Financial year and quarter
+    - Legislation used (Misuse of Drugs Act, PACE, Justice & Security Act, etc.)
+    - PACE-specific search reasons (stolen articles, prohibited articles, blade/point, fireworks)
+    - Subject demographics (age group, gender)
+
+    Note: This dataset does not include a policing district breakdown.
+    All records are at Northern Ireland level only.
+
+    Examples:
+        Show summary table of all records::
+
+            bolster psni stop-search
+
+        Filter to a specific financial year::
+
+            bolster psni stop-search --year 2023/24
+
+        Export all records to CSV::
+
+            bolster psni stop-search --format csv --save stop_search.csv
+
+        Export 2024/25 data as JSON::
+
+            bolster psni stop-search --year 2024/25 --format json
+
+    Returns:
+        DataFrame with individual stop and search records.
+    """
+    from rich.table import Table
+
+    from bolster.data_sources.psni import stop_and_search
+
+    console = Console()
+
+    try:
+        if district:
+            console.print(
+                "[yellow]Note: This dataset has no district-level breakdown. "
+                "The --district filter is not applicable and will be ignored.[/yellow]\n"
+            )
+
+        console.print("\n[bold blue]Stop and Search Statistics[/bold blue]\n")
+        df = stop_and_search.get_latest_stop_and_search(force_refresh=force_refresh)
+
+        if year:
+            df = df[df["financial_year"] == year]
+            if df.empty:
+                available = sorted(df["financial_year"].cat.categories.tolist())
+                console.print(f"[red]No data found for year '{year}'. Available years: {available}[/red]")
+                return
+
+        title = f"Stop and Search Records ({year or 'all years'})"
+        console.print(f"[bold]{title}[/bold] — {len(df):,} records\n")
+
+        if output_format == "table":
+            table = Table(show_header=True, header_style="bold cyan")
+            for col in df.columns:
+                table.add_column(str(col))
+            display_df = df.head(50)
+            for _, row in display_df.iterrows():
+                table.add_row(*[str(v) for v in row.values])
+            console.print(table)
+            if len(df) > 50:
+                console.print(f"\n[yellow]Showing first 50 of {len(df):,} rows[/yellow]")
+
+        elif output_format == "csv":
+            console.print(df.to_csv(index=False))
+
+        elif output_format == "json":
+            console.print(df.to_json(orient="records", indent=2))
+
+        if save:
+            if save.endswith(".json"):
+                df.to_json(save, orient="records", indent=2)
+            else:
+                df.to_csv(save, index=False)
+            console.print(f"\n[green]Saved to {save}[/green]")
+
+        # Summary stats
+        years_covered = sorted(df["financial_year"].unique().tolist())
+        console.print(
+            f"\n[dim]Financial years: {years_covered[0]}–{years_covered[-1]} | "
+            f"{len(df):,} records | "
+            f"Top legislation: {df['legislation'].value_counts().index[0]}[/dim]"
+        )
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        raise click.Abort() from e
+
+
 @nisra.command(name="planning-statistics")
 @click.option(
     "--dimension",
