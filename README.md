@@ -3,7 +3,7 @@
 ![PyPI](https://img.shields.io/pypi/v/bolster?style=for-the-badge)
 ![Python](https://img.shields.io/pypi/pyversions/bolster?style=for-the-badge)
 ![License](https://img.shields.io/pypi/l/bolster?style=for-the-badge)
-![GitHub Actions](https://img.shields.io/github/actions/workflow/status/andrewbolster/bolster/test.yml?branch=master&style=for-the-badge)
+![GitHub Actions](https://img.shields.io/github/actions/workflow/status/andrewbolster/bolster/test.yml?branch=main&style=for-the-badge)
 ![Code Coverage](https://img.shields.io/codecov/c/github/andrewbolster/bolster?style=for-the-badge)
 ![Documentation](https://img.shields.io/readthedocs/bolster?style=for-the-badge)
 
@@ -221,6 +221,13 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Baby Names NI (annual, 1997–present) | `nisra.baby_names` | ✅ |
 | NI School Suspensions (DE) | `education_suspensions` | ✅ |
 | Work Quality NI (NISRA) | `nisra.work_quality` | ✅ |
+| NI LAC Municipal Waste Statistics (DAERA) | `daera_waste` | ✅ |
+| NI Claimant Count (UC + JSA, DfC/ONS) | `nisra.claimant_count` | ✅ |
+| PSNI Police Ombudsman Complaints | `psni.police_ombudsman` | ✅ |
+| Public Confidence in Official Statistics (NISRA PCOS) | `nisra.public_confidence` | ✅ |
+| Disease Prevalence Registers (PHA/DoH) | `nisra.disease_prevalence` | ✅ |
+| PSNI Stop & Search (OpenDataNI) | `psni.stop_and_search` | ✅ |
+| PSNI PACE Stop & Search / Arrests | `psni.pace` | ✅ |
 | Security Situation Statistics | - | ❌ Cloudflare-blocked |
 | Anti-social Behaviour | - | ❌ Cloudflare-blocked |
 | Domestic Abuse Incidents/Crimes | - | ❌ Cloudflare-blocked |

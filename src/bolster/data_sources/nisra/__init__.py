@@ -10,6 +10,7 @@ Available modules:
     - claimant_count: Monthly Claimant Count (UC + JSA) by sex, age, and geography
     - cancer_waiting_times: Cancer treatment waiting times (14-day, 31-day, 62-day targets)
     - child_protection: Children's Social Care child protection statistics
+    - elective_waiting_times: Elective and outpatient waiting times (inpatient/day-case/outpatient queues)
     - emergency_care_waiting_times: Emergency care (A&E) waiting times against the 4-hour target
     - composite_index: Northern Ireland Composite Economic Index (experimental quarterly economic indicator)
     - construction_output: Quarterly construction output statistics (all work, new work, repair & maintenance)
@@ -104,6 +105,11 @@ Examples:
     >>> 'life_satisfaction' in df.columns
     True
 
+    >>> from bolster.data_sources.nisra import elective_waiting_times as ewt
+    >>> df = ewt.get_latest_elective_waiting_times()
+    >>> 'waiting_time_band' in df.columns
+    True
+
 """
 
 from . import (
@@ -116,6 +122,7 @@ from . import (
     composite_index,
     construction_output,
     deaths,
+    elective_waiting_times,
     emergency_care_waiting_times,
     index_of_production,
     index_of_services,
@@ -143,6 +150,7 @@ __all__ = [
     "composite_index",
     "construction_output",
     "deaths",
+    "elective_waiting_times",
     "emergency_care_waiting_times",
     "index_of_production",
     "index_of_services",

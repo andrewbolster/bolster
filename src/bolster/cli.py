@@ -450,7 +450,7 @@ def ni_house_prices(output_format, save):
 
 
 @cli.command(name="dva")
-@click.option("--latest", is_flag=True, required=True, help="Get the most recent DVA data available")
+@click.option("--latest", is_flag=True, default=True, help="Get the most recent DVA data available")
 @click.option(
     "--test-type",
     type=click.Choice(["vehicle", "driver", "theory", "all"], case_sensitive=False),
@@ -1471,8 +1471,16 @@ def nisra_feed(limit: int, title_filter: str, days: int, check_coverage: bool):
         "wellbeing": "wellbeing",
         "cancer waiting": "cancer-waiting-times",
         "planning": "planning-statistics",
+        "emergency care": "emergency-care",
+        "elective": "elective-waiting-times",
+        "outpatient": "elective-waiting-times",
+        "quarterly employment survey": "quarterly-employment-survey",
         "claimant count": "claimant-count",
         "claimant": "claimant-count",
+        "stillbirth": "stillbirths",
+        "registrar general": "registrar-general",
+        "baby names": "baby-names",
+        "work quality": "work-quality",
     }
 
     with console.status("Fetching NISRA RSS feed..."):
@@ -1790,12 +1798,12 @@ def nisra_labour_market_cmd(dimension, table_deprecated, output_format, force_re
     try:
         with console.status("[bold green]Downloading latest NISRA labour market data..."):
             if dimension == "all":
-                data = nisra_labour_market.get_quarterly_data(
-                    year=2025,
-                    quarter="Jul-Sep",
-                    tables=["employment", "economic_inactivity"],
-                    force_refresh=force_refresh,
-                )
+                data = {
+                    "employment": nisra_labour_market.get_latest_employment(force_refresh=force_refresh),
+                    "economic_inactivity": nisra_labour_market.get_latest_economic_inactivity(
+                        force_refresh=force_refresh
+                    ),
+                }
             elif dimension == "employment":
                 data = nisra_labour_market.get_latest_employment(force_refresh=force_refresh)
             elif dimension == "economic_inactivity":
@@ -3763,7 +3771,7 @@ def nisra_ashe_cmd(metric, dimension, basis, year, output_format, force_refresh,
 
     Args:
         metric: Type of earnings metric (weekly, hourly, or annual)
-        dimension: Data dimension to retrieve (timeseries, geography, or sector)
+        dimension: Data dimension (timeseries, geography, sector, real-earnings, real-earnings-change, real-earnings-index, occupation-change, industry-change, pay-distribution, pay-distribution-by-classification)
         basis: Geographic basis (workplace or residence, for geography dimension only)
         year: Filter data for specific year
         output_format: Output format (csv or json)
@@ -4480,7 +4488,8 @@ def nisra_cancer_cmd(target, dimension, year, output_format, force_refresh, save
 )
 @click.option("--year", type=int, help="Filter data for a specific calendar year")
 @click.option("--save", help="Save output to file (specify filename)")
-def nisra_emergency_care_cmd(output_format, trust, attendance_type, year, save):
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+def nisra_emergency_care_cmd(output_format, trust, attendance_type, year, save, force_refresh):
     """NISRA Emergency Care Waiting Times Statistics.
 
     Monthly A&E performance data for Northern Ireland measuring the 4-hour
@@ -4527,7 +4536,7 @@ def nisra_emergency_care_cmd(output_format, trust, attendance_type, year, save):
 
     try:
         with console.status("[bold green]Downloading emergency care waiting times data..."):
-            data = nisra_emergency.get_latest_data()
+            data = nisra_emergency.get_latest_data(force_refresh=force_refresh)
 
         if trust:
             trust_filter = trust.strip()
@@ -5583,6 +5592,79 @@ def nisra_work_quality_cmd(indicator, year, output_format, force_refresh, save):
         raise click.Abort() from e
 
 
+@nisra.command(name="quarterly-employment-survey")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option(
+    "--adjusted/--unadjusted",
+    default=True,
+    help="Use seasonally adjusted series (default: adjusted)",
+)
+@click.option("--year", type=int, default=None, help="Filter by year")
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_qes_cmd(output_format, adjusted, year, force_refresh, save):
+    r"""NISRA Quarterly Employment Survey (QES).
+
+    \b
+    Employee jobs in Northern Ireland by sector (manufacturing, construction,
+    services, other), Q1 1998 to present. Seasonally adjusted by default.
+
+    Examples:
+        All QES data (seasonally adjusted)::
+
+            bolster nisra quarterly-employment-survey
+
+        Unadjusted series saved as JSON::
+
+            bolster nisra quarterly-employment-survey --unadjusted --format json --save qes.json
+
+        Filter to 2024::
+
+            bolster nisra quarterly-employment-survey --year 2024
+
+    Source:
+        https://www.nisra.gov.uk/statistics/labour-market-and-social-welfare/quarterly-employment-survey
+    """
+    from bolster.data_sources.nisra import quarterly_employment_survey as qes_module
+
+    console = Console()
+    try:
+        with console.status("[bold green]Downloading NISRA Quarterly Employment Survey data..."):
+            data = qes_module.get_latest_qes(force_refresh=force_refresh, adjusted=adjusted)
+
+        if year is not None:
+            data = data[data["year"] == year]
+            if data.empty:
+                console.print(f"[yellow]No data found for year {year}[/yellow]")
+                return
+
+        console.print(f"[cyan]📊 {len(data):,} records[/cyan]")
+
+        if save:
+            if output_format == "json":
+                data.to_json(save, orient="records", indent=2)
+            else:
+                data.to_csv(save, index=False)
+            console.print(f"[green]✅ Saved to {save}[/green]")
+        elif output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        else:
+            click.echo(data.to_csv(index=False))
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
 @nisra.command(name="claimant-count")
 @click.option(
     "--breakdown",
@@ -5691,6 +5773,59 @@ def nisra_claimant_count_cmd(breakdown, output_format, force_refresh, save):
         console.print("   - Check your internet connection")
         console.print("   - Try again with --force-refresh to bypass cache")
         console.print("   - Visit NISRA website to verify data availability")
+        raise click.Abort() from e
+
+
+@psni.command(name="crime")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--save", help="Save data to file (specify filename)")
+def psni_crime_cmd(output_format, save):
+    r"""PSNI historical crime statistics (Apr 2001–Dec 2021).
+
+    \b
+    ⚠️  This data source is STALE. The PSNI no longer publishes the structured
+    OpenDataNI crime statistics dataset used by this module. The data covers
+    April 2001 to December 2021 only and will not be updated.
+
+    For more recent crime data, consult the PSNI's published statistical reports
+    at https://www.psni.police.uk/statistics/
+
+    \b
+    Examples:
+        bolster psni crime --format csv --save crime_history.csv
+        bolster psni crime --format json
+    """
+    from bolster.data_sources.psni import crime_statistics
+
+    console = Console()
+    try:
+        with console.status("[bold yellow]Loading historical PSNI crime data (Apr 2001–Dec 2021)..."):
+            df = crime_statistics.get_historical_crime_statistics()
+
+        console.print("[yellow]⚠️  Data covers Apr 2001–Dec 2021 only (source no longer updated)[/yellow]")
+        console.print(
+            f"[cyan]📊 {len(df):,} records across {df['year_month'].nunique() if 'year_month' in df.columns else '?'} months[/cyan]"
+        )
+
+        if save:
+            if output_format == "json":
+                df.to_json(save, orient="records", indent=2)
+            else:
+                df.to_csv(save, index=False)
+            console.print(f"[green]✅ Saved to {save}[/green]")
+        elif output_format == "json":
+            click.echo(df.to_json(orient="records", indent=2))
+        else:
+            click.echo(df.to_csv(index=False))
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
         raise click.Abort() from e
 
 
@@ -5847,17 +5982,41 @@ def list_sources():
     click.echo("  rss nisra-statistics Browse NISRA publications feed")
     click.echo("                       Research and statistics from NISRA via GOV.UK")
 
-    click.echo("\nDATA SOURCE MODULES")
-    click.echo("  bolster.data_sources.metoffice         - UK Met Office API integration")
-    click.echo("  bolster.data_sources.ni_water          - NI Water quality data")
-    click.echo("  bolster.data_sources.nisra.deaths      - NISRA weekly deaths statistics")
-    click.echo("  bolster.data_sources.dva               - DVA monthly test statistics")
-    click.echo("  bolster.data_sources.wikipedia         - NI Executive Wikipedia scraping")
-    click.echo("  bolster.data_sources.ni_house_price_index - NI house price statistics")
-    click.echo("  bolster.data_sources.cineworld         - Cineworld cinema API")
-    click.echo("  bolster.data_sources.eoni              - Electoral Office NI data")
-    click.echo("  bolster.data_sources.companies_house   - UK Companies House API")
-    click.echo("  bolster.utils.rss                      - RSS/Atom feed parsing utilities")
+    click.echo("\nNISRA DATA MODULES (bolster nisra <command>)")
+    click.echo("  nisra feed                 Browse NISRA RSS publications feed")
+    click.echo("  nisra deaths               Weekly death registrations (demographics, LGDs)")
+    click.echo("  nisra births               Monthly birth registrations")
+    click.echo("  nisra marriages            Monthly marriage registrations")
+    click.echo("  nisra stillbirths          Monthly stillbirth registrations")
+    click.echo("  nisra population           Annual mid-year population estimates")
+    click.echo("  nisra population-projections  Population projections to 2072 (NI + LGD)")
+    click.echo("  nisra migration            Migration estimates (derived + official LTI)")
+    click.echo("  nisra labour-market        Quarterly Labour Force Survey (employment)")
+    click.echo("  nisra quarterly-employment-survey  Employee jobs by sector (QES)")
+    click.echo("  nisra ashe                 Annual earnings survey (10 dimensions)")
+    click.echo("  nisra composite-index      NI Composite Economic Index (NICEI)")
+    click.echo("  nisra index-of-services    Quarterly Index of Services")
+    click.echo("  nisra index-of-production  Quarterly Index of Production")
+    click.echo("  nisra construction-output  Quarterly construction output")
+    click.echo("  nisra cancer-waiting-times Cancer treatment waiting times")
+    click.echo("  nisra emergency-care       Emergency care (A&E) 4-hour waiting times")
+    click.echo("  nisra elective-waiting-times  Elective/outpatient waiting times")
+    click.echo("  nisra wellbeing            Individual wellbeing statistics")
+    click.echo("  nisra work-quality         Work quality indicators (17 dimensions)")
+    click.echo("  nisra planning-statistics  NI planning applications by council")
+    click.echo("  nisra registrar-general    Registrar General quarterly vital statistics")
+    click.echo("  nisra baby-names           Baby name registrations (1997–present)")
+    click.echo("  nisra occupancy            Tourism hotel/SSA occupancy surveys")
+    click.echo("  nisra visitors             Tourism visitor statistics")
+
+    click.echo("\nPSNI DATA MODULES (bolster psni <command>)")
+    click.echo("  psni rtc                   Road traffic collisions, casualties, vehicles")
+    click.echo("  psni crime                 Historical crime statistics (Apr 2001–Dec 2021, stale)")
+
+    click.echo("\nOTHER DATA MODULES")
+    click.echo("  dva                        DVA monthly test statistics (vehicle, driver, theory)")
+    click.echo("  education suspensions      NI school suspensions and expulsions (DE)")
+    click.echo("  gender-pay-gap             UK Gender Pay Gap Reporting service")
 
     click.echo("\nUSAGE EXAMPLES")
     click.echo("  bolster water-quality BT1 5GS              # Water quality by postcode")
