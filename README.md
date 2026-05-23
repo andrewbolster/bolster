@@ -190,6 +190,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 
 | Publication | Module | Status |
 |-------------|--------|--------|
+| Claimant Count (UC + JSA) | `nisra.claimant_count` | ✅ |
 | Labour Market Statistics | `nisra.labour_market` | ✅ |
 | Weekly/Monthly Deaths | `nisra.deaths` | ✅ |
 | Monthly Births/Stillbirths | `nisra.births` | ✅ |
@@ -200,6 +201,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Index of Services | `nisra.index_of_services` | ✅ |
 | Quarterly Employment Survey | `nisra.quarterly_employment_survey` | ✅ |
 | Emergency Care Waiting Times | `nisra.emergency_care_waiting_times` | ✅ |
+| Elective/Outpatient Waiting Times | `nisra.elective_waiting_times` | ✅ |
 | Monthly Stillbirths | `nisra.stillbirths` | ✅ |
 | Population Estimates | `nisra.population` | ✅ |
 | Migration Estimates (Derived + Official LTI) | `nisra.migration` | ✅ |

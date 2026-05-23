@@ -1471,6 +1471,8 @@ def nisra_feed(limit: int, title_filter: str, days: int, check_coverage: bool):
         "wellbeing": "wellbeing",
         "cancer waiting": "cancer-waiting-times",
         "planning": "planning-statistics",
+        "claimant count": "claimant-count",
+        "claimant": "claimant-count",
     }
 
     with console.status("Fetching NISRA RSS feed..."):
@@ -4595,6 +4597,127 @@ def nisra_emergency_care_cmd(output_format, trust, attendance_type, year, save):
         raise click.Abort() from e
 
 
+@nisra.command(name="elective-waiting-times")
+@click.option(
+    "--type",
+    "waiting_type",
+    type=click.Choice(["all", "inpatient_day_case", "outpatient"], case_sensitive=False),
+    default="all",
+    help="Series to retrieve: all (default), inpatient_day_case, or outpatient",
+)
+@click.option("--trust", help="Filter by HSC Trust name (e.g. Belfast)")
+@click.option("--year", type=int, help="Filter data for a specific calendar year")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save output to file (specify filename)")
+def nisra_elective_waiting_times_cmd(waiting_type, trust, year, output_format, force_refresh, save):
+    r"""NISRA Elective/Outpatient Waiting Times Statistics.
+
+    \b
+    Two quarterly series from the Department of Health NI:
+
+      inpatient_day_case  Patients waiting for inpatient/day case admission,
+                          by weeks-waited band, specialty, and HSC Trust.
+                          Data from Q1 2007-08 (June 2007) to present.
+
+      outpatient          Referrals waiting for an outpatient appointment,
+                          by weeks-waited band, specialty, and HSC Trust.
+                          Data from Q1 2008-09 (June 2008) to present.
+
+    \b
+    HSC Trusts: Belfast, Northern, South Eastern, Southern, Western
+
+    \b
+    Examples::
+
+        bolster nisra elective-waiting-times
+        bolster nisra elective-waiting-times --type outpatient
+        bolster nisra elective-waiting-times --trust Belfast --year 2024
+        bolster nisra elective-waiting-times --type inpatient_day_case --save inpatient.csv
+        bolster nisra elective-waiting-times --format json
+
+    \b
+    Key insights (as of 2025): over 400,000 outpatient referrals waiting;
+    median outpatient wait exceeding 43 weeks; inpatient waits exceeding
+    104 weeks visible across multiple specialties and trusts.
+
+    \b
+    Sources:
+        https://www.health-ni.gov.uk/articles/inpatient-waiting-times
+        https://www.health-ni.gov.uk/articles/outpatient-waiting-times
+    """
+    from rich.console import Console
+
+    from bolster.data_sources.nisra import elective_waiting_times as ewt
+
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading latest elective waiting times data..."):
+            data = ewt.get_latest_elective_waiting_times(force_refresh=force_refresh)
+
+        # Filter by waiting_type
+        if waiting_type != "all":
+            data = data[data["waiting_type"] == waiting_type]
+            if data.empty:
+                console.print(f"[yellow]No data found for waiting_type='{waiting_type}'[/yellow]")
+                return
+
+        # Filter by trust
+        if trust:
+            data = data[data["trust"].str.contains(trust, case=False, na=False)]
+            if data.empty:
+                console.print(f"[yellow]No data found for trust matching '{trust}'[/yellow]")
+                return
+
+        # Filter by year
+        if year:
+            data = data[data["year"] == year]
+            if data.empty:
+                console.print(f"[yellow]No data found for year {year}[/yellow]")
+                return
+
+        console.print(f"[green]Retrieved {len(data):,} records[/green]")
+
+        if not data.empty:
+            min_year = int(data["year"].min())
+            max_year = int(data["year"].max())
+            console.print(f"[dim]Years: {min_year} - {max_year}[/dim]")
+            total_waiting = data["patients_waiting"].sum()
+            console.print(f"[dim]Total patient-band records: {total_waiting:,.0f}[/dim]")
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", date_format="iso", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Data saved to: {save}[/green]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            console.print("\n[bold]Data:[/bold]")
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
 @nisra.command(name="registrar-general")
 @click.option("--latest", is_flag=True, help="Get the most recent quarterly tables data")
 @click.option("--quarterly", is_flag=True, help="Show full quarterly time series")
@@ -5457,6 +5580,117 @@ def nisra_work_quality_cmd(indicator, year, output_format, force_refresh, save):
         console.print("\n[yellow]Troubleshooting:[/yellow]")
         console.print("   - Check your internet connection")
         console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@nisra.command(name="claimant-count")
+@click.option(
+    "--breakdown",
+    type=click.Choice(["headline", "age", "lgd", "pca", "ttwa"], case_sensitive=False),
+    default="headline",
+    help="Data breakdown to retrieve (default: headline)",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_claimant_count_cmd(breakdown, output_format, force_refresh, save):
+    r"""NISRA Claimant Count statistics (UC + JSA).
+
+    \b
+    Monthly experimental statistics measuring the number of people claiming
+    Universal Credit (UC) or Jobseeker's Allowance (JSA) principally for
+    the reason of being unemployed. Data covers Northern Ireland with
+    multiple geographic and demographic breakdowns.
+
+    Breakdowns available:
+        headline    NI total by sex, seasonally adjusted + non-SA (from 1997)
+        age         NI total by age band: 16-24, 25-49, 50+ (from 2013)
+        lgd         11 Local Government Districts (current month snapshot)
+        pca         18 Parliamentary Constituency Areas (current month snapshot)
+        ttwa        10 Travel-to-Work Areas (current month snapshot)
+
+    Examples:
+        Show latest headline claimant count in a table::
+
+            bolster nisra claimant-count
+
+        Show age breakdown as CSV::
+
+            bolster nisra claimant-count --breakdown age --format csv
+
+        Save LGD data to file::
+
+            bolster nisra claimant-count --breakdown lgd --save lgd.csv
+
+        Export PCA data as JSON::
+
+            bolster nisra claimant-count --breakdown pca --format json --save pca.json
+
+    Source:
+        https://www.nisra.gov.uk/statistics/labour-market-and-social-welfare/claimant-count
+    """
+    from rich.table import Table
+
+    from bolster.data_sources.nisra import claimant_count as cc_module
+
+    console = Console()
+
+    try:
+        with console.status(f"[bold green]Downloading NISRA claimant count ({breakdown})..."):
+            data = cc_module.get_latest_claimant_count(breakdown=breakdown, force_refresh=force_refresh)
+
+        console.print(f"[green]Claimant count ({breakdown}) retrieved successfully[/green]")
+        console.print(f"[cyan]Rows: {len(data)}[/cyan]")
+
+        if not data.empty and "date" in data.columns:
+            min_date = data["date"].min()
+            max_date = data["date"].max()
+            if pd.notna(min_date) and pd.notna(max_date):
+                console.print(f"[dim]Date range: {min_date.strftime('%b %Y')} – {max_date.strftime('%b %Y')}[/dim]")
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", date_format="iso", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "table":
+            table = Table(title=f"Claimant Count — {breakdown}", show_header=True, header_style="bold cyan")
+            for col in data.columns:
+                table.add_column(str(col))
+            for _, row in data.head(50).iterrows():
+                table.add_row(*[str(v) for v in row.values])
+            console.print(table)
+            if len(data) > 50:
+                console.print(f"\n[yellow]Showing first 50 of {len(data)} rows[/yellow]")
+
+        elif output_format == "csv":
+            click.echo(data.to_csv(index=False))
+
+        elif output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        console.print("   - Visit NISRA website to verify data availability")
         raise click.Abort() from e
 
 

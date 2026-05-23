@@ -7,7 +7,9 @@ and tourism statistics.
 Available modules:
     - ashe: Annual Survey of Hours and Earnings (employee earnings statistics)
     - births: Monthly birth registrations by registration and occurrence date
+    - claimant_count: Monthly Claimant Count (UC + JSA) by sex, age, and geography
     - cancer_waiting_times: Cancer treatment waiting times (14-day, 31-day, 62-day targets)
+    - child_protection: Children's Social Care child protection statistics
     - emergency_care_waiting_times: Emergency care (A&E) waiting times against the 4-hour target
     - composite_index: Northern Ireland Composite Economic Index (experimental quarterly economic indicator)
     - construction_output: Quarterly construction output statistics (all work, new work, repair & maintenance)
@@ -27,6 +29,11 @@ Available modules:
     - work_quality: Work Quality NI — seventeen indicators of job quality for employees
 
 Examples:
+    >>> from bolster.data_sources.nisra import claimant_count
+    >>> cc_df = claimant_count.get_latest_claimant_count("headline")
+    >>> "claimants_000s" in cc_df.columns
+    True
+
     >>> from bolster.data_sources.nisra import ashe
     >>> earnings_df = ashe.get_latest_ashe_timeseries('weekly')
     >>> 'median_weekly_earnings' in earnings_df.columns
@@ -104,6 +111,8 @@ from . import (
     baby_names,
     births,
     cancer_waiting_times,
+    child_protection,
+    claimant_count,
     composite_index,
     construction_output,
     deaths,
@@ -129,6 +138,8 @@ __all__ = [
     "baby_names",
     "births",
     "cancer_waiting_times",
+    "child_protection",
+    "claimant_count",
     "composite_index",
     "construction_output",
     "deaths",
