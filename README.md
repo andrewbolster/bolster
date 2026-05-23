@@ -200,6 +200,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Index of Services | `nisra.index_of_services` | ✅ |
 | Quarterly Employment Survey | `nisra.quarterly_employment_survey` | ✅ |
 | Emergency Care Waiting Times | `nisra.emergency_care_waiting_times` | ✅ |
+| Elective/Outpatient Waiting Times | `nisra.elective_waiting_times` | ✅ |
 | Monthly Stillbirths | `nisra.stillbirths` | ✅ |
 | Population Estimates | `nisra.population` | ✅ |
 | Migration Estimates (Derived + Official LTI) | `nisra.migration` | ✅ |
@@ -210,6 +211,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | UK Gender Pay Gap Reporting | `gender_pay_gap` | ✅ |
 | Individual Wellbeing | `nisra.wellbeing` | ✅ |
 | Cancer Waiting Times | `nisra.cancer_waiting_times` | ✅ |
+| Child Protection Statistics | `nisra.child_protection` | ✅ |
 | NI Planning Activity Statistics (DfI) | `nisra.planning_statistics` | ✅ |
 | Registrar General Quarterly Tables | `nisra.registrar_general` | ✅ |
 | Tourism - Hotel Occupancy | `nisra.tourism.occupancy` | ✅ |

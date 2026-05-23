@@ -11,7 +11,7 @@ from rich.panel import Panel
 from rich.text import Text
 
 from . import __version__
-from .data_sources import dva, gender_pay_gap
+from .data_sources import dva, education_suspensions, gender_pay_gap
 from .data_sources.cineworld import get_cinema_listings
 from .data_sources.companies_house import get_companies_house_records_that_might_be_in_farset, query_basic_company_data
 from .data_sources.daera_waste import get_latest_waste_statistics, validate_waste_data
@@ -20,6 +20,7 @@ from .data_sources.metoffice import get_uk_precipitation
 from .data_sources.ni_house_price_index import build as get_ni_house_prices
 from .data_sources.ni_water import get_postcode_to_water_supply_zone, get_water_quality_by_zone
 from .data_sources.nisra import ashe as nisra_ashe
+from .data_sources.nisra import baby_names as nisra_baby_names
 from .data_sources.nisra import births as nisra_births
 from .data_sources.nisra import cancer_waiting_times as nisra_cancer
 from .data_sources.nisra import composite_index as nisra_composite
@@ -36,6 +37,7 @@ from .data_sources.nisra import population as nisra_population
 from .data_sources.nisra import population_projections as nisra_projections
 from .data_sources.nisra import registrar_general as nisra_registrar_general
 from .data_sources.nisra import wellbeing as nisra_wellbeing
+from .data_sources.nisra import work_quality as nisra_work_quality
 from .data_sources.nisra.tourism import occupancy as nisra_occupancy
 from .data_sources.nisra.tourism import visitor_statistics as nisra_visitors
 from .data_sources.wikipedia import get_ni_executive_basic_table
@@ -5280,6 +5282,307 @@ def nisra_planning_statistics_cmd(dimension, financial_year, output_format, forc
 
         if output_format == "json":
             click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@nisra.command(name="baby-names")
+@click.option("--year", type=int, default=None, help="Filter by registration year")
+@click.option(
+    "--sex",
+    type=click.Choice(["Boys", "Girls", "both"], case_sensitive=False),
+    default="both",
+    help="Filter by sex (default: both)",
+)
+@click.option("--top", "top_n", type=int, default=None, help="Show only top N names by rank")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_baby_names_cmd(year, sex, top_n, output_format, force_refresh, save):
+    r"""NISRA Baby Names for Northern Ireland (1997 to present).
+
+    \b
+    Full historical list of all first forenames given to babies registered in
+    Northern Ireland, with annual rank and count for every name by sex.
+
+    Examples:
+        Top 10 boys' names in 2024::
+
+            bolster nisra baby-names --year 2024 --sex Boys --top 10
+
+        All names for 2023 saved to file::
+
+            bolster nisra baby-names --year 2023 --save baby_names_2023.csv
+
+        Full dataset as JSON::
+
+            bolster nisra baby-names --format json
+
+    Source:
+        https://www.nisra.gov.uk/statistics/births/baby-names
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading NISRA baby names data..."):
+            data = nisra_baby_names.get_baby_names(force_refresh=force_refresh)
+
+        if year is not None:
+            data = data[data["year"] == year]
+            if data.empty:
+                console.print(f"[yellow]No data found for year {year}[/yellow]")
+                return
+
+        if sex.lower() != "both":
+            sex_title = sex.title()
+            data = data[data["sex"] == sex_title]
+            if data.empty:
+                console.print(f"[yellow]No data found for sex '{sex_title}'[/yellow]")
+                return
+
+        if top_n is not None:
+            data = data[data["rank"] <= top_n]
+
+        console.print("[green]Baby names data retrieved successfully[/green]")
+        console.print(f"[cyan]Rows: {len(data)}[/cyan]")
+        if not data.empty:
+            console.print(
+                f"[dim]Years: {data['year'].min()}–{data['year'].max()} | "
+                f"Sexes: {', '.join(sorted(data['sex'].unique()))}[/dim]"
+            )
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@nisra.command(name="work-quality")
+@click.option("--indicator", default=None, help="Filter by indicator name (e.g. 'job_satisfaction')")
+@click.option("--year", type=int, default=None, help="Filter by year")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_work_quality_cmd(indicator, year, output_format, force_refresh, save):
+    r"""NISRA Work Quality Statistics for Northern Ireland.
+
+    \b
+    Seventeen indicators of job quality for employees aged 18 and over,
+    drawn from the Labour Force Survey (LFS) and Annual Survey of Hours
+    and Earnings (ASHE). Covers 2020 to present with breakdowns by sex,
+    age group, deprivation quintile, and skill level.
+
+    Examples:
+        All work quality indicators::
+
+            bolster nisra work-quality
+
+        Filter to job satisfaction indicator::
+
+            bolster nisra work-quality --indicator job_satisfaction
+
+        Data for 2023 saved as JSON::
+
+            bolster nisra work-quality --year 2023 --format json --save wq2023.json
+
+    Source:
+        https://www.nisra.gov.uk/statistics/labour-market-and-social-welfare/work-quality
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading NISRA work quality data..."):
+            data = nisra_work_quality.get_latest_work_quality(force_refresh=force_refresh)
+
+        if indicator is not None:
+            data = data[data["indicator"] == indicator]
+            if data.empty:
+                console.print(f"[yellow]No data found for indicator '{indicator}'[/yellow]")
+                all_data = nisra_work_quality.get_latest_work_quality(force_refresh=False)
+                available = all_data["indicator"].unique()
+                console.print(f"[dim]Available indicators: {', '.join(sorted(available))}[/dim]")
+                return
+
+        if year is not None:
+            data = data[data["year"] == year]
+            if data.empty:
+                console.print(f"[yellow]No data found for year {year}[/yellow]")
+                return
+
+        console.print("[green]Work quality data retrieved successfully[/green]")
+        console.print(f"[cyan]Rows: {len(data)}[/cyan]")
+        if not data.empty and "year" in data.columns:
+            console.print(f"[dim]Years: {data['year'].min()}–{data['year'].max()}[/dim]")
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@cli.group(name="education")
+def education():
+    """Education statistics for Northern Ireland.
+
+    Access official education data from the Department of Education Northern
+    Ireland (DE NI), including pupil suspension and expulsion statistics.
+    """
+    pass
+
+
+@education.command(name="suspensions")
+@click.option("--year", default=None, help="Filter by academic year (e.g. '2023/24')")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics instead of full data")
+def education_suspensions_cmd(year, output_format, force_refresh, save, summary):
+    r"""NI Pupil Suspensions and Expulsions (Department of Education).
+
+    \b
+    Annual suspension statistics for pupils of compulsory school age in
+    Northern Ireland, covering 2011/12 to present.
+
+    Examples:
+        Full suspension time series::
+
+            bolster education suspensions
+
+        Filter to a single academic year::
+
+            bolster education suspensions --year 2023/24
+
+        Summary overview::
+
+            bolster education suspensions --summary
+
+        Save as CSV::
+
+            bolster education suspensions --save suspensions.csv
+
+    Source:
+        https://www.education-ni.gov.uk/articles/pupil-suspensions-and-expulsions
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading NI pupil suspensions data..."):
+            data = education_suspensions.get_latest_suspensions(force_refresh=force_refresh)
+
+        if year is not None:
+            data = data[data["academic_year"] == year]
+            if data.empty:
+                console.print(f"[yellow]No data found for academic year '{year}'[/yellow]")
+                return
+
+        console.print("[green]Pupil suspensions data retrieved successfully[/green]")
+        console.print(f"[cyan]Rows: {len(data)}[/cyan]")
+        if not data.empty:
+            console.print(f"[dim]Coverage: {data['academic_year'].iloc[0]} to {data['academic_year'].iloc[-1]}[/dim]")
+
+        if summary:
+            latest = data.iloc[-1]
+            console.print("\n[bold]Latest year:[/bold]")
+            console.print(f"   Academic year: {latest['academic_year']}")
+            console.print(f"   Pupils suspended: {latest['pupils_suspended']:,}")
+            pct = latest["pct_pupils_suspended"]
+            if pct is not None and not pd.isna(pct):
+                console.print(f"   Percentage suspended: {pct:.1%}")
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
         else:
             console.print(data.to_csv(index=False), end="")
 

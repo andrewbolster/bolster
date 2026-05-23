@@ -22,8 +22,10 @@ Available modules:
     - planning_statistics: NI Planning Activity Statistics - quarterly applications, by council
     - population_projections: Population projections by age, sex, and geography (2022-2072)
     - registrar_general: Registrar General Quarterly Tables (quarterly births, deaths, marriages, LGD breakdowns)
+    - baby_names: Annual baby name registrations (1997–present) by sex and rank
     - tourism: Tourism statistics including occupancy surveys, visitor stats (subpackage)
     - wellbeing: Individual wellbeing statistics (life satisfaction, happiness, anxiety, loneliness)
+    - work_quality: Work Quality NI — seventeen indicators of job quality for employees
 
 Examples:
     >>> from bolster.data_sources.nisra import ashe
@@ -95,10 +97,12 @@ Examples:
     >>> df = wellbeing.get_latest_personal_wellbeing()
     >>> 'life_satisfaction' in df.columns
     True
+
 """
 
 from . import (
     ashe,
+    baby_names,
     births,
     cancer_waiting_times,
     child_protection,
@@ -119,10 +123,12 @@ from . import (
     stillbirths,
     tourism,
     wellbeing,
+    work_quality,
 )
 
 __all__ = [
     "ashe",
+    "baby_names",
     "births",
     "cancer_waiting_times",
     "child_protection",
@@ -143,4 +149,5 @@ __all__ = [
     "stillbirths",
     "tourism",
     "wellbeing",
+    "work_quality",
 ]
