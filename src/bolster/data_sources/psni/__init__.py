@@ -3,8 +3,10 @@
 This module provides access to PSNI open data including:
 - Crime Statistics: Police recorded crime data with monthly updates
 - Road Traffic Collisions: Injury collision, casualty, and vehicle data
+- Police Ombudsman: Complaint statistics from 2000/01 to present
 
-Data is sourced from OpenDataNI under the Open Government Licence v3.0.
+Data is sourced from OpenDataNI and the Police Ombudsman's Office under the
+Open Government Licence v3.0.
 Geographic breakdowns use the 11 Policing Districts which align with
 Northern Ireland's Local Government Districts (LGDs), enabling integration
 with other NISRA datasets.
@@ -48,6 +50,14 @@ from .crime_statistics import (
     get_total_crimes_by_district,
     parse_crime_statistics_file,
     validate_crime_statistics,
+)
+from .police_ombudsman import (
+    get_annual_publication_url,
+    get_latest_complaints,
+    get_quarterly_publication_url,
+    parse_annual,
+    parse_quarterly,
+    validate_complaints,
 )
 from .road_traffic_collisions import (
     get_annual_summary as get_rtc_annual_summary,
@@ -101,6 +111,13 @@ __all__ = [
     "get_lgd_code",
     "get_nuts3_code",
     "get_nuts_region_name",
+    # Police Ombudsman
+    "get_annual_publication_url",
+    "get_quarterly_publication_url",
+    "get_latest_complaints",
+    "parse_annual",
+    "parse_quarterly",
+    "validate_complaints",
     # Cache management
     "clear_cache",
     # Exceptions
