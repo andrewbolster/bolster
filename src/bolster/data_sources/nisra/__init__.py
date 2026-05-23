@@ -15,6 +15,7 @@ Available modules:
     - composite_index: Northern Ireland Composite Economic Index (experimental quarterly economic indicator)
     - construction_output: Quarterly construction output statistics (all work, new work, repair & maintenance)
     - deaths: Weekly death registrations with demographic, geographic, and place breakdowns
+    - disease_prevalence: Annual NI disease register sizes and prevalence per 1,000 patients (2004/05–present)
     - index_of_services: Quarterly Index of Services (IOS) — canonical module
     - index_of_production: Quarterly Index of Production (IOP) — canonical module
     - labour_market: Quarterly Labour Force Survey statistics (employment, economic inactivity)
@@ -123,6 +124,7 @@ from . import (
     composite_index,
     construction_output,
     deaths,
+    disease_prevalence,
     elective_waiting_times,
     emergency_care_waiting_times,
     index_of_production,
@@ -152,6 +154,7 @@ __all__ = [
     "composite_index",
     "construction_output",
     "deaths",
+    "disease_prevalence",
     "elective_waiting_times",
     "emergency_care_waiting_times",
     "index_of_production",
