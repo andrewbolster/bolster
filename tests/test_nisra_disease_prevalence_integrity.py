@@ -183,3 +183,170 @@ class TestValidation:
         df = df[df["financial_year"].isin(keep_fy)].reset_index(drop=True)
         with pytest.raises(NISRAValidationError, match="Too few financial years"):
             dp.validate_disease_prevalence(df)
+
+    def test_validate_invalid_level(self) -> None:
+        df = self._make_valid_df()
+        with pytest.raises(ValueError, match="level must be"):
+            dp.validate_disease_prevalence(df, level="bad")
+
+    def test_validate_gp_level_valid(self) -> None:
+        """GP-level validation passes on a minimal valid GP DataFrame."""
+        records = []
+        for i in range(120):
+            pcode = f"Z{i:05d}"
+            for reg in ["Hypertension", "Diabetes", "COPD", "Cancer", "Asthma"]:
+                for yr in [2023, 2024, 2025]:
+                    fy = f"{yr}/{str(yr + 1)[-2:]}"
+                    records.append(
+                        {
+                            "practice_code": pcode,
+                            "lcg": "Belfast",
+                            "federation": None,
+                            "financial_year": fy,
+                            "year": yr,
+                            "register": reg,
+                            "registered_patients": 100.0,
+                            "prevalence_per_1000": 50.0,
+                        }
+                    )
+        df = pd.DataFrame(records)
+        assert dp.validate_disease_prevalence(df, level="gp") is True
+
+    def test_validate_gp_level_too_few_practices(self) -> None:
+        from bolster.data_sources.nisra._base import NISRAValidationError
+
+        records = []
+        for i in range(5):
+            pcode = f"Z{i:05d}"
+            for reg in ["Hypertension", "Diabetes", "COPD", "Cancer", "Asthma"]:
+                records.append(
+                    {
+                        "practice_code": pcode,
+                        "lcg": "Belfast",
+                        "federation": None,
+                        "financial_year": "2025/26",
+                        "year": 2025,
+                        "register": reg,
+                        "registered_patients": 100.0,
+                        "prevalence_per_1000": 50.0,
+                    }
+                )
+        df = pd.DataFrame(records)
+        with pytest.raises(NISRAValidationError, match="Too few GP practices"):
+            dp.validate_disease_prevalence(df, level="gp")
+
+
+class TestGPPracticeIntegrity:
+    """Integration tests for GP-practice-level disease prevalence data."""
+
+    @pytest.fixture(scope="class")
+    def gp_data(self) -> pd.DataFrame:
+        return dp.get_latest_gp_prevalence()
+
+    def test_required_columns(self, gp_data: pd.DataFrame) -> None:
+        required = {
+            "practice_code",
+            "lcg",
+            "federation",
+            "financial_year",
+            "year",
+            "register",
+            "registered_patients",
+            "prevalence_per_1000",
+        }
+        assert required <= set(gp_data.columns), (
+            f"Missing columns: {required - set(gp_data.columns)}"
+        )
+
+    def test_multiple_practices(self, gp_data: pd.DataFrame) -> None:
+        n = gp_data["practice_code"].nunique()
+        assert n > 300, f"Expected >300 GP practices, got {n}"
+
+    def test_practice_codes_start_with_z(self, gp_data: pd.DataFrame) -> None:
+        bad = gp_data.loc[gp_data["practice_code"].notna(), "practice_code"]
+        bad = bad[~bad.str.startswith("Z")]
+        assert bad.empty, f"Practice codes not starting with Z: {bad.head().tolist()}"
+
+    def test_multiple_lcgs(self, gp_data: pd.DataFrame) -> None:
+        n = gp_data["lcg"].nunique()
+        assert n >= 5, f"Expected ≥ 5 LCGs, got {n}"
+
+    def test_multiple_registers(self, gp_data: pd.DataFrame) -> None:
+        n = gp_data["register"].nunique()
+        assert n >= 10, f"Expected ≥ 10 registers, got {n}"
+
+    def test_registered_patients_positive(self, gp_data: pd.DataFrame) -> None:
+        patients = gp_data["registered_patients"].dropna()
+        assert (patients >= 0).all(), "All registered_patients values should be non-negative"
+
+    def test_prevalence_values_positive(self, gp_data: pd.DataFrame) -> None:
+        prev = gp_data["prevalence_per_1000"].dropna()
+        assert (prev >= 0).all(), "All prevalence_per_1000 values should be non-negative"
+
+    def test_prevalence_values_below_1000(self, gp_data: pd.DataFrame) -> None:
+        prev = gp_data["prevalence_per_1000"].dropna()
+        assert (prev < 1000).all(), (
+            f"Some prevalence_per_1000 values exceed 1000: {prev[prev >= 1000].head().tolist()}"
+        )
+
+    def test_multiple_years(self, gp_data: pd.DataFrame) -> None:
+        n = gp_data["financial_year"].nunique()
+        assert n >= 17, f"Expected ≥ 17 financial years, got {n}"
+
+    def test_validation_passes(self, gp_data: pd.DataFrame) -> None:
+        assert dp.validate_disease_prevalence(gp_data, level="gp") is True
+
+    def test_financial_year_format(self, gp_data: pd.DataFrame) -> None:
+        sample = gp_data["financial_year"].dropna().unique()
+        for fy in sample:
+            assert "/" in str(fy), f"Unexpected financial_year format: {fy!r}"
+
+    def test_year_matches_financial_year_prefix(self, gp_data: pd.DataFrame) -> None:
+        sample = gp_data.dropna(subset=["year", "financial_year"]).head(100)
+        for _, row in sample.iterrows():
+            expected = int(str(row["financial_year"]).split("/")[0])
+            assert int(row["year"]) == expected, (
+                f"year {row['year']} does not match financial_year {row['financial_year']!r}"
+            )
+
+
+class TestGPRegisterCoverage:
+    """Check key register coverage across GP-practice data."""
+
+    @pytest.fixture(scope="class")
+    def gp_data(self) -> pd.DataFrame:
+        return dp.get_latest_gp_prevalence()
+
+    def test_hypertension_present_all_years(self, gp_data: pd.DataFrame) -> None:
+        """Hypertension should appear in every financial year."""
+        hyp = gp_data[gp_data["register"].str.contains("Hypertension", case=False, na=False)]
+        assert not hyp.empty, "No Hypertension rows found"
+        years_with_hyp = hyp["financial_year"].nunique()
+        total_years = gp_data["financial_year"].nunique()
+        assert years_with_hyp == total_years, (
+            f"Hypertension present in {years_with_hyp}/{total_years} financial years"
+        )
+
+    def test_ndh_present_from_2022_23(self, gp_data: pd.DataFrame) -> None:
+        """Non-Diabetic Hyperglycaemia should appear from 2022/23 onwards."""
+        ndh = gp_data[
+            gp_data["register"].str.contains("Non-Diabetic Hyperglycaemia", case=False, na=False)
+        ]
+        assert not ndh.empty, "No Non-Diabetic Hyperglycaemia rows found"
+        # Should only appear from 2022/23
+        early = ndh[ndh["year"] < 2022]
+        assert early.empty, (
+            f"NDH rows found before 2022/23 (years: {sorted(early['year'].unique())})"
+        )
+        recent_years = ndh["financial_year"].nunique()
+        assert recent_years >= 3, (
+            f"NDH should cover ≥ 3 recent years, got {recent_years}"
+        )
+
+    def test_copd_present(self, gp_data: pd.DataFrame) -> None:
+        copd = gp_data[gp_data["register"].str.contains("Pulmonary", case=False, na=False)]
+        assert not copd.empty, "No COPD (Chronic Obstructive Pulmonary Disease) rows found"
+
+    def test_diabetes_present(self, gp_data: pd.DataFrame) -> None:
+        diab = gp_data[gp_data["register"].str.contains("Diabetes", case=False, na=False)]
+        assert not diab.empty, "No Diabetes rows found"

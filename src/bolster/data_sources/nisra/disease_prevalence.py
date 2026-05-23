@@ -9,7 +9,9 @@ Data Coverage:
     - Financial years 2004/05 to 2025/26 (22 years, extended annually)
     - NI-level summary: registered patients per disease register (Table 1)
       and prevalence per 1,000 patients (Table 2a)
+    - GP practice-level: same metrics per practice (Table 5a–5q), 2009/10–2025/26
     - 26 named disease registers; 14 are active as of 2025/26
+    - ~305–360 GP practices per year
 
 Data Source:
     Department of Health Northern Ireland publishes an Excel workbook via
@@ -326,7 +328,7 @@ def get_latest_disease_prevalence(force_refresh: bool = False) -> pd.DataFrame:
     return df
 
 
-def validate_disease_prevalence(df: pd.DataFrame) -> bool:
+def validate_disease_prevalence(df: pd.DataFrame, level: str = "ni") -> bool:
     """Validate the disease prevalence DataFrame for internal consistency.
 
     Checks that required columns are present, the DataFrame is non-empty,
@@ -334,14 +336,19 @@ def validate_disease_prevalence(df: pd.DataFrame) -> bool:
     plausible bounds.
 
     Args:
-        df: DataFrame as returned by :func:`parse_ni_summary` or
-            :func:`get_latest_disease_prevalence`.
+        df: DataFrame as returned by :func:`parse_ni_summary`,
+            :func:`get_latest_disease_prevalence`, :func:`parse_all_gp_practices`,
+            or :func:`get_latest_gp_prevalence`.
+        level: Validation mode — ``"ni"`` (default) for NI-level summary DataFrames
+            or ``"gp"`` for GP-practice-level DataFrames.  ``"ni"`` is the
+            backward-compatible default.
 
     Returns:
         True if all checks pass.
 
     Raises:
         NISRAValidationError: Describing the first failing check.
+        ValueError: If *level* is not ``"ni"`` or ``"gp"``.
 
     Example:
         >>> import pandas as pd
@@ -354,7 +361,22 @@ def validate_disease_prevalence(df: pd.DataFrame) -> bool:
         >>> validate_disease_prevalence(df)
         True
     """
-    required = {"year", "financial_year", "register", "registered_patients", "prevalence_per_1000"}
+    if level not in ("ni", "gp"):
+        raise ValueError(f"level must be 'ni' or 'gp', got {level!r}")
+
+    if level == "ni":
+        required = {"year", "financial_year", "register", "registered_patients", "prevalence_per_1000"}
+    else:
+        required = {
+            "practice_code",
+            "lcg",
+            "financial_year",
+            "year",
+            "register",
+            "registered_patients",
+            "prevalence_per_1000",
+        }
+
     missing = required - set(df.columns)
     if missing:
         raise NISRAValidationError(f"Missing required columns: {missing}")
@@ -365,8 +387,14 @@ def validate_disease_prevalence(df: pd.DataFrame) -> bool:
     if df["register"].nunique() < 5:
         raise NISRAValidationError(f"Too few disease registers: expected ≥ 5, got {df['register'].nunique()}")
 
-    if df["financial_year"].nunique() < 10:
-        raise NISRAValidationError(f"Too few financial years: expected ≥ 10, got {df['financial_year'].nunique()}")
+    if level == "ni":
+        if df["financial_year"].nunique() < 10:
+            raise NISRAValidationError(f"Too few financial years: expected ≥ 10, got {df['financial_year'].nunique()}")
+    else:
+        if df["practice_code"].nunique() < 100:
+            raise NISRAValidationError(f"Too few GP practices: expected ≥ 100, got {df['practice_code'].nunique()}")
+        if df["financial_year"].nunique() < 3:
+            raise NISRAValidationError(f"Too few financial years: expected ≥ 3, got {df['financial_year'].nunique()}")
 
     prev = df["prevalence_per_1000"].dropna()
     if len(prev) > 0:
@@ -383,3 +411,370 @@ def validate_disease_prevalence(df: pd.DataFrame) -> bool:
         raise NISRAValidationError(f"registered_patients has {len(bad)} negative values: {bad.head().tolist()}")
 
     return True
+
+
+# ── GP-practice-level parsing ─────────────────────────────────────────────────
+
+# Table 5 sheet names contain the calendar year of the end of the financial year.
+# e.g. "Table 5a Prevalence 2026" → financial year 2025/26.
+# We derive the financial year from the year suffix in the sheet name.
+
+# Register name normalisation for GP-practice tables (Table 5 sheets).
+# These map raw Table 5 names to canonical forms used in the output.
+_GP_REGISTER_NORMALISE: dict[str, str] = {
+    "Chronic Kidney Disease": "Chronic Kidney Disease 18+",
+    "Stroke": "Stroke/TIA",
+    "Epilespsy 18+": "Epilepsy 18+",  # typo in source data fixed
+    "Epilepsy": "Epilepsy 18+",
+}
+
+
+def _normalise_gp_register(name: str) -> str:
+    """Apply canonical GP register name mapping if available, else return as-is.
+
+    Args:
+        name: Raw register name from a Table 5 Excel sheet.
+
+    Returns:
+        Canonical register name, or the original string if no mapping exists.
+    """
+    return _GP_REGISTER_NORMALISE.get(name, name)
+
+
+def _sheet_to_financial_year(sheet_name: str) -> tuple[str, int]:
+    """Derive (financial_year, year) from a Table 5 sheet name.
+
+    The sheet names follow the pattern ``"Table 5X Prevalence YYYY"`` where
+    ``YYYY`` is the end calendar year of the financial year (e.g. 2026 →
+    financial year 2025/26).
+
+    Args:
+        sheet_name: Full Excel sheet name, e.g. ``"Table 5a Prevalence 2026"``.
+
+    Returns:
+        Tuple of (financial_year string, start year int),
+        e.g. ``("2025/26", 2025)``.
+
+    Raises:
+        ValueError: If the year cannot be parsed from the sheet name.
+    """
+    parts = sheet_name.strip().split()
+    if not parts:
+        raise ValueError(f"Cannot parse year from sheet name: {sheet_name!r}")
+    try:
+        end_year = int(parts[-1])
+    except ValueError as exc:
+        raise ValueError(f"Cannot parse year from sheet name: {sheet_name!r}") from exc
+    start_year = end_year - 1
+    fin_year = f"{start_year}/{str(end_year)[-2:]}"
+    return fin_year, start_year
+
+
+def _parse_table5_sheet(raw: pd.DataFrame, financial_year: str, year: int) -> pd.DataFrame:
+    """Parse a single Table 5 sheet (raw) into long-format GP practice records.
+
+    Internal helper used by :func:`parse_gp_practice`.
+
+    The sheet has a compound 2-row header at rows 4–5 (0-indexed).  Row 4
+    contains block section labels; row 5 contains register names and
+    demographic size labels.  Data rows start at row 6 and continue until
+    the first row where col 1 does not start with ``"Z"`` (practice codes
+    always begin with Z).
+
+    Args:
+        raw: Raw DataFrame read with ``header=None``.
+        financial_year: Financial year label, e.g. ``"2025/26"``.
+        year: Start year integer, e.g. ``2025``.
+
+    Returns:
+        Long-format DataFrame with columns:
+        ``practice_code``, ``practice_name``, ``lcg``, ``federation``,
+        ``financial_year``, ``year``, ``register``,
+        ``registered_patients``, ``prevalence_per_1000``.
+    """
+    row4 = raw.iloc[4]
+    row5 = raw.iloc[5]
+
+    # ── Locate block boundaries from row 4 ─────────────────────────────────
+    # Block labels of interest (matched as substrings, case-insensitive):
+    #   "Number of patients on register"   → count block
+    #   "Prevalence per 1000 patients using full list"  → prevalence block
+    # Other blocks (Practice Id repetitions, age-specific prevalence) are skipped.
+
+    block_starts: dict[int, str] = {}
+    for col_idx, val in enumerate(row4):
+        if pd.notna(val) and str(val).strip():
+            block_starts[col_idx] = str(val).strip()
+
+    sorted_blocks = sorted(block_starts.items())  # [(col_idx, label), ...]
+
+    count_start: int | None = None
+    count_end: int | None = None
+    prev_start: int | None = None
+    prev_end: int | None = None
+
+    for i, (col, label) in enumerate(sorted_blocks):
+        label_lower = label.lower()
+        if "number of patients" in label_lower:
+            count_start = col
+            # End is the start of the next block
+            count_end = sorted_blocks[i + 1][0] if i + 1 < len(sorted_blocks) else raw.shape[1]
+        elif "prevalence per 1000 patients using full list" in label_lower:
+            prev_start = col
+            prev_end = sorted_blocks[i + 1][0] if i + 1 < len(sorted_blocks) else raw.shape[1]
+
+    if count_start is None or prev_start is None:
+        raise NISRADataNotFoundError(
+            f"Could not locate register count / prevalence blocks in sheet "
+            f"(financial_year={financial_year!r}). "
+            f"Block labels found: {list(block_starts.values())}"
+        )
+
+    # ── Extract register names for each block ──────────────────────────────
+    def _block_registers(start: int, end: int) -> list[tuple[int, str]]:
+        """Return [(col_idx, register_name)] for register columns in a block."""
+        result = []
+        for ci in range(start, end):
+            if ci >= len(row5):
+                break
+            v = row5.iloc[ci]
+            if pd.notna(v) and str(v).strip():
+                name = str(v).strip()
+                # Skip demographic size labels (e.g. "16+", "17+", "18+", "50+")
+                if not name.replace("+", "").isdigit():
+                    result.append((ci, _normalise_gp_register(name)))
+        return result
+
+    count_registers = _block_registers(count_start, count_end)
+    prev_registers = _block_registers(prev_start, prev_end)
+
+    # Build dicts: register → col index for quick lookup
+    count_col: dict[str, int] = {reg: ci for ci, reg in count_registers}
+    prev_col: dict[str, int] = {reg: ci for ci, reg in prev_registers}
+
+    # Union of all register names across both blocks
+    all_registers = sorted(set(count_col) | set(prev_col))
+
+    # ── Detect metadata columns ─────────────────────────────────────────────
+    # Row 4 first non-null label at col 1 is "Practice Id" / "Practice ID".
+    # LCG is always the next non-empty col in row 4 after Practice Id.
+    # Federation appears in row 4 as the next label; absent in early years.
+
+    # col 1 = practice code, col 2 = LCG; check if col 3 has "Federation"
+    col3_label = str(row4.iloc[3]).strip() if pd.notna(row4.iloc[3]) else ""
+    has_federation = "ederation" in col3_label  # matches "Federation" and "Federation1"
+
+    lcg_col = 2
+    fed_col = 3 if has_federation else None
+
+    # ── Parse data rows ─────────────────────────────────────────────────────
+    records: list[dict] = []
+    data_start_row = 6
+    for row_idx in range(data_start_row, len(raw)):
+        practice_code_raw = raw.iloc[row_idx, 1]
+        # Practice codes start with "Z"; stop on NI summary / empty rows
+        if pd.isna(practice_code_raw):
+            break
+        pcode = str(practice_code_raw).strip()
+        if not pcode.startswith("Z"):
+            break  # "Northern Ireland" summary row or footer
+
+        lcg = str(raw.iloc[row_idx, lcg_col]).strip() if pd.notna(raw.iloc[row_idx, lcg_col]) else None
+        federation: str | None = None
+        if fed_col is not None:
+            fed_raw = raw.iloc[row_idx, fed_col]
+            federation = str(fed_raw).strip() if pd.notna(fed_raw) else None
+
+        for reg in all_registers:
+            cnt_ci = count_col.get(reg)
+            prv_ci = prev_col.get(reg)
+
+            def _safe_float(df_row: int, col: int | None) -> float:
+                if col is None or col >= raw.shape[1]:
+                    return float("nan")
+                val = raw.iloc[df_row, col]
+                try:
+                    return float(val) if pd.notna(val) else float("nan")
+                except (TypeError, ValueError):
+                    return float("nan")
+
+            records.append(
+                {
+                    "practice_code": pcode,
+                    "practice_name": None,  # not present in Table 5
+                    "lcg": lcg,
+                    "federation": federation,
+                    "financial_year": financial_year,
+                    "year": year,
+                    "register": reg,
+                    "registered_patients": _safe_float(row_idx, cnt_ci),
+                    "prevalence_per_1000": _safe_float(row_idx, prv_ci),
+                }
+            )
+
+    return pd.DataFrame(records)
+
+
+def parse_gp_practice(file_path, sheet_name: str) -> pd.DataFrame:
+    """Parse a single Table 5 sheet into a long-format GP practice DataFrame.
+
+    Reads the compound 2-row header (rows 4–5) to identify register columns,
+    then extracts one row per (practice, register) pair.  Practice codes are
+    in column 1 and always start with "Z"; the "Northern Ireland" summary row
+    at the foot of each sheet is excluded.
+
+    The sheet names in the workbook follow the pattern
+    ``"Table 5X Prevalence YYYY"`` (e.g. ``"Table 5a Prevalence 2026"``),
+    from which the financial year is derived automatically.
+
+    Args:
+        file_path: Path to the downloaded ``.xlsx`` workbook (string or
+            path-like).
+        sheet_name: Exact name of the Table 5 sheet to parse, e.g.
+            ``"Table 5a Prevalence 2026"``.
+
+    Returns:
+        Long-format DataFrame with columns:
+
+        - ``practice_code`` (str): Practice identifier (e.g. ``"Z00001"``)
+        - ``practice_name`` (object): Always ``None``; practice names are not
+          included in Table 5 sheets
+        - ``lcg`` (str or None): Local Commissioning Group name
+        - ``federation`` (str or None): Federation name; ``None`` for years
+          before 2017/18 when the column was not present
+        - ``financial_year`` (str): Label such as ``"2025/26"``
+        - ``year`` (int): Start year of the financial year (e.g. ``2025``)
+        - ``register`` (str): Normalised disease register name
+        - ``registered_patients`` (float): Patients on register at NPD;
+          ``NaN`` if not available for that register in that year
+        - ``prevalence_per_1000`` (float): Prevalence per 1,000 registered
+          patients; ``NaN`` if not available
+
+    Raises:
+        NISRADataNotFoundError: If the sheet is not found or the expected
+            column blocks cannot be located.
+
+    Example:
+        >>> df = parse_gp_practice("/tmp/rdptd-tables-2026.xlsx",
+        ...                        "Table 5a Prevalence 2026")
+        >>> df["practice_code"].str.startswith("Z").all()
+        True
+        >>> "Hypertension" in df["register"].values
+        True
+    """
+    try:
+        raw = pd.read_excel(file_path, sheet_name=sheet_name, header=None, engine="openpyxl")
+    except ValueError as exc:
+        raise NISRADataNotFoundError(f"Sheet {sheet_name!r} not found in workbook {file_path}: {exc}") from exc
+
+    financial_year, year = _sheet_to_financial_year(sheet_name)
+    return _parse_table5_sheet(raw, financial_year, year)
+
+
+def parse_all_gp_practices(file_path) -> pd.DataFrame:
+    """Parse all Table 5 sheets and return a concatenated long-format DataFrame.
+
+    Iterates every sheet whose name starts with ``"Table 5"`` in the workbook,
+    calls :func:`parse_gp_practice` for each, and concatenates the results.
+    Financial year and start year are derived from each sheet's name.
+
+    Sheets that cannot be parsed (e.g. due to unexpected structure) are
+    skipped with a warning rather than raising an exception, so a partial
+    result is always returned.
+
+    Args:
+        file_path: Path to the downloaded ``.xlsx`` workbook (string or
+            path-like).
+
+    Returns:
+        Long-format DataFrame with columns:
+        ``practice_code``, ``practice_name``, ``lcg``, ``federation``,
+        ``financial_year``, ``year``, ``register``,
+        ``registered_patients``, ``prevalence_per_1000``.
+
+        Rows are sorted by ``financial_year``, ``practice_code``,
+        then ``register``.
+
+    Raises:
+        NISRADataNotFoundError: If no Table 5 sheets can be found or parsed.
+
+    Example:
+        >>> df = parse_all_gp_practices("/tmp/rdptd-tables-2026.xlsx")
+        >>> df["financial_year"].nunique() >= 17
+        True
+        >>> df["practice_code"].nunique() >= 300
+        True
+    """
+    try:
+        xl = pd.ExcelFile(file_path, engine="openpyxl")
+    except Exception as exc:
+        raise NISRADataNotFoundError(f"Cannot open workbook {file_path}: {exc}") from exc
+
+    table5_sheets = [s for s in xl.sheet_names if s.strip().startswith("Table 5")]
+    if not table5_sheets:
+        raise NISRADataNotFoundError(f"No Table 5 sheets found in workbook {file_path}")
+
+    frames: list[pd.DataFrame] = []
+    for sheet_name in table5_sheets:
+        try:
+            raw = xl.parse(sheet_name, header=None)
+            financial_year, year = _sheet_to_financial_year(sheet_name)
+            df_sheet = _parse_table5_sheet(raw, financial_year, year)
+            if not df_sheet.empty:
+                frames.append(df_sheet)
+                logger.debug("Parsed %d rows from sheet %r", len(df_sheet), sheet_name)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Skipping sheet %r: %s", sheet_name, exc)
+
+    if not frames:
+        raise NISRADataNotFoundError(f"All Table 5 sheets failed to parse in workbook {file_path}")
+
+    combined = pd.concat(frames, ignore_index=True)
+    return combined.sort_values(["year", "practice_code", "register"]).reset_index(drop=True)
+
+
+def get_latest_gp_prevalence(force_refresh: bool = False) -> pd.DataFrame:
+    """Fetch and return the latest GP-practice-level disease prevalence data.
+
+    Downloads the current Excel workbook from the Department of Health
+    website (with a 24×365-hour cache), parses all Table 5 sheets (one per
+    financial year), validates the result, and returns a clean long-format
+    DataFrame covering 2009/10 to the latest published year.
+
+    Args:
+        force_refresh: If True, bypass the local file cache and re-download
+            the workbook.  Default: False.
+
+    Returns:
+        Long-format DataFrame with columns:
+
+        - ``practice_code`` (str): GP practice identifier (e.g. ``"Z00001"``)
+        - ``practice_name`` (object): Always ``None`` (not in source data)
+        - ``lcg`` (str or None): Local Commissioning Group
+        - ``federation`` (str or None): Federation name (``None`` pre-2017/18)
+        - ``financial_year`` (str): Label such as ``"2025/26"``
+        - ``year`` (int): Start year of the financial year
+        - ``register`` (str): Disease register name (normalised)
+        - ``registered_patients`` (float): Patients on register at NPD
+        - ``prevalence_per_1000`` (float): Prevalence per 1,000 registered pts
+
+        Data spans 2009/10 to the latest published year (~17 financial years)
+        with ~305–360 GP practices per year.
+
+    Raises:
+        NISRADataNotFoundError: If the workbook cannot be located or downloaded.
+        NISRAValidationError: If the parsed data fails validation.
+
+    Example:
+        >>> df = get_latest_gp_prevalence()
+        >>> df["practice_code"].str.startswith("Z").all()
+        True
+        >>> df["financial_year"].nunique() >= 17
+        True
+    """
+    url = get_latest_publication_url()
+    logger.info("Downloading disease prevalence workbook from %s", url)
+    file_path = download_file(url, cache_ttl_hours=_CACHE_TTL, force_refresh=force_refresh)
+    df = parse_all_gp_practices(file_path)
+    validate_disease_prevalence(df, level="gp")
+    return df
