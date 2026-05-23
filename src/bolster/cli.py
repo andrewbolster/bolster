@@ -5396,6 +5396,113 @@ def psni_stop_search_cmd(year, district, output_format, save, force_refresh):
         raise click.Abort() from e
 
 
+@psni.command(name="pace")
+@click.option(
+    "--breakdown",
+    type=click.Choice(["stop-search", "arrests"], case_sensitive=False),
+    default="stop-search",
+    help="Which table to retrieve: 'stop-search' (monthly counts) or 'arrests' (quarterly demographics). Default: stop-search.",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+def psni_pace_cmd(breakdown, output_format, save, force_refresh):
+    """PSNI PACE (Police and Criminal Evidence Order) Statistics.
+
+    Retrieves annual PACE statistics from PSNI Statistics Branch including:
+    - Monthly stop and search counts by reason (stolen articles, offensive weapons,
+      going equipped, fireworks) with associated arrests
+    - Quarterly arrests under PACE by gender and legal-rights requests
+      (solicitor, friend/relative)
+
+    Args:
+        breakdown: Which table to retrieve ('stop-search' or 'arrests')
+        output_format: Output format (table, csv, or json)
+        save: Save data to file (specify filename)
+        force_refresh: Force re-download even if cached
+
+    Examples:
+        Get monthly stop & search breakdown::
+
+            bolster psni pace --breakdown stop-search
+
+        Get quarterly arrest demographics as CSV::
+
+            bolster psni pace --breakdown arrests --format csv
+
+        Save arrests data to file::
+
+            bolster psni pace --breakdown arrests --save pace_arrests.csv
+
+    Data Notes:
+        - Single financial year per workbook; PACE_URLS updated each May
+        - Stop & search reasons: Stolen Articles, Offensive Weapon/Blade or Point,
+          Going Equipped/Prohibited Articles, Fireworks
+        - Arrests breakdown: Total, Male, Female, Unknown/Other, Requested
+          friend/relative, Requested solicitor
+    """
+    from rich.table import Table
+
+    from bolster.data_sources.psni import pace
+
+    console = Console()
+
+    try:
+        breakdown_key = breakdown.replace("-", "_")
+        console.print("\n[bold blue]🔍 PSNI PACE Statistics[/bold blue]\n")
+
+        df = pace.get_latest_pace(breakdown=breakdown_key, force_refresh=force_refresh)
+        fy = df["financial_year"].iloc[0] if len(df) > 0 else "unknown"
+
+        title = f"PACE Stop & Search — {fy}" if breakdown == "stop-search" else f"PACE Arrests — {fy}"
+
+        console.print(f"[bold]{title}[/bold]\n")
+
+        if output_format == "table":
+            table = Table(show_header=True, header_style="bold cyan")
+            for col in df.columns:
+                table.add_column(str(col))
+            for _, row in df.iterrows():
+                table.add_row(*[str(v) for v in row.values])
+            console.print(table)
+
+        elif output_format == "csv":
+            console.print(df.to_csv(index=False))
+
+        elif output_format == "json":
+            console.print(df.to_json(orient="records", indent=2))
+
+        if save:
+            if save.endswith(".json"):
+                df.to_json(save, orient="records", indent=2)
+            else:
+                df.to_csv(save, index=False)
+            console.print(f"\n[green]✅ Saved to {save}[/green]")
+
+        if breakdown == "stop-search":
+            total_searches = df[df["metric"] == "Searches"]["count"].sum()
+            total_arrests = df[df["metric"] == "Arrests"]["count"].sum()
+            console.print(
+                f"\n[dim]{fy} | {total_searches:,} total searches | {total_arrests:,} arrests following search[/dim]"
+            )
+        else:
+            annual = df[df["quarter"] == "Annual Total"]
+            total_row = annual[annual["category"] == "Total"]
+            if not total_row.empty:
+                total = int(total_row["count"].iloc[0])
+                console.print(f"\n[dim]{fy} | {total:,} total PACE arrests[/dim]")
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        raise click.Abort() from e
+
+
 @nisra.command(name="planning-statistics")
 @click.option(
     "--dimension",

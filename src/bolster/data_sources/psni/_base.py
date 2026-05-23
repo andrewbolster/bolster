@@ -185,7 +185,12 @@ def get_nuts_region_name(nuts3_code: str) -> str | None:
     return NUTS_REGION_NAMES.get(nuts3_code)
 
 
-def download_file(url: str, cache_ttl_hours: int = 24, force_refresh: bool = False) -> Path:
+def download_file(
+    url: str,
+    cache_ttl_hours: int = 24,
+    force_refresh: bool = False,
+    headers: dict | None = None,
+) -> Path:
     """Download a file with caching support.
 
     Downloads a file from the given URL and caches it locally. If a valid
@@ -196,6 +201,9 @@ def download_file(url: str, cache_ttl_hours: int = 24, force_refresh: bool = Fal
         url: URL to download
         cache_ttl_hours: Cache validity in hours (default: 24)
         force_refresh: If True, bypass cache and re-download
+        headers: Optional extra HTTP headers (e.g. ``{"Referer": "..."}``).
+            Useful for resources that require a browser-like User-Agent or a
+            specific Referer to bypass Cloudflare checks.
 
     Returns:
         Path to the downloaded (or cached) file
@@ -212,7 +220,7 @@ def download_file(url: str, cache_ttl_hours: int = 24, force_refresh: bool = Fal
         PSNIDataNotFoundError raised for unreachable URL
     """
     try:
-        return _downloader.download(url, cache_ttl_hours=cache_ttl_hours, force_refresh=force_refresh)
+        return _downloader.download(url, cache_ttl_hours=cache_ttl_hours, force_refresh=force_refresh, headers=headers)
     except DownloadError as e:
         raise PSNIDataNotFoundError(str(e)) from e
 
