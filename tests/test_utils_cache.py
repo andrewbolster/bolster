@@ -179,7 +179,7 @@ class TestCachedDownloader:
         assert expected_path.read_bytes() == b"test file content"
 
         # Should have made the HTTP request
-        mock_session.get.assert_called_once_with(url, timeout=60)
+        mock_session.get.assert_called_once_with(url, timeout=60, headers=None)
         mock_response.raise_for_status.assert_called_once()
 
     @patch('bolster.utils.cache.web_session')
@@ -193,7 +193,7 @@ class TestCachedDownloader:
         downloader = CachedDownloader("test", timeout=30)
         downloader.download("https://example.com/data.csv")
 
-        mock_session.get.assert_called_once_with("https://example.com/data.csv", timeout=30)
+        mock_session.get.assert_called_once_with("https://example.com/data.csv", timeout=30, headers=None)
 
     @patch('bolster.utils.cache.web_session')
     def test_download_network_error_raises_download_error(self, mock_session):

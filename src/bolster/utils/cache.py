@@ -112,7 +112,13 @@ class CachedDownloader:
 
         return None
 
-    def download(self, url: str, cache_ttl_hours: int = 24, force_refresh: bool = False) -> Path:
+    def download(
+        self,
+        url: str,
+        cache_ttl_hours: int = 24,
+        force_refresh: bool = False,
+        headers: dict | None = None,
+    ) -> Path:
         """Download a file with caching support.
 
         Downloads a file from the given URL and caches it locally. If a valid
@@ -122,6 +128,8 @@ class CachedDownloader:
             url: URL to download
             cache_ttl_hours: Cache validity in hours (default: 24)
             force_refresh: If True, bypass cache and re-download
+            headers: Optional extra HTTP headers to include in the request
+                (e.g. ``{"Referer": "...", "User-Agent": "..."}``)
 
         Returns:
             Path to the downloaded (or cached) file
@@ -143,7 +151,7 @@ class CachedDownloader:
         try:
             logger.info(f"Downloading {url}")
             # Use shared session with retry logic for resilient downloads
-            response = web_session.get(url, timeout=self.timeout)
+            response = web_session.get(url, timeout=self.timeout, headers=headers)
             response.raise_for_status()
 
             cache_path.write_bytes(response.content)

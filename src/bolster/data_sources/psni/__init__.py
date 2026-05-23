@@ -4,6 +4,8 @@ This module provides access to PSNI open data including:
 - Crime Statistics: Police recorded crime data with monthly updates
 - Road Traffic Collisions: Injury collision, casualty, and vehicle data
 - Police Ombudsman: Complaint statistics from 2000/01 to present
+- PACE Statistics: Annual stop & search and arrests under the Police and
+  Criminal Evidence (PACE) Order
 
 Data is sourced from OpenDataNI and the Police Ombudsman's Office under the
 Open Government Licence v3.0.
@@ -26,7 +28,7 @@ Example:
 See individual module docstrings for detailed documentation.
 """
 
-from . import stop_and_search
+from . import pace, stop_and_search
 from ._base import (
     PSNIDataError,
     PSNIDataNotFoundError,
@@ -79,6 +81,8 @@ from .road_traffic_collisions import (
 )
 
 __all__ = [
+    # PACE Statistics
+    "pace",
     # Stop and Search module
     "stop_and_search",
     # Crime Statistics - Main functions

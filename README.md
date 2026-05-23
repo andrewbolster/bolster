@@ -237,6 +237,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | PSNI Crime Statistics | `psni.crime_statistics` | ⚠️ historical only (Apr 2001–Dec 2021); `get_latest` raises `PSNIDataStaleError` |
 | Police Ombudsman Complaints | `psni.police_ombudsman` | ✅ |
 | Stop & Search | `psni.stop_and_search` | ✅ |
+| PACE Stop & Search / Arrests | `psni.pace` | ✅ |
 
 #### Infrastructure NI Publication Discovery
 
