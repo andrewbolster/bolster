@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.5.0] - 2026-05-20
+## \[0.5.0\] - 2026-05-20
 
 - refactor(nisra): consolidate economic indicators into dedicated modules (#1819)
 - fix(ci): fix YAML syntax error in auto-release workflow (#1813)
@@ -46,7 +46,6 @@
 - fix(web): add tqdm progress bar to download_extract_zip (#314)
 - fix(drift-detection): bump artifact actions to Node.js 24, fix speciesName trailing punctuation
 - feat: weekly NISRA feed drift detection via TF-IDF (#1732)
-
 
 All notable changes to this project will be documented in this file.
 

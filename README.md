@@ -190,6 +190,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 
 | Publication | Module | Status |
 |-------------|--------|--------|
+| Claimant Count (UC + JSA) | `nisra.claimant_count` | ✅ |
 | Labour Market Statistics | `nisra.labour_market` | ✅ |
 | Weekly/Monthly Deaths | `nisra.deaths` | ✅ |
 | Monthly Births/Stillbirths | `nisra.births` | ✅ |
