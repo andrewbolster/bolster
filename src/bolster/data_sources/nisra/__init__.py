@@ -28,6 +28,7 @@ Available modules:
     - tourism: Tourism statistics including occupancy surveys, visitor stats (subpackage)
     - wellbeing: Individual wellbeing statistics (life satisfaction, happiness, anxiety, loneliness)
     - work_quality: Work Quality NI — seventeen indicators of job quality for employees
+    - public_confidence: Public Awareness of and Trust in Official Statistics (PCOS)
 
 Examples:
     >>> from bolster.data_sources.nisra import claimant_count
@@ -132,6 +133,7 @@ from . import (
     planning_statistics,
     population,
     population_projections,
+    public_confidence,
     quarterly_employment_survey,
     registrar_general,
     stillbirths,
@@ -161,6 +163,7 @@ __all__ = [
     "planning_statistics",
     "population",
     "population_projections",
+    "public_confidence",
     "registrar_general",
     "stillbirths",
     "tourism",
