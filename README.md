@@ -228,6 +228,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Hate Incidents & Crimes | - | ❌ Cloudflare-blocked |
 | Road Traffic Collisions | `psni.road_traffic_collisions` | ✅ |
 | PSNI Crime Statistics | `psni.crime_statistics` | ⚠️ historical only (Apr 2001–Dec 2021); `get_latest` raises `PSNIDataStaleError` |
+| Police Ombudsman Complaints | `psni.police_ombudsman` | ✅ |
 
 #### Infrastructure NI Publication Discovery
 

@@ -5184,6 +5184,100 @@ def psni_rtc_cmd(year, data_type, by, output_format, save, force_refresh):
         raise click.Abort() from e
 
 
+@psni.command(name="ombudsman")
+@click.option(
+    "--breakdown",
+    type=click.Choice(
+        ["totals", "by-district", "by-allegation-type", "by-outcome", "quarterly"],
+        case_sensitive=False,
+    ),
+    default="totals",
+    show_default=True,
+    help="Which breakdown to retrieve.",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    show_default=True,
+    help="Output format.",
+)
+@click.option("--save", metavar="PATH", help="Save output to file.")
+@click.option("--force-refresh", is_flag=True, help="Bypass cache and re-download.")
+def psni_ombudsman_cmd(breakdown, output_format, save, force_refresh):
+    r"""Police Ombudsman Complaint Statistics.
+
+    Retrieves official complaint statistics published by the Police Ombudsman
+    for Northern Ireland, covering complaints, allegations, and case outcomes.
+
+    Available breakdowns:
+
+    \b
+    totals            - Total complaints 2000/01 to present
+    by-district       - Complaints by policing district, 2011/12+
+    by-allegation-type- Allegations by type and subtype, 2011/12+
+    by-outcome        - Complaint closures by outcome, 2011/12+
+    quarterly         - Quarterly complaints, latest 5 financial years
+
+    Examples:
+    \b
+        bolster psni ombudsman
+        bolster psni ombudsman --breakdown by-district
+        bolster psni ombudsman --breakdown quarterly --format csv
+        bolster psni ombudsman --breakdown by-allegation-type --save allegations.csv
+    """
+    from rich.table import Table
+
+    from bolster.data_sources.psni import police_ombudsman
+
+    console = Console()
+
+    # Map CLI choice (hyphens) to module parameter (underscores)
+    _breakdown_map = {
+        "totals": "totals",
+        "by-district": "by_district",
+        "by-allegation-type": "by_allegation_type",
+        "by-outcome": "by_outcome",
+        "quarterly": "quarterly",
+    }
+    module_breakdown = _breakdown_map[breakdown.lower()]
+
+    try:
+        console.print("\n[bold blue]Police Ombudsman Complaint Statistics[/bold blue]\n")
+        df = police_ombudsman.get_latest_complaints(module_breakdown, force_refresh=force_refresh)
+        title = f"Police Ombudsman — {breakdown}"
+
+        console.print(f"[bold]{title}[/bold]  ({len(df):,} rows)\n")
+
+        if output_format == "table":
+            table = Table(show_header=True, header_style="bold cyan")
+            for col in df.columns:
+                table.add_column(str(col))
+            for _, row in df.head(50).iterrows():
+                table.add_row(*[str(v) for v in row.values])
+            console.print(table)
+            if len(df) > 50:
+                console.print(f"\n[yellow]Showing first 50 of {len(df):,} rows[/yellow]")
+
+        elif output_format == "csv":
+            console.print(df.to_csv(index=False))
+
+        elif output_format == "json":
+            console.print(df.to_json(orient="records", indent=2))
+
+        if save:
+            if save.endswith(".json"):
+                df.to_json(save, orient="records", indent=2)
+            else:
+                df.to_csv(save, index=False)
+            console.print(f"\n[green]Saved to {save}[/green]")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        raise click.Abort() from e
+
+
 @nisra.command(name="planning-statistics")
 @click.option(
     "--dimension",
