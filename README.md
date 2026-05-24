@@ -6,6 +6,9 @@
 ![GitHub Actions](https://img.shields.io/github/actions/workflow/status/andrewbolster/bolster/pytest.yml?branch=main&style=for-the-badge)
 ![Code Coverage](https://img.shields.io/codecov/c/github/andrewbolster/bolster?style=for-the-badge)
 ![Documentation](https://img.shields.io/readthedocs/bolster?style=for-the-badge)
+[![Ruff](https://img.shields.io/badge/Code%20Quality-Ruff-red?logo=ruff&logoColor=white&style=for-the-badge)](https://github.com/astral-sh/ruff)
+[![uv](https://img.shields.io/badge/Package%20Manager-uv-green?logo=python&logoColor=white&style=for-the-badge)](https://github.com/astral-sh/uv)
+[![Pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white&style=for-the-badge)](https://pre-commit.com/)
 
 > **Bolster's Brain, you've been warned** 🧠
 
