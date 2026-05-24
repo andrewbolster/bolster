@@ -1,5 +1,69 @@
 # Changelog
 
+## [0.6.1] - 2026-05-24
+
+- fix(readme): correct CI badge workflow filename (test.yml → pytest.yml) (#1842)
+- feat(nisra/disease_prevalence): add GP-practice-level data from Table 5 sheets (#1839)
+- feat(psni): add PACE stop & search and arrests statistics module (#1832) (#1838)
+- feat(psni): add stop_and_search module — PSNI stop & search 2017/18–2024/25 (#1837)
+- feat(nisra): add disease_prevalence module — NI raw disease register statistics (#1836)
+- feat(nisra/public_confidence): add PCOS module with awareness and trust time-series (#1835)
+- fix: pre-0.6.0 audit fixes — init exports, CLI gaps, CHANGELOG, README (#1840)
+- feat(psni): add Police Ombudsman complaint statistics module (#1834)
+- feat(nisra): add claimant_count module — monthly UC+JSA claimant statistics (#1833)
+- feat(nisra): add child protection statistics module (#1772) (#1828)
+- feat(nisra): add elective/outpatient waiting times module (#1802) (#1830)
+- feat: add CLI commands for baby names, work quality, education suspensions (#1827)
+- fix(psni/crime_statistics): raise PSNIDataStaleError; add get_historical_crime_statistics() (#1823)
+- feat(daera): add NI LAC municipal waste statistics module (#1734) (#1825)
+- feat(nisra/population_projections): add LGD sub-area projections (2022-based, 2022–2047) (#1822)
+- feat(ashe): add Figures 2, 3, 6, 7, 8, 11, 12 (real earnings, occupation/industry, pay distribution) (#1789)
+- refactor(nisra): consolidate economic indicators into dedicated modules (#1819)
+- fix(ci): fix YAML syntax error in auto-release workflow (#1813)
+- fix(population_projections): auto-discover latest projection series URL (#1812)
+- fix(composite_index): update stale URL path to /economic-output/ (#1809)
+- fix(ci+cli): codecov ignore cli.py, serialise matrix, drop ceremonial --latest (#1796)
+- fix(docs): correct structural and content issues (#1782)
+- fix(cli): standardise data-selection flag to --dimension across nisra commands
+- fix(ci): exclude .claude/agents/ from mdformat
+- feat(nisra): add NI Planning Activity Statistics module
+- Revert "fix(docs): use uv export | pip install for RTD instead of uv sync"
+- fix(docs): use uv export | pip install for RTD instead of uv sync
+- fix(docs): install docs group on RTD instead of --all-extras
+- feat: add NISRA Quarterly Employment Survey module
+- feat: add NISRA Index of Production and Index of Services modules
+- Merge branch 'main' into dependabot/uv/boto3-1.42.97
+- Merge branch 'main' into dependabot/uv/ruff-0.15.12
+- Merge branch 'main' into dependabot/uv/requests-cache-1.3.1
+- feat: build and deploy Sphinx docs to bolster.help via GitHub Pages (#1740)
+- feat(nisra): add stillbirths module and update population projections to 2024-based (#1762)
+- fix(nisra): fix population scraper broken by NISRA site restructure (#1758)
+- Merge branch 'main' into dependabot/uv/boto3-1.42.97
+- Merge branch 'main' into dependabot/uv/ruff-0.15.12
+- Merge branch 'main' into dependabot/uv/requests-cache-1.3.1
+- fix(release): use bump-my-version show to extract version after bump (#1739)
+- Merge branch 'main' into dependabot/uv/requests-cache-1.3.1
+- Merge branch 'main' into dependabot/uv/ruff-0.15.12
+- Merge branch 'main' into dependabot/uv/boto3-1.42.97
+- fix(ci): allow manual dispatch of rebase workflow to update all BEHIND PRs
+- Merge branch 'main' into dependabot/uv/boto3-1.42.97
+- Merge branch 'main' into dependabot/uv/ruff-0.15.12
+- Merge branch 'main' into dependabot/uv/requests-cache-1.3.1
+- fix(web): cap retry backoff to prevent CI hangs on blocked IPs
+- Merge branch 'main' into dependabot/uv/boto3-1.42.97
+- Merge branch 'main' into dependabot/uv/ruff-0.15.12
+- Merge branch 'main' into dependabot/uv/requests-cache-1.3.1
+- fix(web): cap retry backoff to prevent CI hangs on blocked IPs
+- Merge branch 'main' into dependabot/uv/requests-cache-1.3.1
+- fix(ci): include BEHIND PRs in auto-rebase workflow
+- feat(ashe): refactor linked-tables parsing to content-fingerprint detection (#1748)
+- feat(data): UK Gender Pay Gap reporting data source (#217) (#1741)
+- feat(ashe): implement Figures 14-18 gender earnings analysis (#1747)
+- fix(web): add tqdm progress bar to download_extract_zip (#314)
+- fix(drift-detection): bump artifact actions to Node.js 24, fix speciesName trailing punctuation
+- feat: weekly NISRA feed drift detection via TF-IDF (#1732)
+
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
