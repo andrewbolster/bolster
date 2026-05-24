@@ -3,7 +3,7 @@
 ![PyPI](https://img.shields.io/pypi/v/bolster?style=for-the-badge)
 ![Python](https://img.shields.io/pypi/pyversions/bolster?style=for-the-badge)
 ![License](https://img.shields.io/pypi/l/bolster?style=for-the-badge)
-![GitHub Actions](https://img.shields.io/github/actions/workflow/status/andrewbolster/bolster/test.yml?branch=main&style=for-the-badge)
+![GitHub Actions](https://img.shields.io/github/actions/workflow/status/andrewbolster/bolster/pytest.yml?branch=main&style=for-the-badge)
 ![Code Coverage](https://img.shields.io/codecov/c/github/andrewbolster/bolster?style=for-the-badge)
 ![Documentation](https://img.shields.io/readthedocs/bolster?style=for-the-badge)
 
