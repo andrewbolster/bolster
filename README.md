@@ -232,6 +232,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Disease Prevalence Registers (PHA/DoH) | `nisra.disease_prevalence` | ✅ |
 | PSNI Stop & Search (OpenDataNI) | `psni.stop_and_search` | ✅ |
 | PSNI PACE Stop & Search / Arrests | `psni.pace` | ✅ |
+| Bank of England Base Rate | `boe_base_rate` | ✅ |
 | Security Situation Statistics | - | ❌ Cloudflare-blocked |
 | Anti-social Behaviour | - | ❌ Cloudflare-blocked |
 | Domestic Abuse Incidents/Crimes | - | ❌ Cloudflare-blocked |
