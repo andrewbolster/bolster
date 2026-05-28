@@ -13,6 +13,8 @@ Various scrapers and API wrappers for NI government data:
 - ons_cpi: ONS UK inflation indices (CPI, CPIH, RPI) — annual rates and price indices
 - nisra: NISRA statistics (deaths, births, labour market, population, etc.)
 - justice: NI Department of Justice / NICTS statistics (mortgage possession actions)
+- ons_cpi: ONS UK inflation indices (CPI, CPIH, RPI)
+- boe_base_rate: Bank of England official Bank Rate (base rate)
 
 Most have corresponding CLI commands.
 """

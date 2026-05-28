@@ -12,6 +12,8 @@ from rich.text import Text
 
 from . import __version__
 from .data_sources import dva, education_suspensions, gender_pay_gap
+from .data_sources.boe_base_rate import get_latest_data as get_boe_base_rate
+from .data_sources.boe_base_rate import get_rate_changes as get_boe_rate_changes
 from .data_sources.cineworld import get_cinema_listings
 from .data_sources.companies_house import get_companies_house_records_that_might_be_in_farset, query_basic_company_data
 from .data_sources.daera_waste import get_latest_waste_statistics, validate_waste_data
@@ -6753,6 +6755,78 @@ def ons_cpi_cmd(series_code, resolution, year, output_format, force_refresh, sav
         raise click.Abort() from e
 
 
+@cli.command(name="boe-base-rate")
+@click.option(
+    "--resolution",
+    type=click.Choice(["daily", "monthly", "quarterly", "annual"], case_sensitive=False),
+    default="monthly",
+    help="Time resolution (default: monthly).",
+)
+@click.option(
+    "--changes",
+    is_flag=True,
+    help="Show the event-based history of rate changes (back to 1694) instead of the level series.",
+)
+@click.option("--year", type=int, help="Filter data to a single calendar year.")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv).",
+)
+@click.option("--force-refresh", is_flag=True, help="Bypass cache and re-download.")
+@click.option("--save", help="Save data to a file (specify filename).")
+def boe_base_rate_cmd(resolution, changes, year, output_format, force_refresh, save):
+    """Bank of England official Bank Rate (base rate).
+
+    Retrieves the unified UK base rate from the Bank of England's published
+    spreadsheet. The daily level series runs back to 1973; the event-based
+    history of rate changes (--changes) runs back to 1694.
+
+    The level series shares a fixed schema with the other macroeconomic
+    modules (date, year, quarter, month, resolution, series, value, unit,
+    geography, source) so it can be joined against inflation and other series.
+
+    Examples:
+        bolster boe-base-rate --resolution monthly
+        bolster boe-base-rate --resolution annual --year 2024
+        bolster boe-base-rate --changes --format json --save changes.json
+
+    Source:
+        https://www.bankofengland.co.uk/boeapps/database/Bank-Rate.asp
+    """
+    console = Console()
+    try:
+        if changes:
+            data = get_boe_rate_changes(force_refresh=force_refresh)
+        else:
+            data = get_boe_base_rate(resolution=resolution, force_refresh=force_refresh)
+
+        if year:
+            data = data[data["year"] == year]
+
+        if save:
+            if output_format == "json":
+                data.astype(str).to_json(save, orient="records", indent=2)
+            else:
+                data.to_csv(save, index=False)
+            console.print(f"[green]Saved {len(data)} rows to {save}[/green]")
+            return
+
+        if output_format == "json":
+            click.echo(data.astype(str).to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
 @cli.command()
 def list_sources():
     """List all available data sources and their descriptions.
@@ -6835,6 +6909,7 @@ def list_sources():
     click.echo("  education suspensions      NI school suspensions and expulsions (DE)")
     click.echo("  gender-pay-gap             UK Gender Pay Gap Reporting service")
     click.echo("  ons-cpi                    ONS UK inflation indices (CPI, CPIH, RPI)")
+    click.echo("  boe-base-rate              Bank of England official Bank Rate (base rate)")
 
     click.echo("\nUSAGE EXAMPLES")
     click.echo("  bolster water-quality BT1 5GS              # Water quality by postcode")
