@@ -373,7 +373,7 @@ def validate_data(df: pd.DataFrame) -> bool:
     - ``geography`` is exclusively "UK" and ``source`` exclusively "BoE".
     - ``series`` is exclusively "base_rate" and ``unit`` exclusively "%".
     - ``resolution`` only contains known values.
-    - ``value`` is numeric, non-null and within a sane 0-25 %% range.
+    - ``value`` is numeric, non-null and within a sane 0-25% range.
 
     Args:
         df: DataFrame to validate.
