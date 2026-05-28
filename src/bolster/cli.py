@@ -28,6 +28,7 @@ from .data_sources.nisra import composite_index as nisra_composite
 from .data_sources.nisra import construction_output as nisra_construction
 from .data_sources.nisra import deaths as nisra_deaths
 from .data_sources.nisra import disease_prevalence as nisra_disease_prevalence
+from .data_sources.nisra import drug_related_deaths as nisra_drug_related_deaths
 from .data_sources.nisra import emergency_care_waiting_times as nisra_emergency
 from .data_sources.nisra import index_of_production as nisra_iop
 from .data_sources.nisra import index_of_services as nisra_ios
@@ -1682,6 +1683,128 @@ def nisra_deaths_cmd(dimension, output_format, force_refresh, save):
                 console.print("\n[yellow]💡 Tip: For 'all' dimensions, use --save to export to files[/yellow]")
                 console.print("[yellow]   Displaying demographics dimension only:[/yellow]\n")
                 click.echo(data["demographics"].to_csv(index=False))
+            else:
+                click.echo(data.to_csv(index=False))
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
+        console.print("   • Visit NISRA website to verify data availability")
+        raise click.Abort() from e
+
+
+@nisra.command(name="drug-related-deaths")
+@click.option(
+    "--dimension",
+    type=click.Choice(["summary", "age", "substances", "all"], case_sensitive=False),
+    default="summary",
+    help="Which dimension to retrieve (default: summary)",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_drug_related_deaths_cmd(dimension, output_format, force_refresh, save):
+    """NISRA Drug-Related and Drug Misuse Deaths Statistics.
+
+    Annual accredited official statistics on drug-related deaths and deaths due to
+    drug misuse in Northern Ireland, by registration year.
+
+    Examples:
+    ---------
+    Annual totals and rates::
+
+        bolster nisra drug-related-deaths --dimension summary
+
+    Age-band breakdown by gender and year::
+
+        bolster nisra drug-related-deaths --dimension age
+
+    Deaths mentioning selected substances::
+
+        bolster nisra drug-related-deaths --dimension substances
+
+    All dimensions saved to files::
+
+        bolster nisra drug-related-deaths --dimension all --save drug_deaths.csv
+
+    Dimensions
+    ----------
+    summary
+        Annual totals, crude rates, and age-standardised rates by gender/measure
+    age
+        Counts by age band, gender, and year (drug-related and drug misuse)
+    substances
+        Drug-related deaths mentioning selected substances by year
+    all
+        All dimensions (returns separate tables)
+
+    Source
+    ------
+    https://www.nisra.gov.uk/statistics/cause-death/drug-related-deaths
+    """
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading latest NISRA drug deaths data..."):
+            data = nisra_drug_related_deaths.get_latest_data(dimension=dimension, force_refresh=force_refresh)
+
+        if dimension == "all":
+            console.print("[green]✅ Retrieved all dimensions successfully[/green]")
+            total_records = sum(len(df) for df in data.values())
+            console.print(f"[cyan]📊 Total records: {total_records}[/cyan]")
+            for dim_name, df in data.items():
+                console.print(f"   • {dim_name}: {len(df)} records")
+        else:
+            console.print(f"[green]✅ Retrieved {dimension} dimension successfully[/green]")
+            console.print(f"[cyan]📊 Total records: {len(data)}[/cyan]")
+
+        if save:
+            try:
+                if dimension == "all":
+                    for dim_name, df in data.items():
+                        filename = (
+                            f"{save.rsplit('.', 1)[0]}_{dim_name}.{save.rsplit('.', 1)[-1] if '.' in save else 'csv'}"
+                        )
+                        if output_format == "json" or filename.endswith(".json"):
+                            df.to_json(filename, orient="records", indent=2)
+                        else:
+                            df.to_csv(filename, index=False)
+                        console.print(f"[green]💾 Saved {dim_name} to: {filename}[/green]")
+                else:
+                    if output_format == "json" or save.endswith(".json"):
+                        data.to_json(save, orient="records", indent=2)
+                    else:
+                        data.to_csv(save, index=False)
+                    console.print(f"[green]💾 Data saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]❌ Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]❌ Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            import json
+
+            if dimension == "all":
+                output = {dim_name: df.to_dict(orient="records") for dim_name, df in data.items()}
+                click.echo(json.dumps(output, indent=2, default=str))
+            else:
+                click.echo(data.to_json(orient="records", indent=2))
+        else:  # csv
+            if dimension == "all":
+                console.print("\n[yellow]💡 Tip: For 'all' dimensions, use --save to export to files[/yellow]")
+                console.print("[yellow]   Displaying summary dimension only:[/yellow]\n")
+                click.echo(data["summary"].to_csv(index=False))
             else:
                 click.echo(data.to_csv(index=False))
 

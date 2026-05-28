@@ -16,6 +16,7 @@ Available modules:
     - construction_output: Quarterly construction output statistics (all work, new work, repair & maintenance)
     - deaths: Weekly death registrations with demographic, geographic, and place breakdowns
     - disease_prevalence: Annual NI disease register sizes and prevalence per 1,000 patients (2004/05–present)
+    - drug_related_deaths: Annual drug-related and drug misuse deaths by year, age, gender, and substance
     - index_of_services: Quarterly Index of Services (IOS) — canonical module
     - index_of_production: Quarterly Index of Production (IOP) — canonical module
     - labour_market: Quarterly Labour Force Survey statistics (employment, economic inactivity)
@@ -125,6 +126,7 @@ from . import (
     construction_output,
     deaths,
     disease_prevalence,
+    drug_related_deaths,
     elective_waiting_times,
     emergency_care_waiting_times,
     index_of_production,
@@ -155,6 +157,7 @@ __all__ = [
     "construction_output",
     "deaths",
     "disease_prevalence",
+    "drug_related_deaths",
     "elective_waiting_times",
     "emergency_care_waiting_times",
     "index_of_production",
