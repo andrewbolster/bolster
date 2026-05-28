@@ -16,6 +16,7 @@ from .data_sources.cineworld import get_cinema_listings
 from .data_sources.companies_house import get_companies_house_records_that_might_be_in_farset, query_basic_company_data
 from .data_sources.daera_waste import get_latest_waste_statistics, validate_waste_data
 from .data_sources.eoni import get_results as get_ni_election_results
+from .data_sources.justice import mortgages as justice_mortgages
 from .data_sources.metoffice import get_uk_precipitation
 from .data_sources.ni_house_price_index import build as get_ni_house_prices
 from .data_sources.ni_water import get_postcode_to_water_supply_zone, get_water_quality_by_zone
@@ -6427,6 +6428,118 @@ def education_suspensions_cmd(year, output_format, force_refresh, save, summary)
 
         if output_format == "json":
             click.echo(data.to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@cli.group(name="justice")
+def justice():
+    """NI Department of Justice / NICTS statistics.
+
+    Access official justice statistics from the Northern Ireland Courts and
+    Tribunals Service (NICTS), including mortgage actions for possession.
+    """
+    pass
+
+
+@justice.command(name="mortgages")
+@click.option(
+    "--table",
+    type=click.Choice(["received", "disposed", "final-orders"], case_sensitive=False),
+    default="received",
+    help="Which table to show (default: received)",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics instead of full data")
+def justice_mortgages_cmd(table, output_format, force_refresh, save, summary):
+    r"""NICTS Mortgages: Action for Possession.
+
+    \b
+    Quarterly statistics on mortgage possession proceedings in the Chancery
+    Division of the NI High Court: cases received, cases disposed, and the
+    final orders made. Covers 2007 to present (final orders from 2017).
+
+    Examples:
+        Quarterly cases received::
+
+            bolster justice mortgages
+
+        Cases disposed::
+
+            bolster justice mortgages --table disposed
+
+        Final orders by type::
+
+            bolster justice mortgages --table final-orders
+
+        Save as CSV::
+
+            bolster justice mortgages --save mortgages.csv
+
+    Source:
+        https://www.justice-ni.gov.uk/publications/nicts-mortgages-action-possession
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading NICTS mortgages data..."):
+            all_data = justice_mortgages.get_latest_data(force_refresh=force_refresh)
+
+        if table == "final-orders":
+            if "final_orders" not in all_data:
+                console.print("[yellow]Final orders data not available in this bulletin[/yellow]")
+                return
+            data = all_data["final_orders"]
+        else:
+            data = all_data[table]
+
+        console.print("[green]Mortgages data retrieved successfully[/green]")
+        console.print(f"[cyan]Table: {table} | Rows: {len(data)}[/cyan]")
+
+        if summary and table in ("received", "disposed"):
+            annual = data.groupby("year")["annual_total"].first().dropna()
+            peak_year = int(annual.idxmax())
+            console.print("\n[bold]Summary:[/bold]")
+            console.print(f"   Coverage: {int(data['year'].min())}-{int(data['year'].max())}")
+            console.print(f"   Peak year: {peak_year} ({int(annual.max()):,} applications)")
+            console.print(f"   Latest complete annual total: {int(annual.iloc[-1]):,} ({int(annual.index[-1])})")
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.astype(str).to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.astype(str).to_json(orient="records", indent=2))
         else:
             console.print(data.to_csv(index=False), end="")
 
