@@ -127,3 +127,4 @@ docs/autoapi/
 # .specify/ is intentionally versioned (specs are documentation)
 # .claude/commands/ is intentionally versioned (slash command definitions)
 # Note: Do NOT add .claude/ to .gitignore - it contains project-specific commands
+.claude/worktrees/
