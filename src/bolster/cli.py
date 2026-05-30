@@ -44,6 +44,9 @@ from .data_sources.nisra import wellbeing as nisra_wellbeing
 from .data_sources.nisra import work_quality as nisra_work_quality
 from .data_sources.nisra.tourism import occupancy as nisra_occupancy
 from .data_sources.nisra.tourism import visitor_statistics as nisra_visitors
+from .data_sources.ons_cpi import SERIES as ONS_CPI_SERIES
+from .data_sources.ons_cpi import get_latest_data as get_ons_cpi_latest
+from .data_sources.ons_cpi import get_series as get_ons_cpi_series
 from .data_sources.wikipedia import get_ni_executive_basic_table
 from .utils.rss import filter_entries, get_nisra_statistics_feed, parse_rss_feed
 
@@ -6674,6 +6677,82 @@ def justice_mortgages_cmd(table, output_format, force_refresh, save, summary):
         raise click.Abort() from e
 
 
+@cli.command(name="ons-cpi")
+@click.option(
+    "--series",
+    "series_code",
+    type=click.Choice(sorted(ONS_CPI_SERIES), case_sensitive=False),
+    help="ONS series code (omit to fetch all series).",
+)
+@click.option(
+    "--resolution",
+    type=click.Choice(["monthly", "quarterly", "annual"], case_sensitive=False),
+    default="monthly",
+    help="Time resolution (default: monthly).",
+)
+@click.option("--year", type=int, help="Filter data to a single calendar year.")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv).",
+)
+@click.option("--force-refresh", is_flag=True, help="Bypass cache and re-download.")
+@click.option("--save", help="Save data to a file (specify filename).")
+def ons_cpi_cmd(series_code, resolution, year, output_format, force_refresh, save):
+    r"""ONS UK inflation indices (CPI, CPIH, RPI).
+
+    Retrieves headline UK inflation measures from the ONS open time-series API,
+    each available as a 12-month annual rate (%) and as a price index:
+
+    \b
+      L55O  CPIH annual rate     L522  CPIH index (2015=100)
+      D7G7  CPI annual rate      D7BT  CPI index  (2015=100)
+      CZBH  RPI annual rate      CHAW  RPI index  (1987=100)
+
+    RPI runs back to 1948. All series share a fixed schema (date, year,
+    quarter, month, resolution, series, value, unit, geography, source).
+
+    Examples:
+        bolster ons-cpi --series D7G7 --resolution monthly
+        bolster ons-cpi --resolution annual --year 2024
+        bolster ons-cpi --series CZBH --format json --save rpi.json
+
+    Source:
+        https://www.ons.gov.uk/economy/inflationandpriceindices
+    """
+    console = Console()
+    try:
+        if series_code:
+            data = get_ons_cpi_series(series_code.upper(), resolution=resolution, force_refresh=force_refresh)
+        else:
+            data = get_ons_cpi_latest(resolution=resolution, force_refresh=force_refresh)
+
+        if year:
+            data = data[data["year"] == year]
+
+        if save:
+            if output_format == "json":
+                data.astype(str).to_json(save, orient="records", indent=2)
+            else:
+                data.to_csv(save, index=False)
+            console.print(f"[green]Saved {len(data)} rows to {save}[/green]")
+            return
+
+        if output_format == "json":
+            click.echo(data.astype(str).to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
 @cli.command()
 def list_sources():
     """List all available data sources and their descriptions.
@@ -6755,6 +6834,7 @@ def list_sources():
     click.echo("  dva                        DVA monthly test statistics (vehicle, driver, theory)")
     click.echo("  education suspensions      NI school suspensions and expulsions (DE)")
     click.echo("  gender-pay-gap             UK Gender Pay Gap Reporting service")
+    click.echo("  ons-cpi                    ONS UK inflation indices (CPI, CPIH, RPI)")
 
     click.echo("\nUSAGE EXAMPLES")
     click.echo("  bolster water-quality BT1 5GS              # Water quality by postcode")

@@ -233,6 +233,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Drug-Related & Drug Misuse Deaths | `nisra.drug_related_deaths` | ✅ |
 | PSNI Stop & Search (OpenDataNI) | `psni.stop_and_search` | ✅ |
 | PSNI PACE Stop & Search / Arrests | `psni.pace` | ✅ |
+| ONS UK Inflation (CPI / CPIH / RPI) | `ons_cpi` | ✅ |
 | Security Situation Statistics | - | ❌ Cloudflare-blocked |
 | Anti-social Behaviour | - | ❌ Cloudflare-blocked |
 | Domestic Abuse Incidents/Crimes | - | ❌ Cloudflare-blocked |
