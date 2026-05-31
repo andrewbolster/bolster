@@ -1,0 +1,25 @@
+name: 🔔 Notify MCP Server of Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  dispatch:
+    name: Trigger mcp.bolster.online upgrade
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.MCP_DISPATCH_TOKEN }}
+          script: |
+            await github.rest.repos.createDispatchEvent({
+              owner: 'andrewbolster',
+              repo: 'mcp.bolster.online',
+              event_type: 'bolster-release',
+              client_payload: {
+                version: context.payload.release.tag_name,
+                release_url: context.payload.release.html_url
+              }
+            })
+            core.info(`Dispatched bolster-release event for ${context.payload.release.tag_name}`)
