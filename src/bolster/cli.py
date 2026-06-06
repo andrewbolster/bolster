@@ -12,10 +12,13 @@ from rich.text import Text
 
 from . import __version__
 from .data_sources import dva, education_suspensions, gender_pay_gap
+from .data_sources.boe_base_rate import get_latest_data as get_boe_base_rate
+from .data_sources.boe_base_rate import get_rate_changes as get_boe_rate_changes
 from .data_sources.cineworld import get_cinema_listings
 from .data_sources.companies_house import get_companies_house_records_that_might_be_in_farset, query_basic_company_data
 from .data_sources.daera_waste import get_latest_waste_statistics, validate_waste_data
 from .data_sources.eoni import get_results as get_ni_election_results
+from .data_sources.justice import mortgages as justice_mortgages
 from .data_sources.metoffice import get_uk_precipitation
 from .data_sources.ni_house_price_index import build as get_ni_house_prices
 from .data_sources.ni_water import get_postcode_to_water_supply_zone, get_water_quality_by_zone
@@ -27,6 +30,7 @@ from .data_sources.nisra import composite_index as nisra_composite
 from .data_sources.nisra import construction_output as nisra_construction
 from .data_sources.nisra import deaths as nisra_deaths
 from .data_sources.nisra import disease_prevalence as nisra_disease_prevalence
+from .data_sources.nisra import drug_related_deaths as nisra_drug_related_deaths
 from .data_sources.nisra import emergency_care_waiting_times as nisra_emergency
 from .data_sources.nisra import index_of_production as nisra_iop
 from .data_sources.nisra import index_of_services as nisra_ios
@@ -42,6 +46,9 @@ from .data_sources.nisra import wellbeing as nisra_wellbeing
 from .data_sources.nisra import work_quality as nisra_work_quality
 from .data_sources.nisra.tourism import occupancy as nisra_occupancy
 from .data_sources.nisra.tourism import visitor_statistics as nisra_visitors
+from .data_sources.ons_cpi import SERIES as ONS_CPI_SERIES
+from .data_sources.ons_cpi import get_latest_data as get_ons_cpi_latest
+from .data_sources.ons_cpi import get_series as get_ons_cpi_series
 from .data_sources.wikipedia import get_ni_executive_basic_table
 from .utils.rss import filter_entries, get_nisra_statistics_feed, parse_rss_feed
 
@@ -196,7 +203,7 @@ def water_quality(postcode, zone_code, output_format):
 
     Examples:
         bolster water-quality BT1 5GS     # Lookup by postcode
-        bolster water-quality --zone-code BALM  # Lookup by zone code
+        bolster water-quality --zone-code ZS0107  # Lookup by zone code
         bolster water-quality BT7 --format json  # JSON output
     """
     # Prompt for postcode if neither postcode nor zone code provided
@@ -214,8 +221,7 @@ def water_quality(postcode, zone_code, output_format):
             # Look up zone code from postcode
             click.echo("🔍 Looking up water supply zone...")
             zone_mapping = get_postcode_to_water_supply_zone()
-            postcode_key = postcode.replace(" ", "")
-            zone_code = zone_mapping.get(postcode_key, "UNKNOWN")
+            zone_code = zone_mapping.get(postcode, "UNKNOWN")
 
             if zone_code == "UNKNOWN":
                 click.echo(f"❌ Error: Could not find water supply zone for postcode: {postcode}")
@@ -788,7 +794,7 @@ def companies_house(query, output_format, save):
         if not query:
             # If no query provided, get Farset Labs related companies
             click.echo("🏢 No query provided, retrieving Farset Labs related companies...")
-            companies_data = get_companies_house_records_that_might_be_in_farset()
+            companies_data = pd.DataFrame(list(get_companies_house_records_that_might_be_in_farset()))
             query_description = "Farset Labs related companies"
         else:
             # Validate and clean query
@@ -798,9 +804,12 @@ def companies_house(query, output_format, save):
                 click.echo("💡 Please provide at least 2 characters for company search")
                 return
 
-            # Query for specific company
+            # Query for specific company — build a name-match filter callable
             click.echo(f"🔍 Searching Companies House for: '{query}'...")
-            companies_data = query_basic_company_data(query)
+            q_lower = query.lower()
+            companies_data = pd.DataFrame(
+                list(query_basic_company_data(lambda r: q_lower in str(r.get("company_name", "")).lower()))
+            )
             query_description = f"Companies matching '{query}'"
 
         if companies_data is None or companies_data.empty:
@@ -862,9 +871,9 @@ def companies_house(query, output_format, save):
 @cli.command()
 @click.option(
     "--election-year",
-    type=click.Choice(["2016", "2017", "2022", "all"], case_sensitive=False),
+    type=click.Choice(["2022", "all"], case_sensitive=False),
     default="all",
-    help="Filter by election year (default: all)",
+    help="Filter by election year (default: all). Note: only 2022 data is currently available.",
 )
 @click.option(
     "--format",
@@ -889,19 +898,16 @@ def ni_elections(election_year, output_format, save):
     try:
         click.echo("🗳️ Retrieving NI Assembly election results...")
 
-        # Get election results (the function returns data for all available years)
-        election_data = get_ni_election_results()
+        years_to_fetch = [2022] if election_year == "all" else [int(election_year)]
+        election_data = {}
+        for year in years_to_fetch:
+            click.echo(f"📊 Fetching {year} results...")
+            election_data[year] = get_ni_election_results(year)
 
         if not election_data:
             click.echo("❌ No election data available")
             click.echo("💡 This may be a temporary issue. Please try again later")
             return
-
-        # Filter by year if specified (and not 'all')
-        if election_year != "all":
-            # This would need to be implemented based on the structure of election_data
-            # For now, we'll just note that filtering is requested
-            click.echo(f"📊 Filtering results for year: {election_year}")
 
         click.echo("✅ Election data retrieved successfully")
 
@@ -1681,6 +1687,128 @@ def nisra_deaths_cmd(dimension, output_format, force_refresh, save):
                 console.print("\n[yellow]💡 Tip: For 'all' dimensions, use --save to export to files[/yellow]")
                 console.print("[yellow]   Displaying demographics dimension only:[/yellow]\n")
                 click.echo(data["demographics"].to_csv(index=False))
+            else:
+                click.echo(data.to_csv(index=False))
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
+        console.print("   • Visit NISRA website to verify data availability")
+        raise click.Abort() from e
+
+
+@nisra.command(name="drug-related-deaths")
+@click.option(
+    "--dimension",
+    type=click.Choice(["summary", "age", "substances", "all"], case_sensitive=False),
+    default="summary",
+    help="Which dimension to retrieve (default: summary)",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_drug_related_deaths_cmd(dimension, output_format, force_refresh, save):
+    """NISRA Drug-Related and Drug Misuse Deaths Statistics.
+
+    Annual accredited official statistics on drug-related deaths and deaths due to
+    drug misuse in Northern Ireland, by registration year.
+
+    Examples:
+    ---------
+    Annual totals and rates::
+
+        bolster nisra drug-related-deaths --dimension summary
+
+    Age-band breakdown by gender and year::
+
+        bolster nisra drug-related-deaths --dimension age
+
+    Deaths mentioning selected substances::
+
+        bolster nisra drug-related-deaths --dimension substances
+
+    All dimensions saved to files::
+
+        bolster nisra drug-related-deaths --dimension all --save drug_deaths.csv
+
+    Dimensions
+    ----------
+    summary
+        Annual totals, crude rates, and age-standardised rates by gender/measure
+    age
+        Counts by age band, gender, and year (drug-related and drug misuse)
+    substances
+        Drug-related deaths mentioning selected substances by year
+    all
+        All dimensions (returns separate tables)
+
+    Source
+    ------
+    https://www.nisra.gov.uk/statistics/cause-death/drug-related-deaths
+    """
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading latest NISRA drug deaths data..."):
+            data = nisra_drug_related_deaths.get_latest_data(dimension=dimension, force_refresh=force_refresh)
+
+        if dimension == "all":
+            console.print("[green]✅ Retrieved all dimensions successfully[/green]")
+            total_records = sum(len(df) for df in data.values())
+            console.print(f"[cyan]📊 Total records: {total_records}[/cyan]")
+            for dim_name, df in data.items():
+                console.print(f"   • {dim_name}: {len(df)} records")
+        else:
+            console.print(f"[green]✅ Retrieved {dimension} dimension successfully[/green]")
+            console.print(f"[cyan]📊 Total records: {len(data)}[/cyan]")
+
+        if save:
+            try:
+                if dimension == "all":
+                    for dim_name, df in data.items():
+                        filename = (
+                            f"{save.rsplit('.', 1)[0]}_{dim_name}.{save.rsplit('.', 1)[-1] if '.' in save else 'csv'}"
+                        )
+                        if output_format == "json" or filename.endswith(".json"):
+                            df.to_json(filename, orient="records", indent=2)
+                        else:
+                            df.to_csv(filename, index=False)
+                        console.print(f"[green]💾 Saved {dim_name} to: {filename}[/green]")
+                else:
+                    if output_format == "json" or save.endswith(".json"):
+                        data.to_json(save, orient="records", indent=2)
+                    else:
+                        data.to_csv(save, index=False)
+                    console.print(f"[green]💾 Data saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]❌ Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]❌ Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            import json
+
+            if dimension == "all":
+                output = {dim_name: df.to_dict(orient="records") for dim_name, df in data.items()}
+                click.echo(json.dumps(output, indent=2, default=str))
+            else:
+                click.echo(data.to_json(orient="records", indent=2))
+        else:  # csv
+            if dimension == "all":
+                console.print("\n[yellow]💡 Tip: For 'all' dimensions, use --save to export to files[/yellow]")
+                console.print("[yellow]   Displaying summary dimension only:[/yellow]\n")
+                click.echo(data["summary"].to_csv(index=False))
             else:
                 click.echo(data.to_csv(index=False))
 
@@ -6438,6 +6566,266 @@ def education_suspensions_cmd(year, output_format, force_refresh, save, summary)
         raise click.Abort() from e
 
 
+@cli.group(name="justice")
+def justice():
+    """NI Department of Justice / NICTS statistics.
+
+    Access official justice statistics from the Northern Ireland Courts and
+    Tribunals Service (NICTS), including mortgage actions for possession.
+    """
+    pass
+
+
+@justice.command(name="mortgages")
+@click.option(
+    "--table",
+    type=click.Choice(["received", "disposed", "final-orders"], case_sensitive=False),
+    default="received",
+    help="Which table to show (default: received)",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics instead of full data")
+def justice_mortgages_cmd(table, output_format, force_refresh, save, summary):
+    r"""NICTS Mortgages: Action for Possession.
+
+    \b
+    Quarterly statistics on mortgage possession proceedings in the Chancery
+    Division of the NI High Court: cases received, cases disposed, and the
+    final orders made. Covers 2007 to present (final orders from 2017).
+
+    Examples:
+        Quarterly cases received::
+
+            bolster justice mortgages
+
+        Cases disposed::
+
+            bolster justice mortgages --table disposed
+
+        Final orders by type::
+
+            bolster justice mortgages --table final-orders
+
+        Save as CSV::
+
+            bolster justice mortgages --save mortgages.csv
+
+    Source:
+        https://www.justice-ni.gov.uk/publications/nicts-mortgages-action-possession
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading NICTS mortgages data..."):
+            all_data = justice_mortgages.get_latest_data(force_refresh=force_refresh)
+
+        if table == "final-orders":
+            if "final_orders" not in all_data:
+                console.print("[yellow]Final orders data not available in this bulletin[/yellow]")
+                return
+            data = all_data["final_orders"]
+        else:
+            data = all_data[table]
+
+        console.print("[green]Mortgages data retrieved successfully[/green]")
+        console.print(f"[cyan]Table: {table} | Rows: {len(data)}[/cyan]")
+
+        if summary and table in ("received", "disposed"):
+            annual = data.groupby("year")["annual_total"].first().dropna()
+            peak_year = int(annual.idxmax())
+            console.print("\n[bold]Summary:[/bold]")
+            console.print(f"   Coverage: {int(data['year'].min())}-{int(data['year'].max())}")
+            console.print(f"   Peak year: {peak_year} ({int(annual.max()):,} applications)")
+            console.print(f"   Latest complete annual total: {int(annual.iloc[-1]):,} ({int(annual.index[-1])})")
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.astype(str).to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.astype(str).to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@cli.command(name="ons-cpi")
+@click.option(
+    "--series",
+    "series_code",
+    type=click.Choice(sorted(ONS_CPI_SERIES), case_sensitive=False),
+    help="ONS series code (omit to fetch all series).",
+)
+@click.option(
+    "--resolution",
+    type=click.Choice(["monthly", "quarterly", "annual"], case_sensitive=False),
+    default="monthly",
+    help="Time resolution (default: monthly).",
+)
+@click.option("--year", type=int, help="Filter data to a single calendar year.")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv).",
+)
+@click.option("--force-refresh", is_flag=True, help="Bypass cache and re-download.")
+@click.option("--save", help="Save data to a file (specify filename).")
+def ons_cpi_cmd(series_code, resolution, year, output_format, force_refresh, save):
+    r"""ONS UK inflation indices (CPI, CPIH, RPI).
+
+    Retrieves headline UK inflation measures from the ONS open time-series API,
+    each available as a 12-month annual rate (%) and as a price index:
+
+    \b
+      L55O  CPIH annual rate     L522  CPIH index (2015=100)
+      D7G7  CPI annual rate      D7BT  CPI index  (2015=100)
+      CZBH  RPI annual rate      CHAW  RPI index  (1987=100)
+
+    RPI runs back to 1948. All series share a fixed schema (date, year,
+    quarter, month, resolution, series, value, unit, geography, source).
+
+    Examples:
+        bolster ons-cpi --series D7G7 --resolution monthly
+        bolster ons-cpi --resolution annual --year 2024
+        bolster ons-cpi --series CZBH --format json --save rpi.json
+
+    Source:
+        https://www.ons.gov.uk/economy/inflationandpriceindices
+    """
+    console = Console()
+    try:
+        if series_code:
+            data = get_ons_cpi_series(series_code.upper(), resolution=resolution, force_refresh=force_refresh)
+        else:
+            data = get_ons_cpi_latest(resolution=resolution, force_refresh=force_refresh)
+
+        if year:
+            data = data[data["year"] == year]
+
+        if save:
+            if output_format == "json":
+                data.astype(str).to_json(save, orient="records", indent=2)
+            else:
+                data.to_csv(save, index=False)
+            console.print(f"[green]Saved {len(data)} rows to {save}[/green]")
+            return
+
+        if output_format == "json":
+            click.echo(data.astype(str).to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@cli.command(name="boe-base-rate")
+@click.option(
+    "--resolution",
+    type=click.Choice(["daily", "monthly", "quarterly", "annual"], case_sensitive=False),
+    default="monthly",
+    help="Time resolution (default: monthly).",
+)
+@click.option(
+    "--changes",
+    is_flag=True,
+    help="Show the event-based history of rate changes (back to 1694) instead of the level series.",
+)
+@click.option("--year", type=int, help="Filter data to a single calendar year.")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv).",
+)
+@click.option("--force-refresh", is_flag=True, help="Bypass cache and re-download.")
+@click.option("--save", help="Save data to a file (specify filename).")
+def boe_base_rate_cmd(resolution, changes, year, output_format, force_refresh, save):
+    """Bank of England official Bank Rate (base rate).
+
+    Retrieves the unified UK base rate from the Bank of England's published
+    spreadsheet. The daily level series runs back to 1973; the event-based
+    history of rate changes (--changes) runs back to 1694.
+
+    The level series shares a fixed schema with the other macroeconomic
+    modules (date, year, quarter, month, resolution, series, value, unit,
+    geography, source) so it can be joined against inflation and other series.
+
+    Examples:
+        bolster boe-base-rate --resolution monthly
+        bolster boe-base-rate --resolution annual --year 2024
+        bolster boe-base-rate --changes --format json --save changes.json
+
+    Source:
+        https://www.bankofengland.co.uk/boeapps/database/Bank-Rate.asp
+    """
+    console = Console()
+    try:
+        if changes:
+            data = get_boe_rate_changes(force_refresh=force_refresh)
+        else:
+            data = get_boe_base_rate(resolution=resolution, force_refresh=force_refresh)
+
+        if year:
+            data = data[data["year"] == year]
+
+        if save:
+            if output_format == "json":
+                data.astype(str).to_json(save, orient="records", indent=2)
+            else:
+                data.to_csv(save, index=False)
+            console.print(f"[green]Saved {len(data)} rows to {save}[/green]")
+            return
+
+        if output_format == "json":
+            click.echo(data.astype(str).to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
 @cli.command()
 def list_sources():
     """List all available data sources and their descriptions.
@@ -6519,6 +6907,8 @@ def list_sources():
     click.echo("  dva                        DVA monthly test statistics (vehicle, driver, theory)")
     click.echo("  education suspensions      NI school suspensions and expulsions (DE)")
     click.echo("  gender-pay-gap             UK Gender Pay Gap Reporting service")
+    click.echo("  ons-cpi                    ONS UK inflation indices (CPI, CPIH, RPI)")
+    click.echo("  boe-base-rate              Bank of England official Bank Rate (base rate)")
 
     click.echo("\nUSAGE EXAMPLES")
     click.echo("  bolster water-quality BT1 5GS              # Water quality by postcode")

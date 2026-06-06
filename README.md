@@ -223,14 +223,18 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Tourism - Visitor Statistics | `nisra.tourism.visitor_statistics` | ✅ |
 | Baby Names NI (annual, 1997–present) | `nisra.baby_names` | ✅ |
 | NI School Suspensions (DE) | `education_suspensions` | ✅ |
+| NICTS Mortgages Action for Possession (DoJ) | `justice.mortgages` | ✅ |
 | Work Quality NI (NISRA) | `nisra.work_quality` | ✅ |
 | NI LAC Municipal Waste Statistics (DAERA) | `daera_waste` | ✅ |
 | NI Claimant Count (UC + JSA, DfC/ONS) | `nisra.claimant_count` | ✅ |
 | PSNI Police Ombudsman Complaints | `psni.police_ombudsman` | ✅ |
 | Public Confidence in Official Statistics (NISRA PCOS) | `nisra.public_confidence` | ✅ |
 | Disease Prevalence Registers (PHA/DoH) | `nisra.disease_prevalence` | ✅ |
+| Drug-Related & Drug Misuse Deaths | `nisra.drug_related_deaths` | ✅ |
 | PSNI Stop & Search (OpenDataNI) | `psni.stop_and_search` | ✅ |
 | PSNI PACE Stop & Search / Arrests | `psni.pace` | ✅ |
+| ONS UK Inflation (CPI / CPIH / RPI) | `ons_cpi` | ✅ |
+| Bank of England Base Rate | `boe_base_rate` | ✅ |
 | Security Situation Statistics | - | ❌ Cloudflare-blocked |
 | Anti-social Behaviour | - | ❌ Cloudflare-blocked |
 | Domestic Abuse Incidents/Crimes | - | ❌ Cloudflare-blocked |
