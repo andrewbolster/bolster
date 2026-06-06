@@ -24,6 +24,10 @@ jobs:
               with:
                   ref: main
                   fetch-depth: 0
+                  # Use PAT so git push triggers pull_request:synchronize events
+                  # and re-runs CI on the updated PR branches.
+                  # GITHUB_TOKEN pushes are suppressed by GitHub to prevent loops.
+                  token: ${{ secrets.BOLSTER_TOKEN }}
 
             - name: Configure Git
               run: |
@@ -36,35 +40,36 @@ jobs:
                   set +e  # Don't exit on errors - we want to process all PRs
                   echo "Updating all PRs with latest main (including drafts and failing CI)..."
 
-                  # Get all open PRs that need updating (including drafts and failing CI)
-                  gh pr list --state open --json number,isDraft,mergeStateStatus \
-                    --jq '.[] | select(.mergeStateStatus == "BEHIND" or .mergeStateStatus == "DIRTY" or .mergeStateStatus == "UNSTABLE") | .number' | \
-                  while read -r pr; do
+                  gh pr list --state open --json number,headRefName,mergeStateStatus \
+                    --jq '.[] | select(.mergeStateStatus != "CLEAN") | [.number, .headRefName] | @tsv' | \
+                  while IFS=$'\t' read -r pr branch; do
                     echo "----------------------------------------"
-                    echo "Updating PR #$pr with latest main..."
+                    echo "Updating PR #$pr ($branch) with latest main..."
 
-                    # Use GitHub API to update the branch with main
-                    if gh api -X PUT "repos/${{ github.repository }}/pulls/$pr/update-branch" \
-                        -H "Accept: application/vnd.github+json" \
-                        -f expected_head_sha="$(gh pr view $pr --json headRefOid -q '.headRefOid')" 2>&1; then
+                    git fetch origin "$branch" || { echo "✗ Could not fetch $branch (fork?)"; continue; }
+                    git checkout "$branch"
+                    if git merge --no-edit origin/main; then
+                      git push origin "$branch"
                       echo "✓ Successfully updated PR #$pr"
                     else
-                      echo "✗ Failed to update PR #$pr (may have conflicts or be from a fork)"
+                      git merge --abort
+                      echo "✗ Merge conflict in PR #$pr — skipping"
                     fi
+                    git checkout main
                   done
               env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  GITHUB_TOKEN: ${{ secrets.BOLSTER_TOKEN }}
 
             - name: Update specific PR branch
               if: github.event_name == 'workflow_dispatch' && inputs.pr_number != ''
               run: |
-                  echo "Updating PR #${{ inputs.pr_number }} with latest main..."
+                  branch=$(gh pr view ${{ inputs.pr_number }} --json headRefName --jq '.headRefName')
+                  echo "Updating PR #${{ inputs.pr_number }} ($branch) with latest main..."
 
-                  # Use GitHub API to update the branch
-                  gh api -X PUT "repos/${{ github.repository }}/pulls/${{ inputs.pr_number }}/update-branch" \
-                      -H "Accept: application/vnd.github+json" \
-                      -f expected_head_sha="$(gh pr view ${{ inputs.pr_number }} --json headRefOid -q '.headRefOid')"
-
+                  git fetch origin "$branch"
+                  git checkout "$branch"
+                  git merge --no-edit origin/main
+                  git push origin "$branch"
                   echo "✓ Successfully updated PR #${{ inputs.pr_number }}"
               env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  GITHUB_TOKEN: ${{ secrets.BOLSTER_TOKEN }}
