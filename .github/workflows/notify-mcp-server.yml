@@ -9,7 +9,7 @@ jobs:
     name: Trigger mcp.bolster.online upgrade
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.MCP_DISPATCH_TOKEN }}
           script: |
