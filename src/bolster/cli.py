@@ -203,7 +203,7 @@ def water_quality(postcode, zone_code, output_format):
 
     Examples:
         bolster water-quality BT1 5GS     # Lookup by postcode
-        bolster water-quality --zone-code BALM  # Lookup by zone code
+        bolster water-quality --zone-code ZS0107  # Lookup by zone code
         bolster water-quality BT7 --format json  # JSON output
     """
     # Prompt for postcode if neither postcode nor zone code provided
@@ -221,8 +221,7 @@ def water_quality(postcode, zone_code, output_format):
             # Look up zone code from postcode
             click.echo("🔍 Looking up water supply zone...")
             zone_mapping = get_postcode_to_water_supply_zone()
-            postcode_key = postcode.replace(" ", "")
-            zone_code = zone_mapping.get(postcode_key, "UNKNOWN")
+            zone_code = zone_mapping.get(postcode, "UNKNOWN")
 
             if zone_code == "UNKNOWN":
                 click.echo(f"❌ Error: Could not find water supply zone for postcode: {postcode}")
@@ -795,7 +794,7 @@ def companies_house(query, output_format, save):
         if not query:
             # If no query provided, get Farset Labs related companies
             click.echo("🏢 No query provided, retrieving Farset Labs related companies...")
-            companies_data = get_companies_house_records_that_might_be_in_farset()
+            companies_data = pd.DataFrame(list(get_companies_house_records_that_might_be_in_farset()))
             query_description = "Farset Labs related companies"
         else:
             # Validate and clean query
@@ -805,9 +804,12 @@ def companies_house(query, output_format, save):
                 click.echo("💡 Please provide at least 2 characters for company search")
                 return
 
-            # Query for specific company
+            # Query for specific company — build a name-match filter callable
             click.echo(f"🔍 Searching Companies House for: '{query}'...")
-            companies_data = query_basic_company_data(query)
+            q_lower = query.lower()
+            companies_data = pd.DataFrame(
+                list(query_basic_company_data(lambda r: q_lower in str(r.get("company_name", "")).lower()))
+            )
             query_description = f"Companies matching '{query}'"
 
         if companies_data is None or companies_data.empty:
@@ -869,9 +871,9 @@ def companies_house(query, output_format, save):
 @cli.command()
 @click.option(
     "--election-year",
-    type=click.Choice(["2016", "2017", "2022", "all"], case_sensitive=False),
+    type=click.Choice(["2022", "all"], case_sensitive=False),
     default="all",
-    help="Filter by election year (default: all)",
+    help="Filter by election year (default: all). Note: only 2022 data is currently available.",
 )
 @click.option(
     "--format",
@@ -896,19 +898,16 @@ def ni_elections(election_year, output_format, save):
     try:
         click.echo("🗳️ Retrieving NI Assembly election results...")
 
-        # Get election results (the function returns data for all available years)
-        election_data = get_ni_election_results()
+        years_to_fetch = [2022] if election_year == "all" else [int(election_year)]
+        election_data = {}
+        for year in years_to_fetch:
+            click.echo(f"📊 Fetching {year} results...")
+            election_data[year] = get_ni_election_results(year)
 
         if not election_data:
             click.echo("❌ No election data available")
             click.echo("💡 This may be a temporary issue. Please try again later")
             return
-
-        # Filter by year if specified (and not 'all')
-        if election_year != "all":
-            # This would need to be implemented based on the structure of election_data
-            # For now, we'll just note that filtering is requested
-            click.echo(f"📊 Filtering results for year: {election_year}")
 
         click.echo("✅ Election data retrieved successfully")
 
