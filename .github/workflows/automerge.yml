@@ -33,10 +33,13 @@ jobs:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
             # Enable auto-merge (will only merge when all checks pass)
+            # Uses BOLSTER_TOKEN (PAT) instead of GITHUB_TOKEN so the resulting
+            # push to main triggers downstream workflows (e.g. rebase.yml).
+            # GITHUB_TOKEN-authored pushes are suppressed by GitHub to prevent loops.
             - name: Enable auto-merge for bot PRs
               # For Dependabot: skip major updates (uncomment line below if desired)
               # if: github.actor != 'dependabot[bot]' || steps.dependabot-metadata.outputs.update-type != 'version-update:semver-major'
               run: gh pr merge --auto --squash "$PR_URL"
               env:
                   PR_URL: ${{ github.event.pull_request.html_url }}
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  GITHUB_TOKEN: ${{ secrets.BOLSTER_TOKEN }}
