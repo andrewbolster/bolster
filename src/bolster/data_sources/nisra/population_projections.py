@@ -212,6 +212,11 @@ def parse_projections_file(file_path: Path, variant: str = "principal", base_yea
         }
     )
 
+    # The Flat File contains all projection variants (PPP=principal, HHH=high, LLL=low, etc.).
+    # Filter to principal projection only to avoid 5x row duplication with unlabelled duplicates.
+    if "Projection" in df.columns and variant == "principal":
+        df = df[df["Projection"] == "PPP"]
+
     # Record which projection vintage this data comes from
     df["base_year"] = base_year
 
