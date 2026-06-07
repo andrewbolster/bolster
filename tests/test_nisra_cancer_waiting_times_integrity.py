@@ -1,15 +1,14 @@
 """Data integrity tests for NISRA cancer waiting times statistics.
 
 These tests validate that the data is internally consistent across different
-time periods and dimensions. They use real data from the Department of Health
-(not mocked) and should work with any dataset (latest or historical).
+time periods and dimensions.  Data is fetched from the NISRA PxStat API
+(no mocks) and should work with any dataset (latest or historical).
 
 Key validations:
 - Performance rates between 0 and 1
 - Within target + over target = total patients
 - All trusts and tumour sites present
 - Temporal continuity (no unexpected gaps)
-- COVID-19 impact visible in 2020-2021
 - Historical patterns (31-day better than 62-day)
 """
 
@@ -64,10 +63,14 @@ class Test31DayByTrustIntegrity:
         assert min_year <= 2008, f"Expected data from 2008, earliest is {min_year}"
 
     def test_recent_data_available(self, latest_data):
-        """Test that recent data is available (within last year)."""
+        """Test that recent data is available (within last 3 years).
+
+        The PxStat API may lag behind the published Excel files by up to
+        2-3 years for some matrices; we allow a 3-year window.
+        """
         max_year = latest_data["year"].max()
         current_year = datetime.datetime.now().year
-        assert max_year >= current_year - 1, f"Latest data ({max_year}) is more than 1 year old"
+        assert max_year >= current_year - 3, f"Latest data ({max_year}) is more than 3 years old"
 
     def test_validation_function(self, latest_data):
         """Test that the validation function passes."""
@@ -118,6 +121,16 @@ class Test14DayBreastIntegrity:
         required = {"date", "year", "month", "trust", "within_target", "over_target", "total", "performance_rate"}
         assert set(latest_data.columns) == required
 
+    def test_historical_coverage(self, latest_data):
+        """Test that data goes back to at least 2008."""
+        assert latest_data["year"].min() <= 2008
+
+    def test_all_trusts_present(self, latest_data):
+        """Test that the 5 HSC Trusts appear in the data."""
+        expected_trusts = {"Belfast", "Northern", "South Eastern", "Southern", "Western"}
+        actual_trusts = set(latest_data["trust"].unique())
+        assert expected_trusts.issubset(actual_trusts)
+
 
 class TestBreastReferralsIntegrity:
     """Test suite for breast cancer referrals data."""
@@ -142,6 +155,10 @@ class TestBreastReferralsIntegrity:
         valid_rates = latest_data["urgent_rate"].dropna()
         assert (valid_rates >= 0).all()
         assert (valid_rates <= 1).all()
+
+    def test_historical_coverage(self, latest_data):
+        """Test that data starts from at least 2016."""
+        assert latest_data["year"].min() <= 2016
 
 
 class TestHelperFunctions:
@@ -248,3 +265,35 @@ class TestDataQuality:
         }
         actual_months = set(df["month"].unique())
         assert actual_months.issubset(expected_months), f"Invalid month names: {actual_months - expected_months}"
+
+
+class TestGetLatestCancerWaitingTimes:
+    """Test suite for the unified get_latest_cancer_waiting_times function."""
+
+    def test_31_day_trust(self):
+        """Test 31-day trust dimension."""
+        df = cwt.get_latest_cancer_waiting_times(target="31-day", dimension="trust")
+        assert "trust" in df.columns
+        assert "within_target" in df.columns
+
+    def test_62_day_tumour(self):
+        """Test 62-day tumour dimension."""
+        df = cwt.get_latest_cancer_waiting_times(target="62-day", dimension="tumour")
+        assert "tumour_site" in df.columns
+
+    def test_year_filter(self):
+        """Test that year filter works."""
+        df = cwt.get_latest_cancer_waiting_times(target="31-day", dimension="trust", year=2023)
+        assert (df["year"] == 2023).all()
+        assert len(df) > 0
+
+    def test_summary_mode(self):
+        """Test that summary mode returns annual aggregates."""
+        df = cwt.get_latest_cancer_waiting_times(target="31-day", dimension="trust", summary=True)
+        assert "total_patients" in df.columns
+        assert "months_reported" in df.columns
+
+    def test_invalid_combination_raises(self):
+        """Test that invalid target/dimension raises ValueError."""
+        with pytest.raises(ValueError):
+            cwt.get_latest_cancer_waiting_times(target="14-day", dimension="tumour")

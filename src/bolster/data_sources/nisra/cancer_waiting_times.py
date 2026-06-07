@@ -1,6 +1,6 @@
 """NISRA Cancer Waiting Times Module.
 
-This module provides access to Northern Ireland's cancer waiting times statistics,
+Provides access to Northern Ireland's cancer waiting times statistics,
 measuring performance against key cancer treatment targets.
 
 Cancer Waiting Time Targets:
@@ -11,8 +11,7 @@ Cancer Waiting Time Targets:
 Data Coverage:
     - 31-day and 62-day by HSC Trust: April 2008 - Present (monthly)
     - 31-day and 62-day by Tumour Site: December 2008 - Present (monthly)
-    - 14-day Breast (Historic by Trust): April 2008 - April 2025
-    - 14-day Breast (Regional): May 2025 - Present (new regional service)
+    - 14-day Breast by HSC Trust: April 2008 - Present (monthly)
     - Breast Cancer Referrals: April 2016 - Present (monthly)
 
 HSC Trusts:
@@ -21,425 +20,379 @@ HSC Trusts:
 Tumour Sites:
     - Brain/Central Nervous System, Breast Cancer, Gynaecological Cancers,
     - Haematological Cancers, Head/Neck Cancer, Lower Gastrointestinal Cancer,
-    - Lung Cancer, Other, Skin Cancers, Upper Gastrointestinal Cancer,
+    - Lung Cancer, Other, Sarcomas, Skin Cancers, Upper Gastrointestinal Cancer,
     - Urological Cancer
 
-Data Source: Department of Health Northern Ireland provides cancer waiting times statistics
-through their health publications at https://www.health-ni.gov.uk/articles/cancer-waiting-times.
-The data tracks performance against cancer treatment targets across Health and Social Care Trusts
-and by tumour site, providing comprehensive monitoring of cancer care pathways in Northern Ireland.
+Original data source:
+    https://www.health-ni.gov.uk/articles/cancer-waiting-times
 
-Update Frequency: Quarterly publications are released approximately 3 months after the end
-of each quarter. Cancer waiting times statistics are published by the Department of Health
-as part of their healthcare performance monitoring, with data updated four times per year
-to track progress against key cancer treatment targets.
+Data is fetched from the NISRA PxStat API using the following matrices:
+    - CWT31HSCT: 31-day waiting times by HSC Trust
+    - CWT62HSCT: 62-day waiting times by HSC Trust
+    - CWTBCHSCT: 14-day breast cancer waiting times by HSC Trust
+    - BCREFHSCT: Breast cancer referrals by HSC Trust
+    - CWT31TUMOUR: 31-day waiting times by tumour site
+    - CWT62TUMOUR: 62-day waiting times by tumour site
 
 Example:
     >>> from bolster.data_sources.nisra import cancer_waiting_times as cwt
-    >>> # Get latest 31-day waiting times by HSC Trust
     >>> df = cwt.get_latest_31_day_by_trust()
     >>> sorted(df.columns.tolist())
     ['date', 'month', 'over_target', 'performance_rate', 'total', 'trust', 'within_target', 'year']
 
-    >>> # Get 62-day waiting times by tumour site
     >>> df_tumour = cwt.get_latest_62_day_by_tumour()
     >>> 'tumour_site' in df_tumour.columns
     True
-
-Publication Details:
-    - Frequency: Quarterly (published ~3 months after quarter end)
-    - Published by: Department of Health / NISRA
-    - Source: https://www.health-ni.gov.uk/articles/cancer-waiting-times
 """
 
 import logging
-import re
-from pathlib import Path
 
 import pandas as pd
-from bs4 import BeautifulSoup
 
-from bolster.utils.web import session
-
-from ._base import NISRADataNotFoundError, NISRAValidationError, add_date_columns, download_file, make_absolute_url
+from .pxstat import read_dataset
 
 logger = logging.getLogger(__name__)
 
-# Base URLs
-DOH_CANCER_PAGE = "https://www.health-ni.gov.uk/articles/cancer-waiting-times"
-DOH_BASE_URL = "https://www.health-ni.gov.uk"
+# PxStat matrix codes
+_MATRIX_31_TRUST = "CWT31HSCT"
+_MATRIX_62_TRUST = "CWT62HSCT"
+_MATRIX_14_BREAST = "CWTBCHSCT"
+_MATRIX_BREAST_REF = "BCREFHSCT"
+_MATRIX_31_TUMOUR = "CWT31TUMOUR"
+_MATRIX_62_TUMOUR = "CWT62TUMOUR"
 
-# Sheet configurations
-SHEET_31_DAY_TRUST = "31 Day Wait by HSC Trust"
-SHEET_31_DAY_TUMOUR = "31 Day Wait by Tumour Site"
-SHEET_62_DAY_TRUST = "62 Day Wait by HSC Trust"
-SHEET_62_DAY_TUMOUR = "62 Day Wait by Tumour Site"
-SHEET_14_DAY_REGIONAL = "14 d Wait - Breast Regional"
-SHEET_14_DAY_HISTORIC = "14 d Wait - Breast Historic"
-# Pre-Q3-2025-26 files used a single combined sheet instead of the historic/regional split
-SHEET_14_DAY_LEGACY = "14 Day Wait - Breast Cancer"
-SHEET_BREAST_REFERRALS = "Breast Cancer Referrals"
+# STATISTIC values in the API
+_STAT_TOTAL = "ALL"
+_STAT_WITHIN_31 = "WITHIN31DAYS"
+_STAT_OVER_31 = "OVER31DAYS"
+_STAT_WITHIN_62 = "WITHIN62DAYS"
+_STAT_OVER_62 = "OVER62DAYS"
+_STAT_WITHIN_14 = "WITHIN14DAYS"
+_STAT_OVER_14 = "OVER14DAYS"
+_STAT_ROUTINE = "ROUTINE"
+_STAT_URGENT = "URGENT"
 
-# Column schemas vary by publication era:
-# - Pre-Q3 2025-26: 5 cols (no median/percentile); breast referrals 4 cols (total before urgent, no routine)
-# - Q3 2025-26+:    7 cols (+ median_days, percentile_95_days); breast referrals 5 cols (routine, urgent, total)
-_WAIT_COLS_5 = ["period_month", "group", "within_target", "over_target", "total"]
-_WAIT_COLS_7 = ["period_month", "group", "within_target", "over_target", "total", "median_days", "percentile_95_days"]
-
-
-def get_latest_publication_url() -> tuple[str, str]:
-    """Find the latest cancer waiting times publication URL.
-
-    Scrapes the Department of Health cancer waiting times page to find the
-    most recent quarterly publication.
-
-    Returns:
-        Tuple of (excel_file_url, quarter_string)
-
-    Raises:
-        NISRADataNotFoundError: If publication cannot be found
-    """
-    logger.info(f"Fetching latest publication from {DOH_CANCER_PAGE}")
-
-    try:
-        response = session.get(DOH_CANCER_PAGE, timeout=30)
-        response.raise_for_status()
-    except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch cancer waiting times page: {e}") from e
-
-    soup = BeautifulSoup(response.content, "html.parser")
-
-    # Find links to publications - look for "cancer waiting times" in link text
-    publication_links = []
-    for link in soup.find_all("a", href=True):
-        text = link.get_text(strip=True).lower()
-        href = link["href"]
-        if "cancer waiting times" in text and "publications" in href:
-            publication_links.append((link.get_text(strip=True), href))
-
-    if not publication_links:
-        raise NISRADataNotFoundError("Could not find any cancer waiting times publications")
-
-    # Get the first (most recent) publication
-    pub_text, pub_url = publication_links[0]
-    logger.info(f"Found publication: {pub_text}")
-
-    # Make absolute URL
-    pub_url = make_absolute_url(pub_url, DOH_BASE_URL)
-
-    # Extract quarter from publication text
-    quarter_match = re.search(
-        r"(January|February|March|April|May|June|July|August|September|October|November|December)"
-        r"[^0-9]*(\d{4})",
-        pub_text,
-        re.IGNORECASE,
-    )
-    quarter_str = quarter_match.group(0) if quarter_match else "Unknown"
-
-    # Now fetch the publication page to get the Excel file
-    try:
-        pub_response = session.get(pub_url, timeout=30)
-        pub_response.raise_for_status()
-    except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}") from e
-
-    pub_soup = BeautifulSoup(pub_response.content, "html.parser")
-
-    # Find Excel download link (main data file, not ICD codes)
-    excel_url = None
-    for link in pub_soup.find_all("a", href=True):
-        href = link["href"]
-        text = link.get_text(strip=True).lower()
-        if ".xlsx" in href.lower() and "icd" not in href.lower() and "icd" not in text:
-            excel_url = href
-            break
-
-    if not excel_url:
-        raise NISRADataNotFoundError("Could not find Excel file in publication page")
-
-    # Make absolute URL
-    excel_url = make_absolute_url(excel_url, DOH_BASE_URL)
-
-    logger.info(f"Found Excel file: {excel_url}")
-    return excel_url, quarter_str
+# NI-wide aggregate code — exclude from trust/tumour-level outputs
+_NI_CODE = "N92000002"
 
 
-def _parse_wait_sheet(file_path: str | Path, sheet_name: str, group_col: str) -> pd.DataFrame:
-    """Parse a wait-time sheet, handling 5-column (pre-Q3 2025-26) and 7-column (Q3 2025-26+) formats.
+def _parse_tlist_month(tlist: str) -> pd.Timestamp:
+    """Parse a TLIST(M1) value like '2008M04' into a pandas Timestamp.
 
     Args:
-        file_path: Path to the Excel file
-        sheet_name: Name of the sheet to parse
-        group_col: Output column name for the grouping dimension (e.g. 'trust' or 'tumour_site')
+        tlist: String in the format 'YYYYMmm' (e.g. '2008M04').
 
     Returns:
-        DataFrame with columns: period_month, group_col, within_target, over_target, total
-        (median_days and percentile_95_days are dropped — not yet used downstream)
+        pandas Timestamp for the first day of that month.
     """
-    df = pd.read_excel(file_path, sheet_name=sheet_name)
-    n_cols = len(df.columns)
-    if n_cols == 7:
-        df.columns = _WAIT_COLS_7
-    elif n_cols == 5:
-        df.columns = _WAIT_COLS_5
-    else:
-        raise NISRAValidationError(f"Unexpected column count ({n_cols}) in sheet '{sheet_name}' of {file_path}")
-    return df.rename(columns={"group": group_col})
+    year, month = tlist.split("M")
+    return pd.Timestamp(year=int(year), month=int(month), day=1)
 
 
-def parse_31_day_by_trust(file_path: str | Path) -> pd.DataFrame:
-    """Parse 31-day waiting times by HSC Trust.
-
-    Handles both the 5-column format (pre-Q3 2025-26) and the 7-column format
-    (Q3 2025-26+, which added Median and 95th Percentile columns).
+def _pivot_hsct(matrix: str, stat_within: str, stat_over: str) -> pd.DataFrame:
+    """Fetch an HSCT wait-time matrix and pivot STATISTIC rows to columns.
 
     Args:
-        file_path: Path to the Excel file
+        matrix: PxStat matrix code.
+        stat_within: STATISTIC value for the within-target count.
+        stat_over: STATISTIC value for the over-target count.
 
     Returns:
         DataFrame with columns: date, year, month, trust, within_target,
-        over_target, total, performance_rate
+        over_target, total, performance_rate.  Northern Ireland aggregate
+        rows are excluded.
     """
-    df = _parse_wait_sheet(file_path, SHEET_31_DAY_TRUST, "trust")
-    df = add_date_columns(df, "period_month")
-    df["performance_rate"] = df["within_target"] / df["total"]
-    return df[["date", "year", "month", "trust", "within_target", "over_target", "total", "performance_rate"]]
+    raw = read_dataset(matrix)
+
+    # Exclude NI-wide aggregate; keep individual trusts only
+    raw = raw[raw["HSCT"] != _NI_CODE].copy()
+
+    trust_col = "Health and Social Care Trust"
+    month_col = "TLIST(M1)"
+
+    pivot = raw.pivot_table(
+        index=[month_col, trust_col],
+        columns="STATISTIC",
+        values="VALUE",
+        aggfunc="first",
+    ).reset_index()
+
+    pivot.columns.name = None
+    pivot = pivot.rename(
+        columns={
+            month_col: "tlist",
+            trust_col: "trust",
+            _STAT_TOTAL: "total",
+            stat_within: "within_target",
+            stat_over: "over_target",
+        }
+    )
+
+    pivot["date"] = pivot["tlist"].apply(_parse_tlist_month)
+    pivot["year"] = pivot["date"].dt.year
+    pivot["month"] = pivot["date"].dt.strftime("%B")
+    pivot["within_target"] = pd.to_numeric(pivot["within_target"], errors="coerce")
+    pivot["over_target"] = pd.to_numeric(pivot["over_target"], errors="coerce")
+    pivot["total"] = pd.to_numeric(pivot["total"], errors="coerce")
+    pivot["performance_rate"] = pivot["within_target"] / pivot["total"]
+
+    return (
+        pivot[["date", "year", "month", "trust", "within_target", "over_target", "total", "performance_rate"]]
+        .sort_values(["date", "trust"])
+        .reset_index(drop=True)
+    )
 
 
-def parse_31_day_by_tumour(file_path: str | Path) -> pd.DataFrame:
-    """Parse 31-day waiting times by Tumour Site.
-
-    Handles both the 5-column format (pre-Q3 2025-26) and the 7-column format
-    (Q3 2025-26+, which added Median and 95th Percentile columns).
+def _pivot_tumour(matrix: str, stat_within: str, stat_over: str) -> pd.DataFrame:
+    """Fetch a tumour-site wait-time matrix and pivot STATISTIC rows to columns.
 
     Args:
-        file_path: Path to the Excel file
+        matrix: PxStat matrix code.
+        stat_within: STATISTIC value for the within-target count.
+        stat_over: STATISTIC value for the over-target count.
 
     Returns:
         DataFrame with columns: date, year, month, tumour_site, within_target,
-        over_target, total, performance_rate
+        over_target, total, performance_rate.  'All tumour sites' aggregate rows
+        are excluded.
     """
-    df = _parse_wait_sheet(file_path, SHEET_31_DAY_TUMOUR, "tumour_site")
-    df = add_date_columns(df, "period_month")
-    df["performance_rate"] = df["within_target"] / df["total"]
-    return df[["date", "year", "month", "tumour_site", "within_target", "over_target", "total", "performance_rate"]]
+    raw = read_dataset(matrix)
+
+    site_col = "Site of Tumour"
+    month_col = "TLIST(M1)"
+
+    # Exclude the "All tumour sites" aggregate
+    raw = raw[raw["TUMOURSITE"] != "ALL"].copy()
+
+    pivot = raw.pivot_table(
+        index=[month_col, site_col],
+        columns="STATISTIC",
+        values="VALUE",
+        aggfunc="first",
+    ).reset_index()
+
+    pivot.columns.name = None
+    pivot = pivot.rename(
+        columns={
+            month_col: "tlist",
+            site_col: "tumour_site",
+            _STAT_TOTAL: "total",
+            stat_within: "within_target",
+            stat_over: "over_target",
+        }
+    )
+
+    pivot["date"] = pivot["tlist"].apply(_parse_tlist_month)
+    pivot["year"] = pivot["date"].dt.year
+    pivot["month"] = pivot["date"].dt.strftime("%B")
+    pivot["within_target"] = pd.to_numeric(pivot["within_target"], errors="coerce")
+    pivot["over_target"] = pd.to_numeric(pivot["over_target"], errors="coerce")
+    pivot["total"] = pd.to_numeric(pivot["total"], errors="coerce")
+    pivot["performance_rate"] = pivot["within_target"] / pivot["total"]
+
+    return (
+        pivot[["date", "year", "month", "tumour_site", "within_target", "over_target", "total", "performance_rate"]]
+        .sort_values(["date", "tumour_site"])
+        .reset_index(drop=True)
+    )
 
 
-def parse_62_day_by_trust(file_path: str | Path) -> pd.DataFrame:
-    """Parse 62-day waiting times by HSC Trust.
+# ---------------------------------------------------------------------------
+# Public data-fetching functions
+# ---------------------------------------------------------------------------
 
-    Handles both the 5-column format (pre-Q3 2025-26) and the 7-column format
-    (Q3 2025-26+, which added Median and 95th Percentile columns).
+
+def get_latest_31_day_by_trust(force_refresh: bool = False) -> pd.DataFrame:
+    """Get 31-day waiting times by HSC Trust.
 
     Args:
-        file_path: Path to the Excel file
+        force_refresh: Accepted for API compatibility but ignored; the PxStat
+            API always returns the latest data without caching.
 
     Returns:
         DataFrame with columns: date, year, month, trust, within_target,
-        over_target, total, performance_rate
+        over_target, total, performance_rate.
+    """
+    return _pivot_hsct(_MATRIX_31_TRUST, _STAT_WITHIN_31, _STAT_OVER_31)
+
+
+def get_latest_31_day_by_tumour(force_refresh: bool = False) -> pd.DataFrame:
+    """Get 31-day waiting times by Tumour Site.
+
+    Args:
+        force_refresh: Accepted for API compatibility but ignored; the PxStat
+            API always returns the latest data without caching.
+
+    Returns:
+        DataFrame with columns: date, year, month, tumour_site, within_target,
+        over_target, total, performance_rate.
+    """
+    return _pivot_tumour(_MATRIX_31_TUMOUR, _STAT_WITHIN_31, _STAT_OVER_31)
+
+
+def get_latest_62_day_by_trust(force_refresh: bool = False) -> pd.DataFrame:
+    """Get 62-day waiting times by HSC Trust.
+
+    Args:
+        force_refresh: Accepted for API compatibility but ignored; the PxStat
+            API always returns the latest data without caching.
+
+    Returns:
+        DataFrame with columns: date, year, month, trust, within_target,
+        over_target, total, performance_rate.
 
     Note:
         62-day data may contain fractional patient counts due to shared care
         arrangements between trusts.
     """
-    df = _parse_wait_sheet(file_path, SHEET_62_DAY_TRUST, "trust")
-    df = add_date_columns(df, "period_month")
-    df["performance_rate"] = df["within_target"] / df["total"]
-    return df[["date", "year", "month", "trust", "within_target", "over_target", "total", "performance_rate"]]
-
-
-def parse_62_day_by_tumour(file_path: str | Path) -> pd.DataFrame:
-    """Parse 62-day waiting times by Tumour Site.
-
-    Handles both the 5-column format (pre-Q3 2025-26) and the 7-column format
-    (Q3 2025-26+, which added Median and 95th Percentile columns).
-
-    Args:
-        file_path: Path to the Excel file
-
-    Returns:
-        DataFrame with columns: date, year, month, tumour_site, within_target,
-        over_target, total, performance_rate
-    """
-    df = _parse_wait_sheet(file_path, SHEET_62_DAY_TUMOUR, "tumour_site")
-    df = add_date_columns(df, "period_month")
-    df["performance_rate"] = df["within_target"] / df["total"]
-    return df[["date", "year", "month", "tumour_site", "within_target", "over_target", "total", "performance_rate"]]
-
-
-def parse_14_day_breast(file_path: str | Path) -> pd.DataFrame:
-    """Parse 14-day breast cancer waiting times.
-
-    Handles three publication formats:
-    - Pre-Q4 2024-25: single sheet 'SHEET_14_DAY_LEGACY' (5 cols)
-    - Q4 2024-25 to Q2 2025-26: split into historic (5 cols) + regional (5 cols)
-    - Q3 2025-26+: split into historic (5 cols) + regional (7 cols, + median/95th pct)
-
-    Args:
-        file_path: Path to the Excel file
-
-    Returns:
-        DataFrame with columns: date, year, month, trust, within_target,
-        over_target, total, performance_rate
-
-    Note:
-        From May 2025, breast cancer services became regional. Historic data
-        (pre-May 2025) is by individual Trust. Regional data shows NI-wide figures.
-    """
-    with pd.ExcelFile(file_path) as xl:
-        sheet_names = xl.sheet_names
-
-    if SHEET_14_DAY_HISTORIC in sheet_names:
-        # New split format (Q4 2024-25 onwards)
-        df_historic = _parse_wait_sheet(file_path, SHEET_14_DAY_HISTORIC, "trust")
-        df_historic = add_date_columns(df_historic, "period_month")
-        parts = [df_historic]
-
-        if SHEET_14_DAY_REGIONAL in sheet_names:
-            df_regional = _parse_wait_sheet(file_path, SHEET_14_DAY_REGIONAL, "trust")
-            df_regional = add_date_columns(df_regional, "period_month")
-            parts.append(df_regional)
-
-        df = pd.concat(parts, ignore_index=True)
-    else:
-        # Legacy single-sheet format (pre-Q4 2024-25)
-        df = _parse_wait_sheet(file_path, SHEET_14_DAY_LEGACY, "trust")
-        df = add_date_columns(df, "period_month")
-
-    df["performance_rate"] = df["within_target"] / df["total"]
-    return df[["date", "year", "month", "trust", "within_target", "over_target", "total", "performance_rate"]]
-
-
-def parse_breast_referrals(file_path: str | Path) -> pd.DataFrame:
-    """Parse breast cancer referrals data.
-
-    Handles two formats:
-    - Pre-Q3 2025-26: 4 columns (referral_month, trust, total_referrals, urgent_referrals)
-    - Q3 2025-26+: 5 columns (referral_month, trust, routine_referrals, urgent_referrals, total_referrals)
-
-    Args:
-        file_path: Path to the Excel file
-
-    Returns:
-        DataFrame with columns: date, year, month, trust, total_referrals,
-        urgent_referrals, urgent_rate
-    """
-    df = pd.read_excel(file_path, sheet_name=SHEET_BREAST_REFERRALS)
-    n_cols = len(df.columns)
-
-    if n_cols == 5:
-        # Q3 2025-26+: routine, urgent, total
-        df.columns = ["referral_month", "trust", "routine_referrals", "urgent_referrals", "total_referrals"]
-    elif n_cols == 4:
-        # Pre-Q3 2025-26: total before urgent, no routine column
-        df.columns = ["referral_month", "trust", "total_referrals", "urgent_referrals"]
-    else:
-        raise NISRAValidationError(f"Unexpected column count ({n_cols}) in breast referrals sheet of {file_path}")
-
-    df = add_date_columns(df, "referral_month")
-    df["urgent_rate"] = df["urgent_referrals"] / df["total_referrals"]
-    return df[["date", "year", "month", "trust", "total_referrals", "urgent_referrals", "urgent_rate"]]
-
-
-# High-level functions with automatic download
-
-
-def get_latest_31_day_by_trust(force_refresh: bool = False) -> pd.DataFrame:
-    """Get latest 31-day waiting times by HSC Trust.
-
-    Args:
-        force_refresh: Force re-download even if cached
-
-    Returns:
-        DataFrame with 31-day performance by Trust
-    """
-    excel_url, _ = get_latest_publication_url()
-    file_path = download_file(excel_url, force_refresh=force_refresh)
-    return parse_31_day_by_trust(file_path)
-
-
-def get_latest_31_day_by_tumour(force_refresh: bool = False) -> pd.DataFrame:
-    """Get latest 31-day waiting times by Tumour Site.
-
-    Args:
-        force_refresh: Force re-download even if cached
-
-    Returns:
-        DataFrame with 31-day performance by tumour site
-    """
-    excel_url, _ = get_latest_publication_url()
-    file_path = download_file(excel_url, force_refresh=force_refresh)
-    return parse_31_day_by_tumour(file_path)
-
-
-def get_latest_62_day_by_trust(force_refresh: bool = False) -> pd.DataFrame:
-    """Get latest 62-day waiting times by HSC Trust.
-
-    Args:
-        force_refresh: Force re-download even if cached
-
-    Returns:
-        DataFrame with 62-day performance by Trust
-    """
-    excel_url, _ = get_latest_publication_url()
-    file_path = download_file(excel_url, force_refresh=force_refresh)
-    return parse_62_day_by_trust(file_path)
+    return _pivot_hsct(_MATRIX_62_TRUST, _STAT_WITHIN_62, _STAT_OVER_62)
 
 
 def get_latest_62_day_by_tumour(force_refresh: bool = False) -> pd.DataFrame:
-    """Get latest 62-day waiting times by Tumour Site.
+    """Get 62-day waiting times by Tumour Site.
 
     Args:
-        force_refresh: Force re-download even if cached
+        force_refresh: Accepted for API compatibility but ignored; the PxStat
+            API always returns the latest data without caching.
 
     Returns:
-        DataFrame with 62-day performance by tumour site
+        DataFrame with columns: date, year, month, tumour_site, within_target,
+        over_target, total, performance_rate.
     """
-    excel_url, _ = get_latest_publication_url()
-    file_path = download_file(excel_url, force_refresh=force_refresh)
-    return parse_62_day_by_tumour(file_path)
+    return _pivot_tumour(_MATRIX_62_TUMOUR, _STAT_WITHIN_62, _STAT_OVER_62)
 
 
 def get_latest_14_day_breast(force_refresh: bool = False) -> pd.DataFrame:
-    """Get latest 14-day breast cancer waiting times.
+    """Get 14-day breast cancer waiting times by HSC Trust.
 
     Args:
-        force_refresh: Force re-download even if cached
+        force_refresh: Accepted for API compatibility but ignored; the PxStat
+            API always returns the latest data without caching.
 
     Returns:
-        DataFrame with 14-day breast cancer performance
+        DataFrame with columns: date, year, month, trust, within_target,
+        over_target, total, performance_rate.
     """
-    excel_url, _ = get_latest_publication_url()
-    file_path = download_file(excel_url, force_refresh=force_refresh)
-    return parse_14_day_breast(file_path)
+    return _pivot_hsct(_MATRIX_14_BREAST, _STAT_WITHIN_14, _STAT_OVER_14)
 
 
 def get_latest_breast_referrals(force_refresh: bool = False) -> pd.DataFrame:
-    """Get latest breast cancer referrals data.
+    """Get breast cancer referrals by HSC Trust.
 
     Args:
-        force_refresh: Force re-download even if cached
+        force_refresh: Accepted for API compatibility but ignored; the PxStat
+            API always returns the latest data without caching.
 
     Returns:
-        DataFrame with breast cancer referrals
+        DataFrame with columns: date, year, month, trust, total_referrals,
+        urgent_referrals, urgent_rate.
     """
-    excel_url, _ = get_latest_publication_url()
-    file_path = download_file(excel_url, force_refresh=force_refresh)
-    return parse_breast_referrals(file_path)
+    raw = read_dataset(_MATRIX_BREAST_REF)
+
+    # Exclude NI-wide aggregate
+    raw = raw[raw["HSCT"] != _NI_CODE].copy()
+
+    trust_col = "Health and Social Care Trust"
+    month_col = "TLIST(M1)"
+
+    pivot = raw.pivot_table(
+        index=[month_col, trust_col],
+        columns="STATISTIC",
+        values="VALUE",
+        aggfunc="first",
+    ).reset_index()
+
+    pivot.columns.name = None
+    pivot = pivot.rename(
+        columns={
+            month_col: "tlist",
+            trust_col: "trust",
+            _STAT_TOTAL: "total_referrals",
+            _STAT_URGENT: "urgent_referrals",
+        }
+    )
+
+    pivot["date"] = pivot["tlist"].apply(_parse_tlist_month)
+    pivot["year"] = pivot["date"].dt.year
+    pivot["month"] = pivot["date"].dt.strftime("%B")
+    pivot["total_referrals"] = pd.to_numeric(pivot["total_referrals"], errors="coerce")
+    pivot["urgent_referrals"] = pd.to_numeric(pivot["urgent_referrals"], errors="coerce")
+    pivot["urgent_rate"] = pivot["urgent_referrals"] / pivot["total_referrals"]
+
+    return (
+        pivot[["date", "year", "month", "trust", "total_referrals", "urgent_referrals", "urgent_rate"]]
+        .sort_values(["date", "trust"])
+        .reset_index(drop=True)
+    )
 
 
-# Helper/analysis functions
+# ---------------------------------------------------------------------------
+# Public combined function (named in the task brief)
+# ---------------------------------------------------------------------------
+
+
+def get_latest_cancer_waiting_times(
+    target: str = "31-day",
+    dimension: str = "trust",
+    year: int | None = None,
+    summary: bool = False,
+    force_refresh: bool = False,
+) -> pd.DataFrame:
+    """Get cancer waiting times data for a given target and dimension.
+
+    Args:
+        target: Waiting time target — '31-day', '62-day', or '14-day'.
+        dimension: Breakdown dimension — 'trust' or 'tumour' (tumour not
+            available for 14-day).
+        year: Optional year filter.  If None all years are returned.
+        summary: If True return an annual performance summary aggregated
+            across all groups instead of the full monthly series.
+        force_refresh: Accepted for API compatibility but ignored; the PxStat
+            API always returns the latest data without caching.
+
+    Returns:
+        DataFrame with wait-time performance data.
+
+    Raises:
+        ValueError: If an unsupported target / dimension combination is given.
+    """
+    if target == "31-day" and dimension == "trust":
+        df = get_latest_31_day_by_trust()
+    elif target == "31-day" and dimension == "tumour":
+        df = get_latest_31_day_by_tumour()
+    elif target == "62-day" and dimension == "trust":
+        df = get_latest_62_day_by_trust()
+    elif target == "62-day" and dimension == "tumour":
+        df = get_latest_62_day_by_tumour()
+    elif target == "14-day" and dimension == "trust":
+        df = get_latest_14_day_breast()
+    else:
+        raise ValueError(f"Unsupported combination: target={target!r}, dimension={dimension!r}")
+
+    if year is not None:
+        df = df[df["year"] == year].reset_index(drop=True)
+
+    if summary:
+        group_col = "trust" if "trust" in df.columns else "tumour_site"
+        df = get_performance_summary_by_year(df, group_col)
+
+    return df
+
+
+# ---------------------------------------------------------------------------
+# Helper / analysis functions (preserved from previous implementation)
+# ---------------------------------------------------------------------------
 
 
 def get_data_by_year(df: pd.DataFrame, year: int) -> pd.DataFrame:
     """Filter data for a specific year.
 
     Args:
-        df: DataFrame with 'year' column
-        year: Year to filter for
+        df: DataFrame with 'year' column.
+        year: Year to filter for.
 
     Returns:
-        Filtered DataFrame
+        Filtered DataFrame.
     """
     return df[df["year"] == year].reset_index(drop=True)
 
@@ -448,11 +401,11 @@ def get_performance_summary_by_year(df: pd.DataFrame, group_col: str = "trust") 
     """Calculate annual performance summary.
 
     Args:
-        df: DataFrame with performance data
-        group_col: Column to group by ('trust' or 'tumour_site')
+        df: DataFrame with performance data.
+        group_col: Column to group by ('trust' or 'tumour_site').
 
     Returns:
-        DataFrame with annual summary statistics
+        DataFrame with annual summary statistics.
     """
     summary = (
         df.groupby(["year", group_col])
@@ -472,10 +425,10 @@ def get_ni_wide_performance(df: pd.DataFrame) -> pd.DataFrame:
     """Calculate NI-wide performance (aggregated across all trusts/sites).
 
     Args:
-        df: DataFrame with performance data
+        df: DataFrame with performance data.
 
     Returns:
-        DataFrame with NI-wide monthly performance
+        DataFrame with NI-wide monthly performance.
     """
     ni_wide = (
         df.groupby(["date", "year", "month"])
@@ -494,11 +447,11 @@ def get_performance_trend(df: pd.DataFrame, window: int = 12) -> pd.DataFrame:
     """Calculate rolling performance trend.
 
     Args:
-        df: DataFrame with NI-wide performance data
-        window: Rolling window size in months (default: 12)
+        df: DataFrame with NI-wide performance data.
+        window: Rolling window size in months (default: 12).
 
     Returns:
-        DataFrame with rolling average performance
+        DataFrame with rolling average performance.
     """
     df = df.sort_values("date").copy()
     df["rolling_performance"] = df["performance_rate"].rolling(window=window, min_periods=1).mean()
@@ -509,11 +462,11 @@ def get_tumour_site_ranking(df: pd.DataFrame, year: int = None) -> pd.DataFrame:
     """Rank tumour sites by performance.
 
     Args:
-        df: DataFrame with tumour site data
-        year: Optional year to filter (default: all years)
+        df: DataFrame with tumour site data.
+        year: Optional year to filter (default: all years).
 
     Returns:
-        DataFrame ranked by performance (worst to best)
+        DataFrame ranked by performance (worst to best).
     """
     if year:
         df = df[df["year"] == year]
@@ -536,19 +489,17 @@ def validate_performance_data(df: pd.DataFrame) -> bool:  # pragma: no cover
     """Validate that performance data is internally consistent.
 
     Args:
-        df: DataFrame with performance columns
+        df: DataFrame with performance columns.
 
     Returns:
-        True if validation passes
+        True if validation passes.
 
     Raises:
-        ValueError: If validation fails
+        ValueError: If validation fails.
 
     Note:
-        Rows with NaN values (e.g., due to encompass system rollout) or
-        zero totals are excluded from validation checks.
+        Rows with NaN values or zero totals are excluded from validation checks.
     """
-    # Filter to non-null rows with non-zero totals
     valid_df = df.dropna(subset=["within_target", "over_target", "total"])
     valid_df = valid_df[valid_df["total"] > 0]
 
@@ -566,7 +517,7 @@ def validate_performance_data(df: pd.DataFrame) -> bool:  # pragma: no cover
     if not rate_check.all():
         raise ValueError("Performance rate calculation is incorrect")
 
-    # Check performance rate is between 0 and 1 (filter out inf/nan from division)
+    # Check performance rate is between 0 and 1
     valid_rates = valid_df["performance_rate"].replace([float("inf"), float("-inf")], float("nan")).dropna()
     if len(valid_rates) > 0 and not ((valid_rates >= 0) & (valid_rates <= 1)).all():
         raise ValueError("Performance rate outside 0-1 range")

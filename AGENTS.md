@@ -66,7 +66,29 @@ response = session.get(url, timeout=30)  # Retries on 500/502/503/504
 
 Do NOT use raw `requests.get()` - it lacks retry logic and causes CI flakiness.
 
-### NISRA utilities (`src/bolster/data_sources/nisra/_base.py`)
+### NISRA PxStat API (`src/bolster/data_sources/nisra/pxstat.py`)
+
+**Always check PxStat first for NISRA data** — it has no rate limits, no auth, and no CI flakiness.
+
+```python
+from bolster.data_sources.nisra.pxstat import read_dataset
+
+df = read_dataset("WDTHS")  # Returns tidy DataFrame, UTF-8 BOM handled automatically
+```
+
+API endpoint: `https://ws-data.nisra.gov.uk/public/api.restful/PxStat.Data.Cube_API.ReadDataset/{MATRIX}/CSV/1.0/en`
+
+Discover available matrices at `https://data.nisra.gov.uk/` — 1116 datasets as of 2026-06.
+
+**Prefer PxStat over Excel scraping** for any new NISRA module. Only fall back to Excel scraping when:
+
+- The dataset is not in PxStat (check first with a quick GET)
+- The required granularity (e.g. monthly births) is not available via the API
+- The data is only published as PDF
+
+### NISRA Excel scraping utilities (`src/bolster/data_sources/nisra/_base.py`)
+
+Only use these when PxStat is not available for the dataset:
 
 | Function | Purpose |
 |----------|---------|
@@ -108,9 +130,10 @@ Three specialized agents for the data source development lifecycle.
 ## Data Source Evaluation: [Name]
 - **Source**: [URL]
 - **Format**: [Excel/CSV/API]
-- **Accessibility**: X/5
+- **PxStat matrix**: [matrix code if available, e.g. WDTHS — or "not in PxStat"]
+- **Accessibility**: X/5 (5 = PxStat API; 4 = direct file URL; 3 = scrape needed; 1-2 = Cloudflare/auth blocked)
 - **Recommendation**: RECOMMENDED / MAYBE / NOT RECOMMENDED
-- **Next steps**: [for data-build agent]
+- **Next steps**: [for data-build agent — use PxStat if available]
 ```
 
 ## Agent: data-build
@@ -136,7 +159,22 @@ Three specialized agents for the data source development lifecycle.
 1. **PR** - Create with `gh pr create`, include insights from the data
 1. **Verify CI** - After PR, run `gh pr checks` to confirm CI passes
 
-**Module template**:
+**Module template (PxStat — preferred for NISRA)**:
+
+```python
+from .pxstat import read_dataset, PxStatError  # noqa: F401
+
+
+def get_latest_data(force_refresh: bool = False) -> pd.DataFrame:
+    # force_refresh ignored — PxStat always returns current data
+    df = read_dataset("MATRIX_CODE")
+    ...
+
+
+def validate_data(df: pd.DataFrame) -> bool: ...
+```
+
+**Module template (Excel scraping — only when PxStat unavailable)**:
 
 ```python
 from ._base import download_file, add_date_columns
@@ -203,7 +241,8 @@ class TestValidation:
 ### Code Quality
 
 - \[ \] Follows existing module patterns
-- \[ \] Uses shared utilities from `_base.py` (no reinventing)
+- \[ \] Uses shared utilities from `_base.py` or `pxstat.py` (no reinventing)
+- \[ \] For NISRA data: uses `pxstat.read_dataset()` if the matrix exists; falls back to `_base.download_file()` only if not in PxStat
 - \[ \] Uses `web.session` for HTTP requests (not raw `requests.get()`)
 - \[ \] Type hints on public functions
 - \[ \] Docstrings with examples

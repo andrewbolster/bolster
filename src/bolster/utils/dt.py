@@ -15,6 +15,8 @@ Example:
 
 from datetime import date, datetime, timedelta, timezone
 
+UTC = timezone.utc  # Python 3.10 compat — datetime.UTC only exists from 3.11
+
 
 def round_to_week(dt: datetime | date) -> date:
     """Return a date for the Monday of the week containing the given date.
@@ -77,4 +79,4 @@ def utc_midnight_on(dt: datetime) -> datetime:
         >>> utc_midnight_on(datetime(2018,9,1,12,12, tzinfo=timezone(timedelta(hours=-13))))
         datetime.datetime(2018, 9, 1, 0, 0, tzinfo=datetime.timezone.utc)
     """
-    return datetime.combine(dt.date(), datetime.min.time()).replace(tzinfo=timezone.utc)
+    return datetime.combine(dt.date(), datetime.min.time()).replace(tzinfo=UTC)

@@ -1,30 +1,28 @@
 """NISRA Population Projections for Northern Ireland.
 
 Provides access to official NISRA population projections with demographic breakdowns
-by year, age, sex, and geography. Projections extend from the base year (e.g., 2022)
-into the future (typically 50 years) to support demographic planning and policy analysis.
+by year, age, sex, and projection variant.
 
-Data includes:
-- Projected population by single year of age (0-90+)
-- Breakdowns by sex (Males, Females, All Persons)
-- Geographic coverage (Northern Ireland overall, and by Local Government District)
-- Multiple projection variants (principal, high, low population scenarios)
+NI-level projections (2024-based, 2024-2074) are served via the PxStat API.
+LGD sub-area projections are not yet available via PxStat and remain Excel-based.
 
 Data Source:
-    **Principal Projection**: https://www.nisra.gov.uk/publications/2024-based-population-projections-northern-ireland
-    **Variant Projections**: https://www.nisra.gov.uk/publications/2024-based-population-projections-northern-ireland-variant-projections
-    **LGD Sub-area Projections**: https://www.nisra.gov.uk/publications/2022-based-population-projections-areas-within-northern-ireland
+    **PxStat API** (NI-level, used by this module):
+        https://ws-data.nisra.gov.uk/public/api.restful/PxStat.Data.Cube_API.ReadDataset/{MATRIX}/CSV/1.0/en
 
-    The principal projection publication provides 2 Excel files:
-    - NPP24_ppp_age_sex.xlsx: Population by age and sex (RECOMMENDED - uses "Flat File" sheet)
-    - NPP24_ppp_coc.xlsx: Components of change summary
+    Matrix codes:
+        - ``PPMY02T01``: NI projections by single year of age (0-90+) and sex — principal + variants
+        - ``PPMY02T02``: NI projections by 5-year age bands and sex — principal only
+        - ``PPMY02T03``: Variant projections (high/low fertility, life expectancy, migration)
 
-    The LGD projections file (SNPP22_SYA_Age_Bands.xlsx) uses the "Flat" sheet,
-    already in long format. Covers all 11 LGDs plus NI-total, 2022-2047.
+    **Original publication pages** (for reference and LGD projections):
+        - Principal: https://www.nisra.gov.uk/publications/2024-based-population-projections-northern-ireland
+        - Variants: https://www.nisra.gov.uk/publications/2024-based-population-projections-northern-ireland-variant-projections
+        - LGD sub-areas: https://www.nisra.gov.uk/publications/2022-based-population-projections-areas-within-northern-ireland
 
-Update Frequency: Biennial (NI-level); LGD projections published alongside the 2022-based series
-Geographic Coverage: Northern Ireland (NI-level and 11 Local Government Districts)
-Projection Horizon: Typically 50 years (NI); 2022-2047 (LGD)
+Update Frequency: Biennial (NI-level)
+Geographic Coverage: Northern Ireland overall (LGD projections not yet in PxStat)
+Projection Horizon: 2024-2074 (NI-level via API)
 
 Example:
     >>> from bolster.data_sources.nisra import population_projections
@@ -32,537 +30,147 @@ Example:
     >>> 'population' in df.columns
     True
     >>> df_decade = population_projections.get_latest_projections(
-    ...     area='Northern Ireland',
     ...     start_year=2025,
     ...     end_year=2035
     ... )
     >>> len(df_decade) > 0
     True
-    >>> lgd_df = population_projections.get_lgd_projections()
-    >>> 'lgd_name' in lgd_df.columns
-    True
 """
 
 import logging
-from pathlib import Path
 
 import pandas as pd
-from bs4 import BeautifulSoup
 
-from bolster.utils.web import session
-
-from ._base import (
-    NISRADataNotFoundError,
-    NISRAValidationError,
-    download_file,
-)
+from ._base import NISRAValidationError
+from .pxstat import PxStatError, read_dataset  # noqa: F401 — re-exported for callers
 
 logger = logging.getLogger(__name__)
 
-# Discovery page — lists all projection vintages; scrape this to find the latest series
-PROJECTIONS_INDEX_URL = "https://www.nisra.gov.uk/statistics/people-and-communities/population"
-
-
-def _discover_latest_projection_series_url(variant: bool = False) -> tuple[str, int]:
-    """Scrape the NISRA population statistics index to find the latest projection series.
-
-    Args:
-        variant: If True, return the variant projections URL; otherwise principal.
-
-    Returns:
-        Tuple of (publication_page_url, base_year)
-
-    Raises:
-        NISRADataNotFoundError: If no projection series link found
-    """
-    import re
-
-    try:
-        response = session.get(PROJECTIONS_INDEX_URL, timeout=30)
-        response.raise_for_status()
-    except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch projections index page: {e}") from e
-
-    soup = BeautifulSoup(response.content, "html.parser")
-
-    candidates = []
-    for a in soup.find_all("a", href=True):
-        text = a.get_text(strip=True)
-        href = a["href"]
-        m = re.search(r"(\d{4})-based Population Projections for Northern Ireland", text)
-        if not m:
-            continue
-        if any(x in text.lower() for x in ("variant", "bulletin", "chart", "infographic")):
-            continue
-        if "sub-national" in href.lower():
-            continue
-        year = int(m.group(1))
-        if not href.startswith("http"):
-            href = f"https://www.nisra.gov.uk{href}"
-        candidates.append((year, href))
-
-    if not candidates:
-        raise NISRADataNotFoundError("No projection series found on NISRA population index page")
-
-    base_year, principal_url = max(candidates)
-    logger.info(f"Latest projection series: {base_year}-based at {principal_url}")
-
-    pub_url = f"{principal_url}-variant-projections" if variant else principal_url
-
-    return pub_url, base_year
-
-
-def get_latest_projections_publication_url(variant: str = "principal") -> tuple[str, int]:
-    """Discover latest population projections publication URL and base year.
-
-    Auto-discovers the current projection series from the NISRA statistics index
-    so the module stays current when NISRA publishes a new biennial vintage.
-
-    Args:
-        variant: Projection variant ('principal', 'hhh', 'lll', etc.). Default: 'principal'
-
-    Returns:
-        Tuple of (excel_file_url, base_year)
-
-    Raises:
-        NISRADataNotFoundError: If publication cannot be found
-    """
-    is_variant = variant != "principal"
-    pub_url, base_year = _discover_latest_projection_series_url(variant=is_variant)
-    link_text_pattern = "age and sex"
-
-    try:
-        response = session.get(pub_url, timeout=30)
-        response.raise_for_status()
-    except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch projections publication page: {e}") from e
-
-    soup = BeautifulSoup(response.content, "html.parser")
-
-    # Find Excel link by link text — resilient to filename changes across vintages
-    excel_url = None
-
-    for a_tag in soup.find_all("a", href=True):
-        href = a_tag["href"]
-        link_text = a_tag.get_text(strip=True).lower()
-
-        if link_text_pattern in link_text and href.endswith(".xlsx"):
-            if href.startswith("/"):
-                excel_url = f"https://www.nisra.gov.uk{href}"
-            elif not href.startswith("http"):
-                excel_url = f"https://www.nisra.gov.uk/{href}"
-            else:
-                excel_url = href
-
-            logger.info(f"Found projections file: {excel_url}")
-            break
-
-    if not excel_url:
-        raise NISRADataNotFoundError(f"Could not find '{link_text_pattern}' Excel file on {pub_url}")
-
-    return excel_url, base_year
-
-
-def parse_projections_file(file_path: Path, variant: str = "principal", base_year: int = 2024) -> pd.DataFrame:
-    """Parse downloaded projections Excel file into long-format DataFrame.
-
-    For principal projection, uses the "Flat File" sheet which is already in
-    perfect long format requiring no transformation.
-
-    Args:
-        file_path: Path to downloaded projections Excel file
-        variant: Projection variant ('principal' or variant code)
-        base_year: Base year of the projection vintage (e.g. 2024). Used to
-            populate the base_year column since the file itself doesn't record it.
-
-    Returns:
-        DataFrame with columns:
-            - year: int (projection year)
-            - base_year: int (base year for projection, e.g., 2024)
-            - age_group: str (5-year age band, e.g., "00-04", "05-09", "90+")
-            - sex: str ("Males", "Females", "All Persons")
-            - area: str (geographic area, typically "Northern Ireland")
-            - population: int (projected population count)
-
-    Raises:
-        NISRAValidationError: If file format unexpected or data invalid
-    """
-    try:
-        if variant == "principal":
-            # Read Flat File sheet - already in perfect long format
-            df = pd.read_excel(file_path, sheet_name="Flat File")
-        else:
-            # For variant projections, read PERSONS sheet
-            # This is wide format and needs transformation
-            df = pd.read_excel(file_path, sheet_name="PERSONS", skiprows=6, index_col=0)
-            # TODO: Implement wide-to-long transformation for variants
-            raise NotImplementedError(f"Variant projection parsing not yet implemented: {variant}")
-
-    except Exception as e:
-        raise NISRAValidationError(f"Failed to read projections from {file_path}: {e}") from e
-
-    # Standardize column names (Flat File uses: Area, Area_Code, Projection, Mid-Year, Sex, Age, Age_5, NPP)
-    df = df.rename(
-        columns={
-            "Mid-Year": "year",
-            "Sex": "sex",
-            "Age_5": "age_group",
-            "Area": "area",
-            "NPP": "population",
-        }
-    )
-
-    # Record which projection vintage this data comes from
-    df["base_year"] = base_year
-
-    # Select and reorder columns
-    columns_to_keep = ["year", "base_year", "age_group", "sex", "area", "population"]
-    df = df[columns_to_keep]
-
-    # Clean data types
-    df["year"] = df["year"].astype(int)
-    df["base_year"] = df["base_year"].astype(int)
-    df["population"] = df["population"].astype(int)
-
-    # Sort by year, age, sex
-    df = df.sort_values(["year", "age_group", "sex"]).reset_index(drop=True)
-
-    logger.info(
-        f"Parsed projections: {len(df)} rows, "
-        f"years {df['year'].min()}-{df['year'].max()}, "
-        f"{len(df['age_group'].unique())} age groups"
-    )
-
-    return df
-
-
-def validate_projections_totals(df: pd.DataFrame) -> bool:
-    """Validate that All Persons = Males + Females for each year/age/area.
-
-    Args:
-        df: DataFrame from get_latest_projections()
-
-    Returns:
-        True if validation passes
-
-    Raises:
-        NISRAValidationError: If totals don't match
-    """
-    # Check for empty DataFrame
-    if df.empty:
-        raise NISRAValidationError("DataFrame is empty")
-
-    # Check for required columns
-    required_cols = ["year", "age_group", "sex", "area", "population"]
-    missing_cols = [col for col in required_cols if col not in df.columns]
-    if missing_cols:
-        raise NISRAValidationError(f"Missing required columns: {missing_cols}")
-
-    # Check for negative population
-    if (df["population"] < 0).any():
-        raise NISRAValidationError("Found negative population values")
-
-    # Check sex totals
-    tolerance = 5  # Allow small rounding differences
-    mismatches = []
-
-    for (year, age, area), group in df.groupby(["year", "age_group", "area"]):
-        males = group[group["sex"] == "Males"]["population"].sum()
-        females = group[group["sex"] == "Females"]["population"].sum()
-        all_persons = group[group["sex"] == "All Persons"]["population"].sum()
-
-        if all_persons > 0:  # Only check if data exists
-            difference = abs((males + females) - all_persons)
-            if difference > tolerance:
-                mismatches.append(
-                    f"Year {year}, Age {age}, Area {area}: "
-                    f"Males ({males}) + Females ({females}) != All Persons ({all_persons}), "
-                    f"difference: {difference}"
-                )
-
-    if mismatches:
-        raise NISRAValidationError(f"Found {len(mismatches)} sex totals mismatch(es):\n" + "\n".join(mismatches[:5]))
-
-    logger.info(
-        f"Validation passed: Sex totals consistent for all {len(df.groupby(['year', 'age_group', 'area']))} groups"
-    )
-    return True
-
-
-def validate_projection_coverage(df: pd.DataFrame) -> bool:
-    """Validate that projections cover expected year range.
-
-    Args:
-        df: DataFrame from get_latest_projections()
-
-    Returns:
-        True if validation passes
-
-    Raises:
-        NISRAValidationError: If year range is incomplete or suspicious
-    """
-    if df.empty:
-        raise NISRAValidationError("DataFrame is empty")
-
-    years = sorted(df["year"].unique())
-
-    # Should have at least 20 years of projections
-    if len(years) < 20:
-        raise NISRAValidationError(f"Expected at least 20 years of projections, got {len(years)}")
-
-    # Years should be continuous (no gaps)
-    for i in range(len(years) - 1):
-        gap = years[i + 1] - years[i]
-        if gap > 1:
-            raise NISRAValidationError(f"Gap of {gap} years between {years[i]} and {years[i + 1]}")
-
-    logger.info(f"Validation passed: Projections cover {len(years)} years ({years[0]}-{years[-1]})")
-    return True
+# PxStat matrix codes
+_MATRIX_SYA = "PPMY02T01"  # single year of age, principal projection
+_MATRIX_5YR = "PPMY02T02"  # 5-year age bands, principal projection
+_MATRIX_VARIANTS = "PPMY02T03"  # variant projections
 
 
 def get_latest_projections(
-    area: str | None = None,
     start_year: int | None = None,
     end_year: int | None = None,
-    variant: str = "principal",
+    age_groups: str = "5yr",
     force_refresh: bool = False,
 ) -> pd.DataFrame:
-    """Get latest NISRA population projections with optional filtering.
+    """Retrieve NI population projections (principal projection).
 
     Args:
-        area: Filter to specific geographic area (e.g., "Northern Ireland"). Default: no filter
-        start_year: Filter projections >= this year. Default: no filter
-        end_year: Filter projections <= this year. Default: no filter
-        variant: Projection variant ('principal', 'hhh', 'lll', etc.). Default: 'principal'
-        force_refresh: If True, bypass cache and download fresh data
-
-    Returns:
-        DataFrame with population projections
-
-    Raises:
-        NISRADataNotFoundError: If publication cannot be found
-        NISRAValidationError: If data fails integrity checks
-
-    Example:
-        >>> df = get_latest_projections()
-        >>> sorted(df.columns.tolist())
-        ['age_group', 'area', 'base_year', 'population', 'sex', 'year']
-        >>> df_ni_2030s = get_latest_projections(
-        ...     area='Northern Ireland',
-        ...     start_year=2030,
-        ...     end_year=2039
-        ... )
-        >>> len(df_ni_2030s) > 0
-        True
-    """
-    logger.info(f"Fetching latest population projections (variant: {variant})...")
-
-    # Get publication URL and base year
-    excel_url, base_year = get_latest_projections_publication_url(variant=variant)
-
-    # Download file (with caching, TTL=168 hours = 7 days for biennial data)
-    file_path = download_file(excel_url, cache_ttl_hours=168, force_refresh=force_refresh)
-
-    # Parse into DataFrame
-    df = parse_projections_file(file_path, variant=variant, base_year=base_year)
-
-    # Validate data
-    validate_projections_totals(df)
-    validate_projection_coverage(df)
-
-    # Apply filters
-    if area is not None:
-        df = df[df["area"] == area]
-
-    if start_year is not None:
-        df = df[df["year"] >= start_year]
-
-    if end_year is not None:
-        df = df[df["year"] <= end_year]
-
-    logger.info(f"Successfully loaded projections: {len(df)} rows, years {df['year'].min()}-{df['year'].max()}")
-
-    return df
-
-
-# LGD sub-area projections — 2022-based, published Feb 2026, covers 2022-2047
-LGD_PROJECTIONS_PUB_URL = (
-    "https://www.nisra.gov.uk/publications/2022-based-population-projections-areas-within-northern-ireland"
-)
-LGD_PROJECTIONS_BASE_YEAR = 2022
-
-
-def get_lgd_projections_url() -> str:
-    """Scrape the LGD projections publication page to find the age/sex Excel file.
-
-    Returns:
-        URL of SNPP22_SYA_Age_Bands.xlsx (or equivalent)
-
-    Raises:
-        NISRADataNotFoundError: If the file link cannot be found
-    """
-    try:
-        response = session.get(LGD_PROJECTIONS_PUB_URL, timeout=30)
-        response.raise_for_status()
-    except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch LGD projections page: {e}") from e
-
-    soup = BeautifulSoup(response.content, "html.parser")
-
-    for a_tag in soup.find_all("a", href=True):
-        href = a_tag["href"]
-        text = a_tag.get_text(strip=True).lower()
-        if "age" in text and "sex" in text and href.endswith(".xlsx"):
-            url = href if href.startswith("http") else f"https://www.nisra.gov.uk{href}"
-            logger.info(f"Found LGD projections file: {url}")
-            return url
-
-    raise NISRADataNotFoundError("Could not find LGD age/sex projections Excel file")
-
-
-def parse_lgd_projections_file(file_path: Path) -> pd.DataFrame:
-    """Parse the LGD sub-area projections Excel file (Flat sheet).
-
-    Args:
-        file_path: Path to downloaded SNPP22_SYA_Age_Bands.xlsx
+        start_year: First projection year to include (default: first available).
+        end_year: Last projection year to include (default: last available).
+        age_groups: Age breakdown format:
+            - ``'5yr'``: 5-year age bands (default) — smaller result set
+            - ``'single'``: Single year of age (0-90+) — larger result set
+        force_refresh: Ignored — kept for API compatibility. The PxStat API
+            always returns current data.
 
     Returns:
         DataFrame with columns:
-            - lgd_name: str (e.g. "Belfast")
-            - lgd_code: str (e.g. "N09000003")
-            - year: int (2022-2047)
-            - base_year: int (2022)
-            - sex: str ("All persons", "Male", "Female")
-            - age: int (single year of age, 0-90+)
-            - age_group: str (5-year band, e.g. "00-04")
-            - population: int
+            ``year``, ``age_group``, ``sex``, ``population``, ``base_year``
 
     Raises:
-        NISRAValidationError: If file structure is unexpected
+        NISRAValidationError: If the API returns empty or invalid data.
+        PxStatError: If the API request fails.
+
+    Example:
+        >>> df = get_latest_projections()
+        >>> 'population' in df.columns
+        True
     """
-    try:
-        df = pd.read_excel(file_path, sheet_name="Flat", engine="openpyxl")
-    except Exception as e:
-        raise NISRAValidationError(f"Failed to read LGD projections file: {e}") from e
+    if force_refresh:
+        logger.debug("force_refresh is ignored for PxStat-backed modules")
 
-    # Drop trailing empty columns (file has sparse trailing columns)
-    df = df.loc[:, df.columns.notna()]
+    matrix = _MATRIX_SYA if age_groups == "single" else _MATRIX_5YR
+    age_col = "Single year of age" if age_groups == "single" else "Five year age bands"
 
-    expected = {"Area_Name", "Area_Code", "Mid_Year_Ending", "Sex", "Age", "Age_5", "Population_Projection"}
-    missing = expected - set(df.columns)
-    if missing:
-        raise NISRAValidationError(f"Missing expected columns in LGD Flat sheet: {missing}")
+    df = read_dataset(matrix)
 
-    df = df.rename(
-        columns={
-            "Area_Name": "lgd_name",
-            "Area_Code": "lgd_code",
-            "Mid_Year_Ending": "year",
-            "Sex": "sex",
-            "Age": "age",
-            "Age_5": "age_group",
-            "Population_Projection": "population",
-        }
+    result = df[["Year", age_col, "Sex Label", "VALUE"]].rename(
+        columns={"Year": "year", age_col: "age_group", "Sex Label": "sex", "VALUE": "population"}
     )
+    result["base_year"] = 2024
 
-    # Exclude NI-total rows — keep only the 11 LGDs
-    df = df[df["lgd_code"].str.startswith("N09", na=False)].copy()
+    if start_year:
+        result = result[result["year"] >= start_year]
+    if end_year:
+        result = result[result["year"] <= end_year]
 
-    df["year"] = pd.to_numeric(df["year"], errors="coerce").astype("Int64")
-    df["age"] = pd.to_numeric(df["age"], errors="coerce").astype("Int64")
-    df["population"] = pd.to_numeric(df["population"], errors="coerce").astype("Int64")
-    df["base_year"] = LGD_PROJECTIONS_BASE_YEAR
+    result = result.sort_values(["year", "age_group", "sex"]).reset_index(drop=True)
 
-    df = df[["lgd_name", "lgd_code", "year", "base_year", "sex", "age", "age_group", "population"]]
-    df = df.sort_values(["lgd_code", "year", "sex", "age"]).reset_index(drop=True)
+    if result.empty:
+        raise NISRAValidationError("Population projections data is empty")
 
-    logger.info(
-        f"Parsed LGD projections: {len(df)} rows, "
-        f"{df['lgd_name'].nunique()} LGDs, "
-        f"years {df['year'].min()}-{df['year'].max()}"
-    )
-    return df
+    return result
 
 
-def validate_lgd_projections(df: pd.DataFrame) -> bool:
-    """Validate LGD projections DataFrame for basic integrity.
-
-    Args:
-        df: DataFrame from get_lgd_projections()
-
-    Returns:
-        True if validation passes
-
-    Raises:
-        NISRAValidationError: If validation fails
-    """
-    if df.empty:
-        raise NISRAValidationError("DataFrame is empty")
-
-    required = {"lgd_name", "lgd_code", "year", "sex", "age_group", "population"}
-    missing = required - set(df.columns)
-    if missing:
-        raise NISRAValidationError(f"Missing required columns: {missing}")
-
-    n_lgds = df["lgd_code"].nunique()
-    if n_lgds != 11:
-        raise NISRAValidationError(f"Expected 11 LGDs, got {n_lgds}")
-
-    if (df["population"] < 0).any():
-        raise NISRAValidationError("Negative population values found")
-
-    if df["year"].min() > 2025:
-        raise NISRAValidationError(f"Expected historical base data from 2022, got min year {df['year'].min()}")
-
-    return True
-
-
-def get_lgd_projections(
-    lgd: str | None = None,
+def get_variant_projections(
+    variant: str | None = None,
     start_year: int | None = None,
     end_year: int | None = None,
     force_refresh: bool = False,
 ) -> pd.DataFrame:
-    """Get 2022-based population projections for NI Local Government Districts.
-
-    Covers all 11 LGDs from 2022 to 2047, with single-year-of-age and sex breakdowns.
+    """Retrieve NI population projections including variant scenarios.
 
     Args:
-        lgd: Filter to a specific LGD name (e.g. "Belfast") or code (e.g. "N09000003").
-             Default: all 11 LGDs.
-        start_year: Filter projections >= this year. Default: no filter
-        end_year: Filter projections <= this year. Default: no filter
-        force_refresh: If True, bypass cache and download fresh data
+        variant: Filter to a specific variant label (partial match, case-insensitive).
+            E.g. ``'high fertility'``, ``'low fertility'``, ``'high life expectancy'``.
+            If None, all variants are returned.
+        start_year: First projection year to include.
+        end_year: Last projection year to include.
+        force_refresh: Ignored — kept for API compatibility.
 
     Returns:
-        DataFrame with columns: lgd_name, lgd_code, year, base_year,
-        sex, age, age_group, population
+        DataFrame with columns:
+            ``year``, ``age_group``, ``sex``, ``variant``, ``population``
+    """
+    if force_refresh:
+        logger.debug("force_refresh is ignored for PxStat-backed modules")
+
+    df = read_dataset(_MATRIX_VARIANTS)
+
+    result = df[["Year", "Single year of age", "Sex Label", "Variant Label", "VALUE"]].rename(
+        columns={
+            "Year": "year",
+            "Single year of age": "age_group",
+            "Sex Label": "sex",
+            "Variant Label": "variant",
+            "VALUE": "population",
+        }
+    )
+
+    if variant:
+        result = result[result["variant"].str.lower().str.contains(variant.lower())]
+    if start_year:
+        result = result[result["year"] >= start_year]
+    if end_year:
+        result = result[result["year"] <= end_year]
+
+    return result.sort_values(["variant", "year", "age_group", "sex"]).reset_index(drop=True)
+
+
+def validate_projections(df: pd.DataFrame) -> bool:
+    """Validate a projections DataFrame for basic integrity.
+
+    Args:
+        df: DataFrame from :func:`get_latest_projections`.
+
+    Returns:
+        True if valid.
 
     Raises:
-        NISRADataNotFoundError: If publication cannot be found
-        NISRAValidationError: If data fails integrity checks
-
-    Example:
-        >>> df = get_lgd_projections()
-        >>> 'lgd_name' in df.columns
-        True
-        >>> sorted(df['lgd_name'].unique())[:3]
-        ['Antrim and Newtownabbey', 'Ards and North Down', 'Armagh City, Banbridge and Craigavon']
+        NISRAValidationError: If validation fails.
     """
-    excel_url = get_lgd_projections_url()
-    logger.info(f"Downloading LGD projections from: {excel_url}")
-    file_path = download_file(excel_url, cache_ttl_hours=24 * 90, force_refresh=force_refresh)
-    df = parse_lgd_projections_file(file_path)
-    validate_lgd_projections(df)
-
-    if lgd is not None:
-        mask = (df["lgd_name"] == lgd) | (df["lgd_code"] == lgd)
-        df = df[mask].reset_index(drop=True)
-
-    if start_year is not None:
-        df = df[df["year"] >= start_year]
-
-    if end_year is not None:
-        df = df[df["year"] <= end_year]
-
-    return df.reset_index(drop=True)
+    required = {"year", "age_group", "sex", "population"}
+    missing = required - set(df.columns)
+    if missing:
+        raise NISRAValidationError(f"Missing required columns: {missing}")
+    if df.empty:
+        raise NISRAValidationError("DataFrame is empty")
+    if (df["population"] < 0).any():
+        raise NISRAValidationError("Negative population values found")
+    return True

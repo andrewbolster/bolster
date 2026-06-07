@@ -115,8 +115,11 @@ For each item in (unevaluated issues ∪ net-new candidates), research the datas
 ### Schema (expected columns)
 [Table or list of expected column names/dimensions]
 
+### PxStat matrix
+[Matrix code if available, e.g. `WDTHS` — check https://data.nisra.gov.uk/ or try a quick GET to `https://ws-data.nisra.gov.uk/public/api.restful/PxStat.Data.Cube_API.ReadDataset/{GUESS}/CSV/1.0/en` — or "not in PxStat"]
+
 ### Integration pattern
-[Closest existing module pattern; proposed file path; scraping approach]
+[If PxStat available: `pxstat.read_dataset("MATRIX")` — strongly preferred, no rate limits, no Excel parsing. If not: closest existing module scraping pattern and proposed file path.]
 
 ### Cross-dataset correlation opportunities
 [3 specific ideas linking to existing modules with concrete join keys]
