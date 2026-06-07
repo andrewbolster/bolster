@@ -144,9 +144,11 @@ jobs:
             }
           }
 
-          // Major versions require explicit workflow_dispatch - never auto-release
-          if (versionBump === 'major') {
-            console.log('Breaking change detected - major version requires manual release via workflow_dispatch');
+          // Only patch releases are fully automated.
+          // Minor (feat:) and major (breaking) require explicit workflow_dispatch
+          // to avoid out-of-order version bumps from concurrent PRs.
+          if (versionBump === 'major' || versionBump === 'minor') {
+            console.log(`${versionBump} version detected - requires manual release via workflow_dispatch`);
             core.setOutput('should_release', 'false');
             return;
           }
