@@ -13,7 +13,7 @@ Example:
     datetime.date(2024, 3, 1)
 """
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 
 def round_to_week(dt: datetime | date) -> date:
@@ -77,4 +77,4 @@ def utc_midnight_on(dt: datetime) -> datetime:
         >>> utc_midnight_on(datetime(2018,9,1,12,12, tzinfo=timezone(timedelta(hours=-13))))
         datetime.datetime(2018, 9, 1, 0, 0, tzinfo=datetime.timezone.utc)
     """
-    return datetime.combine(dt.date(), datetime.min.time()).replace(tzinfo=timezone.utc)
+    return datetime.combine(dt.date(), datetime.min.time()).replace(tzinfo=UTC)
