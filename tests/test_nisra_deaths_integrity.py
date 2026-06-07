@@ -12,6 +12,7 @@ Key validations:
 - COVID/flu deaths do not exceed total deaths
 """
 
+import pandas as pd
 import pytest
 
 from bolster.data_sources.nisra import deaths
@@ -161,6 +162,11 @@ class TestDeathsDataIntegrity:
                 f"Week {row['week_ending'].date()}: "
                 f"demographics total ({row['deaths']}) != observed ({row['observed_deaths']})"
             )
+
+    def test_no_future_dates(self, totals):
+        """No week_ending dates should be in the future."""
+        future = totals[totals["week_ending"] > pd.Timestamp.now()]
+        assert len(future) == 0, f"Found {len(future)} future dates: {future['week_ending'].tolist()}"
 
     def test_reasonable_data_coverage(self, totals):
         """Should have at least 52 weeks of data."""
