@@ -189,3 +189,27 @@ def get_latest_deaths(
             "place": _get_place(),
         }
     raise ValueError(f"Invalid dimension: {dimension!r}. Must be one of: totals, demographics, geography, place, all")
+
+
+def get_historical_deaths(force_refresh: bool = False) -> pd.DataFrame:
+    """Return annual deaths totals — compatibility shim for migration.py.
+
+    Uses the Registrar General quarterly tables (back to 2009) to produce
+    annual calendar-year totals with the ``year`` and ``total_deaths`` columns
+    expected by :func:`bolster.data_sources.nisra.migration.calculate_annual_deaths`.
+
+    The weekly PxStat deaths data only covers 2024 onwards and cannot be used
+    for multi-year migration calculations.
+
+    Args:
+        force_refresh: Passed through to the underlying registrar_general module.
+
+    Returns:
+        DataFrame with columns ``year`` (int) and ``total_deaths`` (int).
+    """
+    from bolster.data_sources.nisra import registrar_general
+
+    quarterly = registrar_general.get_quarterly_deaths(force_refresh=force_refresh)
+    annual = quarterly.groupby("year")["deaths"].sum().reset_index()
+    annual.columns = ["year", "total_deaths"]
+    return annual
