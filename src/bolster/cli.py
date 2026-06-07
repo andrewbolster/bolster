@@ -29,6 +29,7 @@ from .data_sources.nisra import cancer_waiting_times as nisra_cancer
 from .data_sources.nisra import composite_index as nisra_composite
 from .data_sources.nisra import construction_output as nisra_construction
 from .data_sources.nisra import deaths as nisra_deaths
+from .data_sources.nisra import diagnostic_waiting_times as nisra_diagnostic
 from .data_sources.nisra import disease_prevalence as nisra_disease_prevalence
 from .data_sources.nisra import drug_related_deaths as nisra_drug_related_deaths
 from .data_sources.nisra import emergency_care_waiting_times as nisra_emergency
@@ -4598,6 +4599,94 @@ def nisra_cancer_cmd(target, dimension, year, output_format, force_refresh, save
         console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@nisra.command(name="diagnostic-waiting-times")
+@click.option("--trust", help="Filter by HSC Trust name (e.g. Belfast)")
+@click.option("--year", type=int, help="Filter data for a specific calendar year")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--save", help="Save output to file (specify filename)")
+@click.option("--force-refresh", is_flag=True, help="Accepted for API compatibility; ignored")
+def nisra_diagnostic_waiting_times_cmd(trust, year, output_format, save, force_refresh):
+    """NISRA Diagnostic Waiting Times Statistics.
+
+    Quarterly diagnostic waiting times for Northern Ireland, by HSC Trust and
+    category of test (Imaging, Endoscopy, Physiological measurements).
+
+    Waiting bands: total, 0–9 weeks, >9 weeks, >26 weeks.
+    Data coverage: Q4 2007/08 to present.
+
+    Examples::
+
+        bolster nisra diagnostic-waiting-times
+        bolster nisra diagnostic-waiting-times --trust Belfast
+        bolster nisra diagnostic-waiting-times --year 2023
+        bolster nisra diagnostic-waiting-times --format json
+        bolster nisra diagnostic-waiting-times --save dwt.csv
+
+    Source: https://www.health-ni.gov.uk/articles/diagnostic-waiting-times
+    """
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading latest NISRA diagnostic waiting times data..."):
+            data = nisra_diagnostic.get_latest_diagnostic_waiting_times(
+                trust=trust,
+                year=year,
+                force_refresh=force_refresh,
+            )
+
+        console.print(f"[green]✅ Retrieved {len(data):,} records[/green]")
+
+        if not data.empty:
+            years = sorted(data["year"].unique())
+            if len(years) > 1:
+                console.print(f"[dim]Years: {years[0]} – {years[-1]}[/dim]")
+            else:
+                console.print(f"[dim]Year: {years[0]}[/dim]")
+
+            # Show latest quarter summary
+            latest_quarter = data["quarter"].max()
+            latest = data[data["quarter"] == latest_quarter]
+            total = latest["total_waiting"].sum()
+            over_9 = latest["over_9_weeks"].sum()
+            over_26 = latest["over_26_weeks"].sum()
+            console.print(f"\n[bold]Latest Quarter ({latest_quarter}) — NI total:[/bold]")
+            console.print(f"   Total waiting: {total:,.0f}")
+            if total > 0:
+                console.print(f"   Over 9 weeks:  {over_9:,.0f} ({over_9 / total:.1%})")
+                console.print(f"   Over 26 weeks: {over_26:,.0f} ({over_26 / total:.1%})")
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", date_format="iso", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]💾 Data saved to: {save}[/green]")
+                return
+            except Exception as e:
+                console.print(f"[red]❌ Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            console.print("\n[bold]Data:[/bold]")
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try with --trust to limit the data volume")
         raise click.Abort() from e
 
 
