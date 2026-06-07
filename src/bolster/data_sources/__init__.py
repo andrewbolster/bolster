@@ -15,6 +15,7 @@ Various scrapers and API wrappers for NI government data:
 - justice: NI Department of Justice / NICTS statistics (mortgage possession actions)
 - ons_cpi: ONS UK inflation indices (CPI, CPIH, RPI)
 - boe_base_rate: Bank of England official Bank Rate (base rate)
+- niassembly: NI Assembly AIMS — MLAs, Questions, and Votes (OGL v3.0)
 
 Most have corresponding CLI commands.
 """
