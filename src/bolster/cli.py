@@ -5763,7 +5763,7 @@ def nisra_planning_statistics_cmd(dimension, financial_year, output_format, forc
 )
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
-def nisra_housing_stock_cmd(geo, year_filter, output_format, force_refresh, save):
+def nisra_housing_stock_cmd(geo, year_filter, output_format, force_refresh, save):  # pragma: no cover
     """NI Housing Stock Statistics (Department of Finance / Land and Property Services).
 
     Annual dwelling counts by property type (converted apartment, purpose built
