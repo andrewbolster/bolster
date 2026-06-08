@@ -7237,54 +7237,5 @@ def list_sources():
     click.echo(f"\nBolster v{__version__} - Northern Ireland & UK Data Sources")
 
 
-@nisra.command(name="housing-stock")
-@click.option(
-    "--geo",
-    type=click.Choice(["lgd", "ward", "soa"], case_sensitive=False),
-    default="lgd",
-    help="Geography level: 'lgd' (default), 'ward', or 'soa'.",
-)
-@click.option("--year", "year_filter", type=int, default=None, help="Filter to a specific reference year")
-@click.option(
-    "--format",
-    "output_format",
-    type=click.Choice(["csv", "json"], case_sensitive=False),
-    default="csv",
-    help="Output format (default: csv)",
-)
-@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
-@click.option("--save", help="Save data to file (specify filename)")
-def nisra_housing_stock_cmd(geo, year_filter, output_format, force_refresh, save):
-    """NI Housing Stock Statistics (Department of Finance / Land and Property Services).
-
-    Annual dwelling counts by property type at LGD, Ward, or SOA level.
-    Coverage: 2008–2026. Source: https://www.finance-ni.gov.uk/topics/housing-stock-statistics
-    """
-    console = Console()
-    try:
-        with console.status(f"[bold green]Downloading housing stock data (geo={geo})..."):
-            data = nisra_housing_stock.get_latest_housing_stock(geo=geo, force_refresh=force_refresh)
-        if year_filter is not None and "year" in data.columns:
-            data = data[data["year"] == year_filter]
-            if data.empty:
-                console.print(f"[yellow]No data found for year {year_filter}[/yellow]")
-                return
-        console.print(f"[green]Retrieved {len(data)} rows[/green]")
-        if save:
-            if output_format == "json" or save.endswith(".json"):
-                data.to_json(save, orient="records", indent=2)
-            else:
-                data.to_csv(save, index=False)
-            console.print(f"[green]Saved to: {save}[/green]")
-            return
-        if output_format == "json":
-            click.echo(data.to_json(orient="records", indent=2))
-        else:
-            console.print(data.to_csv(index=False), end="")
-    except Exception as e:
-        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
-        raise click.Abort() from e
-
-
 if __name__ == "__main__":
     sys.exit(cli())  # pragma: no cover
