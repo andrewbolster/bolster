@@ -215,8 +215,10 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | UK Gender Pay Gap Reporting | `gender_pay_gap` | ✅ |
 | Individual Wellbeing | `nisra.wellbeing` | ✅ |
 | Cancer Waiting Times | `nisra.cancer_waiting_times` | ✅ |
+| Diagnostic Waiting Times | `nisra.diagnostic_waiting_times` | ✅ |
 | Child Protection Statistics | `nisra.child_protection` | ✅ |
 | NI Planning Activity Statistics (DfI) | `nisra.planning_statistics` | ✅ |
+| NI Housing Stock Statistics (DoF/LPS) | `nisra.housing_stock` | ✅ |
 | Registrar General Quarterly Tables | `nisra.registrar_general` | ✅ |
 | Tourism - Hotel Occupancy | `nisra.tourism.occupancy` | ✅ |
 | Tourism - SSA Occupancy | `nisra.tourism.occupancy` | ✅ |
@@ -235,6 +237,9 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | PSNI PACE Stop & Search / Arrests | `psni.pace` | ✅ |
 | ONS UK Inflation (CPI / CPIH / RPI) | `ons_cpi` | ✅ |
 | Bank of England Base Rate | `boe_base_rate` | ✅ |
+| NI Assembly — MLAs, Parties, Constituencies | `niassembly.members` | ✅ |
+| NI Assembly — Questions (oral & written, 2007–present) | `niassembly.questions` | ✅ |
+| NI Assembly — Votes/Divisions (per-member records) | `niassembly.votes` | ✅ |
 | Security Situation Statistics | - | ❌ Cloudflare-blocked |
 | Anti-social Behaviour | - | ❌ Cloudflare-blocked |
 | Domestic Abuse Incidents/Crimes | - | ❌ Cloudflare-blocked |

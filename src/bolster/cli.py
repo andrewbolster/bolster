@@ -22,6 +22,9 @@ from .data_sources.justice import mortgages as justice_mortgages
 from .data_sources.metoffice import get_uk_precipitation
 from .data_sources.ni_house_price_index import build as get_ni_house_prices
 from .data_sources.ni_water import get_postcode_to_water_supply_zone, get_water_quality_by_zone
+from .data_sources.niassembly import members as niassembly_members
+from .data_sources.niassembly import questions as niassembly_questions
+from .data_sources.niassembly import votes as niassembly_votes
 from .data_sources.nisra import ashe as nisra_ashe
 from .data_sources.nisra import baby_names as nisra_baby_names
 from .data_sources.nisra import births as nisra_births
@@ -32,6 +35,7 @@ from .data_sources.nisra import deaths as nisra_deaths
 from .data_sources.nisra import disease_prevalence as nisra_disease_prevalence
 from .data_sources.nisra import drug_related_deaths as nisra_drug_related_deaths
 from .data_sources.nisra import emergency_care_waiting_times as nisra_emergency
+from .data_sources.nisra import housing_stock as nisra_housing_stock
 from .data_sources.nisra import index_of_production as nisra_iop
 from .data_sources.nisra import index_of_services as nisra_ios
 from .data_sources.nisra import labour_market as nisra_labour_market
@@ -5742,6 +5746,89 @@ def nisra_planning_statistics_cmd(dimension, financial_year, output_format, forc
         raise click.Abort() from e
 
 
+@nisra.command(name="housing-stock")
+@click.option(
+    "--geo",
+    type=click.Choice(["lgd", "ward", "soa"], case_sensitive=False),
+    default="lgd",
+    help="Geography level: 'lgd' (default), 'ward', or 'soa'.",
+)
+@click.option("--year", "year_filter", type=int, default=None, help="Filter to a specific reference year")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_housing_stock_cmd(geo, year_filter, output_format, force_refresh, save):  # pragma: no cover
+    """NI Housing Stock Statistics (Department of Finance / Land and Property Services).
+
+    Annual dwelling counts by property type (converted apartment, purpose built
+    apartment, detached, semi-detached, terrace) at LGD, Ward, or SOA level.
+    Coverage: 2008–2026.
+
+    Examples:
+        LGD-level housing stock (default)::
+
+            bolster nisra housing-stock
+
+        Filter to a single year::
+
+            bolster nisra housing-stock --year 2024
+
+        Ward-level data::
+
+            bolster nisra housing-stock --geo ward
+
+        Save LGD data to CSV::
+
+            bolster nisra housing-stock --save housing_stock.csv
+
+    Source:
+        https://www.finance-ni.gov.uk/topics/housing-stock-statistics
+    """
+    console = Console()
+
+    try:
+        with console.status(f"[bold green]Downloading housing stock data (geo={geo})..."):
+            data = nisra_housing_stock.get_latest_housing_stock(geo=geo, force_refresh=force_refresh)
+
+        if year_filter is not None:
+            if "year" in data.columns:
+                data = data[data["year"] == year_filter]
+            if data.empty:
+                console.print(f"[yellow]No data found for year {year_filter}[/yellow]")
+                return
+
+        console.print("[green]Housing stock data retrieved successfully[/green]")
+        console.print(f"[cyan]Rows: {len(data)}[/cyan]")
+        if not data.empty and "year" in data.columns:
+            console.print(f"[dim]Years: {int(data['year'].min())}–{int(data['year'].max())}[/dim]")
+
+        if save:
+            if output_format == "json" or save.endswith(".json"):
+                data.to_json(save, orient="records", indent=2)
+            else:
+                data.to_csv(save, index=False)
+            console.print(f"[green]Saved to: {save}[/green]")
+            return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
 @nisra.command(name="baby-names")
 @click.option("--year", type=int, default=None, help="Filter by registration year")
 @click.option(
@@ -6826,6 +6913,228 @@ def boe_base_rate_cmd(resolution, changes, year, output_format, force_refresh, s
         raise click.Abort() from e
 
 
+@cli.group(name="niassembly")
+def niassembly_group():
+    """NI Assembly AIMS — Members, Questions, and Votes.
+
+    Commands for accessing data from the Northern Ireland Assembly
+    Information Management System (AIMS) API.
+    """
+    pass
+
+
+@niassembly_group.command(name="members")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"]),
+    default="table",
+    help="Output format (default: table).",
+)
+@click.option("--save", help="Save data to a file (specify filename).")
+def niassembly_members_cmd(output_format, save):
+    """List all current Members of the Legislative Assembly (MLAs).
+
+    Fetches the live MLA roster from the NI Assembly AIMS API, including
+    name, party, and constituency for each of the 90 members.
+
+    Examples:
+        bolster niassembly members
+        bolster niassembly members --format csv
+        bolster niassembly members --save mlas.csv
+    """
+    console = Console()
+    try:
+        with console.status("[bold green]Fetching current MLAs..."):
+            df = niassembly_members.get_current_members()
+
+        if df.empty:
+            console.print("[yellow]No MLA data returned.[/yellow]")
+            return
+
+        if save:
+            if save.endswith(".json"):
+                df.to_json(save, orient="records", indent=2)
+            else:
+                df.to_csv(save, index=False)
+            console.print(f"[green]Saved {len(df)} MLAs to {save}[/green]")
+            return
+
+        display_cols = ["PersonId", "MemberFullDisplayName", "PartyName", "ConstituencyName"]
+        available = [c for c in display_cols if c in df.columns]
+        out = df[available]
+
+        if output_format == "json":
+            click.echo(df.to_json(orient="records", indent=2))
+        elif output_format == "csv":
+            click.echo(df.to_csv(index=False))
+        else:
+            console.print(f"[dim]Current MLAs ({len(df)})[/dim]")
+            click.echo(out.to_string(index=False))
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        raise click.Abort() from e
+
+
+@niassembly_group.command(name="questions")
+@click.option(
+    "--department",
+    "department",
+    default="Department of Health",
+    show_default=True,
+    help=(
+        "Department name (full or abbreviation) or integer AIMS OrganisationId. "
+        "E.g. 'Department of Health', 'DoH', or 82."
+    ),
+)
+@click.option("--member-id", "person_id", type=int, help="Filter by MLA PersonId instead.")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"]),
+    default="table",
+    help="Output format (default: table).",
+)
+@click.option("--save", help="Save data to a file (specify filename).")
+def niassembly_questions_cmd(department, person_id, output_format, save):
+    """List Assembly questions by department or by MLA.
+
+    Fetches oral and written questions from the NI Assembly AIMS API.
+    By default returns questions directed to the Department of Health.
+    Use --member-id to retrieve questions tabled by a specific MLA.
+
+    Examples:
+        bolster niassembly questions --department "Department of Finance"
+        bolster niassembly questions --department DoJ
+        bolster niassembly questions --member-id 5797
+        bolster niassembly questions --department DoH --format csv
+    """
+    console = Console()
+    try:
+        if person_id:
+            with console.status(f"[bold green]Fetching questions for PersonId {person_id}..."):
+                df = niassembly_questions.get_questions_by_member(person_id)
+            label = f"Questions by PersonId {person_id}"
+        else:
+            with console.status(f"[bold green]Fetching questions for {department!r}..."):
+                df = niassembly_questions.get_questions_by_department(department)
+            label = f"Questions — {department}"
+
+        if df.empty:
+            console.print("[yellow]No questions returned.[/yellow]")
+            return
+
+        if save:
+            if save.endswith(".json"):
+                df.astype(str).to_json(save, orient="records", indent=2)
+            else:
+                df.to_csv(save, index=False)
+            console.print(f"[green]Saved {len(df)} questions to {save}[/green]")
+            return
+
+        display_cols = ["DocumentId", "Reference", "TabledDate", "QuestionText", "TablerName"]
+        available = [c for c in display_cols if c in df.columns]
+        out = df[available].head(50)
+
+        if output_format == "json":
+            click.echo(df.astype(str).to_json(orient="records", indent=2))
+        elif output_format == "csv":
+            click.echo(df.to_csv(index=False))
+        else:
+            if len(df) > 50:
+                console.print(f"[dim]{label} — {len(df):,} total, showing first 50[/dim]")
+            else:
+                console.print(f"[dim]{label} — {len(df)} questions[/dim]")
+            click.echo(out.to_string(index=False))
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        raise click.Abort() from e
+
+
+@niassembly_group.command(name="votes")
+@click.option(
+    "--start-date",
+    default="2022-05-01",
+    show_default=True,
+    help="Start date for division search (YYYY-MM-DD).",
+)
+@click.option(
+    "--end-date",
+    default=None,
+    help="End date for division search (YYYY-MM-DD, default: today).",
+)
+@click.option(
+    "--division-id",
+    type=int,
+    help="Fetch per-member vote records for a specific division DocumentID.",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"]),
+    default="table",
+    help="Output format (default: table).",
+)
+@click.option("--save", help="Save data to a file (specify filename).")
+def niassembly_votes_cmd(start_date, end_date, division_id, output_format, save):
+    """List Assembly divisions (votes) or per-member vote records.
+
+    By default returns a summary of all divisions since the start of the
+    current mandate.  Use --division-id to retrieve per-member vote records
+    for a specific division.
+
+    Examples:
+        bolster niassembly votes
+        bolster niassembly votes --start-date 2024-01-01
+        bolster niassembly votes --division-id 406283
+        bolster niassembly votes --format csv --save divisions.csv
+    """
+    console = Console()
+    try:
+        if division_id:
+            with console.status(f"[bold green]Fetching votes for division {division_id}..."):
+                df = niassembly_votes.get_division_votes(division_id)
+            label = f"Votes — Division {division_id}"
+            display_cols = ["PersonID", "MemberName", "Vote", "Designation"]
+        else:
+            with console.status("[bold green]Fetching Assembly divisions..."):
+                df = niassembly_votes.get_all_divisions(start_date=start_date, end_date=end_date)
+            label = f"Assembly Divisions ({start_date} – {end_date or 'today'})"
+            display_cols = ["DocumentID", "DivisionDate", "DivisionSubject", "DivisonType"]
+
+        if df.empty:
+            console.print("[yellow]No data returned.[/yellow]")
+            return
+
+        if save:
+            if save.endswith(".json"):
+                df.astype(str).to_json(save, orient="records", indent=2)
+            else:
+                df.to_csv(save, index=False)
+            console.print(f"[green]Saved {len(df)} rows to {save}[/green]")
+            return
+
+        available = [c for c in display_cols if c in df.columns]
+        out = df[available].head(50)
+
+        if output_format == "json":
+            click.echo(df.astype(str).to_json(orient="records", indent=2))
+        elif output_format == "csv":
+            click.echo(df.to_csv(index=False))
+        else:
+            if len(df) > 50:
+                console.print(f"[dim]{label} — {len(df):,} total, showing first 50[/dim]")
+            else:
+                console.print(f"[dim]{label} — {len(df)} rows[/dim]")
+            click.echo(out.to_string(index=False))
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        raise click.Abort() from e
+
+
 @cli.command()
 def list_sources():
     """List all available data sources and their descriptions.
@@ -6851,6 +7160,9 @@ def list_sources():
     click.echo("                       Candidates, parties, constituencies, vote counts")
     click.echo("  nisra deaths         NISRA weekly death registrations")
     click.echo("                       Demographics (age/sex), geography (LGDs), place of death")
+    click.echo("  niassembly members   Current MLAs — name, party, constituency")
+    click.echo("  niassembly questions Assembly Q&As by department or MLA (since 2007)")
+    click.echo("  niassembly votes     Assembly division records with per-member votes")
 
     click.echo("\nBUSINESS & PROPERTY")
     click.echo("  companies-house      UK Companies House company data queries")
