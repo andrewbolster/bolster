@@ -116,6 +116,33 @@ class TestTrustFilter:
         assert (df["year"] == 2020).all()
 
 
+class TestParseQuarter:
+    """Unit tests for the quarter parsing helper — no network calls."""
+
+    def test_q4_maps_to_march_next_year(self):
+        """Q4 of financial year 2007/08 ends in March 2008."""
+        ts = dwt._parse_tlist_quarter("2007/08Q4")
+        assert ts == pd.Timestamp("2008-03-01")
+
+    def test_q1_maps_to_june_start_year(self):
+        """Q1 of financial year 2023/24 ends in June 2023."""
+        ts = dwt._parse_tlist_quarter("2023/24Q1")
+        assert ts == pd.Timestamp("2023-06-01")
+
+    def test_q2_maps_to_september(self):
+        ts = dwt._parse_tlist_quarter("2023/24Q2")
+        assert ts == pd.Timestamp("2023-09-01")
+
+    def test_q3_maps_to_december(self):
+        ts = dwt._parse_tlist_quarter("2023/24Q3")
+        assert ts == pd.Timestamp("2023-12-01")
+
+    def test_all_quarters_return_timestamp(self):
+        for q in ("2020/21Q1", "2020/21Q2", "2020/21Q3", "2020/21Q4"):
+            result = dwt._parse_tlist_quarter(q)
+            assert isinstance(result, pd.Timestamp)
+
+
 class TestValidateFunction:
     """Unit tests for the validate function — no network calls needed."""
 
