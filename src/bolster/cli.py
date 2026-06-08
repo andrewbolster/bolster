@@ -4614,7 +4614,7 @@ def nisra_cancer_cmd(target, dimension, year, output_format, force_refresh, save
 )
 @click.option("--save", help="Save output to file (specify filename)")
 @click.option("--force-refresh", is_flag=True, help="Accepted for API compatibility; ignored")
-def nisra_diagnostic_waiting_times_cmd(trust, year, output_format, save, force_refresh):
+def nisra_diagnostic_waiting_times_cmd(trust, year, output_format, save, force_refresh):  # pragma: no cover
     """NISRA Diagnostic Waiting Times Statistics.
 
     Quarterly diagnostic waiting times for Northern Ireland, by HSC Trust and
