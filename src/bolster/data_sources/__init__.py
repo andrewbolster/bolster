@@ -16,6 +16,7 @@ Various scrapers and API wrappers for NI government data:
 - ons_cpi: ONS UK inflation indices (CPI, CPIH, RPI)
 - boe_base_rate: Bank of England official Bank Rate (base rate)
 - niassembly: NI Assembly AIMS — MLAs, Questions, and Votes (OGL v3.0)
+- translink: Live and scheduled bus/rail departures + vehicle positions (Translink NI)
 
 Most have corresponding CLI commands.
 """
