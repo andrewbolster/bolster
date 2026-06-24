@@ -215,13 +215,21 @@ def validate_vehicles(df: pd.DataFrame) -> bool:
     if len(df) == 0:
         return True  # Empty is valid outside service hours
 
+    # Exclude zero-coordinates (GPS not yet initialised) before bounds check
     lats = df["latitude"].dropna()
     lons = df["longitude"].dropna()
-    if len(lats) > 0 and not ((lats >= 53.9) & (lats <= 55.4)).all():
-        bad = lats[(lats < 53.9) | (lats > 55.4)]
-        raise TranslinkValidationError(f"Latitude values outside NI bounds [53.9, 55.4]: {bad.head().tolist()}")
-    if len(lons) > 0 and not ((lons >= -8.2) & (lons <= -5.4)).all():
-        bad = lons[(lons < -8.2) | (lons > -5.4)]
-        raise TranslinkValidationError(f"Longitude values outside NI bounds [-8.2, -5.4]: {bad.head().tolist()}")
+    lats = lats[lats != 0.0]
+    lons = lons[lons != 0.0]
+    # Bounds cover NI + cross-border routes into the Republic
+    if len(lats) > 0 and not ((lats >= 53.0) & (lats <= 55.4)).all():
+        bad = lats[(lats < 53.0) | (lats > 55.4)]
+        raise TranslinkValidationError(
+            f"Latitude values outside island-of-Ireland bounds [53.0, 55.4]: {bad.head().tolist()}"
+        )
+    if len(lons) > 0 and not ((lons >= -8.5) & (lons <= -5.4)).all():
+        bad = lons[(lons < -8.5) | (lons > -5.4)]
+        raise TranslinkValidationError(
+            f"Longitude values outside island-of-Ireland bounds [-8.5, -5.4]: {bad.head().tolist()}"
+        )
 
     return True
