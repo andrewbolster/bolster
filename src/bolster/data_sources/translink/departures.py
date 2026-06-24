@@ -247,3 +247,146 @@ def validate_departures(df: pd.DataFrame) -> bool:
         raise TranslinkValidationError("is_cancelled must be bool")
 
     return True
+
+
+def get_departures_with_vehicles(
+    stop_name: str,
+    n: int = 5,
+    dt: datetime | None = None,
+    enrich_stops: bool = False,
+) -> pd.DataFrame:
+    """Return next-N departures enriched with live vehicle positions where available.
+
+    Fetches departures and live VMI vehicles in parallel (two API calls), then
+    joins on line + direction + journey time proximity (±10 minute window).
+
+    VMI vehicles are matched to departures by:
+    1. Line number (case-insensitive).
+    2. Inferred direction (inbound = destination contains "Belfast"/"CastleCourt"/
+       "Royal Avenue"/"City Centre"; outbound = everything else).
+    3. Journey ID (HHMM) within ±60 minutes of the actual departure time.
+
+    Not all departures will have a matched vehicle — buses that have not yet
+    started their journey are not yet in the VMI feed.
+
+    Args:
+        stop_name: Stop name to search for (resolved via :func:`find_stop_id`).
+        n: Number of departures to return (default 5).
+        dt: Reference datetime (default: now, UTC).
+        enrich_stops: If True, include ``current_stop_name`` and ``next_stop_name``
+                      for matched vehicles.
+
+    Returns:
+        DataFrame with all departure columns plus optional vehicle columns:
+        ``vehicle_id``, ``vehicle_lat``, ``vehicle_lon``, ``vehicle_delay_s``,
+        ``current_stop``, ``next_stop``, and (if enrich_stops) ``current_stop_name``,
+        ``next_stop_name``.  Vehicle columns are ``None`` / ``NaN`` where no match.
+    """
+    from .vehicles import get_live_vehicles
+
+    deps = get_departures_by_name(stop_name, n=n, dt=dt)
+    if deps.empty:
+        return deps
+
+    # Collect lines present in departures to reduce VMI filtering work
+    dep_lines = {_extract_line(s) for s in deps["service"].unique()}
+
+    all_vehicles = []
+    for line in dep_lines:
+        vdf = get_live_vehicles(line=line, enrich_stops=enrich_stops)
+        all_vehicles.append(vdf)
+
+    if not all_vehicles or all(v.empty for v in all_vehicles):
+        # No live vehicles on any line — return departures as-is with empty vehicle cols
+        for col in ("vehicle_id", "vehicle_lat", "vehicle_lon", "vehicle_delay_s", "current_stop", "next_stop"):
+            deps[col] = None
+        return deps
+
+    vehicles = pd.concat([v for v in all_vehicles if not v.empty], ignore_index=True)
+
+    _INBOUND_KEYWORDS = {"belfast", "castlecourt", "royal avenue", "city centre", "great victoria"}
+
+    def _dep_direction(destination: str) -> str:
+        return "inbound" if any(kw in destination.lower() for kw in _INBOUND_KEYWORDS) else "outbound"
+
+    def _vmi_direction(direction_text: str) -> str:
+        return "inbound" if any(kw in direction_text.lower() for kw in _INBOUND_KEYWORDS) else "outbound"
+
+    def _journey_dt(hhmm: str, ref: "pd.Timestamp") -> "pd.Timestamp | None":
+        """Convert a VMI HHMM journey ID to a UTC Timestamp comparable to ref.
+
+        VMI journey IDs are in local Belfast time (Europe/London).  Convert to
+        UTC before comparing against departure times (which are in UTC).
+        """
+        try:
+            h, m = int(hhmm[:2]), int(hhmm[2:])
+            # Build naive local datetime on same calendar date as ref (in local tz)
+            ref_local = ref.tz_convert("Europe/London")
+            local_dt = ref_local.normalize() + pd.Timedelta(hours=h, minutes=m)
+            # localise and convert to UTC
+            return local_dt.tz_localize(None).tz_localize("Europe/London").tz_convert("UTC")
+        except (ValueError, IndexError, Exception):
+            return None
+
+    vehicle_cols = {
+        "vehicle_id": None,
+        "vehicle_lat": None,
+        "vehicle_lon": None,
+        "vehicle_delay_s": None,
+        "current_stop": None,
+        "next_stop": None,
+    }
+    if enrich_stops:
+        vehicle_cols["current_stop_name"] = None
+        vehicle_cols["next_stop_name"] = None
+
+    matched_rows = []
+    for _, dep in deps.iterrows():
+        line = _extract_line(dep["service"])
+        direction = _dep_direction(dep["destination"])
+        dep_dt = dep["actual_departure"]
+
+        candidates = vehicles[
+            (vehicles["line"].str.upper() == line.upper()) & (vehicles["direction"].apply(_vmi_direction) == direction)
+        ]
+
+        best_match = None
+        best_delta = pd.Timedelta(minutes=60)
+
+        for _, v in candidates.iterrows():
+            jdt = _journey_dt(v["journey_id"], dep_dt)
+            if jdt is None:
+                continue
+            if jdt.tzinfo is None:
+                jdt = jdt.tz_localize("UTC")
+            delta = abs(dep_dt - jdt)
+            if delta < best_delta:
+                best_delta = delta
+                best_match = v
+
+        row = dep.to_dict()
+        if best_match is not None:
+            row["vehicle_id"] = best_match["vehicle_id"]
+            row["vehicle_lat"] = best_match["latitude"]
+            row["vehicle_lon"] = best_match["longitude"]
+            row["vehicle_delay_s"] = best_match["delay_seconds"]
+            row["current_stop"] = best_match.get("current_stop")
+            row["next_stop"] = best_match.get("next_stop")
+            if enrich_stops:
+                row["current_stop_name"] = best_match.get("current_stop_name")
+                row["next_stop_name"] = best_match.get("next_stop_name")
+        else:
+            for col, default in vehicle_cols.items():
+                row[col] = default
+
+        matched_rows.append(row)
+
+    return pd.DataFrame(matched_rows).reset_index(drop=True)
+
+
+def _extract_line(service_name: str) -> str:
+    """Extract the line number from a service name like 'Bus 11e' → '11E'."""
+    import re
+
+    m = re.search(r"(\w+)$", service_name)
+    return m.group(1).upper() if m else service_name.upper()
