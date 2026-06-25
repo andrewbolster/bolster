@@ -232,17 +232,17 @@ class TestExtractLine:
     def test_plain_line(self):
         assert _extract_line("11E") == "11E"
 
-    def test_lowercase(self):
-        assert _extract_line("bus 12a") == "12A"
+    def test_no_prefix(self):
+        assert _extract_line("12A") == "12A"
 
     def test_rail_larne(self):
-        assert _extract_line("Rail Larne Line") == "Rail Larne"
+        assert _extract_line("Rail Larne Line") == "Rail Larne Line"
 
     def test_rail_bangor(self):
-        assert _extract_line("Rail Bangor Line") == "Rail Bangor"
+        assert _extract_line("Rail Bangor Line") == "Rail Bangor Line"
 
     def test_rail_derry(self):
-        assert _extract_line("Rail Derry/Londonderry Line") == "Rail Derry/Londonderry"
+        assert _extract_line("Rail Derry/Londonderry Line") == "Rail Derry/Londonderry Line"
 
 
 # ---------------------------------------------------------------------------

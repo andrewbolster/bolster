@@ -387,18 +387,16 @@ def get_departures_with_vehicles(
 def _extract_line(service_name: str) -> str:
     """Extract the line identifier from a service name.
 
+    Strips a leading mode prefix ('Bus ', 'Glider ') and uppercases the
+    remainder.  Rail and other service types are returned as-is (title-cased).
+
     Examples:
-        'Bus 11e'                  → '11E'
-        'Glider G1'                → 'G1'
-        'Rail Larne Line'          → 'Rail Larne'
-        'Rail Derry/Londonderry Line' → 'Rail Derry/Londonderry'
+        'Bus 11e'                     → '11E'
+        'Glider G1'                   → 'G1'
+        'Rail Larne Line'             → 'Rail Larne Line'
+        'Rail Derry/Londonderry Line' → 'Rail Derry/Londonderry Line'
     """
-    import re
-
-    # Rail services end with ' Line' — use everything after 'Rail '
-    rail_m = re.match(r"Rail\s+(.+?)\s+Line$", service_name, re.IGNORECASE)
-    if rail_m:
-        return f"Rail {rail_m.group(1)}"
-
-    m = re.search(r"(\w+)$", service_name)
-    return m.group(1).upper() if m else service_name.upper()
+    for prefix in ("Bus ", "Glider "):
+        if service_name.startswith(prefix):
+            return service_name[len(prefix) :].upper()
+    return service_name
