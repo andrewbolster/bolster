@@ -258,7 +258,7 @@ def get_departures_with_vehicles(
     """Return next-N departures enriched with live vehicle positions where available.
 
     Fetches departures and live VMI vehicles in parallel (two API calls), then
-    joins on line + direction + journey time proximity (±10 minute window).
+    joins on line + direction + journey time proximity (±60 minute window).
 
     VMI vehicles are matched to departures by:
     1. Line number (case-insensitive).
@@ -385,8 +385,20 @@ def get_departures_with_vehicles(
 
 
 def _extract_line(service_name: str) -> str:
-    """Extract the line number from a service name like 'Bus 11e' → '11E'."""
+    """Extract the line identifier from a service name.
+
+    Examples:
+        'Bus 11e'                  → '11E'
+        'Glider G1'                → 'G1'
+        'Rail Larne Line'          → 'Rail Larne'
+        'Rail Derry/Londonderry Line' → 'Rail Derry/Londonderry'
+    """
     import re
+
+    # Rail services end with ' Line' — use everything after 'Rail '
+    rail_m = re.match(r"Rail\s+(.+?)\s+Line$", service_name, re.IGNORECASE)
+    if rail_m:
+        return f"Rail {rail_m.group(1)}"
 
     m = re.search(r"(\w+)$", service_name)
     return m.group(1).upper() if m else service_name.upper()

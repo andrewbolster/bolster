@@ -235,6 +235,15 @@ class TestExtractLine:
     def test_lowercase(self):
         assert _extract_line("bus 12a") == "12A"
 
+    def test_rail_larne(self):
+        assert _extract_line("Rail Larne Line") == "Rail Larne"
+
+    def test_rail_bangor(self):
+        assert _extract_line("Rail Bangor Line") == "Rail Bangor"
+
+    def test_rail_derry(self):
+        assert _extract_line("Rail Derry/Londonderry Line") == "Rail Derry/Londonderry"
+
 
 # ---------------------------------------------------------------------------
 # departures: _parse_departures
