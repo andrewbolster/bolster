@@ -456,12 +456,22 @@ def get_direct_journeys(
     tz_london = ZoneInfo("Europe/London")
     ref_local = dt.astimezone(tz_london) if dt.tzinfo else dt.replace(tzinfo=timezone.utc).astimezone(tz_london)
     ref_hhmm = ref_local.strftime("%H%M")
+    # days string is MTWTFSS (index 0=Mon … 6=Sun); weekday() returns 0=Mon … 6=Sun
+    weekday_idx = ref_local.weekday()
 
-    upcoming = [(trip, orig_ts, dest_ts) for trip, orig_ts, dest_ts in direct if orig_ts.depart >= ref_hhmm]
+    upcoming = [
+        (trip, orig_ts, dest_ts)
+        for trip, orig_ts, dest_ts in direct
+        if len(trip.days) > weekday_idx and trip.days[weekday_idx] == "1" and orig_ts.depart >= ref_hhmm
+    ]
 
-    # If nothing upcoming today, wrap around to the start of the list
+    # If nothing upcoming today, fall back to all trips running today (from start of day)
     if not upcoming:
-        upcoming = direct
+        upcoming = [
+            (trip, orig_ts, dest_ts)
+            for trip, orig_ts, dest_ts in direct
+            if len(trip.days) > weekday_idx and trip.days[weekday_idx] == "1"
+        ]
 
     rows = []
     for trip, orig_ts, dest_ts in upcoming[:n]:
