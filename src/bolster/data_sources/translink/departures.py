@@ -384,6 +384,102 @@ def get_departures_with_vehicles(
     return pd.DataFrame(matched_rows).reset_index(drop=True)
 
 
+def get_direct_journeys(
+    origin: str,
+    destination: str,
+    n: int = 5,
+    dt: datetime | None = None,
+) -> pd.DataFrame:
+    """Return the next *n* direct bus/rail journeys between two stops.
+
+    Uses the CIF timetable data (Metro/Glider and Ulsterbus/GoldLine) to find
+    services that call at both stops in order, without requiring a change.
+    No network calls are made beyond resolving stop names; all routing is done
+    from the locally cached timetable.
+
+    The workflow is:
+    1. Resolve both stop names to NaPTAN ATCOCodes via the CIF stop lookup.
+    2. Find all trips in the timetable that call at the origin before the
+       destination (``find_direct_trips``).
+    3. Filter to trips whose scheduled origin departure is at or after *dt*,
+       sorted by departure time.
+    4. Return the first *n* matching trips.
+
+    Args:
+        origin: Origin stop name (resolved via :func:`~.stops.find_stop`).
+        destination: Destination stop name.
+        n: Maximum number of journeys to return (default 5).
+        dt: Reference datetime (default: now, local Europe/London time).
+
+    Returns:
+        DataFrame with columns:
+        ``origin``, ``destination``, ``service``,
+        ``scheduled_departure`` (HHMM str), ``scheduled_arrival`` (HHMM str),
+        ``days``, ``direction``.
+
+    Raises:
+        TranslinkDataNotFoundError: If either stop cannot be resolved, or if
+            no direct service runs between them at all.
+    """
+    from .stops import get_stop_lookup
+    from .timetable import find_direct_trips
+
+    if dt is None:
+        dt = datetime.now(tz=timezone.utc)
+
+    # Resolve stop names → ATCOCodes via the CIF stop lookup (fuzzy name match)
+    lookup = get_stop_lookup()
+    name_lower = {v.get("name", "").lower(): k for k, v in lookup.items()}
+
+    def _resolve_atco(query: str) -> tuple[str, str]:
+        """Return (atco, canonical_name) for the best name match."""
+        ql = query.lower()
+        if ql in name_lower:
+            atco = name_lower[ql]
+            return atco, lookup[atco].get("name", query)
+        # Partial match: first stop whose name contains the query
+        for name, atco in name_lower.items():
+            if ql in name:
+                return atco, lookup[atco].get("name", query)
+        raise TranslinkDataNotFoundError(f"No stop found in timetable matching '{query}'")
+
+    origin_atco, origin_name = _resolve_atco(origin)
+    dest_atco, dest_name = _resolve_atco(destination)
+
+    direct = find_direct_trips(origin_atco, dest_atco)
+    if not direct:
+        raise TranslinkDataNotFoundError(f"No direct service found between '{origin_name}' and '{dest_name}'")
+
+    # Filter to departures at or after the reference time (HHMM comparison)
+    from zoneinfo import ZoneInfo
+
+    tz_london = ZoneInfo("Europe/London")
+    ref_local = dt.astimezone(tz_london) if dt.tzinfo else dt.replace(tzinfo=timezone.utc).astimezone(tz_london)
+    ref_hhmm = ref_local.strftime("%H%M")
+
+    upcoming = [(trip, orig_ts, dest_ts) for trip, orig_ts, dest_ts in direct if orig_ts.depart >= ref_hhmm]
+
+    # If nothing upcoming today, wrap around to the start of the list
+    if not upcoming:
+        upcoming = direct
+
+    rows = []
+    for trip, orig_ts, dest_ts in upcoming[:n]:
+        rows.append(
+            {
+                "origin": origin_name,
+                "destination": dest_name,
+                "service": f"{trip.operator} {trip.line}",
+                "scheduled_departure": orig_ts.depart,
+                "scheduled_arrival": dest_ts.arrive,
+                "days": trip.days,
+                "direction": trip.direction,
+            }
+        )
+
+    return pd.DataFrame(rows).reset_index(drop=True)
+
+
 def _extract_line(service_name: str) -> str:
     """Extract the line identifier from a service name.
 

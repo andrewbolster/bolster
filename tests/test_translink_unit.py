@@ -21,6 +21,14 @@ from bolster.data_sources.translink.departures import (
     validate_departures,
 )
 from bolster.data_sources.translink.stops import _ing_to_wgs84, _parse_cif_zip
+from bolster.data_sources.translink.timetable import (
+    Trip,
+    TripStop,
+    _parse_cif_trips,
+    _parse_time_at,
+    _trip_atco_to_stop_atco,
+    find_direct_trips,
+)
 from bolster.data_sources.translink.vehicles import (
     _normalise_operator,
     _parse_journey_time,
@@ -453,3 +461,186 @@ class TestParseCifZip:
         stops = _parse_cif_zip(_make_cif_zip(cif))
         # Record exists but has no easting/northing (bad coords skipped)
         assert "700000001661" not in stops or "easting" not in stops.get("700000001661", {})
+
+
+# ---------------------------------------------------------------------------
+# timetable: _parse_time_at
+# ---------------------------------------------------------------------------
+
+
+class TestParseTimeAt:
+    def test_4digit_daytime(self):
+        hhmm, pos = _parse_time_at("1035xyz", 0)
+        assert hhmm == "1035"
+        assert pos == 4
+
+    def test_3digit_early_morning(self):
+        # '519' = 05:19 (no leading zero for hours < 10)
+        hhmm, pos = _parse_time_at("519B", 0)
+        assert hhmm == "0519"
+        assert pos == 3
+
+    def test_evening_2xxx(self):
+        hhmm, pos = _parse_time_at("2026B", 0)
+        assert hhmm == "2026"
+        assert pos == 4
+
+    def test_next_day_notation(self):
+        # 2601 = 26:01 = 02:01 next day (valid in CIF night services)
+        hhmm, pos = _parse_time_at("2601B", 0)
+        assert hhmm == "2601"
+        assert pos == 4
+
+    def test_blank_returns_empty(self):
+        hhmm, pos = _parse_time_at("   B", 0)
+        assert hhmm == ""
+
+    def test_packed_arrive_depart(self):
+        # QI7-style: arrive=0519 (3 chars) + depart=0519 (4 chars) packed = '5190519B'
+        arr, p1 = _parse_time_at("5190519B", 0)
+        dep, p2 = _parse_time_at("5190519B", p1)
+        assert arr == "0519"
+        assert dep == "0519"
+
+    def test_packed_1xxx_times(self):
+        # arrive=1035 (4 chars) + depart=1035 packed = '10351035B'
+        arr, p1 = _parse_time_at("10351035B", 0)
+        dep, _ = _parse_time_at("10351035B", p1)
+        assert arr == "1035"
+        assert dep == "1035"
+
+
+# ---------------------------------------------------------------------------
+# timetable: _trip_atco_to_stop_atco
+# ---------------------------------------------------------------------------
+
+
+class TestTripAtcoToStopAtco:
+    def test_prepends_7(self):
+        assert _trip_atco_to_stop_atco("00000009264") == "700000009264"
+
+    def test_12_chars(self):
+        assert len(_trip_atco_to_stop_atco("00000001514")) == 12
+
+
+# ---------------------------------------------------------------------------
+# timetable: _parse_cif_trips
+# ---------------------------------------------------------------------------
+
+
+def _make_trip_zip(cif_content: str) -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("test.cif", cif_content)
+    return buf.getvalue()
+
+
+class TestParseCifTrips:
+    def test_single_trip_parsed(self):
+        # Real CIF format: trip ATCOs are 11 digits at [3:14]; times start at [14].
+        # Stop 700000001436 → trip code '00000001436'; 'QO7' + '00000001436' + '0545...'
+        cif = (
+            "QDNMET 11B OCity Centre - Springmartin\n"
+            "QSNMET 0545  20260413999999991111100 X11B       DD              O\n"
+            "QO700000001436" "0545CHCT1  \n"
+            "QT700000001425" "0559   T1  \n"
+        )
+        trips = _parse_cif_trips(_make_trip_zip(cif))
+        assert len(trips) == 1
+        t = trips[0]
+        assert t.operator == "MET"
+        assert t.line == "11B"
+        assert t.direction == "O"
+        assert len(t.stops) == 2
+        assert t.stops[0].atco == "700000001436"
+        assert t.stops[0].depart == "0545"
+        assert t.stops[1].atco == "700000001425"
+        assert t.stops[1].arrive == "0559"
+
+    def test_empty_zip(self):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w"):
+            pass
+        trips = _parse_cif_trips(buf.getvalue())
+        assert trips == []
+
+    def test_trip_without_stops_excluded(self):
+        # QD with no QO/QI/QT
+        cif = "QDNMET 11B OCity Centre - Springmartin\n"
+        trips = _parse_cif_trips(_make_trip_zip(cif))
+        assert trips == []
+
+    def test_multiple_trips(self):
+        cif = (
+            "QDNMET 11B OCity Centre - Springmartin\n"
+            "QSNMET 0545  20260413999999991111100 X11B       DD              O\n"
+            "QO700000014360545T1  \n"
+            "QT700000014250559   T1  \n"
+            "QDNMET G1  OGlider Route\n"
+            "QSNGDR 0518  20260413999999991111100 XG1        GDR             O\n"
+            "QO700000001646051 T1  \n"
+            "QT700000016011054 T1  \n"
+        )
+        trips = _parse_cif_trips(_make_trip_zip(cif))
+        lines = [t.line for t in trips]
+        assert "11B" in lines
+        assert "G1" in lines
+
+
+# ---------------------------------------------------------------------------
+# timetable: find_direct_trips
+# ---------------------------------------------------------------------------
+
+
+class TestFindDirectTrips:
+    def _make_index_with_trip(self, stops: list[str]) -> None:
+        """Inject a synthetic trip into the module's trip index for testing."""
+        from bolster.data_sources.translink import timetable
+
+        trip = Trip(
+            operator="MET",
+            line="11E",
+            description="City Centre - Test",
+            depart_hhmm="0900",
+            date_from="20260101",
+            date_to="99999999",
+            days="1111100",
+            direction="O",
+        )
+        for i, atco in enumerate(stops):
+            if i == 0:
+                ts = TripStop(atco=atco, arrive="", depart="0900", seq=0)
+            elif i == len(stops) - 1:
+                ts = TripStop(atco=atco, arrive="0930", depart="", seq=i)
+            else:
+                t = f"09{10 + i:02d}"
+                ts = TripStop(atco=atco, arrive=t, depart=t, seq=i)
+            trip.stops.append(ts)
+        # Inject into the global index
+        index = {atco: [] for atco in stops}
+        for ts in trip.stops:
+            index[ts.atco].append((trip, ts))
+        timetable._TRIP_INDEX = index
+
+    def test_direct_trip_found(self):
+        stops = ["700000001000", "700000001001", "700000001002"]
+        self._make_index_with_trip(stops)
+        results = find_direct_trips("700000001000", "700000001002")
+        assert len(results) == 1
+        trip, orig_ts, dest_ts = results[0]
+        assert trip.line == "11E"
+        assert orig_ts.atco == "700000001000"
+        assert dest_ts.atco == "700000001002"
+        assert orig_ts.seq < dest_ts.seq
+
+    def test_no_direct_trip(self):
+        stops = ["700000001000", "700000001001", "700000001002"]
+        self._make_index_with_trip(stops)
+        results = find_direct_trips("700000001002", "700000001000")  # wrong direction
+        assert results == []
+
+    def test_unknown_stop_returns_empty(self):
+        stops = ["700000001000", "700000001001"]
+        self._make_index_with_trip(stops)
+        results = find_direct_trips("700000009999", "700000001001")
+        assert results == []

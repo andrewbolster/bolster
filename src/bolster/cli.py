@@ -55,7 +55,7 @@ from .data_sources.nisra.tourism import visitor_statistics as nisra_visitors
 from .data_sources.ons_cpi import SERIES as ONS_CPI_SERIES
 from .data_sources.ons_cpi import get_latest_data as get_ons_cpi_latest
 from .data_sources.ons_cpi import get_series as get_ons_cpi_series
-from .data_sources.translink.departures import get_departures_by_name, get_departures_with_vehicles
+from .data_sources.translink.departures import get_departures_by_name, get_departures_with_vehicles, get_direct_journeys
 from .data_sources.translink.vehicles import get_live_vehicles
 from .data_sources.wikipedia import get_ni_executive_basic_table
 from .utils.rss import filter_entries, get_nisra_statistics_feed, parse_rss_feed
@@ -7526,6 +7526,81 @@ def translink_vehicles_cmd(line, operator, enrich_stops, output_format, save):
 
     console.print(table)
     console.print(f"[dim]{len(df)} vehicles[/dim]")
+
+    if save:
+        df.to_csv(save, index=False)
+        console.print(f"[green]Saved to {save}[/green]")
+
+
+@translink.command(name="route")
+@click.argument("origin")
+@click.argument("destination")
+@click.option("--n", default=5, show_default=True, help="Number of journeys to return")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"]),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--save", help="Save output to file (specify filename)")
+def translink_route_cmd(origin, destination, n, output_format, save):
+    r"""Show next N direct journeys between two stops.
+
+    Bails out if no direct service runs between ORIGIN and DESTINATION —
+    does not suggest connections or changes.
+
+    Examples:
+        bolster translink route "Central Library" "Flax Street"
+        bolster translink route "Great Victoria Street" "Lisburn Bus Centre" --n 3
+    """
+    from rich.table import Table
+
+    console = Console()
+
+    try:
+        with console.status(f"[bold green]Finding direct services '{origin}' → '{destination}'..."):
+            df = get_direct_journeys(origin, destination, n=n)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise SystemExit(1) from e
+
+    if output_format == "csv":
+        output = df.to_csv(index=False)
+        if save:
+            with open(save, "w") as f:
+                f.write(output)
+            console.print(f"[green]Saved to {save}[/green]")
+        else:
+            click.echo(output)
+        return
+
+    if output_format == "json":
+        output = df.to_json(orient="records", date_format="iso", indent=2)
+        if save:
+            with open(save, "w") as f:
+                f.write(output)
+            console.print(f"[green]Saved to {save}[/green]")
+        else:
+            click.echo(output)
+        return
+
+    table = Table(title=f"{df['origin'].iloc[0]} → {df['destination'].iloc[0]}", show_lines=False)
+    table.add_column("Service", style="bold")
+    table.add_column("Departs", style="cyan", no_wrap=True)
+    table.add_column("Arrives", style="cyan", no_wrap=True)
+    table.add_column("Days")
+
+    for _, row in df.iterrows():
+        dep = row["scheduled_departure"]
+        arr = row["scheduled_arrival"]
+        dep_fmt = f"{dep[:2]}:{dep[2:]}" if len(dep) == 4 else dep
+        arr_fmt = f"{arr[:2]}:{arr[2:]}" if len(arr) == 4 else arr
+        days_map = "MTWTFSS"
+        days_str = "".join(d if row["days"][i] == "1" else "·" for i, d in enumerate(days_map))
+        table.add_row(row["service"], dep_fmt, arr_fmt, days_str)
+
+    console.print(table)
 
     if save:
         df.to_csv(save, index=False)
