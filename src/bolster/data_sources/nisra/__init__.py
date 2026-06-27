@@ -15,6 +15,7 @@ Available modules:
     - composite_index: Northern Ireland Composite Economic Index (experimental quarterly economic indicator)
     - construction_output: Quarterly construction output statistics (all work, new work, repair & maintenance)
     - deaths: Weekly death registrations with demographic, geographic, and place breakdowns
+    - diagnostic_waiting_times: Quarterly diagnostic waiting times by HSC Trust, category, and service
     - disease_prevalence: Annual NI disease register sizes and prevalence per 1,000 patients (2004/05–present)
     - drug_related_deaths: Annual drug-related and drug misuse deaths by year, age, gender, and substance
     - index_of_services: Quarterly Index of Services (IOS) — canonical module
@@ -113,6 +114,11 @@ Examples:
     >>> 'waiting_time_band' in df.columns
     True
 
+    >>> from bolster.data_sources.nisra import diagnostic_waiting_times as dwt
+    >>> df = dwt.get_latest_diagnostic_waiting_times()
+    >>> 'total_waiting' in df.columns
+    True
+
 """
 
 from . import (
@@ -125,6 +131,7 @@ from . import (
     composite_index,
     construction_output,
     deaths,
+    diagnostic_waiting_times,
     disease_prevalence,
     drug_related_deaths,
     elective_waiting_times,
@@ -156,6 +163,7 @@ __all__ = [
     "composite_index",
     "construction_output",
     "deaths",
+    "diagnostic_waiting_times",
     "disease_prevalence",
     "drug_related_deaths",
     "elective_waiting_times",
