@@ -7,6 +7,7 @@ and tourism statistics.
 Available modules:
     - ashe: Annual Survey of Hours and Earnings (employee earnings statistics)
     - births: Monthly birth registrations by registration and occurrence date
+    - business_register: NI Business Register (IDBR) — annual VAT/PAYE business counts by industry, legal status, LGD
     - claimant_count: Monthly Claimant Count (UC + JSA) by sex, age, and geography
     - cancer_waiting_times: Cancer treatment waiting times (14-day, 31-day, 62-day targets)
     - child_protection: Children's Social Care child protection statistics
@@ -120,12 +121,18 @@ Examples:
     >>> 'total_waiting' in df.columns
     True
 
+    >>> from bolster.data_sources.nisra import business_register
+    >>> df = business_register.get_latest_data()
+    >>> 'businesses' in df.columns
+    True
+
 """
 
 from . import (
     ashe,
     baby_names,
     births,
+    business_register,
     cancer_waiting_times,
     child_protection,
     claimant_count,
@@ -159,6 +166,7 @@ __all__ = [
     "ashe",
     "baby_names",
     "births",
+    "business_register",
     "cancer_waiting_times",
     "child_protection",
     "claimant_count",
