@@ -241,6 +241,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | NI Assembly — Questions (oral & written, 2007–present) | `niassembly.questions` | ✅ |
 | NI Assembly — Votes/Divisions (per-member records) | `niassembly.votes` | ✅ |
 | NI Business Register (IDBR, annual) | `nisra.business_register` | ✅ |
+| NI Multiple Deprivation Measure 2017 (NIMDM, SOA-level) | `nisra.deprivation` | ✅ |
 | Security Situation Statistics | - | ❌ Cloudflare-blocked |
 | Anti-social Behaviour | - | ❌ Cloudflare-blocked |
 | Domestic Abuse Incidents/Crimes | - | ❌ Cloudflare-blocked |
