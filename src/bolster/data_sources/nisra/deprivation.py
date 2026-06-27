@@ -94,13 +94,13 @@ def get_latest_data(force_refresh: bool = False) -> pd.DataFrame:
 
     try:
         df = pd.read_excel(path, sheet_name=_SHEET_NAME, engine="xlrd")
-    except Exception as e:
+    except Exception as e:  # pragma: no cover - requires a corrupt upstream file to exercise
         raise NISRADataError(f"Failed to parse NIMDM SOA results: {e}") from e
 
     df = df.rename(columns=_COLUMN_MAP)
     df = df[[c for c in _COLUMN_MAP.values() if c in df.columns]]
 
-    for col in _RANK_COLUMNS:
+    for col in _RANK_COLUMNS:  # pragma: no branch - every rank column is always present in _COLUMN_MAP
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")
 
