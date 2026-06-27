@@ -31,6 +31,7 @@ Available modules:
     - tourism: Tourism statistics including occupancy surveys, visitor stats (subpackage)
     - wellbeing: Individual wellbeing statistics (life satisfaction, happiness, anxiety, loneliness)
     - work_quality: Work Quality NI — seventeen indicators of job quality for employees
+    - housing_stock: NI Housing Stock annual statistics by property type (DoF/LPS)
     - public_confidence: Public Awareness of and Trust in Official Statistics (PCOS)
 
 Examples:
@@ -136,6 +137,7 @@ from . import (
     drug_related_deaths,
     elective_waiting_times,
     emergency_care_waiting_times,
+    housing_stock,
     index_of_production,
     index_of_services,
     labour_market,
@@ -168,6 +170,7 @@ __all__ = [
     "drug_related_deaths",
     "elective_waiting_times",
     "emergency_care_waiting_times",
+    "housing_stock",
     "index_of_production",
     "index_of_services",
     "labour_market",
