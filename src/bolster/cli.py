@@ -28,6 +28,7 @@ from .data_sources.niassembly import votes as niassembly_votes
 from .data_sources.nisra import ashe as nisra_ashe
 from .data_sources.nisra import baby_names as nisra_baby_names
 from .data_sources.nisra import births as nisra_births
+from .data_sources.nisra import business_register as nisra_business_register
 from .data_sources.nisra import cancer_waiting_times as nisra_cancer
 from .data_sources.nisra import composite_index as nisra_composite
 from .data_sources.nisra import construction_output as nisra_construction
@@ -2027,6 +2028,108 @@ def nisra_labour_market_cmd(dimension, table_deprecated, output_format, force_re
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
         console.print("   • Visit NISRA website to verify data availability")
+        raise click.Abort() from e
+
+
+@nisra.command(name="business-register")
+@click.option(
+    "--level",
+    type=click.Choice(["industry", "legal_status", "lgd"], case_sensitive=False),
+    default="industry",
+    show_default=True,
+    help="Breakdown level: industry group, legal status, or Local Government District",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_business_register_cmd(level, output_format, force_refresh, save):
+    """NI Business Register (IDBR) - annual VAT/PAYE registered business counts.
+
+    Annual count of VAT and/or PAYE registered businesses operating in
+    Northern Ireland, broken down by broad industry group, legal status,
+    or Local Government District.
+
+    Examples:
+        Get business counts by industry group::
+
+            bolster nisra business-register
+
+        Get business counts by Local Government District::
+
+            bolster nisra business-register --level lgd
+
+        Save to file::
+
+            bolster nisra business-register --level legal_status --save businesses.csv
+
+    Data Notes:
+        - Source: NISRA / Inter-Departmental Business Register (IDBR)
+        - Industry and legal status coverage: 2010-present
+        - LGD coverage: 2013-present
+        - Published annually in June
+
+    Returns:
+        DataFrame with columns depending on --level: year, businesses, plus
+        industry_group / (legal_status, sector) / lgd.
+
+    Note:
+        Source: https://www.nisra.gov.uk/publications/northern-ireland-business-activity-size-location-and-ownership
+    """
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading NI Business Register data..."):
+            data = nisra_business_register.get_latest_data(force_refresh=force_refresh, level=level.lower())
+
+        if data.empty:
+            console.print("[yellow]No data found[/yellow]")
+            return
+
+        console.print("[green]NI Business Register data retrieved successfully[/green]")
+        console.print(f"[cyan]Rows: {len(data)}[/cyan]")
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        elif output_format == "csv":
+            console.print(data.to_csv(index=False), end="")
+        else:
+            from rich.table import Table
+
+            rich_table = Table(title=f"NI Business Register — {level}")
+            for col in data.columns:
+                rich_table.add_column(col, style="white")
+            for _, row in data.head(20).iterrows():
+                rich_table.add_row(*[str(v) for v in row])
+            console.print(rich_table)
+            if len(data) > 20:
+                console.print(f"[dim]... and {len(data) - 20} more rows (use --format csv to see all)[/dim]")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
         raise click.Abort() from e
 
 
