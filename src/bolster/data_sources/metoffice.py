@@ -57,7 +57,7 @@ def get_order_latest(order_name: str) -> dict:
     """Get the latest status for a Met Office data order."""
     url = f"{BASE_URL}/orders/{order_name.lower()}/latest"  # pragma: no cover
     # TODO: Network integration testing - requires valid Met Office API key and order
-    response = session.get(url, headers=_api_headers)  # pragma: no cover
+    response = session.get(url, headers=_api_headers, timeout=30)  # pragma: no cover
     if response.status_code == 200:  # pragma: no cover
         return response.json()  # pragma: no cover
     # pragma: no cover
@@ -70,7 +70,7 @@ def get_file_meta(order_name: str, file_id: str) -> dict:
     """Get metadata for a specific file in a Met Office order."""
     url = f"{BASE_URL}/orders/{order_name.lower()}/latest/{quote(file_id)}"  # To handle + in the file_id  # pragma: no cover
     # TODO: Network integration testing - requires valid Met Office API key and order
-    response = session.get(url, headers=_api_headers)  # pragma: no cover
+    response = session.get(url, headers=_api_headers, timeout=30)  # pragma: no cover
     if response.status_code == 200:  # pragma: no cover
         return response.json()  # pragma: no cover
     # pragma: no cover
@@ -84,7 +84,9 @@ def get_file(order_name: str, file_id: str) -> bytes:
     """Download and cache a file from a Met Office order."""
     url = f"{BASE_URL}/orders/{order_name.lower()}/latest/{quote(file_id)}/data"  # To handle + in the file_id  # pragma: no cover
     # TODO: Network integration testing - requires valid Met Office API key and order
-    response = session.get(url, headers={**_api_headers, **{"Accept": "application/octet-stream"}})  # pragma: no cover
+    response = session.get(
+        url, headers={**_api_headers, **{"Accept": "application/octet-stream"}}, timeout=30
+    )  # pragma: no cover
     if response.status_code == 200:  # pragma: no cover
         return response.content  # pragma: no cover
     # pragma: no cover
