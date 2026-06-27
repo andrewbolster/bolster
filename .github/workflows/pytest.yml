@@ -17,6 +17,14 @@ concurrency:
 jobs:
     build:
         runs-on: ubuntu-latest
+        # A newer push to the same branch/PR (e.g. a second auto-rebase before
+        # the first one even started, or two pushes to main in quick succession)
+        # cancels this branch's own older queued or in-progress run, instead of
+        # letting it sit in the global queue only to become a moot/stale result
+        # once it finally starts.
+        concurrency:
+            group: pytest-branch-${{ github.ref }}
+            cancel-in-progress: true
         strategy:
             max-parallel: 4
             matrix:
