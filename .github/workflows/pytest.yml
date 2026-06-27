@@ -6,20 +6,13 @@ on:
     pull_request:
         branches: ["main"]
 
-# A newer push to the same branch/PR (e.g. a second auto-rebase before the
-# first one even started, or two pushes to main in quick succession) cancels
-# the whole PREVIOUS WORKFLOW RUN for that branch, instead of letting it run
-# to completion against a commit that's already been superseded.
-#
-# This is workflow-level (not job-level): a job-level group keyed by ref
-# would apply per matrix leg too, so each Python-version job would cancel
-# its sibling legs within the same run as they started — only the
-# last-starting leg would ever finish. Keeping this at the workflow level
-# means cancellation only ever targets a different (older) run, never a
-# sibling job in the same run, so all matrix legs run independently.
+# Only one PyTest run (across all branches/PRs) hits the live NISRA/NIAssembly
+# endpoints at a time, so a flaky upstream can't be hammered by a dozen
+# concurrent matrix jobs at once (e.g. after a mass PR-rebase). Runs queue
+# rather than cancel, so a slow run delays but doesn't drop later ones.
 concurrency:
-    group: pytest-${{ github.ref }}
-    cancel-in-progress: true
+    group: pytest-all
+    cancel-in-progress: false
 
 jobs:
     build:
