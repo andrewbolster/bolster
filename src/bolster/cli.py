@@ -33,6 +33,7 @@ from .data_sources.nisra import cancer_waiting_times as nisra_cancer
 from .data_sources.nisra import composite_index as nisra_composite
 from .data_sources.nisra import construction_output as nisra_construction
 from .data_sources.nisra import deaths as nisra_deaths
+from .data_sources.nisra import deprivation as nisra_deprivation
 from .data_sources.nisra import diagnostic_waiting_times as nisra_diagnostic
 from .data_sources.nisra import disease_prevalence as nisra_disease_prevalence
 from .data_sources.nisra import drug_related_deaths as nisra_drug_related_deaths
@@ -6326,6 +6327,107 @@ def nisra_public_confidence_cmd(breakdown, output_format, force_refresh, save):
             for _, row in data.iterrows():
                 rich_table.add_row(*[str(v) for v in row])
             console.print(rich_table)
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@nisra.command(name="deprivation")
+@click.option("--lgd", default=None, help="Filter by Local Government District (case-insensitive substring match)")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_deprivation_cmd(lgd, output_format, force_refresh, save):
+    """NI Multiple Deprivation Measure 2017 (NIMDM) - SOA-level deprivation ranks.
+
+    Ranks all 890 Super Output Areas on overall deprivation and seven domain
+    ranks (income, employment, health/disability, education, access to
+    services, living environment, crime/disorder). Rank 1 is the most
+    deprived SOA.
+
+    Examples:
+        Get all SOA deprivation ranks::
+
+            bolster nisra deprivation
+
+        Filter by Local Government District::
+
+            bolster nisra deprivation --lgd Belfast
+
+        Save to file::
+
+            bolster nisra deprivation --save deprivation.csv
+
+    Data Notes:
+        - Source: NIMDM 2017, NISRA
+        - 890 Super Output Areas (SOA2001 geography)
+        - Static publication; NIMDM2021 pending Census 2021 integration
+
+    Returns:
+        DataFrame with columns: lgd, urban_rural, soa_code, soa_name,
+        mdm_rank, income_rank, employment_rank, health_disability_rank,
+        education_rank, access_to_services_rank, living_environment_rank,
+        crime_disorder_rank.
+
+    Note:
+        Source: https://www.nisra.gov.uk/publications/nimdm17-soa-level-results
+    """
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading NIMDM deprivation data..."):
+            data = nisra_deprivation.get_latest_data(force_refresh=force_refresh)
+
+        if lgd:
+            data = data[data["lgd"].str.contains(lgd, case=False, na=False)].reset_index(drop=True)
+
+        if data.empty:
+            console.print("[yellow]No data found for the specified filters[/yellow]")
+            return
+
+        console.print("[green]NIMDM deprivation data retrieved successfully[/green]")
+        console.print(f"[cyan]SOAs: {len(data)}[/cyan]")
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        elif output_format == "csv":
+            console.print(data.to_csv(index=False), end="")
+        else:
+            from rich.table import Table
+
+            rich_table = Table(title="NIMDM Deprivation Ranks")
+            for col in data.columns:
+                rich_table.add_column(col, style="white")
+            for _, row in data.head(20).iterrows():
+                rich_table.add_row(*[str(v) for v in row])
+            console.print(rich_table)
+            if len(data) > 20:
+                console.print(f"[dim]... and {len(data) - 20} more rows (use --format csv to see all)[/dim]")
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
