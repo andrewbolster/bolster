@@ -7,6 +7,7 @@ and tourism statistics.
 Available modules:
     - ashe: Annual Survey of Hours and Earnings (employee earnings statistics)
     - births: Monthly birth registrations by registration and occurrence date
+    - business_register: NI Business Register (IDBR) — annual VAT/PAYE business counts by industry, legal status, LGD
     - claimant_count: Monthly Claimant Count (UC + JSA) by sex, age, and geography
     - cancer_waiting_times: Cancer treatment waiting times (14-day, 31-day, 62-day targets)
     - child_protection: Children's Social Care child protection statistics
@@ -15,6 +16,7 @@ Available modules:
     - composite_index: Northern Ireland Composite Economic Index (experimental quarterly economic indicator)
     - construction_output: Quarterly construction output statistics (all work, new work, repair & maintenance)
     - deaths: Weekly death registrations with demographic, geographic, and place breakdowns
+    - deprivation: NI Multiple Deprivation Measure 2017 (NIMDM) — SOA-level overall and domain deprivation ranks
     - diagnostic_waiting_times: Quarterly diagnostic waiting times by HSC Trust, category, and service
     - disease_prevalence: Annual NI disease register sizes and prevalence per 1,000 patients (2004/05–present)
     - drug_related_deaths: Annual drug-related and drug misuse deaths by year, age, gender, and substance
@@ -31,6 +33,7 @@ Available modules:
     - tourism: Tourism statistics including occupancy surveys, visitor stats (subpackage)
     - wellbeing: Individual wellbeing statistics (life satisfaction, happiness, anxiety, loneliness)
     - work_quality: Work Quality NI — seventeen indicators of job quality for employees
+    - housing_stock: NI Housing Stock annual statistics by property type (DoF/LPS)
     - public_confidence: Public Awareness of and Trust in Official Statistics (PCOS)
 
 Examples:
@@ -67,6 +70,11 @@ Examples:
     >>> from bolster.data_sources.nisra import deaths
     >>> df = deaths.get_latest_deaths(dimension='demographics')
     >>> 'deaths' in df.columns
+    True
+
+    >>> from bolster.data_sources.nisra import deprivation
+    >>> df = deprivation.get_latest_data()
+    >>> 'mdm_rank' in df.columns
     True
 
     >>> from bolster.data_sources.nisra import index_of_services as ios
@@ -119,23 +127,31 @@ Examples:
     >>> 'total_waiting' in df.columns
     True
 
+    >>> from bolster.data_sources.nisra import business_register
+    >>> df = business_register.get_latest_data()
+    >>> 'businesses' in df.columns
+    True
+
 """
 
 from . import (
     ashe,
     baby_names,
     births,
+    business_register,
     cancer_waiting_times,
     child_protection,
     claimant_count,
     composite_index,
     construction_output,
     deaths,
+    deprivation,
     diagnostic_waiting_times,
     disease_prevalence,
     drug_related_deaths,
     elective_waiting_times,
     emergency_care_waiting_times,
+    housing_stock,
     index_of_production,
     index_of_services,
     labour_market,
@@ -157,17 +173,20 @@ __all__ = [
     "ashe",
     "baby_names",
     "births",
+    "business_register",
     "cancer_waiting_times",
     "child_protection",
     "claimant_count",
     "composite_index",
     "construction_output",
     "deaths",
+    "deprivation",
     "diagnostic_waiting_times",
     "disease_prevalence",
     "drug_related_deaths",
     "elective_waiting_times",
     "emergency_care_waiting_times",
+    "housing_stock",
     "index_of_production",
     "index_of_services",
     "labour_market",

@@ -29,6 +29,21 @@ jobs:
                   enable-cache: true
                   cache-dependency-glob: "uv.lock"
 
+            - name: Get current date
+              id: date
+              run: echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
+            - name: Cache downloaded source data
+              uses: actions/cache@v4
+              with:
+                  path: ~/.cache/bolster
+                  # Key rotates daily so a successful download survives between
+                  # runs on the same day (shared across the whole matrix via
+                  # restore-keys) without caching stale/broken downloads forever.
+                  key: bolster-downloads-${{ runner.os }}-${{ steps.date.outputs.date }}
+                  restore-keys: |
+                      bolster-downloads-${{ runner.os }}-
+
             - name: Install the project
               run: uv sync --all-extras --dev
 
