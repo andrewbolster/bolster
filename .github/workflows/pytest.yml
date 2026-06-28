@@ -6,6 +6,19 @@ on:
     pull_request:
         branches: ["main"]
 
+# Only one PyTest run (across all branches/PRs) hits the live NISRA/
+# NIAssembly/etc endpoints at a time. Removed in #1946 on the theory that
+# the download cache made cross-branch throttling unnecessary, but on
+# 2026-06-28 removing it let 7 branches' full matrices (~28 jobs) fire
+# within 28 seconds of each other, and every one of them timed out against
+# data.niassembly.gov.uk — a server that degrades under concurrent load
+# rather than rate-limiting (no HTTP 429s observed) looks exactly like
+# this. Runs queue rather than cancel, so a slow run delays but doesn't
+# drop later ones.
+concurrency:
+    group: pytest-all
+    cancel-in-progress: false
+
 jobs:
     build:
         runs-on: ubuntu-latest
