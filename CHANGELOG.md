@@ -1,6 +1,16 @@
 # Changelog
 
-## [0.7.0] - 2026-05-28
+## \[Unreleased\]
+
+- feat(translink): add live departure boards and vehicle positions module (#XXX)
+  - `get_departures_by_name()` / `get_departures()` — next-N departures from any Translink stop
+  - `get_live_vehicles()` — live vehicle snapshot from Translink VMI feed
+  - `get_departures_with_vehicles()` — departure boards enriched with VMI vehicle positions
+  - Stop metadata from Open Data NI ATCO-CIF zips (12,700+ stops, ING→WGS84 conversion)
+  - CLI: `bolster translink departures <stop>` and `bolster translink vehicles`
+  - 46 unit tests + 35 integration tests, all no-mock
+
+## \[0.7.0\] - 2026-05-28
 
 - fix(readme): correct CI badge workflow filename (test.yml → pytest.yml) (#1842)
 - feat(nisra/disease_prevalence): add GP-practice-level data from Table 5 sheets (#1839)
@@ -62,7 +72,6 @@
 - fix(web): add tqdm progress bar to download_extract_zip (#314)
 - fix(drift-detection): bump artifact actions to Node.js 24, fix speciesName trailing punctuation
 - feat: weekly NISRA feed drift detection via TF-IDF (#1732)
-
 
 All notable changes to this project will be documented in this file.
 

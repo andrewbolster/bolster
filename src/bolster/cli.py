@@ -56,6 +56,8 @@ from .data_sources.nisra.tourism import visitor_statistics as nisra_visitors
 from .data_sources.ons_cpi import SERIES as ONS_CPI_SERIES
 from .data_sources.ons_cpi import get_latest_data as get_ons_cpi_latest
 from .data_sources.ons_cpi import get_series as get_ons_cpi_series
+from .data_sources.translink.departures import get_departures_by_name, get_departures_with_vehicles, get_direct_journeys
+from .data_sources.translink.vehicles import get_live_vehicles
 from .data_sources.wikipedia import get_ni_executive_basic_table
 from .utils.rss import filter_entries, get_nisra_statistics_feed, parse_rss_feed
 
@@ -7429,6 +7431,286 @@ def niassembly_votes_cmd(start_date, end_date, division_id, output_format, save)
         raise click.Abort() from e
 
 
+@cli.group()
+def translink():
+    """Translink NI live departures and vehicle positions.
+
+    Commands for querying Translink bus and rail departure boards and
+    live vehicle positions from the Translink VMI feed.
+    """
+    pass
+
+
+@translink.command(name="departures")
+@click.argument("stop_name")
+@click.option("--n", default=5, show_default=True, help="Number of departures to return")
+@click.option("--vehicles", "with_vehicles", is_flag=True, help="Enrich with live vehicle positions")
+@click.option("--enrich-stops", is_flag=True, help="Resolve ATCOCodes to stop names (with --vehicles)")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"]),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--save", help="Save output to file (specify filename)")
+def translink_departures_cmd(stop_name, n, with_vehicles, enrich_stops, output_format, save):
+    r"""Show next N departures from a Translink stop.
+
+    STOP_NAME is the name or partial name of the stop to query.
+
+    Examples:
+        bolster translink departures "Cambria Street"
+        bolster translink departures "Cambria Street" --n 10 --vehicles
+        bolster translink departures "Great Victoria Street" --format csv
+    """
+    from rich.table import Table
+
+    console = Console()
+
+    try:
+        with console.status(f"[bold green]Fetching departures from '{stop_name}'..."):
+            if with_vehicles:
+                df = get_departures_with_vehicles(stop_name, n=n, enrich_stops=enrich_stops)
+            else:
+                df = get_departures_by_name(stop_name, n=n)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise SystemExit(1) from e
+
+    if df.empty:
+        console.print("[yellow]No departures found (outside service hours?)[/yellow]")
+        return
+
+    if output_format == "csv":
+        output = df.to_csv(index=False)
+        if save:
+            with open(save, "w") as f:
+                f.write(output)
+            console.print(f"[green]Saved to {save}[/green]")
+        else:
+            click.echo(output)
+        return
+
+    if output_format == "json":
+        output = df.to_json(orient="records", date_format="iso", indent=2)
+        if save:
+            with open(save, "w") as f:
+                f.write(output)
+            console.print(f"[green]Saved to {save}[/green]")
+        else:
+            click.echo(output)
+        return
+
+    stop = df["stop_name"].iloc[0] if "stop_name" in df.columns else stop_name
+    table = Table(title=f"Departures from {stop}", show_lines=False)
+    table.add_column("Time (UTC)", style="cyan", no_wrap=True)
+    table.add_column("Service", style="bold")
+    table.add_column("Destination")
+    table.add_column("Delay", justify="right")
+    table.add_column("RT", justify="center")
+    if with_vehicles:
+        table.add_column("Vehicle")
+        table.add_column("Next Stop")
+
+    for _, row in df.iterrows():
+        dep_time = str(row["actual_departure"])[:19] if pd.notna(row["actual_departure"]) else "-"
+        delay = row.get("delay_minutes", 0)
+        delay_str = f"+{delay:.0f}m" if delay > 0 else (f"{delay:.0f}m" if delay < 0 else "on time")
+        delay_style = "red" if delay > 2 else ("green" if delay < 0 else "")
+        rt_str = "✓" if row.get("is_real_time") else ""
+        cols = [
+            dep_time,
+            row.get("service", ""),
+            row.get("destination", ""),
+            f"[{delay_style}]{delay_str}[/{delay_style}]" if delay_style else delay_str,
+            rt_str,
+        ]
+        if with_vehicles:
+            vid = row.get("vehicle_id") or "-"
+            next_stop = row.get("next_stop_name") or row.get("next_stop") or "-"
+            cols += [str(vid), str(next_stop)]
+        table.add_row(*cols)
+
+    console.print(table)
+
+    if save:
+        df.to_csv(save, index=False)
+        console.print(f"[green]Saved to {save}[/green]")
+
+
+@translink.command(name="vehicles")
+@click.option("--line", help="Filter by line number (e.g. 11E, G1)")
+@click.option("--operator", help="Filter by operator (MET, ULB, GDR)")
+@click.option("--enrich-stops", is_flag=True, help="Resolve ATCOCodes to stop names")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"]),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--save", help="Save output to file (specify filename)")
+def translink_vehicles_cmd(line, operator, enrich_stops, output_format, save):
+    r"""Show live Translink vehicle positions from the VMI feed.
+
+    Examples:
+        bolster translink vehicles
+        bolster translink vehicles --line 11E
+        bolster translink vehicles --operator MET --format csv
+    """
+    from rich.table import Table
+
+    console = Console()
+
+    try:
+        with console.status("[bold green]Fetching live vehicle positions..."):
+            df = get_live_vehicles(line=line, operator=operator, enrich_stops=enrich_stops)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise SystemExit(1) from e
+
+    if df.empty:
+        console.print("[yellow]No vehicles found (outside service hours or no match)[/yellow]")
+        return
+
+    if output_format == "csv":
+        output = df.to_csv(index=False)
+        if save:
+            with open(save, "w") as f:
+                f.write(output)
+            console.print(f"[green]Saved to {save}[/green]")
+        else:
+            click.echo(output)
+        return
+
+    if output_format == "json":
+        output = df.to_json(orient="records", date_format="iso", indent=2)
+        if save:
+            with open(save, "w") as f:
+                f.write(output)
+            console.print(f"[green]Saved to {save}[/green]")
+        else:
+            click.echo(output)
+        return
+
+    title = "Live Translink Vehicles"
+    if line:
+        title += f" — Line {line.upper()}"
+    if operator:
+        title += f" — Operator {operator.upper()}"
+    table = Table(title=title, show_lines=False)
+    table.add_column("Vehicle ID", style="cyan")
+    table.add_column("Line", style="bold")
+    table.add_column("Direction")
+    table.add_column("Journey")
+    table.add_column("Delay(s)", justify="right")
+    table.add_column("Lat", justify="right")
+    table.add_column("Lon", justify="right")
+    if enrich_stops:
+        table.add_column("Next Stop")
+
+    for _, row in df.iterrows():
+        delay_val = row.get("delay_seconds")
+        delay_str = str(int(delay_val)) if pd.notna(delay_val) else "-"
+        lat = f"{row['latitude']:.5f}" if pd.notna(row.get("latitude")) else "-"
+        lon = f"{row['longitude']:.5f}" if pd.notna(row.get("longitude")) else "-"
+        cols = [
+            str(row.get("vehicle_id", "")),
+            str(row.get("line", "")),
+            str(row.get("direction", "")),
+            str(row.get("journey_id", "")),
+            delay_str,
+            lat,
+            lon,
+        ]
+        if enrich_stops:
+            cols.append(str(row.get("next_stop_name") or "-"))
+        table.add_row(*cols)
+
+    console.print(table)
+    console.print(f"[dim]{len(df)} vehicles[/dim]")
+
+    if save:
+        df.to_csv(save, index=False)
+        console.print(f"[green]Saved to {save}[/green]")
+
+
+@translink.command(name="route")
+@click.argument("origin")
+@click.argument("destination")
+@click.option("--n", default=5, show_default=True, help="Number of journeys to return")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"]),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--save", help="Save output to file (specify filename)")
+def translink_route_cmd(origin, destination, n, output_format, save):
+    r"""Show next N direct journeys between two stops.
+
+    Bails out if no direct service runs between ORIGIN and DESTINATION —
+    does not suggest connections or changes.
+
+    Examples:
+        bolster translink route "Central Library" "Flax Street"
+        bolster translink route "Great Victoria Street" "Lisburn Bus Centre" --n 3
+    """
+    from rich.table import Table
+
+    console = Console()
+
+    try:
+        with console.status(f"[bold green]Finding direct services '{origin}' → '{destination}'..."):
+            df = get_direct_journeys(origin, destination, n=n)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise SystemExit(1) from e
+
+    if output_format == "csv":
+        output = df.to_csv(index=False)
+        if save:
+            with open(save, "w") as f:
+                f.write(output)
+            console.print(f"[green]Saved to {save}[/green]")
+        else:
+            click.echo(output)
+        return
+
+    if output_format == "json":
+        output = df.to_json(orient="records", date_format="iso", indent=2)
+        if save:
+            with open(save, "w") as f:
+                f.write(output)
+            console.print(f"[green]Saved to {save}[/green]")
+        else:
+            click.echo(output)
+        return
+
+    table = Table(title=f"{df['origin'].iloc[0]} → {df['destination'].iloc[0]}", show_lines=False)
+    table.add_column("Service", style="bold")
+    table.add_column("Departs", style="cyan", no_wrap=True)
+    table.add_column("Arrives", style="cyan", no_wrap=True)
+    table.add_column("Days")
+
+    for _, row in df.iterrows():
+        dep = row["scheduled_departure"]
+        arr = row["scheduled_arrival"]
+        dep_fmt = f"{dep[:2]}:{dep[2:]}" if len(dep) == 4 else dep
+        arr_fmt = f"{arr[:2]}:{arr[2:]}" if len(arr) == 4 else arr
+        days_map = "MTWTFSS"
+        days_str = "".join(d if row["days"][i] == "1" else "·" for i, d in enumerate(days_map))
+        table.add_row(row["service"], dep_fmt, arr_fmt, days_str)
+
+    console.print(table)
+
+    if save:
+        df.to_csv(save, index=False)
+        console.print(f"[green]Saved to {save}[/green]")
+
+
 @cli.command()
 def list_sources():
     """List all available data sources and their descriptions.
@@ -7467,6 +7749,10 @@ def list_sources():
     click.echo("\nTRANSPORT")
     click.echo("  dva                  DVA monthly test statistics (vehicle, driver, theory)")
     click.echo("                       April 2014 - present, includes --summary dashboard")
+    click.echo("  translink departures Next N departures from a Translink stop")
+    click.echo("                       Live departure boards with optional vehicle enrichment")
+    click.echo("  translink vehicles   Live Translink vehicle positions from VMI feed")
+    click.echo("                       Filter by line or operator; ~66s refresh interval")
 
     click.echo("\nENTERTAINMENT & LIFESTYLE")
     click.echo("  cinema-listings      Cineworld movie listings and showtimes")
