@@ -44,6 +44,18 @@ jobs:
                     --jq '.[] | select(.mergeStateStatus != "CLEAN") | [.number, .headRefName] | @tsv' | \
                   while IFS=$'\t' read -r pr branch; do
                     echo "----------------------------------------"
+
+                    # Skip if this branch already has a PyTest run queued/in-progress:
+                    # pushing now would just supersede that run before it gets a turn
+                    # in the global concurrency queue, restarting the wait from zero
+                    # instead of letting it finish.
+                    pending=$(gh run list --workflow=pytest.yml --branch "$branch" --limit 1 \
+                      --json status --jq '.[0].status // ""')
+                    if [ "$pending" = "queued" ] || [ "$pending" = "in_progress" ]; then
+                      echo "⏳ PR #$pr ($branch) already has a $pending PyTest run — skipping this cycle"
+                      continue
+                    fi
+
                     echo "Updating PR #$pr ($branch) with latest main..."
 
                     git fetch origin "$branch" || { echo "✗ Could not fetch $branch (fork?)"; continue; }
