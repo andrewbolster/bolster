@@ -29,6 +29,12 @@ logger = logging.getLogger(__name__)
 # Base cache directory
 CACHE_BASE = Path.home() / ".cache" / "bolster"
 
+# Process-wide hit/miss counters, surfaced in the pytest terminal summary
+# (see tests/conftest.py) since CachedDownloader's own INFO-level logging
+# is filtered out by pytest's log_cli_level=WARNING in CI.
+hits = 0
+misses = 0
+
 
 class CacheError(Exception):
     """Base exception for cache operations."""
@@ -104,10 +110,12 @@ class CachedDownloader:
         ext = Path(url).suffix or ".bin"
         cache_path = self.cache_dir / f"{url_hash}{ext}"
 
+        global hits
         if cache_path.exists():
             age = datetime.now() - datetime.fromtimestamp(cache_path.stat().st_mtime)
             if age.total_seconds() < cache_ttl_hours * 3600:
                 logger.info(f"Using cached file: {cache_path}")
+                hits += 1
                 return cache_path
 
         return None
@@ -144,6 +152,8 @@ class CachedDownloader:
                 return cached
 
         # Download the file
+        global misses
+        misses += 1
         url_hash = hash_url(url)
         ext = Path(url).suffix or ".bin"
         cache_path = self.cache_dir / f"{url_hash}{ext}"
