@@ -15,9 +15,17 @@ on:
 # rather than rate-limiting (no HTTP 429s observed) looks exactly like
 # this. Runs queue rather than cancel, so a slow run delays but doesn't
 # drop later ones.
+#
+# `queue: max` (GHA, 2026-05) lets pending runs actually wait their turn
+# instead of GitHub's default behaviour of cancelling a still-pending run
+# the moment a newer one is queued for the same group. Without it, the
+# rebase.yml bot re-pushing a branch while its run was still queued behind
+# this lane silently invalidated that run before it ever started — observed
+# repeatedly on 2026-06-28 as a starvation loop on several branches.
 concurrency:
     group: pytest-all
     cancel-in-progress: false
+    queue: max
 
 jobs:
     build:
