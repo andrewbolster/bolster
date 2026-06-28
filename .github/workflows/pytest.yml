@@ -6,14 +6,6 @@ on:
     pull_request:
         branches: ["main"]
 
-# Only one PyTest run (across all branches/PRs) hits the live NISRA/NIAssembly
-# endpoints at a time, so a flaky upstream can't be hammered by a dozen
-# concurrent matrix jobs at once (e.g. after a mass PR-rebase). Runs queue
-# rather than cancel, so a slow run delays but doesn't drop later ones.
-concurrency:
-    group: pytest-all
-    cancel-in-progress: false
-
 jobs:
     build:
         runs-on: ubuntu-latest

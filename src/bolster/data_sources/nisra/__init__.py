@@ -16,6 +16,7 @@ Available modules:
     - composite_index: Northern Ireland Composite Economic Index (experimental quarterly economic indicator)
     - construction_output: Quarterly construction output statistics (all work, new work, repair & maintenance)
     - deaths: Weekly death registrations with demographic, geographic, and place breakdowns
+    - deprivation: NI Multiple Deprivation Measure 2017 (NIMDM) — SOA-level overall and domain deprivation ranks
     - diagnostic_waiting_times: Quarterly diagnostic waiting times by HSC Trust, category, and service
     - disease_prevalence: Annual NI disease register sizes and prevalence per 1,000 patients (2004/05–present)
     - drug_related_deaths: Annual drug-related and drug misuse deaths by year, age, gender, and substance
@@ -69,6 +70,11 @@ Examples:
     >>> from bolster.data_sources.nisra import deaths
     >>> df = deaths.get_latest_deaths(dimension='demographics')
     >>> 'deaths' in df.columns
+    True
+
+    >>> from bolster.data_sources.nisra import deprivation
+    >>> df = deprivation.get_latest_data()
+    >>> 'mdm_rank' in df.columns
     True
 
     >>> from bolster.data_sources.nisra import index_of_services as ios
@@ -139,6 +145,7 @@ from . import (
     composite_index,
     construction_output,
     deaths,
+    deprivation,
     diagnostic_waiting_times,
     disease_prevalence,
     drug_related_deaths,
@@ -173,6 +180,7 @@ __all__ = [
     "composite_index",
     "construction_output",
     "deaths",
+    "deprivation",
     "diagnostic_waiting_times",
     "disease_prevalence",
     "drug_related_deaths",
