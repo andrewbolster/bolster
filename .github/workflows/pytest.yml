@@ -6,15 +6,9 @@ on:
     pull_request:
         branches: ["main"]
 
-# Per-ref group + queue: max: each ref gets its own FIFO queue, so a new
-# commit on a PR cancels that PR's own stale run (cancel-in-progress: true)
-# without GitHub's cross-ref "higher priority waiting request" eviction
-# wiping out unrelated branches' queued runs. See PR description for the
-# 2026-06-28 incident history that led here.
 concurrency:
-    group: pytest-${{ github.ref }}
+    group: ${{ github.workflow }}-${{ github.ref }}
     cancel-in-progress: true
-    queue: max
 
 jobs:
     build:
