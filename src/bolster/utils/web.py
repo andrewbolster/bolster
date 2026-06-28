@@ -83,9 +83,14 @@ _adapter = HTTPAdapter(max_retries=_retry_strategy)
 class CachingSession(requests.Session):
     """requests.Session that caches GET responses to disk with a TTL.
 
-    Only caches responses whose Content-Type starts with "text/" (HTML, plain
-    text) — binary downloads (Excel, ZIP, etc.) bypass the cache and should
-    go through CachedDownloader instead.
+    Only caches *un-parametered* GETs (no ``params=`` kwarg) whose
+    Content-Type starts with "text/" (HTML, XML, plain text, etc.) — binary
+    downloads (Excel, ZIP, etc.) bypass the cache and should go through
+    CachedDownloader instead. Calls passing ``params=`` are never cached:
+    the cache key is derived from the base URL only, so caching a
+    parametered request risks silently serving a different request's
+    response for the same cache slot (e.g. ``?personId=1`` vs
+    ``?personId=2``) — see https://github.com/andrewbolster/bolster/pull/1948.
 
     Cache lives in ~/.cache/bolster/_pages/ keyed by URL hash.
     TTL is controlled by _PAGE_CACHE_TTL_SECONDS (default: 1 hour).
@@ -97,6 +102,9 @@ class CachingSession(requests.Session):
     """
 
     def get(self, url, **kwargs):  # noqa: D102
+        if kwargs.get("params"):
+            return super().get(url, **kwargs)
+
         _PAGE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
         url_hash = hashlib.md5(url.encode()).hexdigest()
         cache_path = _PAGE_CACHE_DIR / f"{url_hash}.html"
@@ -131,7 +139,7 @@ class CachingSession(requests.Session):
         if response.status_code == 404:
             cache_404_path.write_bytes(b"")
             logger.debug(f"Page 404 cached: {url}")
-        elif response.ok and "text/html" in content_type:
+        elif response.ok and content_type.startswith("text/"):
             cache_path.write_bytes(response.content)
             logger.debug(f"Page cached: {url}")
 
