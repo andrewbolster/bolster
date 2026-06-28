@@ -7105,6 +7105,8 @@ def boe_base_rate_cmd(resolution, changes, year, output_format, force_refresh, s
         console.print("   - Check your internet connection")
         console.print("   - Try again with --force-refresh to bypass cache")
         raise click.Abort() from e
+
+
 @cli.group(name="niassembly")
 def niassembly_group():
     """NI Assembly AIMS — Members, Questions, and Votes.
