@@ -94,6 +94,13 @@ class CachedDownloader:
         self.namespace = namespace
         self.timeout = timeout
         self.cache_dir = CACHE_BASE / namespace
+        if not self.cache_dir.exists():
+            logger.warning(
+                f"Cache directory {self.cache_dir} did not exist — creating it fresh. "
+                "If this is CI, a restored cache (e.g. actions/cache) should have already "
+                "created this directory; a fresh create here likely means the cache "
+                "missed or restored to an unexpected path."
+            )
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
     def get_cached_file(self, url: str, cache_ttl_hours: int = 24) -> Path | None:
