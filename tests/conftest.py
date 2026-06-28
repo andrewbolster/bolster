@@ -32,12 +32,20 @@ def pytest_configure(config):
 
 
 def pytest_terminal_summary(terminalreporter, exitstatus, config):
-    """Report page cache size at end of test session."""
+    """Report page cache size and CachedDownloader hit/miss counts at end of test session."""
     cache_dir = Path.home() / ".cache" / "bolster" / "_pages"
     if cache_dir.exists():
         files = list(cache_dir.glob("*.html"))
         total_bytes = sum(f.stat().st_size for f in files)
         terminalreporter.write_sep("-", f"page cache: {len(files)} entries, {total_bytes / 1024:.1f} KB ({cache_dir})")
+
+    from bolster.utils import cache as _cache
+
+    total = _cache.hits + _cache.misses
+    rate = f"{_cache.hits / total:.0%}" if total else "n/a"
+    terminalreporter.write_sep(
+        "-", f"file download cache: {_cache.hits} hits, {_cache.misses} misses ({rate} hit rate)"
+    )
 
 
 def pytest_collection_modifyitems(config, items):
