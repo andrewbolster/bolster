@@ -6,25 +6,14 @@ on:
     pull_request:
         branches: ["main"]
 
-# Only one PyTest run (across all branches/PRs) hits the live NISRA/
-# NIAssembly/etc endpoints at a time. Removed in #1946 on the theory that
-# the download cache made cross-branch throttling unnecessary, but on
-# 2026-06-28 removing it let 7 branches' full matrices (~28 jobs) fire
-# within 28 seconds of each other, and every one of them timed out against
-# data.niassembly.gov.uk — a server that degrades under concurrent load
-# rather than rate-limiting (no HTTP 429s observed) looks exactly like
-# this. Runs queue rather than cancel, so a slow run delays but doesn't
-# drop later ones.
-#
-# `queue: max` (GHA, 2026-05) lets pending runs actually wait their turn
-# instead of GitHub's default behaviour of cancelling a still-pending run
-# the moment a newer one is queued for the same group. Without it, the
-# rebase.yml bot re-pushing a branch while its run was still queued behind
-# this lane silently invalidated that run before it ever started — observed
-# repeatedly on 2026-06-28 as a starvation loop on several branches.
+# Per-ref group + queue: max: each ref gets its own FIFO queue, so a new
+# commit on a PR cancels that PR's own stale run (cancel-in-progress: true)
+# without GitHub's cross-ref "higher priority waiting request" eviction
+# wiping out unrelated branches' queued runs. See PR description for the
+# 2026-06-28 incident history that led here.
 concurrency:
-    group: pytest-all
-    cancel-in-progress: false
+    group: pytest-${{ github.ref }}
+    cancel-in-progress: true
     queue: max
 
 jobs:
