@@ -29,6 +29,12 @@ logger = logging.getLogger(__name__)
 # Base cache directory
 CACHE_BASE = Path.home() / ".cache" / "bolster"
 
+# Process-wide hit/miss counters, surfaced in the pytest terminal summary
+# (see tests/conftest.py) since CachedDownloader's own INFO-level logging
+# is filtered out by pytest's log_cli_level=WARNING in CI.
+hits = 0
+misses = 0
+
 
 class CacheError(Exception):
     """Base exception for cache operations."""
@@ -88,6 +94,13 @@ class CachedDownloader:
         self.namespace = namespace
         self.timeout = timeout
         self.cache_dir = CACHE_BASE / namespace
+        if not self.cache_dir.exists():
+            logger.warning(
+                f"Cache directory {self.cache_dir} did not exist — creating it fresh. "
+                "If this is CI, a restored cache (e.g. actions/cache) should have already "
+                "created this directory; a fresh create here likely means the cache "
+                "missed or restored to an unexpected path."
+            )
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
     def get_cached_file(self, url: str, cache_ttl_hours: int = 24) -> Path | None:
@@ -104,10 +117,12 @@ class CachedDownloader:
         ext = Path(url).suffix or ".bin"
         cache_path = self.cache_dir / f"{url_hash}{ext}"
 
+        global hits
         if cache_path.exists():
             age = datetime.now() - datetime.fromtimestamp(cache_path.stat().st_mtime)
             if age.total_seconds() < cache_ttl_hours * 3600:
                 logger.info(f"Using cached file: {cache_path}")
+                hits += 1
                 return cache_path
 
         return None
@@ -144,6 +159,8 @@ class CachedDownloader:
                 return cached
 
         # Download the file
+        global misses
+        misses += 1
         url_hash = hash_url(url)
         ext = Path(url).suffix or ".bin"
         cache_path = self.cache_dir / f"{url_hash}{ext}"
