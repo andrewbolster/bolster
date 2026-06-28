@@ -16,12 +16,13 @@ import pytest
 
 from bolster.data_sources.translink._base import TranslinkDataNotFoundError
 from bolster.data_sources.translink.departures import (
+    find_stop_id,
     get_departures,
     get_departures_by_name,
     get_departures_with_vehicles,
+    get_direct_journeys,
     validate_departures,
 )
-from bolster.data_sources.translink.departures import find_stop_id
 from bolster.data_sources.translink.stops import (
     find_stop,
     get_stop_dataframe,
@@ -190,6 +191,56 @@ class TestGetDeparturesByName:
 
 
 # ---------------------------------------------------------------------------
+# get_direct_journeys
+# ---------------------------------------------------------------------------
+
+
+class TestGetDirectJourneys:
+    """get_direct_journeys uses only the locally cached CIF timetable, so
+    these tests use real data without any live network call."""
+
+    @pytest.fixture(scope="class")
+    def journeys(self):
+        return get_direct_journeys("McKinstry Road", "Westwood Centre", n=5)
+
+    def test_returns_dataframe(self, journeys):
+        assert isinstance(journeys, pd.DataFrame)
+
+    def test_schema(self, journeys):
+        expected_cols = {
+            "origin",
+            "destination",
+            "service",
+            "scheduled_departure",
+            "scheduled_arrival",
+            "days",
+            "direction",
+        }
+        assert expected_cols.issubset(journeys.columns)
+
+    def test_at_most_n_rows(self, journeys):
+        assert len(journeys) <= 5
+
+    def test_origin_and_destination_populated(self, journeys):
+        assert (journeys["origin"] != "").all()
+        assert (journeys["destination"] != "").all()
+
+    def test_unknown_stop_raises(self):
+        with pytest.raises(TranslinkDataNotFoundError):
+            get_direct_journeys("Not A Real Stop Name XYZ", "Westwood Centre")
+
+    def test_no_direct_service_raises(self):
+        with pytest.raises(TranslinkDataNotFoundError):
+            get_direct_journeys("Europa Bus Station", "Great Victoria Street")
+
+    def test_accepts_explicit_naive_datetime(self):
+        from datetime import datetime
+
+        journeys = get_direct_journeys("McKinstry Road", "Westwood Centre", n=3, dt=datetime(2026, 6, 29, 8, 0))
+        assert len(journeys) <= 3
+
+
+# ---------------------------------------------------------------------------
 # get_live_vehicles
 # ---------------------------------------------------------------------------
 
@@ -227,7 +278,7 @@ class TestGetLiveVehicles:
         if len(lats) == 0:
             pytest.skip("No non-zero coordinates available")
         in_range = ((lats >= 53.0) & (lats <= 55.4)).sum()
-        assert in_range / len(lats) > 0.9, f"Less than 90% of vehicles in island-of-Ireland bounds"
+        assert in_range / len(lats) > 0.9, "Less than 90% of vehicles in island-of-Ireland bounds"
 
     def test_validate_passes(self, vehicles):
         assert validate_vehicles(vehicles) is True

@@ -13,9 +13,7 @@ Example:
     datetime.date(2024, 3, 1)
 """
 
-from datetime import date, datetime, timedelta, timezone
-
-UTC = timezone.utc  # Python 3.10 compat — datetime.UTC only exists from 3.11
+from datetime import UTC, date, datetime, timedelta
 
 
 def round_to_week(dt: datetime | date) -> date:
