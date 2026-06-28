@@ -164,6 +164,77 @@ jobs:
 
           console.log(`Release decision: ${versionBump} version bump`);
 
+  refresh-release-pr:
+    # Independent of analyze-changes/should_release: rebase.yml keeps an
+    # already-open release PR's branch up to date with main, but never
+    # regenerates its description, so the "Changes in this release" list
+    # silently falls behind every commit merged after the PR was opened.
+    # This job re-derives the changelog from the PR's own branch and
+    # updates its body in place whenever one is found.
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Find an open release PR and refresh its changelog
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        PR_JSON=$(gh pr list --base main --state open --json number,headRefName \
+          --jq '[.[] | select(.headRefName | startswith("release/v"))][0]')
+
+        if [ -z "$PR_JSON" ] || [ "$PR_JSON" = "null" ]; then
+          echo "No open release PR found — nothing to refresh"
+          exit 0
+        fi
+
+        PR_NUMBER=$(echo "$PR_JSON" | jq -r '.number')
+        BRANCH=$(echo "$PR_JSON" | jq -r '.headRefName')
+        VERSION=${BRANCH#release/v}
+        echo "Refreshing PR #${PR_NUMBER} (${BRANCH}, v${VERSION})"
+
+        git fetch origin "$BRANCH" main --tags --quiet
+
+        # Find the tag immediately before this release's own tag (version-
+        # sorted, not by ancestry) — the branch's own bump commit is buried
+        # partway up its history under however many "merge main in" commits
+        # rebase.yml has added since, so walking from its tip for the
+        # "previous" tag via `describe` would find the wrong one, and this
+        # release's own tag (v${VERSION}) may not even be merged to main yet.
+        PREV_TAG=$(git tag --sort=-v:refname | grep -A1 "^v${VERSION}$" | tail -1)
+        if [ "$PREV_TAG" = "v${VERSION}" ]; then
+          PREV_TAG="v0.0.0"
+        fi
+        PREV_TAG=${PREV_TAG:-v0.0.0}
+        echo "Previous tag: ${PREV_TAG}"
+
+        # Match analyze-changes' own skip patterns (docs/ci/chore/style/test
+        # commits, merges, dependabot) so the refreshed changelog stays in
+        # the same format as the original.
+        CHANGELOG=$(git log "${PREV_TAG}..origin/${BRANCH}" --pretty=format:"%s" | grep -Ev \
+          -e '^docs?(\(.*\))?:' \
+          -e '^ci(\(.*\))?:' \
+          -e '^chore(\(.*\))?:' \
+          -e '^style(\(.*\))?:' \
+          -e '^test(\(.*\))?:' \
+          -e "^Merge (branch|remote-tracking branch|pull request)" \
+          -e '[Uu]pdate.*dependabot' \
+          | sed 's/^/- /')
+
+        if [ -z "$CHANGELOG" ]; then
+          echo "No commits found in range — leaving PR body untouched"
+          exit 0
+        fi
+
+        printf 'Automated version bump to %s.\n\n## Changes in this release\n\n%s\n\n## Installation\n\n```bash\npip install bolster==%s\n```\n\n## Documentation\n\n- [Documentation](https://bolster.help)\n- [PyPI Package](https://pypi.org/project/bolster/%s/)\n\n---\n*This PR was automatically created by the release workflow.*\n' \
+          "${VERSION}" "${CHANGELOG}" "${VERSION}" "${VERSION}" \
+          > /tmp/pr-body.md
+
+        gh pr edit "$PR_NUMBER" --body-file /tmp/pr-body.md
+        echo "Updated PR #${PR_NUMBER} description"
+
   open-release-pr:
     needs: analyze-changes
     if: needs.analyze-changes.outputs.should_release == 'true'
