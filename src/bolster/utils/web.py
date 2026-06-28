@@ -81,11 +81,22 @@ _adapter = HTTPAdapter(max_retries=_retry_strategy)
 
 
 class CachingSession(requests.Session):
-    """requests.Session that caches GET responses to disk with a TTL.
+    """requests.Session that caches GET and HEAD responses to disk with a TTL.
 
-    Only caches responses whose Content-Type starts with "text/" (HTML, plain
-    text) — binary downloads (Excel, ZIP, etc.) bypass the cache and should
-    go through CachedDownloader instead.
+    GET: only caches *un-parametered* requests (no ``params=`` kwarg) whose
+    Content-Type starts with "text/" (HTML, XML, plain text, etc.) — binary
+    downloads (Excel, ZIP, etc.) bypass the cache and should go through
+    CachedDownloader instead. Calls passing ``params=`` are never cached:
+    the cache key is derived from the base URL only, so caching a
+    parametered request risks silently serving a different request's
+    response for the same cache slot (e.g. ``?personId=1`` vs
+    ``?personId=2``) — see https://github.com/andrewbolster/bolster/pull/1948.
+
+    HEAD: caches the status code (no body) for un-parametered requests,
+    including non-2xx codes — a module probing "does this direct file URL
+    exist" before falling back to scraping a publication page would
+    otherwise repeat the same live network round-trip on every retry even
+    when the upstream is consistently down.
 
     Cache lives in ~/.cache/bolster/_pages/ keyed by URL hash.
     TTL is controlled by _PAGE_CACHE_TTL_SECONDS (default: 1 hour).
@@ -97,6 +108,9 @@ class CachingSession(requests.Session):
     """
 
     def get(self, url, **kwargs):  # noqa: D102
+        if kwargs.get("params"):
+            return super().get(url, **kwargs)
+
         _PAGE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
         url_hash = hashlib.md5(url.encode()).hexdigest()
         cache_path = _PAGE_CACHE_DIR / f"{url_hash}.html"
@@ -131,9 +145,44 @@ class CachingSession(requests.Session):
         if response.status_code == 404:
             cache_404_path.write_bytes(b"")
             logger.debug(f"Page 404 cached: {url}")
-        elif response.ok and "text/html" in content_type:
+        elif response.ok and content_type.startswith("text/"):
             cache_path.write_bytes(response.content)
             logger.debug(f"Page cached: {url}")
+
+        return response
+
+    def head(self, url, **kwargs):  # noqa: D102
+        """Cache un-parametered HEAD status codes (no body to store).
+
+        Modules sometimes probe a candidate URL with HEAD before deciding
+        whether to GET it (e.g. checking a direct-file URL exists before
+        falling back to scraping a publication page). Without caching this,
+        every retry/repeat call pays a full network round-trip just to learn
+        the same status code as last time.
+        """
+        if kwargs.get("params"):
+            return super().head(url, **kwargs)
+
+        _PAGE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        url_hash = hashlib.md5(url.encode()).hexdigest()
+        cache_path = _PAGE_CACHE_DIR / f"{url_hash}.head"
+
+        now = datetime.now()
+
+        if cache_path.exists():
+            age = (now - datetime.fromtimestamp(cache_path.stat().st_mtime)).total_seconds()
+            if age < _PAGE_CACHE_TTL_SECONDS:
+                cached_status = int(cache_path.read_text())
+                logger.debug(f"HEAD cache hit ({cached_status}): {url}")
+                cached = requests.Response()
+                cached.status_code = cached_status
+                cached._content = b""
+                cached._content_consumed = True
+                return cached
+
+        response = super().head(url, **kwargs)
+        cache_path.write_text(str(response.status_code))
+        logger.debug(f"HEAD status cached ({response.status_code}): {url}")
 
         return response
 
