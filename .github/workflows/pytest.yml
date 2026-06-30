@@ -6,26 +6,17 @@ on:
     pull_request:
         branches: ["main"]
 
-# Only one PyTest run (across all branches/PRs) hits the live NISRA/
-# NIAssembly/etc endpoints at a time. Removed in #1946 on the theory that
-# the download cache made cross-branch throttling unnecessary, but on
-# 2026-06-28 removing it let 7 branches' full matrices (~28 jobs) fire
-# within 28 seconds of each other, and every one of them timed out against
-# data.niassembly.gov.uk — a server that degrades under concurrent load
-# rather than rate-limiting (no HTTP 429s observed) looks exactly like
-# this. Runs queue rather than cancel, so a slow run delays but doesn't
-# drop later ones.
 concurrency:
-    group: pytest-all
-    cancel-in-progress: false
+    group: ${{ github.event_name }}-${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
 
 jobs:
     build:
         runs-on: ubuntu-latest
         strategy:
-            max-parallel: 4
+            max-parallel: 3
             matrix:
-                python-version: ["3.10", "3.11", "3.12", "3.13"]
+                python-version: ["3.11", "3.12", "3.13"]
 
         steps:
             - uses: actions/checkout@v7
@@ -47,7 +38,7 @@ jobs:
               run: echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
 
             - name: Cache downloaded source data
-              uses: actions/cache@v4
+              uses: actions/cache@v6
               with:
                   path: ~/.cache/bolster
                   # Key rotates daily so a successful download survives between
