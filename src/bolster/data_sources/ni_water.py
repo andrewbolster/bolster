@@ -27,6 +27,7 @@ with support for both current quality data and historical zone mapping.
 
 import csv
 import logging
+from io import StringIO
 from urllib.error import HTTPError
 
 import pandas as pd
@@ -83,9 +84,9 @@ def get_water_quality_csv_data() -> pd.DataFrame:
 
     logger.info(f"Downloading water quality data from {WATER_QUALITY_CSV_URL}")
 
-    with session.get(WATER_QUALITY_CSV_URL, stream=True) as r:
+    with session.get(WATER_QUALITY_CSV_URL, timeout=30) as r:
         r.raise_for_status()
-        _water_quality_cache = pd.read_csv(r.url)
+        _water_quality_cache = pd.read_csv(StringIO(r.text))
 
         if _water_quality_cache.empty:
             raise RuntimeError("No water quality data found in CSV")
