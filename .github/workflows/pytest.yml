@@ -7,7 +7,7 @@ on:
         branches: ["main"]
 
 concurrency:
-    group: ${{ github.workflow }}-${{ github.ref }}
+    group: ${{ github.event_name }}-${{ github.workflow }}-${{ github.ref }}
     cancel-in-progress: true
 
 jobs:
@@ -38,7 +38,7 @@ jobs:
               run: echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
 
             - name: Cache downloaded source data
-              uses: actions/cache@v4
+              uses: actions/cache@v6
               with:
                   path: ~/.cache/bolster
                   # Key rotates daily so a successful download survives between
