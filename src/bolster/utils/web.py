@@ -3,7 +3,7 @@
 Provides a pre-configured :class:`requests.Session` (``session``) with:
 
 - Automatic retry on transient server errors (500/502/503/504)
-- Rate-limit awareness: exponential backoff on 429 responses, capped at 60 s
+- Exponential backoff with jitter: 0s, 2–7s, 4–9s, 8–13s (~29s worst case)
 - A consistent ``User-Agent`` header for polite scraping
 - Helpers for downloading Excel files and ZIP archives in memory
 
@@ -68,10 +68,13 @@ class RateLimitAwareRetry(Retry):
 
 # Configure retry strategy for transient failures
 # Retries on: connection errors, 429, 500, 502, 503, 504 status codes
-# urllib3 default backoff: 0s, 2s, 4s, 8s (factor=1) — ~14s worst case
+# Backoff: exponential (factor=1) plus up to 5s jitter per attempt so
+# parallel CI matrix legs don't retry in lockstep against the same
+# throttled endpoint. Resulting waits: 0s, 2–7s, 4–9s, 8–13s (~29s worst).
 _retry_strategy = RateLimitAwareRetry(
     total=4,
     backoff_factor=1,
+    backoff_jitter=5.0,
     status_forcelist=[429, 500, 502, 503, 504],
     allowed_methods=["HEAD", "GET", "OPTIONS"],
     raise_on_status=True,
@@ -84,9 +87,10 @@ class CachingSession(requests.Session):
     """requests.Session that caches GET and HEAD responses to disk with a TTL.
 
     GET: only caches *un-parametered* requests (no ``params=`` kwarg) whose
-    Content-Type starts with "text/" (HTML, XML, plain text, etc.) — binary
-    downloads (Excel, ZIP, etc.) bypass the cache and should go through
-    CachedDownloader instead. Calls passing ``params=`` are never cached:
+    Content-Type is a text-like format — specifically anything starting with
+    "text/" (HTML, XML, plain text) or "application/json" or
+    "application/rss+xml". Binary downloads (Excel, ZIP, etc.) bypass the
+    cache and should go through CachedDownloader instead. Calls passing ``params=`` are never cached:
     the cache key is derived from the base URL only, so caching a
     parametered request risks silently serving a different request's
     response for the same cache slot (e.g. ``?personId=1`` vs
@@ -142,10 +146,15 @@ class CachingSession(requests.Session):
         response = super().get(url, **kwargs)
 
         content_type = response.headers.get("Content-Type", "")
+        _cacheable = (
+            content_type.startswith("text/")
+            or content_type.startswith("application/json")
+            or content_type.startswith("application/rss+xml")
+        )
         if response.status_code == 404:
             cache_404_path.write_bytes(b"")
             logger.debug(f"Page 404 cached: {url}")
-        elif response.ok and content_type.startswith("text/"):
+        elif response.ok and _cacheable:
             cache_path.write_bytes(response.content)
             logger.debug(f"Page cached: {url}")
 
