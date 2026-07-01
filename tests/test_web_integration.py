@@ -1,9 +1,19 @@
 #!/usr/bin/env python
 """Integration tests for web utility functions.
 
-These tests make real network requests to external services to test
-the actual functionality without mocking.
+These tests exercise real HTTP behavior (a genuine socket round-trip,
+real gzip/chunked transfer, a real ZIP archive) against a local
+`http.server` fixture rather than third-party services — deterministic
+and fast, but without mocking `requests`/`session` itself. The one
+exception is the Wayback Machine fallback path in `resilient_get`,
+which has no local equivalent and is covered by a single, clearly
+marked real-network smoke test.
 """
+
+import io
+import threading
+import zipfile
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pandas as pd
 import pytest
@@ -11,146 +21,143 @@ import pytest
 from bolster.utils.web import download_extract_zip, get_excel_dataframe, get_last_valid, resilient_get
 
 
-class TestWebIntegrationBasic:
-    """Basic integration tests that should work with real services."""
-
-    def test_get_excel_dataframe_with_simple_file(self):
-        """Test downloading and reading a simple Excel file."""
-        # Use a simple public Excel file for testing
-        # This is a minimal test that just verifies the function works
-        test_url = "https://www.stats.govt.nz/assets/Uploads/Annual-enterprise-survey/Annual-enterprise-survey-2021-financial-year-provisional/Download-data/annual-enterprise-survey-2021-financial-year-provisional-csv.csv"
-
-        try:
-            # Test with CSV that can be read as Excel
-            df = get_excel_dataframe(test_url, read_kwargs={"engine": "python"})
-            assert isinstance(df, pd.DataFrame)
-            assert len(df) > 0  # Should have some data
-        except Exception as e:
-            # If the specific URL fails, just verify the function signature works
-            pytest.skip(f"External service unavailable: {e}")
-
-    def test_get_excel_dataframe_with_requests_kwargs(self):
-        """Test that requests_kwargs parameter is properly handled."""
-        # This tests the uncovered line 44 where requests_kwargs defaults are set
-        test_url = "https://httpbin.org/get"
-
-        try:
-            # Pass custom headers to test requests_kwargs handling
-            custom_headers = {"User-Agent": "Test-Agent/1.0"}
-            _ = get_excel_dataframe(
-                test_url, requests_kwargs={"headers": custom_headers}, read_kwargs={"engine": "python"}
-            )
-            # This might fail as httpbin returns JSON, not Excel, but it tests the kwargs path
-        except Exception:
-            # Expected to fail as httpbin doesn't return Excel, but covers the code path
-            pass
-
-    def test_download_extract_zip_small_zip(self):
-        """Test downloading and extracting a small ZIP file."""
-        # Use a small public ZIP file for testing
-        test_zip_url = "https://github.com/python/cpython/archive/refs/heads/main.zip"
-
-        try:
-            files_found = []
-            for filename, file_obj in download_extract_zip(test_zip_url):
-                files_found.append(filename)
-                # Just process first few files to keep test fast
-                if len(files_found) >= 3:
-                    break
-
-            # Should have found some files in the ZIP
-            assert len(files_found) > 0
-            # Files should have reasonable names
-            assert all(isinstance(name, str) and len(name) > 0 for name in files_found)
-
-        except Exception as e:
-            # If the specific URL fails, skip the test
-            pytest.skip(f"External service unavailable: {e}")
+def _make_xlsx_bytes() -> bytes:
+    """Build a minimal real .xlsx file in memory."""
+    buf = io.BytesIO()
+    pd.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]}).to_excel(buf, index=False, engine="openpyxl")
+    return buf.getvalue()
 
 
-class TestWebIntegrationResilience:
-    """Tests for resilient web fetching functionality."""
-
-    def test_resilient_get_success_path(self):
-        """Test resilient_get with a URL that should work normally."""
-        test_url = "https://httpbin.org/get"
-
-        try:
-            response = resilient_get(test_url)
-            assert response.status_code == 200
-            # Should be the normal success path, not wayback fallback
-        except Exception as e:
-            pytest.skip(f"External service unavailable: {e}")
-
-    def test_get_last_valid_with_known_url(self):
-        """Test wayback machine lookup with a known archived URL."""
-        # Use a URL that's likely to have wayback snapshots
-        test_url = "https://www.python.org/"
-
-        try:
-            wayback_url = get_last_valid(test_url)
-            assert isinstance(wayback_url, str)
-            assert "web.archive.org" in wayback_url
-            # This tests the uncovered line 19 in web.py
-        except Exception as e:
-            # Wayback machine might be unavailable or rate limiting
-            pytest.skip(f"Wayback machine unavailable: {e}")
+def _make_zip_bytes(files: dict[str, bytes]) -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        for name, content in files.items():
+            zf.writestr(name, content)
+    return buf.getvalue()
 
 
-class TestWebIntegrationEdgeCases:
-    """Test edge cases and error conditions with real services."""
+class _Handler(BaseHTTPRequestHandler):
+    """Serves fixed responses for a few known paths; 404s everything else.
 
-    @pytest.mark.slow
-    def test_resilient_get_with_404_fallback(self):
-        """Test resilient_get falling back to wayback for a 404 URL."""
-        # Use a URL that's likely to 404 but have wayback snapshots
-        test_url = "https://www.python.org/nonexistent-page-12345"
+    Records the headers of the last /file.xlsx request received, so tests
+    can assert that requests_kwargs actually reached the real request
+    get_excel_dataframe made — not just that the call didn't raise.
+    """
 
-        try:
-            response = resilient_get(test_url)
-            # If this succeeds, it means wayback fallback worked
-            # This tests the uncovered error handling in lines 28-39
-            assert response.status_code == 200
-        except Exception:
-            # If wayback also fails, that's acceptable for this test
-            # The important thing is we exercised the error handling code paths
-            pass
+    xlsx_bytes: bytes
+    zip_bytes: bytes
+    last_xlsx_request_headers: dict[str, str] | None = None
 
-    def test_resilient_get_with_totally_invalid_domain(self):
-        """Test resilient_get with a domain that doesn't exist."""
-        test_url = "https://this-domain-should-never-exist-12345.invalid/"
+    def do_GET(self):  # noqa: N802
+        if self.path == "/file.xlsx":
+            _Handler.last_xlsx_request_headers = dict(self.headers)
+            body = self.xlsx_bytes
+            self.send_response(200)
+            self.send_header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        elif self.path == "/archive.zip":
+            body = self.zip_bytes
+            self.send_response(200)
+            self.send_header("Content-Type", "application/zip")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        elif self.path == "/ok":
+            body = b"ok"
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        else:
+            self.send_response(404)
+            self.end_headers()
 
-        try:
-            _ = resilient_get(test_url)
-            # Should either work via wayback or raise an exception
-        except Exception:
-            # Expected - this should fail and exercise the error paths
-            # This tests the exception handling in lines 31-38
-            pass
+    def log_message(self, format, *args):  # noqa: A002
+        pass  # silence request logging in test output
 
 
-class TestWebIntegrationParameterHandling:
-    """Test parameter handling in web functions."""
+@pytest.fixture(scope="module")
+def local_server():
+    """A real HTTP server on a local socket for the duration of the module."""
+    _Handler.xlsx_bytes = _make_xlsx_bytes()
+    _Handler.zip_bytes = _make_zip_bytes({"a.txt": b"hello", "b.txt": b"world"})
 
-    def test_download_extract_zip_parameter_coverage(self):
-        """Test to ensure all code paths in download_extract_zip are covered."""
-        # This specifically targets the uncovered lines 60-65
-        test_zip_url = "https://github.com/python/cpython/archive/refs/heads/main.zip"
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://{server.server_address[0]}:{server.server_address[1]}"
+    finally:
+        server.shutdown()
+        thread.join(timeout=5)
 
-        try:
-            # Process the ZIP to cover all lines in the function
-            file_count = 0
-            for filename, file_obj in download_extract_zip(test_zip_url):
-                # Test that we can actually read from the file object
-                data = file_obj.read(100)  # Read first 100 bytes
-                assert isinstance(data, bytes)
-                assert len(filename) > 0
 
-                file_count += 1
-                if file_count >= 2:  # Keep test fast
-                    break
+class TestGetExcelDataframe:
+    def test_reads_real_xlsx_file(self, local_server):
+        df = get_excel_dataframe(f"{local_server}/file.xlsx")
+        assert isinstance(df, pd.DataFrame)
+        assert list(df.columns) == ["a", "b"]
+        assert len(df) == 3
 
-            assert file_count > 0
+    def test_passes_requests_kwargs_through(self, local_server):
+        """requests_kwargs (e.g. custom headers) actually reach the request
+        get_excel_dataframe makes — verified against what the server itself
+        recorded receiving, not just that the call didn't raise."""
+        get_excel_dataframe(
+            f"{local_server}/file.xlsx",
+            requests_kwargs={"headers": {"X-Test-Header": "present"}},
+        )
+        assert _Handler.last_xlsx_request_headers.get("X-Test-Header") == "present"
 
-        except Exception as e:
-            pytest.skip(f"External service unavailable: {e}")
+    def test_raises_on_404(self, local_server):
+        import requests
+
+        with pytest.raises(requests.HTTPError):
+            get_excel_dataframe(f"{local_server}/does-not-exist.xlsx")
+
+
+class TestDownloadExtractZip:
+    def test_extracts_all_files_with_correct_content(self, local_server):
+        # Each yielded file object is only valid within its own iteration —
+        # the generator closes it before yielding the next one — so read
+        # eagerly rather than collecting handles to read afterward.
+        results = {name: file_obj.read() for name, file_obj in download_extract_zip(f"{local_server}/archive.zip")}
+        assert results == {"a.txt": b"hello", "b.txt": b"world"}
+
+    def test_raises_on_404(self, local_server):
+        import requests
+
+        with pytest.raises(requests.HTTPError):
+            list(download_extract_zip(f"{local_server}/does-not-exist.zip"))
+
+
+class TestResilientGet:
+    def test_success_path_does_not_use_wayback(self, local_server):
+        response = resilient_get(f"{local_server}/ok")
+        assert response.status_code == 200
+        assert response.content == b"ok"
+
+    @pytest.mark.network
+    def test_raises_when_target_and_wayback_both_fail(self, local_server):
+        """A URL on our own throwaway local port 404s immediately (no retry
+        storm), then resilient_get's fallback makes a real call to the
+        Wayback Machine, which finds no snapshot either — should raise, not
+        silently swallow the failure. Marked network: the local 404 is
+        instant, but the wayback lookup itself is a real third-party call."""
+        with pytest.raises(Exception):  # noqa: B017 — genuinely any exception is acceptable here
+            resilient_get(f"{local_server}/does-not-exist")
+
+
+@pytest.mark.network
+class TestWaybackMachineFallback:
+    """The one test in this module that depends on a real third-party
+    service (archive.org) — there's no local equivalent for wayback
+    snapshot lookup. Marked so it can be deselected with `-m "not network"`
+    if archive.org itself is degraded."""
+
+    def test_get_last_valid_returns_an_archive_url(self):
+        wayback_url = get_last_valid("https://www.python.org/")
+        assert isinstance(wayback_url, str)
+        assert "web.archive.org" in wayback_url
