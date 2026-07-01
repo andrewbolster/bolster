@@ -10,6 +10,7 @@ Key validations:
 - Required columns, data types, and month names present
 """
 
+import pandas as pd
 import pytest
 
 from bolster.data_sources.nisra import marriages
@@ -64,9 +65,11 @@ class TestMarriagesDataIntegrity:
 
     def test_data_types_correct(self, latest_marriages):
         """Test that column data types are correct."""
-        assert latest_marriages["date"].dtype == "datetime64[ns]", "date column should be datetime"
+        assert pd.api.types.is_datetime64_any_dtype(latest_marriages["date"]), "date column should be datetime"
         assert latest_marriages["year"].dtype in ["int64", "int32"], "year column should be integer"
-        assert latest_marriages["month"].dtype == "object", "month column should be string"
+        assert pd.api.types.is_string_dtype(latest_marriages["month"]) or pd.api.types.is_object_dtype(
+            latest_marriages["month"]
+        ), "month column should be string"
         assert latest_marriages["marriages"].dtype in ["float64", "int64"], "marriages column should be numeric"
 
     def test_month_names_valid(self, latest_marriages):
@@ -175,9 +178,11 @@ class TestCivilPartnershipsDataIntegrity:
 
     def test_data_types_correct(self, latest_civil_partnerships):
         """Test that column data types are correct."""
-        assert latest_civil_partnerships["date"].dtype == "datetime64[ns]", "date should be datetime"
+        assert pd.api.types.is_datetime64_any_dtype(latest_civil_partnerships["date"]), "date should be datetime"
         assert latest_civil_partnerships["year"].dtype in ["int64", "int32"], "year should be integer"
-        assert latest_civil_partnerships["month"].dtype == "object", "month should be string"
+        assert pd.api.types.is_string_dtype(latest_civil_partnerships["month"]) or pd.api.types.is_object_dtype(
+            latest_civil_partnerships["month"]
+        ), "month should be string"
         assert latest_civil_partnerships["civil_partnerships"].dtype in ["int64", "int32"], (
             "civil_partnerships should be integer"
         )

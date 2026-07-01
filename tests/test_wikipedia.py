@@ -14,7 +14,7 @@ def test_get_ni_executive_basic_table():
     assert list(result.index.names) == ["Executive"]
 
     # Verify data types
-    assert result["Established"].dtype == "datetime64[ns]"
-    assert result["Dissolved"].dtype == "datetime64[ns]"
-    assert result["Duration"].dtype == "timedelta64[ns]"
-    assert result["Interregnum"].dtype == "timedelta64[ns]"
+    assert pd.api.types.is_datetime64_any_dtype(result["Established"])
+    assert pd.api.types.is_datetime64_any_dtype(result["Dissolved"])
+    assert pd.api.types.is_timedelta64_dtype(result["Duration"])
+    assert pd.api.types.is_timedelta64_dtype(result["Interregnum"])

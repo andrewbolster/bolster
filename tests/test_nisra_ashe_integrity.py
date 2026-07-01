@@ -50,7 +50,9 @@ class TestASHETimeseriesIntegrity:
     def test_weekly_data_types(self, latest_weekly):
         """Test that weekly earnings columns have correct data types."""
         assert pd.api.types.is_integer_dtype(latest_weekly["year"])
-        assert latest_weekly["work_pattern"].dtype == "object"
+        assert pd.api.types.is_string_dtype(latest_weekly["work_pattern"]) or pd.api.types.is_object_dtype(
+            latest_weekly["work_pattern"]
+        )
         assert pd.api.types.is_float_dtype(latest_weekly["median_weekly_earnings"])
 
     def test_work_pattern_values(self, latest_weekly):
@@ -354,9 +356,7 @@ class TestASHEHourlyEarningsBySectorGender:
 
         total = len(df["year"].unique()) * 2  # 2 sectors per year
         exception_rate = len(exceptions) / total
-        assert exception_rate < 0.20, (
-            f"Male earnings exceeded female in too few cases. Exceptions: {exceptions}"
-        )
+        assert exception_rate < 0.20, f"Male earnings exceeded female in too few cases. Exceptions: {exceptions}"
 
 
 class TestASHEHourlyEarningsByAgeGender:
@@ -498,7 +498,9 @@ class TestASHENIUKEarningsComparison:
     def test_earnings_growing_over_time(self, df):
         """NI earnings should be higher in the latest year than in 2005."""
         ni = df[df["location"] == "NI"].set_index("year")
-        assert ni.loc[ni.index.max(), "median_weekly_earnings_fulltime"] > ni.loc[2005, "median_weekly_earnings_fulltime"]
+        assert (
+            ni.loc[ni.index.max(), "median_weekly_earnings_fulltime"] > ni.loc[2005, "median_weekly_earnings_fulltime"]
+        )
 
 
 class TestASHEUKRegionalPayRatio:
