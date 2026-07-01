@@ -93,7 +93,9 @@ class TestBabyNamesDataIntegrity:
 
     def test_names_are_strings(self, baby_names_data):
         """Test that all name values are non-empty strings."""
-        assert baby_names_data["name"].dtype == object, "name column should be string dtype"
+        assert pd.api.types.is_string_dtype(baby_names_data["name"]) or pd.api.types.is_object_dtype(
+            baby_names_data["name"]
+        ), "name column should be string dtype"
         empty_names = (baby_names_data["name"].str.strip() == "").sum()
         assert empty_names == 0, f"{empty_names} rows have empty name strings"
 

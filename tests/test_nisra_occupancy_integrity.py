@@ -12,6 +12,7 @@ Key validations:
 
 import datetime
 
+import pandas as pd
 import pytest
 
 from bolster.data_sources.nisra.tourism import occupancy
@@ -94,17 +95,21 @@ class TestHotelOccupancyDataIntegrity:
 
     def test_data_types_correct_occupancy(self, latest_occupancy):
         """Test that column data types are correct for occupancy data."""
-        assert latest_occupancy["date"].dtype == "datetime64[ns]", "date should be datetime"
+        assert pd.api.types.is_datetime64_any_dtype(latest_occupancy["date"]), "date should be datetime"
         assert latest_occupancy["year"].dtype in ["int64", "int32"], "year should be integer"
-        assert latest_occupancy["month"].dtype == "object", "month should be string"
+        assert pd.api.types.is_string_dtype(latest_occupancy["month"]) or pd.api.types.is_object_dtype(
+            latest_occupancy["month"]
+        ), "month should be string"
         assert latest_occupancy["room_occupancy"].dtype == "float64", "room_occupancy should be float"
         assert latest_occupancy["bed_occupancy"].dtype == "float64", "bed_occupancy should be float"
 
     def test_data_types_correct_rooms_beds(self, latest_rooms_beds_sold):
         """Test that column data types are correct for rooms/beds sold data."""
-        assert latest_rooms_beds_sold["date"].dtype == "datetime64[ns]", "date should be datetime"
+        assert pd.api.types.is_datetime64_any_dtype(latest_rooms_beds_sold["date"]), "date should be datetime"
         assert latest_rooms_beds_sold["year"].dtype in ["int64", "int32"], "year should be integer"
-        assert latest_rooms_beds_sold["month"].dtype == "object", "month should be string"
+        assert pd.api.types.is_string_dtype(latest_rooms_beds_sold["month"]) or pd.api.types.is_object_dtype(
+            latest_rooms_beds_sold["month"]
+        ), "month should be string"
         assert latest_rooms_beds_sold["rooms_sold"].dtype == "float64", "rooms_sold should be float"
         assert latest_rooms_beds_sold["beds_sold"].dtype == "float64", "beds_sold should be float"
 
