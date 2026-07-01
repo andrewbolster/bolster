@@ -31,6 +31,7 @@ import dateparser
 import numpy as np
 import pandas as pd
 
+from bolster.exceptions import ParseError
 from bolster.utils.web import session
 
 logger = logging.getLogger(__name__)
@@ -50,6 +51,12 @@ def get_ni_executive_basic_table() -> pd.DataFrame:
         - Duration: timedelta64[ns] - How long the executive lasted
         - Interregnum: timedelta64[ns] - Gap until next executive
 
+    Raises:
+        requests.HTTPError: If the page request returns a non-2xx status.
+        ParseError: If the response has no parseable HTML tables — Wikipedia
+            sometimes serves an interstitial/rate-limit page as a 200
+            response rather than a clear error status.
+
     Example:
         >>> df = get_ni_executive_basic_table()
         >>> sorted(df.columns.tolist())
@@ -65,7 +72,30 @@ def get_ni_executive_basic_table() -> pd.DataFrame:
     url = "https://en.wikipedia.org/wiki/Northern_Ireland_Executive"
     response = session.get(url, headers=headers)
     response.raise_for_status()
-    tables = pd.read_html(pd.io.common.StringIO(response.text))
+
+    try:
+        tables = pd.read_html(pd.io.common.StringIO(response.text))
+    except (ValueError, ImportError) as e:
+        # pd.read_html raises ValueError when lxml finds no <table> elements,
+        # then (since html5lib isn't installed) ImportError when it tries the
+        # next parser in its fallback chain. Either way, a 200 response with
+        # an interstitial/rate-limit/captcha page (Wikipedia doesn't always
+        # signal this via HTTP status) looks exactly like this rather than a
+        # clear network error.
+        raise ParseError(
+            f"No HTML tables found in Wikipedia response — page may be an error/interstitial page: {e}",
+            file_path=url,
+            parser_type="html",
+        ) from e
+
+    if len(tables) <= 4:
+        raise ParseError(
+            f"Expected at least 5 tables on the Wikipedia page, found {len(tables)} — "
+            "page structure may have changed or the response was an error page",
+            file_path=url,
+            parser_type="html",
+        )
+
     tables[4].columns = range(len(tables[4].columns))
 
     # Get rid of the nasty multi index
