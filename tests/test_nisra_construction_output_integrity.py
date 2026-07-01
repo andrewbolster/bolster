@@ -38,7 +38,9 @@ class TestConstructionOutputIntegrity:
     def test_data_types(self, latest_construction):
         """Test that columns have correct data types."""
         assert pd.api.types.is_datetime64_any_dtype(latest_construction["date"])
-        assert latest_construction["quarter"].dtype == "object"
+        assert pd.api.types.is_string_dtype(latest_construction["quarter"]) or pd.api.types.is_object_dtype(
+            latest_construction["quarter"]
+        )
         assert pd.api.types.is_integer_dtype(latest_construction["year"])
         assert pd.api.types.is_float_dtype(latest_construction["all_work_index"])
         assert pd.api.types.is_float_dtype(latest_construction["new_work_index"])

@@ -84,7 +84,7 @@ class TestQuarterlyBirthsDataIntegrity:
     def test_date_column_exists(self, births_data):
         """Test that date column exists and is datetime type."""
         assert "date" in births_data.columns, "date column should exist"
-        assert births_data["date"].dtype == "datetime64[ns]", "date should be datetime"
+        assert pd.api.types.is_datetime64_any_dtype(births_data["date"]), "date should be datetime"
 
     def test_sufficient_historical_quarters(self, births_data):
         """Test that we have at least 40 quarters of data (10 years)."""
