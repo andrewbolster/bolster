@@ -165,3 +165,35 @@ class TestValidation:
             }
         )
         assert ecwt.validate_data(df) is True
+
+
+class TestParseNumericCol:
+    """Unit tests for _parse_numeric_col — no network calls.
+
+    These guard against regressions where the dtype==object guard silently
+    skipped comma-stripping under PyArrow-backed string dtypes (pandas 3.0+
+    defaults infer_string=True, so string columns are no longer dtype==object).
+    """
+
+    def test_plain_integers(self):
+        s = pd.Series(["100", "200", "300"])
+        result = ecwt._parse_numeric_col(s)
+        assert list(result) == [100.0, 200.0, 300.0]
+
+    def test_comma_formatted_numbers(self):
+        """Comma-separated thousands must parse correctly under PyArrow strings."""
+        s = pd.Series(["1,234", "5,678", "999"])
+        result = ecwt._parse_numeric_col(s)
+        assert list(result) == [1234.0, 5678.0, 999.0]
+
+    def test_already_numeric_series(self):
+        s = pd.Series([100, 200, 300])
+        result = ecwt._parse_numeric_col(s)
+        assert list(result) == [100.0, 200.0, 300.0]
+
+    def test_nulls_become_nan(self):
+        s = pd.Series(["1,000", None, "500"])
+        result = ecwt._parse_numeric_col(s)
+        assert result[0] == 1000.0
+        assert pd.isna(result[1])
+        assert result[2] == 500.0

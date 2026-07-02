@@ -135,7 +135,7 @@ def _parse_numeric_col(series: pd.Series) -> pd.Series:
     Returns:
         Series with numeric dtype.
     """
-    if series.dtype == object:
+    if pd.api.types.is_string_dtype(series):
         series = series.str.replace(",", "", regex=False)
     return pd.to_numeric(series, errors="coerce")
 
