@@ -11,7 +11,7 @@ import datetime
 import pandas as pd
 import pytest
 
-from bolster.data_sources.nisra import emergency_care_waiting_times as ecwt
+from bolster.data_sources.health_ni import emergency_care_waiting_times as ecwt
 
 
 class TestEmergencyCareIntegrity:
@@ -99,7 +99,7 @@ class TestValidation:
 
     def test_validate_empty_dataframe(self):
         """validate_data raises NISRAValidationError on empty DataFrame."""
-        from bolster.data_sources.nisra._base import NISRAValidationError
+        from bolster.data_sources.health_ni._base import NISRAValidationError
 
         empty = pd.DataFrame(
             columns=["date", "year", "month", "trust", "attendance_type", "total", "pct_within_4hrs"]
@@ -109,7 +109,7 @@ class TestValidation:
 
     def test_validate_missing_columns(self):
         """validate_data raises NISRAValidationError when required columns are missing."""
-        from bolster.data_sources.nisra._base import NISRAValidationError
+        from bolster.data_sources.health_ni._base import NISRAValidationError
 
         df = pd.DataFrame({"date": [pd.Timestamp("2024-01-01")], "year": [2024]})
         with pytest.raises(NISRAValidationError, match="Missing required columns"):
@@ -117,7 +117,7 @@ class TestValidation:
 
     def test_validate_pct_out_of_range(self):
         """validate_data raises NISRAValidationError when pct_within_4hrs > 1."""
-        from bolster.data_sources.nisra._base import NISRAValidationError
+        from bolster.data_sources.health_ni._base import NISRAValidationError
 
         df = pd.DataFrame(
             {
@@ -135,7 +135,7 @@ class TestValidation:
 
     def test_validate_negative_pct(self):
         """validate_data raises NISRAValidationError when pct_within_4hrs < 0."""
-        from bolster.data_sources.nisra._base import NISRAValidationError
+        from bolster.data_sources.health_ni._base import NISRAValidationError
 
         df = pd.DataFrame(
             {

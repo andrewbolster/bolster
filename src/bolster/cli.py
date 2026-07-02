@@ -18,6 +18,10 @@ from .data_sources.cineworld import get_cinema_listings
 from .data_sources.companies_house import get_companies_house_records_that_might_be_in_farset, query_basic_company_data
 from .data_sources.daera_waste import get_latest_waste_statistics, validate_waste_data
 from .data_sources.eoni import get_results as get_ni_election_results
+from .data_sources.health_ni import cancer_waiting_times as nisra_cancer
+from .data_sources.health_ni import diagnostic_waiting_times as nisra_diagnostic
+from .data_sources.health_ni import disease_prevalence as nisra_disease_prevalence
+from .data_sources.health_ni import emergency_care_waiting_times as nisra_emergency
 from .data_sources.justice import mortgages as justice_mortgages
 from .data_sources.metoffice import get_uk_precipitation
 from .data_sources.ni_house_price_index import build as get_ni_house_prices
@@ -29,15 +33,11 @@ from .data_sources.nisra import ashe as nisra_ashe
 from .data_sources.nisra import baby_names as nisra_baby_names
 from .data_sources.nisra import births as nisra_births
 from .data_sources.nisra import business_register as nisra_business_register
-from .data_sources.nisra import cancer_waiting_times as nisra_cancer
 from .data_sources.nisra import composite_index as nisra_composite
 from .data_sources.nisra import construction_output as nisra_construction
 from .data_sources.nisra import deaths as nisra_deaths
 from .data_sources.nisra import deprivation as nisra_deprivation
-from .data_sources.nisra import diagnostic_waiting_times as nisra_diagnostic
-from .data_sources.nisra import disease_prevalence as nisra_disease_prevalence
 from .data_sources.nisra import drug_related_deaths as nisra_drug_related_deaths
-from .data_sources.nisra import emergency_care_waiting_times as nisra_emergency
 from .data_sources.nisra import housing_stock as nisra_housing_stock
 from .data_sources.nisra import index_of_production as nisra_iop
 from .data_sources.nisra import index_of_services as nisra_ios
@@ -4992,7 +4992,7 @@ def nisra_elective_waiting_times_cmd(waiting_type, trust, year, output_format, f
     """
     from rich.console import Console
 
-    from bolster.data_sources.nisra import elective_waiting_times as ewt
+    from bolster.data_sources.health_ni import elective_waiting_times as ewt
 
     console = Console()
 

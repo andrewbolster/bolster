@@ -17,7 +17,7 @@ import datetime
 import pandas as pd
 import pytest
 
-from bolster.data_sources.nisra import diagnostic_waiting_times as dwt
+from bolster.data_sources.health_ni import diagnostic_waiting_times as dwt
 
 
 class TestDiagnosticWaitingTimesIntegrity:
