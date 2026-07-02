@@ -53,13 +53,11 @@ from bs4 import BeautifulSoup
 
 from bolster.utils.web import session
 
-from ._base import NISRAValidationError, download_file, make_absolute_url
+from ._base import HEALTH_NI_BASE_URL, NISRAValidationError, download_file, make_absolute_url
 
 logger = logging.getLogger(__name__)
 
-# Base URLs
 HEALTH_NI_CHILDREN_ARTICLE = "https://www.health-ni.gov.uk/articles/child-protection-register"
-HEALTH_NI_BASE_URL = "https://www.health-ni.gov.uk"
 
 # Expected columns in the long-format output
 REQUIRED_COLUMNS = {"year", "measure", "category", "subcategory", "value"}

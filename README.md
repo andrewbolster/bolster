@@ -183,7 +183,9 @@ deaths_df = deaths.get_latest_deaths()
 migration_df = migration.get_latest_migration()
 ```
 
-Additional NISRA modules: `labour_market`, `index_of_production`, `index_of_services`, `construction_output`, `composite_index`, `marriages`, `ashe` (earnings survey), `quarterly_employment_survey`, `emergency_care_waiting_times`, `stillbirths`.
+Additional NISRA modules: `labour_market`, `index_of_production`, `index_of_services`, `construction_output`, `composite_index`, `marriages`, `ashe` (earnings survey), `quarterly_employment_survey`, `stillbirths`.
+
+Department of Health NI modules (under `health_ni`): `emergency_care_waiting_times`, `elective_waiting_times`, `cancer_waiting_times`, `diagnostic_waiting_times`, `disease_prevalence`, `child_protection`.
 
 See [NISRA module documentation](https://bolster.readthedocs.io/en/latest/data_sources/nisra.html) for full API reference.
 
@@ -203,8 +205,8 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Index of Production | `nisra.index_of_production` | ✅ |
 | Index of Services | `nisra.index_of_services` | ✅ |
 | Quarterly Employment Survey | `nisra.quarterly_employment_survey` | ✅ |
-| Emergency Care Waiting Times | `nisra.emergency_care_waiting_times` | ✅ |
-| Elective/Outpatient Waiting Times | `nisra.elective_waiting_times` | ✅ |
+| Emergency Care Waiting Times | `health_ni.emergency_care_waiting_times` | ✅ |
+| Elective/Outpatient Waiting Times | `health_ni.elective_waiting_times` | ✅ |
 | Monthly Stillbirths | `nisra.stillbirths` | ✅ |
 | Population Estimates | `nisra.population` | ✅ |
 | Migration Estimates (Derived + Official LTI) | `nisra.migration` | ✅ |
@@ -214,9 +216,9 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | DVA Monthly Tests Statistics | `dva` | ✅ |
 | UK Gender Pay Gap Reporting | `gender_pay_gap` | ✅ |
 | Individual Wellbeing | `nisra.wellbeing` | ✅ |
-| Cancer Waiting Times | `nisra.cancer_waiting_times` | ✅ |
-| Diagnostic Waiting Times | `nisra.diagnostic_waiting_times` | ✅ |
-| Child Protection Statistics | `nisra.child_protection` | ✅ |
+| Cancer Waiting Times | `health_ni.cancer_waiting_times` | ✅ |
+| Diagnostic Waiting Times | `health_ni.diagnostic_waiting_times` | ✅ |
+| Child Protection Statistics | `health_ni.child_protection` | ✅ |
 | NI Planning Activity Statistics (DfI) | `nisra.planning_statistics` | ✅ |
 | NI Housing Stock Statistics (DoF/LPS) | `nisra.housing_stock` | ✅ |
 | Registrar General Quarterly Tables | `nisra.registrar_general` | ✅ |
@@ -231,7 +233,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | NI Claimant Count (UC + JSA, DfC/ONS) | `nisra.claimant_count` | ✅ |
 | PSNI Police Ombudsman Complaints | `psni.police_ombudsman` | ✅ |
 | Public Confidence in Official Statistics (NISRA PCOS) | `nisra.public_confidence` | ✅ |
-| Disease Prevalence Registers (PHA/DoH) | `nisra.disease_prevalence` | ✅ |
+| Disease Prevalence Registers (PHA/DoH) | `health_ni.disease_prevalence` | ✅ |
 | Drug-Related & Drug Misuse Deaths | `nisra.drug_related_deaths` | ✅ |
 | PSNI Stop & Search (OpenDataNI) | `psni.stop_and_search` | ✅ |
 | PSNI PACE Stop & Search / Arrests | `psni.pace` | ✅ |
@@ -242,6 +244,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | NI Assembly — Votes/Divisions (per-member records) | `niassembly.votes` | ✅ |
 | NI Business Register (IDBR, annual) | `nisra.business_register` | ✅ |
 | NI Multiple Deprivation Measure 2017 (NIMDM, SOA-level) | `nisra.deprivation` | ✅ |
+| Translink Live Departures & Vehicle Positions | `translink` | ✅ |
 | Security Situation Statistics | - | ❌ Cloudflare-blocked |
 | Anti-social Behaviour | - | ❌ Cloudflare-blocked |
 | Domestic Abuse Incidents/Crimes | - | ❌ Cloudflare-blocked |

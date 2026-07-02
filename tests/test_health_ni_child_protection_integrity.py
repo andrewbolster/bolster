@@ -15,8 +15,8 @@ Key validations:
 import pandas as pd
 import pytest
 
-from bolster.data_sources.nisra import child_protection as cp
-from bolster.data_sources.nisra._base import NISRAValidationError
+from bolster.data_sources.health_ni import child_protection as cp
+from bolster.data_sources.health_ni._base import NISRAValidationError
 
 
 class TestChildProtectionIntegrity:

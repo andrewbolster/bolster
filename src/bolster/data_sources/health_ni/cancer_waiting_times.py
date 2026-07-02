@@ -49,7 +49,7 @@ import logging
 
 import pandas as pd
 
-from .pxstat import read_dataset
+from bolster.data_sources.nisra.pxstat import read_dataset
 
 logger = logging.getLogger(__name__)
 

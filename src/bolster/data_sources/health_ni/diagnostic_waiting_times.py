@@ -36,7 +36,7 @@ import logging
 
 import pandas as pd
 
-from .pxstat import (
+from bolster.data_sources.nisra.pxstat import (
     PxStatError,  # noqa: F401
     read_dataset,
 )

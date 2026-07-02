@@ -33,7 +33,6 @@ registration vs. occurrence date.
     from bolster.data_sources.nisra import births
 
     df = births.get_latest_births(event_type="registration")
-    print(df.shape)
 
 .. code-block:: console
 
@@ -50,7 +49,6 @@ Districts), and place-of-death breakdowns.
     from bolster.data_sources.nisra import deaths
 
     df = deaths.get_latest_deaths(dimension="demographics")
-    print(df.head())
 
 .. code-block:: console
 
@@ -67,6 +65,10 @@ Monthly marriage registrations.
 
     df = marriages.get_latest_marriages()
 
+.. code-block:: console
+
+    $ bolster nisra marriages
+
 Stillbirths
 ~~~~~~~~~~~
 
@@ -78,32 +80,60 @@ Monthly stillbirth registrations.
 
     df = stillbirths.get_latest_stillbirths()
 
+.. code-block:: console
+
+    $ bolster nisra stillbirths
+
 Population
 ~~~~~~~~~~
 
-Mid-year population estimates by age, sex, and Local Government District.
+Annual mid-year population estimates by age, sex, and Local Government District.
 
 .. code-block:: python
 
     from bolster.data_sources.nisra import population
 
-    df = population.get_latest_population()
+    df = population.get_latest_population(area="Northern Ireland")
+
+.. code-block:: console
+
+    $ bolster nisra population
 
 Population Projections
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Long-range population projections by age and sex scenario.
+NI-level and LGD sub-area population projections (2024-based, 2024–2072).
 
 .. code-block:: python
 
     from bolster.data_sources.nisra import population_projections
 
-    df = population_projections.get_latest_projections()
+    df = population_projections.get_latest_population_projections()
+
+.. code-block:: console
+
+    $ bolster nisra population-projections
+
+Baby Names
+~~~~~~~~~~
+
+Annual baby name registrations (1997–present) by sex and rank.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import baby_names
+
+    df = baby_names.get_latest_baby_names(sex="female")
+
+.. code-block:: console
+
+    $ bolster nisra baby-names
 
 Migration
 ~~~~~~~~~
 
-International and internal migration estimates for Northern Ireland.
+Official and derived migration estimates — demographic components of population
+change including natural change, net migration, and cross-border flows.
 
 .. code-block:: python
 
@@ -111,86 +141,112 @@ International and internal migration estimates for Northern Ireland.
 
     df = migration.get_latest_migration()
 
+.. code-block:: console
+
+    $ bolster nisra migration
+
 Labour Market
 ~~~~~~~~~~~~~
 
-Quarterly labour market statistics (employment, unemployment, economic
-inactivity).
+Quarterly Labour Force Survey statistics: employment, economic inactivity, and
+unemployment rates for Northern Ireland.
 
 .. code-block:: python
 
     from bolster.data_sources.nisra import labour_market
 
-    df = labour_market.get_latest_labour_market()
+    df = labour_market.get_latest_employment()
 
 .. code-block:: console
 
     $ bolster nisra labour-market
 
+Claimant Count
+~~~~~~~~~~~~~~
+
+Monthly UC+JSA claimant count statistics from DfC/ONS.  NI headline back to
+April 1997, with LGD and SOA breakdowns.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import claimant_count
+
+    df = claimant_count.get_latest_claimant_count("headline")
+
+.. code-block:: console
+
+    $ bolster nisra claimant-count
+
 Annual Survey of Hours and Earnings (ASHE)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Annual workplace earnings data for Northern Ireland.
+Employee earnings statistics for Northern Ireland, covering median weekly and
+hourly earnings, real earnings growth, occupation/industry breakdowns, and gender
+pay distribution (Figures 1–18).
 
 .. code-block:: python
 
     from bolster.data_sources.nisra import ashe
 
-    df = ashe.get_latest_ashe()
+    df = ashe.get_latest_ashe_timeseries("weekly")
+
+.. code-block:: console
+
+    $ bolster nisra ashe
 
 Quarterly Employment Survey
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Quarterly survey of employee jobs across the public and private sectors,
-providing estimates of employment levels broken down by industry grouping.
+Employee jobs by sector from Q1 1998 to present, seasonally adjusted and
+unadjusted.
 
 .. code-block:: python
 
-    from bolster.data_sources.nisra import quarterly_employment_survey as qes
+    from bolster.data_sources.nisra import quarterly_employment_survey
 
-    df = qes.get_latest_qes()
-
-Wellbeing
-~~~~~~~~~
-
-Personal and economic wellbeing indicators from the NI Wellbeing Dashboard.
-
-.. code-block:: python
-
-    from bolster.data_sources.nisra import wellbeing
-
-    df = wellbeing.get_latest_wellbeing()
-
-Cancer Waiting Times
-~~~~~~~~~~~~~~~~~~~~
-
-Referral-to-treatment waiting times for cancer services.
-
-.. code-block:: python
-
-    from bolster.data_sources.nisra import cancer_waiting_times
-
-    df = cancer_waiting_times.get_latest_waiting_times()
+    df = quarterly_employment_survey.get_latest_qes()
 
 .. code-block:: console
 
-    $ bolster nisra cancer-waiting-times
+    $ bolster nisra quarterly-employment-survey
 
-Emergency Care Waiting Times
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Composite Economic Index (NICEI)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Emergency department attendance and four-hour target performance.
+The headline experimental quarterly economic indicator for Northern Ireland.
 
 .. code-block:: python
 
-    from bolster.data_sources.nisra import emergency_care_waiting_times
+    from bolster.data_sources.nisra import composite_index
 
-    df = emergency_care_waiting_times.get_latest_waiting_times()
+    df = composite_index.get_latest_nicei()
+
+.. code-block:: console
+
+    $ bolster nisra composite-index
+
+Index of Production / Services
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Quarterly Index of Production (IOP) and Index of Services (IOS) for NI.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import index_of_production, index_of_services
+
+    df_prod = index_of_production.get_latest_iop()
+    df_serv = index_of_services.get_latest_ios()
+
+.. code-block:: console
+
+    $ bolster nisra index-of-production
+    $ bolster nisra index-of-services
 
 Construction Output
 ~~~~~~~~~~~~~~~~~~~
 
-Quarterly construction output index for Northern Ireland.
+Quarterly construction output statistics — all work, new work, and repair &
+maintenance.
 
 .. code-block:: python
 
@@ -198,61 +254,152 @@ Quarterly construction output index for Northern Ireland.
 
     df = construction_output.get_latest_construction_output()
 
-Economic Indicators
+.. code-block:: console
+
+    $ bolster nisra construction-output
+
+Business Register (IDBR)
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+NI Business Register (IDBR) — annual VAT/PAYE business counts by industry,
+legal status, and Local Government District.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import business_register
+
+    df = business_register.get_latest_data()
+
+.. code-block:: console
+
+    $ bolster nisra business-register
+
+Planning Statistics
 ~~~~~~~~~~~~~~~~~~~
 
-Composite economic indicators including GVA and productivity measures.
+NI Planning Activity Statistics — quarterly applications, approvals, and
+refusals by council.
 
 .. code-block:: python
 
-    from bolster.data_sources.nisra import economic_indicators
+    from bolster.data_sources.nisra import planning_statistics
 
-    df = economic_indicators.get_latest_economic_indicators()
+    df = planning_statistics.get_latest_planning_statistics()
 
-Index of Production / Services
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. code-block:: console
 
-Monthly production and services indices.
+    $ bolster nisra planning-statistics
 
-.. code-block:: python
+Deprivation (NIMDM 2017)
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    from bolster.data_sources.nisra import index_of_production, index_of_services
-
-    df_prod = index_of_production.get_latest_index()
-    df_serv = index_of_services.get_latest_index()
-
-Composite Economic Index
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-The headline NI Composite Economic Index.
+NI Multiple Deprivation Measure 2017 — SOA-level overall and domain deprivation
+ranks for 890 Super Output Areas.
 
 .. code-block:: python
 
-    from bolster.data_sources.nisra import composite_index
+    from bolster.data_sources.nisra import deprivation
 
-    df = composite_index.get_latest_composite_index()
+    df = deprivation.get_latest_data()
+    # Columns: soa_code, soa_name, mdm_rank, income_rank, employment_rank, ...
 
-Registrar General Annual Report
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. code-block:: console
 
-Annual summary of births, deaths, marriages, and divorces.
+    $ bolster nisra deprivation
+
+Housing Stock
+~~~~~~~~~~~~~
+
+NI Housing Stock Statistics (DoF/LPS) — annual counts of residential properties
+by type (detached, semi-detached, terraced, flat) and Local Government District.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import housing_stock
+
+    df = housing_stock.get_latest_data()
+
+.. code-block:: console
+
+    $ bolster nisra housing-stock
+
+Drug-Related Deaths
+~~~~~~~~~~~~~~~~~~~
+
+Annual drug-related and drug misuse deaths by year, age, gender, and substance.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import drug_related_deaths
+
+    df = drug_related_deaths.get_latest_drug_related_deaths()
+
+.. code-block:: console
+
+    $ bolster nisra drug-related-deaths
+
+Wellbeing
+~~~~~~~~~
+
+Individual wellbeing statistics from the NI Wellbeing Dashboard — life
+satisfaction, happiness, anxiety, and loneliness.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import wellbeing
+
+    df = wellbeing.get_latest_personal_wellbeing()
+
+.. code-block:: console
+
+    $ bolster nisra wellbeing
+
+Public Confidence in Official Statistics
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Public Awareness of and Trust in Official Statistics (PCOS) — awareness and
+trust indicators back to 2009.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import public_confidence
+
+    df = public_confidence.get_latest_data()
+
+.. code-block:: console
+
+    $ bolster nisra public-confidence
+
+Registrar General Quarterly Tables
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Quarterly births, deaths, marriages, and LGD breakdowns.
 
 .. code-block:: python
 
     from bolster.data_sources.nisra import registrar_general
 
-    df = registrar_general.get_latest_registrar_general()
+    data = registrar_general.get_quarterly_vital_statistics()
+    # data is a dict with keys: 'births', 'deaths', 'lgd'
+
+.. code-block:: console
+
+    $ bolster nisra registrar-general
 
 Tourism — Occupancy
-~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
-Monthly occupancy rates for hotels and guest accommodation.
+Monthly hotel and guest accommodation occupancy rates.
 
 .. code-block:: python
 
     from bolster.data_sources.nisra.tourism import occupancy
 
-    df = occupancy.get_latest_occupancy()
+    df = occupancy.get_latest_hotel_occupancy()
+
+.. code-block:: console
+
+    $ bolster nisra occupancy
 
 Tourism — Visitor Statistics
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -265,26 +412,146 @@ Quarterly visitor numbers and spend.
 
     df = visitor_statistics.get_latest_visitor_statistics()
 
+.. code-block:: console
+
+    $ bolster nisra visitors
+
+----
+
+Department of Health NI (health_ni)
+-------------------------------------
+
+The `Department of Health <https://www.health-ni.gov.uk/>`_ publishes health
+and social care statistics for Northern Ireland.  All health_ni modules live
+under :mod:`bolster.data_sources.health_ni`.
+
+Cancer Waiting Times
+~~~~~~~~~~~~~~~~~~~~~
+
+14-day, 31-day, and 62-day cancer referral-to-treatment waiting times by tumour
+type and HSC Trust.  Data via PxStat.
+
+.. code-block:: python
+
+    from bolster.data_sources.health_ni import cancer_waiting_times
+
+    df = cancer_waiting_times.get_latest_62_day_by_tumour()
+
+.. code-block:: console
+
+    $ bolster nisra cancer-waiting-times
+
+Diagnostic Waiting Times
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Diagnostic waiting times by test type and HSC Trust.  Data via PxStat DWT matrix.
+
+.. code-block:: python
+
+    from bolster.data_sources.health_ni import diagnostic_waiting_times
+
+    df = diagnostic_waiting_times.get_latest_diagnostic_waiting_times()
+
+.. code-block:: console
+
+    $ bolster nisra diagnostic-waiting-times
+
+Elective Waiting Times
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Inpatient/day-case and outpatient referrals waiting by weeks-waited band,
+specialty, and HSC Trust.  Covers pre-encompass (legacy PAS) and encompass
+(new EPR system from December 2023) data series.
+
+.. code-block:: python
+
+    from bolster.data_sources.health_ni import elective_waiting_times
+
+    df = elective_waiting_times.get_latest_elective_waiting_times()
+
+.. code-block:: console
+
+    $ bolster nisra elective-waiting-times
+
+Emergency Care Waiting Times
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Monthly A&E attendance and 4-hour target performance by HSC Trust and hospital
+department.
+
+.. code-block:: python
+
+    from bolster.data_sources.health_ni import emergency_care_waiting_times
+
+    df = emergency_care_waiting_times.get_latest_data()
+
+.. code-block:: console
+
+    $ bolster nisra emergency-care
+
+Disease Prevalence
+~~~~~~~~~~~~~~~~~~
+
+NI disease register statistics at NI, LGD, HSCT, and GP-practice level.
+Covers 17 disease categories including hypertension, diabetes, and COPD.
+
+.. code-block:: python
+
+    from bolster.data_sources.health_ni import disease_prevalence
+
+    # NI-level summary
+    df = disease_prevalence.get_latest_disease_prevalence(level="ni")
+
+    # GP-practice level (~360 practices, ~17 financial years)
+    gp_df = disease_prevalence.get_latest_gp_prevalence()
+
+.. code-block:: console
+
+    $ bolster nisra disease-prevalence
+    $ bolster nisra disease-prevalence --level gp
+
+Child Protection
+~~~~~~~~~~~~~~~~~
+
+NI child protection registrations, de-registrations, and case conference
+statistics from the Department of Health.
+
+.. code-block:: python
+
+    from bolster.data_sources.health_ni import child_protection
+
+    df = child_protection.get_latest_child_protection()
+
+.. code-block:: console
+
+    $ bolster nisra child-protection
+
 ----
 
 PSNI
 ----
 
 The `Police Service of Northern Ireland <https://www.psni.police.uk/>`_
-publishes open-data releases covering crime and road safety.  All PSNI modules
-live under :mod:`bolster.data_sources.psni`.
+publishes open-data releases covering crime, road safety, and police activity.
+All PSNI modules live under :mod:`bolster.data_sources.psni`.
 
 Crime Statistics
 ~~~~~~~~~~~~~~~~
 
-Monthly crime statistics broken down by offence type, district command unit,
-and outcome.
+Historical monthly crime statistics broken down by offence type, district
+command unit, and outcome.  Note: the most recent 12-month period is not
+published in the open-data release; use ``get_historical_crime_statistics()``
+for reliable data.
 
 .. code-block:: python
 
     from bolster.data_sources.psni import crime_statistics
 
-    df = crime_statistics.get_latest_crime_statistics()
+    df = crime_statistics.get_historical_crime_statistics()
+
+.. code-block:: console
+
+    $ bolster psni crime
 
 Road Traffic Collisions
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -296,6 +563,59 @@ Annual road traffic collision data with casualty severity and road type.
     from bolster.data_sources.psni import road_traffic_collisions
 
     df = road_traffic_collisions.get_latest_collisions()
+
+.. code-block:: console
+
+    $ bolster psni rtc
+
+Stop and Search
+~~~~~~~~~~~~~~~
+
+PSNI stop & search records from OpenDataNI; 199,661 records covering
+2017/18–2024/25 with PACE reason flags, legislation, and demographic breakdowns.
+
+.. code-block:: python
+
+    from bolster.data_sources.psni import stop_and_search
+
+    df = stop_and_search.get_latest_stop_and_search()
+
+.. code-block:: console
+
+    $ bolster psni stop-and-search
+
+PACE Statistics
+~~~~~~~~~~~~~~~
+
+Annual PSNI PACE statistics — monthly stop & search by reason and quarterly
+arrests by gender and category, back to 2013/14.
+
+.. code-block:: python
+
+    from bolster.data_sources.psni import pace
+
+    df_searches = pace.get_latest_pace_stop_and_search()
+    df_arrests  = pace.get_latest_pace_arrests()
+
+.. code-block:: console
+
+    $ bolster psni pace
+
+Police Ombudsman
+~~~~~~~~~~~~~~~~
+
+Annual and quarterly Police Ombudsman complaint statistics — complaints by
+district, allegation type, and outcome back to 2000/01.
+
+.. code-block:: python
+
+    from bolster.data_sources.psni import police_ombudsman
+
+    df = police_ombudsman.get_latest_complaints()
+
+.. code-block:: console
+
+    $ bolster psni police-ombudsman
 
 ----
 
@@ -338,6 +658,28 @@ Drinking water quality data for all NI supply zones.
 
 ----
 
+NI Assembly (AIMS)
+-------------------
+
+NI Assembly AIMS data — Members of the Legislative Assembly, oral/written
+questions, and assembly votes.
+
+.. code-block:: python
+
+    from bolster.data_sources import niassembly
+
+    members = niassembly.get_members()
+    questions = niassembly.get_questions(member_id=123)
+    votes = niassembly.get_votes()
+
+.. code-block:: console
+
+    $ bolster niassembly members
+    $ bolster niassembly questions
+    $ bolster niassembly votes
+
+----
+
 EONI — Electoral Office for Northern Ireland
 --------------------------------------------
 
@@ -373,25 +715,124 @@ Standardised house price index for Northern Ireland.
 
 ----
 
+Justice — NICTS
+---------------
+
+NI Courts and Tribunals Service (NICTS) statistics.
+
+Mortgage Possession Actions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Quarterly mortgage possession actions (applications, orders, and warrants) by
+court district.
+
+.. code-block:: python
+
+    from bolster.data_sources import justice
+
+    df = justice.get_latest_mortgage_possession_actions()
+
+.. code-block:: console
+
+    $ bolster justice mortgage-possession
+
+----
+
+Translink
+---------
+
+Live and scheduled bus and rail departures, and vehicle positions, for the
+Translink NI public transport network.
+
+.. code-block:: python
+
+    from bolster.data_sources import translink
+
+    # Next departures from a stop (by name)
+    df = translink.get_departures_by_name("Europa Buscentre")
+
+    # Live vehicle positions
+    vehicles = translink.get_live_vehicles()
+
+.. code-block:: console
+
+    $ bolster translink departures "Europa Buscentre"
+    $ bolster translink vehicles
+
+----
+
+ONS — Office for National Statistics
+--------------------------------------
+
+ONS UK-wide statistical releases relevant to Northern Ireland.
+
+CPI / CPIH / RPI Inflation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Annual rates and price indices for CPI, CPIH, and RPI from ONS.
+
+.. code-block:: python
+
+    from bolster.data_sources import ons_cpi
+
+    df = ons_cpi.get_latest_cpi()
+
+.. code-block:: console
+
+    $ bolster ons-cpi
+
+----
+
+Bank of England
+---------------
+
+Bank of England official Bank Rate (base rate) from 1694 to present.
+
+.. code-block:: python
+
+    from bolster.data_sources import boe_base_rate
+
+    df = boe_base_rate.get_latest_base_rate()
+
+.. code-block:: console
+
+    $ bolster boe-base-rate
+
+----
+
 Companies House
 ---------------
 
 UK Companies House public data — basic company details and registered
-companies connected to a given address (useful for research on specific
-organisations).
+companies connected to a given address.
 
 .. code-block:: python
 
-    from bolster.data_sources.companies_house import (
-        query_basic_company_data,
-        get_companies_house_records_that_might_be_in_farset,
-    )
+    from bolster.data_sources.companies_house import query_basic_company_data
 
     details = query_basic_company_data("12345678")
 
 .. code-block:: console
 
     $ bolster companies-house --query "Farset Labs"
+
+----
+
+Gender Pay Gap
+--------------
+
+UK Gender Pay Gap reporting data from 2017 to present (all employers with
+250+ employees).
+
+.. code-block:: python
+
+    from bolster.data_sources import gender_pay_gap
+
+    df = gender_pay_gap.get_gender_pay_gap_data()
+
+.. code-block:: console
+
+    $ bolster gender-pay-gap
 
 ----
 
@@ -411,24 +852,6 @@ Requires the environment variable ``MET_OFFICE_API_KEY``.
 .. code-block:: console
 
     $ bolster get-precipitation --order-name "my-order"
-
-----
-
-Gender Pay Gap
---------------
-
-UK Gender Pay Gap reporting data from 2017 to present (all employers with
-250+ employees).
-
-.. code-block:: python
-
-    from bolster.data_sources import gender_pay_gap
-
-    df = gender_pay_gap.get_gender_pay_gap_data()
-
-.. code-block:: console
-
-    $ bolster gender-pay-gap
 
 ----
 

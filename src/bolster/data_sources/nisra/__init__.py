@@ -1,6 +1,6 @@
 """NISRA (Northern Ireland Statistics and Research Agency) Data Sources.
 
-This package provides access to various statistical datasets published by NISRA,
+This package provides access to statistical datasets published by NISRA,
 including births, deaths, labour market, population, migration, economic indicators,
 and tourism statistics.
 
@@ -9,16 +9,10 @@ Available modules:
     - births: Monthly birth registrations by registration and occurrence date
     - business_register: NI Business Register (IDBR) — annual VAT/PAYE business counts by industry, legal status, LGD
     - claimant_count: Monthly Claimant Count (UC + JSA) by sex, age, and geography
-    - cancer_waiting_times: Cancer treatment waiting times (14-day, 31-day, 62-day targets)
-    - child_protection: Children's Social Care child protection statistics
-    - elective_waiting_times: Elective and outpatient waiting times (inpatient/day-case/outpatient queues)
-    - emergency_care_waiting_times: Emergency care (A&E) waiting times against the 4-hour target
     - composite_index: Northern Ireland Composite Economic Index (experimental quarterly economic indicator)
     - construction_output: Quarterly construction output statistics (all work, new work, repair & maintenance)
     - deaths: Weekly death registrations with demographic, geographic, and place breakdowns
     - deprivation: NI Multiple Deprivation Measure 2017 (NIMDM) — SOA-level overall and domain deprivation ranks
-    - diagnostic_waiting_times: Quarterly diagnostic waiting times by HSC Trust, category, and service
-    - disease_prevalence: Annual NI disease register sizes and prevalence per 1,000 patients (2004/05–present)
     - drug_related_deaths: Annual drug-related and drug misuse deaths by year, age, gender, and substance
     - index_of_services: Quarterly Index of Services (IOS) — canonical module
     - index_of_production: Quarterly Index of Production (IOP) — canonical module
@@ -36,6 +30,12 @@ Available modules:
     - housing_stock: NI Housing Stock annual statistics by property type (DoF/LPS)
     - public_confidence: Public Awareness of and Trust in Official Statistics (PCOS)
 
+Note:
+    Health and Social Care (DoH) data sources previously in this package have been
+    moved to ``bolster.data_sources.health_ni``:
+    cancer_waiting_times, child_protection, diagnostic_waiting_times,
+    disease_prevalence, elective_waiting_times, emergency_care_waiting_times.
+
 Examples:
     >>> from bolster.data_sources.nisra import claimant_count
     >>> cc_df = claimant_count.get_latest_claimant_count("headline")
@@ -45,11 +45,6 @@ Examples:
     >>> from bolster.data_sources.nisra import ashe
     >>> earnings_df = ashe.get_latest_ashe_timeseries('weekly')
     >>> 'median_weekly_earnings' in earnings_df.columns
-    True
-
-    >>> from bolster.data_sources.nisra import emergency_care_waiting_times as ecwt
-    >>> df = ecwt.get_latest_data()
-    >>> 'pct_within_4hrs' in df.columns
     True
 
     >>> from bolster.data_sources.nisra import births
@@ -117,16 +112,6 @@ Examples:
     >>> 'life_satisfaction' in df.columns
     True
 
-    >>> from bolster.data_sources.nisra import elective_waiting_times as ewt
-    >>> df = ewt.get_latest_elective_waiting_times()
-    >>> 'waiting_time_band' in df.columns
-    True
-
-    >>> from bolster.data_sources.nisra import diagnostic_waiting_times as dwt
-    >>> df = dwt.get_latest_diagnostic_waiting_times()
-    >>> 'total_waiting' in df.columns
-    True
-
     >>> from bolster.data_sources.nisra import business_register
     >>> df = business_register.get_latest_data()
     >>> 'businesses' in df.columns
@@ -139,18 +124,12 @@ from . import (
     baby_names,
     births,
     business_register,
-    cancer_waiting_times,
-    child_protection,
     claimant_count,
     composite_index,
     construction_output,
     deaths,
     deprivation,
-    diagnostic_waiting_times,
-    disease_prevalence,
     drug_related_deaths,
-    elective_waiting_times,
-    emergency_care_waiting_times,
     housing_stock,
     index_of_production,
     index_of_services,
@@ -174,18 +153,12 @@ __all__ = [
     "baby_names",
     "births",
     "business_register",
-    "cancer_waiting_times",
-    "child_protection",
     "claimant_count",
     "composite_index",
     "construction_output",
     "deaths",
     "deprivation",
-    "diagnostic_waiting_times",
-    "disease_prevalence",
     "drug_related_deaths",
-    "elective_waiting_times",
-    "emergency_care_waiting_times",
     "housing_stock",
     "index_of_production",
     "index_of_services",
