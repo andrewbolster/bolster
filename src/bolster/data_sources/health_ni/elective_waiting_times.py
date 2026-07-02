@@ -67,16 +67,15 @@ import logging
 from pathlib import Path
 
 import pandas as pd
-from bs4 import BeautifulSoup
 
-from bolster.utils.web import session
-
-from ._base import NISRADataNotFoundError, NISRAValidationError, download_file, make_absolute_url
+from ._base import (
+    NISRAValidationError,
+    download_file,
+    find_latest_xlsx,
+)
 
 logger = logging.getLogger(__name__)
 
-# Landing page URLs
-DOH_BASE_URL = "https://www.health-ni.gov.uk"
 DOH_INPATIENT_PAGE = "https://www.health-ni.gov.uk/articles/inpatient-waiting-times"
 DOH_OUTPATIENT_PAGE = "https://www.health-ni.gov.uk/articles/outpatient-waiting-times"
 
@@ -143,66 +142,6 @@ REQUIRED_COLUMNS = {
 }
 
 
-def _get_latest_excel_url(landing_page: str, keyword: str) -> str:
-    """Scrape a Department of Health landing page to find the latest Excel link.
-
-    Follows the two-hop pattern used by other NISRA modules:
-    1. Scrape the article landing page for publication links.
-    2. Follow the most recent publication page to find the Excel download.
-
-    Args:
-        landing_page: URL of the article landing page.
-        keyword: Keyword to match in the publication link href
-            (e.g. "inpatient-and-day-case" or "outpatient").
-
-    Returns:
-        Absolute URL of the Excel file.
-
-    Raises:
-        NISRADataNotFoundError: If a publication or Excel link cannot be found.
-    """
-    logger.info(f"Fetching landing page: {landing_page}")
-    try:
-        resp = session.get(landing_page, timeout=30)
-        resp.raise_for_status()
-    except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch landing page {landing_page}: {e}") from e
-
-    soup = BeautifulSoup(resp.content, "html.parser")
-
-    pub_url = None
-    for a in soup.find_all("a", href=True):
-        href = a["href"]
-        if "publications" in href and keyword in href:
-            pub_url = make_absolute_url(href, DOH_BASE_URL)
-            break
-
-    if pub_url is None:
-        raise NISRADataNotFoundError(f"Could not find a publication link containing '{keyword}' on {landing_page}")
-
-    logger.info(f"Fetching publication page: {pub_url}")
-    try:
-        pub_resp = session.get(pub_url, timeout=30)
-        pub_resp.raise_for_status()
-    except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch publication page {pub_url}: {e}") from e
-
-    pub_soup = BeautifulSoup(pub_resp.content, "html.parser")
-
-    excel_url = None
-    for a in pub_soup.find_all("a", href=True):
-        href = a["href"]
-        if ".xlsx" in href.lower():
-            excel_url = make_absolute_url(href, DOH_BASE_URL)
-            break
-
-    if excel_url is None:
-        raise NISRADataNotFoundError(f"Could not find an Excel (.xlsx) file on {pub_url}")
-
-    logger.info(f"Found Excel URL: {excel_url}")
-    return excel_url
-
-
 def get_elective_waiting_times_url() -> dict[str, str]:
     """Scrape the Department of Health pages to find the latest Excel file URLs.
 
@@ -213,9 +152,10 @@ def get_elective_waiting_times_url() -> dict[str, str]:
     Raises:
         NISRADataNotFoundError: If either URL cannot be located.
     """
-    inpatient_url = _get_latest_excel_url(DOH_INPATIENT_PAGE, "inpatient-and-day-case")
-    outpatient_url = _get_latest_excel_url(DOH_OUTPATIENT_PAGE, "outpatient")
-    return {"inpatient": inpatient_url, "outpatient": outpatient_url}
+    return {
+        "inpatient": find_latest_xlsx(DOH_INPATIENT_PAGE, keyword="inpatient-and-day-case"),
+        "outpatient": find_latest_xlsx(DOH_OUTPATIENT_PAGE, keyword="outpatient"),
+    }
 
 
 def _parse_inpatient_sheet(file_path: str | Path, sheet_name: str) -> pd.DataFrame:
