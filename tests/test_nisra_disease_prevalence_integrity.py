@@ -269,3 +269,129 @@ class TestValidation:
         """level='gp' should be accepted for backward compatibility."""
         df = self._make_valid_df()
         assert dp.validate_disease_prevalence(df, level="gp") is True
+
+
+class TestSheetToFinancialYear:
+    """Unit tests for _sheet_to_financial_year — no network calls."""
+
+    def test_standard_sheet_name(self) -> None:
+        fy, year = dp._sheet_to_financial_year("Table 5a Prevalence 2026")
+        assert fy == "2025/26"
+        assert year == 2025
+
+    def test_different_letter_suffix(self) -> None:
+        fy, year = dp._sheet_to_financial_year("Table 5b Prevalence 2024")
+        assert fy == "2023/24"
+        assert year == 2023
+
+    def test_early_year(self) -> None:
+        fy, year = dp._sheet_to_financial_year("Table 5a Prevalence 2010")
+        assert fy == "2009/10"
+        assert year == 2009
+
+    def test_invalid_sheet_name_raises(self) -> None:
+        with pytest.raises(ValueError, match="Cannot parse year"):
+            dp._sheet_to_financial_year("Table 5a Prevalence")
+
+
+class TestGPPracticeIntegrity:
+    """Integration tests for GP-practice-level disease prevalence data."""
+
+    @pytest.fixture(scope="class")
+    def gp_data(self) -> pd.DataFrame:
+        return dp.get_latest_gp_prevalence()
+
+    def test_required_columns(self, gp_data: pd.DataFrame) -> None:
+        required = {
+            "practice_code",
+            "lcg",
+            "federation",
+            "financial_year",
+            "year",
+            "register",
+            "registered_patients",
+            "prevalence_per_1000",
+        }
+        assert required <= set(gp_data.columns), f"Missing columns: {required - set(gp_data.columns)}"
+
+    def test_multiple_practices(self, gp_data: pd.DataFrame) -> None:
+        n = gp_data["practice_code"].nunique()
+        assert n > 300, f"Expected >300 GP practices, got {n}"
+
+    def test_practice_codes_start_with_z(self, gp_data: pd.DataFrame) -> None:
+        bad = gp_data.loc[gp_data["practice_code"].notna(), "practice_code"]
+        bad = bad[~bad.str.startswith("Z")]
+        assert bad.empty, f"Practice codes not starting with Z: {bad.head().tolist()}"
+
+    def test_multiple_lcgs(self, gp_data: pd.DataFrame) -> None:
+        n = gp_data["lcg"].nunique()
+        assert n >= 5, f"Expected ≥ 5 LCGs, got {n}"
+
+    def test_multiple_registers(self, gp_data: pd.DataFrame) -> None:
+        n = gp_data["register"].nunique()
+        assert n >= 10, f"Expected ≥ 10 registers, got {n}"
+
+    def test_registered_patients_non_negative(self, gp_data: pd.DataFrame) -> None:
+        patients = gp_data["registered_patients"].dropna()
+        assert (patients >= 0).all(), "registered_patients has negative values"
+
+    def test_prevalence_non_negative(self, gp_data: pd.DataFrame) -> None:
+        prev = gp_data["prevalence_per_1000"].dropna()
+        assert (prev >= 0).all(), "prevalence_per_1000 has negative values"
+
+    def test_prevalence_below_1000(self, gp_data: pd.DataFrame) -> None:
+        prev = gp_data["prevalence_per_1000"].dropna()
+        assert (prev < 1000).all(), f"prevalence_per_1000 exceeds 1000: {prev[prev >= 1000].head().tolist()}"
+
+    def test_multiple_years(self, gp_data: pd.DataFrame) -> None:
+        n = gp_data["financial_year"].nunique()
+        assert n >= 17, f"Expected ≥ 17 financial years, got {n}"
+
+    def test_practice_name_populated(self, gp_data: pd.DataFrame) -> None:
+        assert "practice_name" in gp_data.columns, "practice_name column missing"
+        non_null = gp_data["practice_name"].notna().sum()
+        assert non_null > 0, "practice_name is all-null; Table 4 join may have failed"
+        latest_year = gp_data["year"].max()
+        latest = gp_data[gp_data["year"] == latest_year]
+        unique_codes = latest["practice_code"].nunique()
+        named = latest.dropna(subset=["practice_name"])["practice_code"].nunique()
+        fill_rate = named / unique_codes if unique_codes > 0 else 0.0
+        assert fill_rate >= 0.8, (
+            f"practice_name fill rate for {latest_year} is {fill_rate:.0%} ({named}/{unique_codes} practices)"
+        )
+
+    def test_financial_year_format(self, gp_data: pd.DataFrame) -> None:
+        for fy in gp_data["financial_year"].dropna().unique():
+            assert "/" in str(fy), f"Unexpected financial_year format: {fy!r}"
+
+    def test_validation_passes(self, gp_data: pd.DataFrame) -> None:
+        assert dp.validate_disease_prevalence(gp_data, level="gp") is True
+
+    def test_get_latest_disease_prevalence_gp_level(self, gp_data: pd.DataFrame) -> None:
+        """get_latest_disease_prevalence(level='gp') should return same data."""
+        df = dp.get_latest_disease_prevalence(level="gp")
+        assert "practice_code" in df.columns
+        assert len(df) > 0
+
+
+class TestGPRegisterCoverage:
+    """Check key register coverage in GP-practice data."""
+
+    @pytest.fixture(scope="class")
+    def gp_data(self) -> pd.DataFrame:
+        return dp.get_latest_gp_prevalence()
+
+    def test_hypertension_present_all_years(self, gp_data: pd.DataFrame) -> None:
+        hyp = gp_data[gp_data["register"].str.contains("Hypertension", case=False, na=False)]
+        assert not hyp.empty, "No Hypertension rows found"
+        assert hyp["financial_year"].nunique() == gp_data["financial_year"].nunique(), (
+            "Hypertension not present in every financial year"
+        )
+
+    def test_copd_present(self, gp_data: pd.DataFrame) -> None:
+        copd = gp_data[gp_data["register"].str.contains("Pulmonary", case=False, na=False)]
+        assert not copd.empty, "No COPD rows found"
+
+    def test_diabetes_present(self, gp_data: pd.DataFrame) -> None:
+        diab = gp_data[gp_data["register"].str.contains("Diabetes", case=False, na=False)]
+        assert not diab.empty, "No Diabetes rows found"
