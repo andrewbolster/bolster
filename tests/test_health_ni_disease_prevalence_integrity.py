@@ -10,8 +10,8 @@ disease prevalence data from 2017/18 onwards with 17 disease registers.
 import pandas as pd
 import pytest
 
-from bolster.data_sources.nisra import disease_prevalence as dp
-from bolster.data_sources.nisra._base import NISRAValidationError
+from bolster.data_sources.health_ni import disease_prevalence as dp
+from bolster.data_sources.health_ni._base import NISRAValidationError
 
 
 class TestNISummaryIntegrity:

@@ -40,12 +40,11 @@ from bs4 import BeautifulSoup
 from bolster.utils.datatables import DataTablesError, datatables_to_dataframe, fetch_datatables_json
 from bolster.utils.web import session
 
-from ._base import NISRADataNotFoundError, NISRAValidationError
+from ._base import HEALTH_NI_BASE_URL, NISRADataNotFoundError, NISRAValidationError
 
 logger = logging.getLogger(__name__)
 
 DOH_LANDING_PAGE = "https://www.health-ni.gov.uk/articles/emergency-care-waiting-times"
-DOH_BASE_URL = "https://www.health-ni.gov.uk"
 
 EXPECTED_TRUSTS = {"Belfast", "Northern", "South Eastern", "Southern", "Western"}
 
@@ -89,7 +88,7 @@ def get_latest_url() -> str:
     for a in soup.find_all("a", href=True):
         href = a["href"]
         if "publications" in href and "emergency-care-waiting-times" in href:
-            pub_url = href if href.startswith("http") else f"{DOH_BASE_URL}{href}"
+            pub_url = href if href.startswith("http") else f"{HEALTH_NI_BASE_URL}{href}"
             break
 
     if not pub_url:
@@ -135,7 +134,7 @@ def _parse_numeric_col(series: pd.Series) -> pd.Series:
     Returns:
         Series with numeric dtype.
     """
-    if series.dtype == object:
+    if pd.api.types.is_string_dtype(series):
         series = series.str.replace(",", "", regex=False)
     return pd.to_numeric(series, errors="coerce")
 

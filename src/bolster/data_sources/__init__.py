@@ -11,6 +11,7 @@ Various scrapers and API wrappers for NI government data:
 - dva: Driver & Vehicle Agency monthly test statistics
 - gender_pay_gap: UK Gender Pay Gap reporting data (all employers 250+, 2017–present)
 - ons_cpi: ONS UK inflation indices (CPI, CPIH, RPI) — annual rates and price indices
+- health_ni: Department of Health NI statistics (waiting times, disease prevalence, child protection)
 - nisra: NISRA statistics (deaths, births, labour market, population, etc.)
 - justice: NI Department of Justice / NICTS statistics (mortgage possession actions)
 - ons_cpi: ONS UK inflation indices (CPI, CPIH, RPI)

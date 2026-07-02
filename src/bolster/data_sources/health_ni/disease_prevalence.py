@@ -42,18 +42,15 @@ import logging
 
 import pandas as pd
 
-from bolster.utils.web import session
+from bolster.data_sources.nisra.pxstat import read_dataset
 
-from ._base import NISRADataNotFoundError, NISRAValidationError, download_file
-from .pxstat import read_dataset
+from ._base import NISRADataNotFoundError, NISRAValidationError, download_file, search_publications_xlsx
 
 logger = logging.getLogger(__name__)
 
 # PxStat matrix codes
 _MATRIX_NI = "DISPREVNI"
 # GP-practice Excel scraping constants
-DOH_BASE_URL = "https://www.health-ni.gov.uk"
-DOH_LANDING_PAGE = "https://www.health-ni.gov.uk/topics/health-statistics/disease-prevalence"
 _CACHE_TTL = 24 * 365  # hours — annual publication
 _SHEET_TABLE4 = "Table 4 GP practice details"
 
@@ -323,9 +320,6 @@ def validate_disease_prevalence(df: pd.DataFrame, level: str = "ni") -> bool:
 def get_latest_publication_url() -> str:
     """Return the URL of the most recent disease prevalence Excel workbook.
 
-    Searches the Department of Health publications index for disease prevalence,
-    follows the first (most recent) result, and returns the .xlsx download URL.
-
     Returns:
         Absolute URL of the latest Excel workbook.
 
@@ -337,39 +331,7 @@ def get_latest_publication_url() -> str:
         >>> url.endswith(".xlsx")
         True
     """
-    from bs4 import BeautifulSoup
-
-    search_url = f"{DOH_BASE_URL}/publications?keywords=disease+prevalence"
-    try:
-        resp = session.get(search_url, timeout=30)
-        resp.raise_for_status()
-    except Exception as exc:
-        raise NISRADataNotFoundError(f"Failed to fetch disease prevalence publications index: {exc}") from exc
-
-    soup = BeautifulSoup(resp.content, "html.parser")
-    pub_url: str | None = None
-    for a in soup.find_all("a", href=True):
-        href: str = a["href"]
-        if "/publications/" in href and "disease-prevalence" in href:
-            pub_url = href if href.startswith("http") else f"{DOH_BASE_URL}{href}"
-            break
-
-    if pub_url is None:
-        raise NISRADataNotFoundError(f"Could not find a disease prevalence publication on {search_url}")
-
-    try:
-        pub_resp = session.get(pub_url, timeout=30)
-        pub_resp.raise_for_status()
-    except Exception as exc:
-        raise NISRADataNotFoundError(f"Failed to fetch publication page {pub_url}: {exc}") from exc
-
-    pub_soup = BeautifulSoup(pub_resp.content, "html.parser")
-    for a in pub_soup.find_all("a", href=True):
-        href = a["href"]
-        if href.lower().endswith(".xlsx"):
-            return href if href.startswith("http") else f"{DOH_BASE_URL}{href}"
-
-    raise NISRADataNotFoundError(f"Could not find an .xlsx link on {pub_url}")
+    return search_publications_xlsx("disease prevalence")
 
 
 def _normalise_gp_register(name: str) -> str:
