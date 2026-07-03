@@ -74,7 +74,7 @@ def get_current_members() -> pd.DataFrame:
         >>> df = get_current_members()
         >>> "PartyName" in df.columns
         True
-        >>> df["PersonId"].dtype == object or df["PersonId"].dtype.kind in "iu"
+        >>> pd.api.types.is_string_dtype(df["PersonId"]) or df["PersonId"].dtype.kind in "iu"
         True
     """
     url = f"{_BASE_URL}/GetAllCurrentMembers"
