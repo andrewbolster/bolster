@@ -1,0 +1,55 @@
+name: Rerun Timed-Out Build
+
+on:
+  workflow_run:
+    workflows: ["PyTest"]
+    types: [completed]
+
+permissions:
+  actions: write
+
+jobs:
+  rerun-if-single-timeout:
+    # Only act on failures, and skip if this run was itself a rerun (attempt > 1)
+    # to avoid infinite loops.
+    if: >
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.run_attempt == 1
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for exactly one timed-out job
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          REPO: ${{ github.repository }}
+        run: |
+          jobs=$(gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" --paginate \
+            --jq '[.jobs[] | select(.conclusion != null)]')
+
+          failed=$(echo "$jobs" | jq '[.[] | select(.conclusion == "failure" or .conclusion == "timed_out")]')
+          timed_out=$(echo "$jobs" | jq '[.[] | select(.conclusion == "timed_out")]')
+
+          failed_count=$(echo "$failed" | jq 'length')
+          timed_out_count=$(echo "$timed_out" | jq 'length')
+
+          echo "failed_count=$failed_count" >> "$GITHUB_OUTPUT"
+          echo "timed_out_count=$timed_out_count" >> "$GITHUB_OUTPUT"
+
+          echo "Failed jobs: $failed_count, Timed-out jobs: $timed_out_count"
+          echo "$failed" | jq -r '.[] | "  \(.name): \(.conclusion)"'
+
+      - name: Rerun failed jobs
+        if: >
+          steps.check.outputs.failed_count == '1' &&
+          steps.check.outputs.timed_out_count == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          REPO: ${{ github.repository }}
+        run: |
+          echo "Exactly one timed-out job — triggering rerun of failed jobs only."
+          gh api \
+            --method POST \
+            "repos/$REPO/actions/runs/$RUN_ID/rerun-failed-jobs" \
+            --field enable_debug_logging=false
