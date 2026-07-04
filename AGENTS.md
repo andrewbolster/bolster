@@ -45,6 +45,22 @@ uv run bolster --help                                # CLI
 
 **Coverage gate**: always run the full coverage suite before pushing. The `pre-push` hook in `.pre-commit-config.yaml` enforces this automatically when using `git push`. `cli.py` is omitted from coverage by design — confirm it's absent from `cov.xml` with `grep cli cov.xml` (should return nothing).
 
+## Tool Preferences
+
+- Use `uv run` for all Python commands (not `python` or `pip`)
+- Use `gh` CLI for GitHub operations
+
+## Git Workflow — IMPORTANT
+
+**Never commit directly to `main`.** All changes must go through a PR:
+
+1. `git checkout -b fix/<name>` (or `feat/<name>`)
+1. Commit changes on the branch
+1. `gh pr create` — include summary and any relevant issue references
+1. Wait for CI to pass before merging
+
+This applies even to small fixes. The only exception is post-merge follow-up commits already agreed with the user in the same session.
+
 ## Standards
 
 - **No mocks** - tests use real data with `scope="class"` fixtures
