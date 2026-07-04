@@ -124,7 +124,7 @@ Three specialized agents for the data source development lifecycle.
 
 **Purpose**: Discover and evaluate potential new data sources before building.
 
-**Trigger**: Automatically on any open `data-source-candidate` issue that has no evaluation comment yet. Also invokable manually: "Use the data-explore agent to evaluate issue #NNN" or "evaluate all unevaluated data-source-candidate issues".
+**Trigger**: Automatically on any open `data-source-candidate` issue that has no evaluation comment yet. Also invokable manually: "Use the data-explore agent to evaluate issue #NNN" or "evaluate all unevaluated data-source-candidate issues". Optionally, run `/nisra-feed-review` first to discover and create new `data-source-candidate` issues before evaluating.
 
 **Workflow**:
 
