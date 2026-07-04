@@ -311,6 +311,11 @@ class TestValidation:
    - Code in a module that duplicates something already in `_base.py`, `pxstat.py`, `utils/web.py`, or `utils/cache.py`
    - New helper functions defined inline that belong in a shared utility
      For each identified pattern, open a `gh issue create --label "enhancement"` issue describing the candidate utility, which PRs introduced the pattern, and a sketch of the proposed API.
+1. **Issue hygiene** - Run `gh issue list --state open --limit 200 --json number,title,labels` and check for:
+   - Unlabeled issues — apply the most appropriate label (`data-source-candidate`, `enhancement`, `bug`, `ci`, `documentation`) based on title and body
+   - `data-source-candidate` issues missing the label but clearly describing a data source (e.g. "Add X data source")
+   - Near-duplicate candidates — compare titles for issues describing the same dataset; comment on the older one linking the newer, and flag for the user to close one
+     Apply labels directly with `gh issue edit <N> --add-label "<label>"`. Do not close issues — flag duplicates in the summary instead.
 1. **Summary** - Open a single `gh issue create --label "maintenance"` issue titled "Monthly Maintenance Review — <Month Year>" linking all issues raised (or noting "nothing to report" if clean).
 
 **Key behaviors**:
