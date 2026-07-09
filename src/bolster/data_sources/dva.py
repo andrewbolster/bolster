@@ -86,7 +86,7 @@ def _hash_url(url: str) -> str:
     """Generate a safe filename from a URL."""
     import hashlib
 
-    return hashlib.md5(url.encode()).hexdigest()
+    return hashlib.md5(url.encode(), usedforsecurity=False).hexdigest()
 
 
 def _download_file(url: str, cache_ttl_hours: int = 24, force_refresh: bool = False) -> Path:

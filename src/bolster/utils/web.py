@@ -116,7 +116,7 @@ class CachingSession(requests.Session):
             return super().get(url, **kwargs)
 
         _PAGE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        url_hash = hashlib.md5(url.encode()).hexdigest()
+        url_hash = hashlib.md5(url.encode(), usedforsecurity=False).hexdigest()
         cache_path = _PAGE_CACHE_DIR / f"{url_hash}.html"
         cache_404_path = _PAGE_CACHE_DIR / f"{url_hash}.404"
 
@@ -173,7 +173,7 @@ class CachingSession(requests.Session):
             return super().head(url, **kwargs)
 
         _PAGE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        url_hash = hashlib.md5(url.encode()).hexdigest()
+        url_hash = hashlib.md5(url.encode(), usedforsecurity=False).hexdigest()
         cache_path = _PAGE_CACHE_DIR / f"{url_hash}.head"
 
         now = datetime.now()

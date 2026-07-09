@@ -224,13 +224,12 @@ def select_from_csv(bucket, key, fields, client=None) -> list:
     if client is None:
         client = get_s3_client()
 
-    # noinspection SqlInjection
     r = client.select_object_content(
         Bucket=bucket,
         Key=key,
         ExpressionType="SQL",
         RequestProgress={"Enabled": True},
-        Expression=f"select {','.join(fields)} from s3object s",
+        Expression=f"select {','.join(fields)} from s3object s",  # nosec B608 -- S3 Select, not RDBMS SQL
         InputSerialization={"CSV": {"FileHeaderInfo": "Use"}},
         OutputSerialization={"JSON": {}},
     )

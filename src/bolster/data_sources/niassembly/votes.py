@@ -114,7 +114,7 @@ def get_division_votes(division_id: int) -> pd.DataFrame:
     xml_text = response.text
     if not xml_text or not xml_text.strip():
         return pd.DataFrame()
-    root = ET.fromstring(xml_text)
+    root = ET.fromstring(xml_text)  # nosec B320 — trusted government HTTPS endpoint
     records = []
     for member in root.findall("Member"):
         records.append({child.tag: child.text for child in member})

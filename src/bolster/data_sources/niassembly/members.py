@@ -43,7 +43,7 @@ def _xml_to_records(xml_text: str, list_tag: str, item_tag: str) -> list[dict]:
     """
     if not xml_text or not xml_text.strip():
         return []
-    root = ET.fromstring(xml_text)
+    root = ET.fromstring(xml_text)  # nosec B320 -- trusted government HTTPS endpoint
     # The root itself may be the list container, or it may be nested
     container = root if root.tag == list_tag else root.find(list_tag)
     if container is None:

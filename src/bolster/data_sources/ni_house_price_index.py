@@ -71,7 +71,7 @@ class NIHPIDataNotFoundError(NIHPIDataError):
 
 def _hash_url(url: str) -> str:
     """Generate a safe filename from a URL."""
-    return hashlib.md5(url.encode()).hexdigest()
+    return hashlib.md5(url.encode(), usedforsecurity=False).hexdigest()
 
 
 def _get_cached_file(url: str, cache_ttl_hours: int = 24) -> Path | None:
