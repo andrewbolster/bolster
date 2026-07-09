@@ -98,7 +98,7 @@ Before you submit a pull request, check that it meets these guidelines:
 2. If the pull request adds functionality, update the docs — add a docstring
    with an ``Example:`` section and update ``README.md`` and
    ``docs/data_sources.rst`` if it adds a new data source.
-3. The pull request should work for Python 3.10+.  Check the GitHub Actions
+3. The pull request should work for Python 3.11+.  Check the GitHub Actions
    CI results and make sure tests pass for all supported versions.
 4. Run ``uv run pre-commit run --all-files`` and resolve any linting issues
    before requesting a review.

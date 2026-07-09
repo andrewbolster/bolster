@@ -14,3 +14,15 @@ jobs:
           - uses: astral-sh/ruff-action@v3
             with:
               src: "./src"  # Only check src directory to match pre-commit scope
+
+    security:
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@v7
+          - uses: astral-sh/setup-uv@v7
+            with:
+              python-version: "3.11"
+          - name: Install bandit
+            run: uv tool install bandit
+          - name: Run bandit security scan
+            run: bandit -r src/bolster -ll -x src/bolster/cli.py
