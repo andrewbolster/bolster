@@ -1,338 +1,94 @@
 name: Automated Release
 
 on:
-  push:
-    branches: [main]
-  workflow_dispatch:
-    inputs:
-      version_bump:
-        description: 'Version bump type (patch, minor, major)'
-        required: false
-        default: 'auto'
-        type: choice
-        options:
-        - auto
-        - patch
-        - minor
-        - major
+    push:
+        branches: [main]
+    workflow_dispatch:
+        inputs:
+            version_bump:
+                description: "Version bump type (patch, minor, major)"
+                required: false
+                default: "auto"
+                type: choice
+                options:
+                    - auto
+                    - patch
+                    - minor
+                    - major
 
-permissions:
-  contents: write
-  pull-requests: write
+permissions: read-all
 
 jobs:
-  analyze-changes:
-    runs-on: ubuntu-latest
-    outputs:
-      should_release: ${{ steps.analyze.outputs.should_release }}
-      version_bump: ${{ steps.analyze.outputs.version_bump }}
-      changelog: ${{ steps.analyze.outputs.changelog }}
-    steps:
-    - uses: actions/checkout@v7
-      with:
-        fetch-depth: 0
+    release:
+        uses: ./.github/workflows/release-logic.yml
+        with:
+            version_bump: ${{ inputs.version_bump || 'auto' }}
+            block_minor: true
+            package_name: bolster
+            docs_url: https://bolster.help
+            pypi_base_url: https://pypi.org/project/bolster
+        permissions:
+            contents: write
+            pull-requests: write
 
-    - name: Setup Python and uv
-      uses: astral-sh/setup-uv@v7
-      with:
-        python-version: "3.11"
-        enable-cache: false
+    refresh-release-pr:
+        # Bolster-specific: rebase.yml keeps open release PR branches current
+        # but never regenerates the PR description. This job re-derives the
+        # changelog and updates the PR body on every push to main.
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+            pull-requests: write
+        steps:
+            - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+              with:
+                  fetch-depth: 0
+                  token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Analyze changes and determine version bump
-      id: analyze
-      uses: actions/github-script@v9
-      with:
-        script: |
-          // Get commits since last tag
-          const { execSync } = require('child_process');
+            - name: Find an open release PR and refresh its changelog
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  PR_JSON=$(gh pr list --base main --state open --json number,headRefName \
+                    --jq '[.[] | select(.headRefName | startswith("release/v"))][0]')
 
-          // Get last tag
-          let lastTag;
-          try {
-            lastTag = execSync('git describe --tags --abbrev=0', { encoding: 'utf-8' }).trim();
-          } catch (e) {
-            lastTag = 'v0.0.0'; // If no tags exist
-          }
+                  if [ -z "$PR_JSON" ] || [ "$PR_JSON" = "null" ]; then
+                    echo "No open release PR found — nothing to refresh"
+                    exit 0
+                  fi
 
-          console.log(`Last tag: ${lastTag}`);
+                  PR_NUMBER=$(echo "$PR_JSON" | jq -r '.number')
+                  BRANCH=$(echo "$PR_JSON" | jq -r '.headRefName')
+                  VERSION=${BRANCH#release/v}
+                  echo "Refreshing PR #${PR_NUMBER} (${BRANCH}, v${VERSION})"
 
-          // Get commits since last tag
-          const commits = execSync(`git log ${lastTag}..HEAD --pretty=format:"%s"`, { encoding: 'utf-8' })
-            .split('\n')
-            .filter(line => line.trim());
+                  git fetch origin "$BRANCH" main --tags --quiet
 
-          console.log(`Commits since ${lastTag}:`, commits);
+                  PREV_TAG=$(git tag --sort=-v:refname | grep -A1 "^v${VERSION}$" | tail -1)
+                  if [ "$PREV_TAG" = "v${VERSION}" ]; then
+                    PREV_TAG="v0.0.0"
+                  fi
+                  PREV_TAG=${PREV_TAG:-v0.0.0}
+                  echo "Previous tag: ${PREV_TAG}"
 
-          // Skip release if only docs/CI changes
-          const skipPatterns = [
-            /^docs?(\(.*\))?:/,
-            /^ci(\(.*\))?:/,
-            /^chore(\(.*\))?:/,
-            /^style(\(.*\))?:/,
-            /^test(\(.*\))?:/,
-            /Merge pull request/,
-            /Update.*dependabot/i
-          ];
+                  CHANGELOG=$(git log "${PREV_TAG}..origin/${BRANCH}" --pretty=format:"%s" | grep -Ev \
+                    -e '^docs?(\(.*\))?:' \
+                    -e '^ci(\(.*\))?:' \
+                    -e '^chore(\(.*\))?:' \
+                    -e '^style(\(.*\))?:' \
+                    -e '^test(\(.*\))?:' \
+                    -e "^Merge (branch|remote-tracking branch|pull request)" \
+                    -e '[Uu]pdate.*dependabot' \
+                    | sed 's/^/- /')
 
-          const releaseCommits = commits.filter(commit =>
-            !skipPatterns.some(pattern => pattern.test(commit))
-          );
+                  if [ -z "$CHANGELOG" ]; then
+                    echo "No commits found in range — leaving PR body untouched"
+                    exit 0
+                  fi
 
-          // Manual override from workflow_dispatch
-          if (context.eventName === 'workflow_dispatch' && context.payload.inputs?.version_bump !== 'auto') {
-            core.setOutput('should_release', 'true');
-            core.setOutput('version_bump', context.payload.inputs.version_bump);
-            core.setOutput('changelog', 'Manual release triggered');
-            return;
-          }
+                  printf 'Automated version bump to %s.\n\n## Changes in this release\n\n%s\n\n## Installation\n\n```bash\npip install bolster==%s\n```\n\n## Documentation\n\n- [Documentation](https://bolster.help)\n- [PyPI Package](https://pypi.org/project/bolster/%s/)\n\n---\n*This PR was automatically created by the release workflow.*\n' \
+                    "${VERSION}" "${CHANGELOG}" "${VERSION}" "${VERSION}" \
+                    > /tmp/pr-body.md
 
-          // Check for version:* label on the merged PR (label overrides commit analysis)
-          let labelOverride = null;
-          try {
-            const headSha = execSync('git rev-parse HEAD', { encoding: 'utf-8' }).trim();
-            const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              commit_sha: headSha,
-            });
-            for (const pr of prs.data) {
-              const versionLabel = pr.labels.map(l => l.name).find(n => n.startsWith('version:'));
-              if (versionLabel) {
-                labelOverride = versionLabel.replace('version:', '');
-                console.log(`PR #${pr.number} label override: ${labelOverride}`);
-                break;
-              }
-            }
-          } catch (e) {
-            console.log(`Could not check PR labels: ${e.message}`);
-          }
-
-          if (labelOverride === 'skip') {
-            console.log('PR label version:skip - skipping release');
-            core.setOutput('should_release', 'false');
-            return;
-          }
-
-          // Skip if no meaningful changes (and no label forcing a release)
-          if (releaseCommits.length === 0 && !labelOverride) {
-            console.log('No release-worthy changes found');
-            core.setOutput('should_release', 'false');
-            return;
-          }
-
-          // Determine version bump: label takes priority over commit analysis
-          let versionBump = labelOverride || 'patch';
-
-          if (!labelOverride) {
-            let hasBreaking = false;
-            let hasFeatures = false;
-
-            for (const commit of releaseCommits) {
-              if (commit.includes('BREAKING CHANGE') || commit.includes('!:')) {
-                hasBreaking = true;
-                break;
-              }
-              if (commit.match(/^feat(\(.*\))?:/)) {
-                hasFeatures = true;
-              }
-            }
-
-            if (hasBreaking) {
-              versionBump = 'major';
-            } else if (hasFeatures) {
-              versionBump = 'minor';
-            }
-          }
-
-          // Only patch releases are fully automated.
-          // Minor (feat:) and major (breaking) require explicit workflow_dispatch
-          // to avoid out-of-order version bumps from concurrent PRs.
-          if (versionBump === 'major' || versionBump === 'minor') {
-            console.log(`${versionBump} version detected - requires manual release via workflow_dispatch`);
-            core.setOutput('should_release', 'false');
-            return;
-          }
-
-          // Generate changelog
-          const changelog = releaseCommits
-            .map(commit => `- ${commit}`)
-            .join('\n');
-
-          core.setOutput('should_release', 'true');
-          core.setOutput('version_bump', versionBump);
-          core.setOutput('changelog', changelog);
-
-          console.log(`Release decision: ${versionBump} version bump`);
-
-  refresh-release-pr:
-    # Independent of analyze-changes/should_release: rebase.yml keeps an
-    # already-open release PR's branch up to date with main, but never
-    # regenerates its description, so the "Changes in this release" list
-    # silently falls behind every commit merged after the PR was opened.
-    # This job re-derives the changelog from the PR's own branch and
-    # updates its body in place whenever one is found.
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v7
-      with:
-        fetch-depth: 0
-        token: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Find an open release PR and refresh its changelog
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        PR_JSON=$(gh pr list --base main --state open --json number,headRefName \
-          --jq '[.[] | select(.headRefName | startswith("release/v"))][0]')
-
-        if [ -z "$PR_JSON" ] || [ "$PR_JSON" = "null" ]; then
-          echo "No open release PR found — nothing to refresh"
-          exit 0
-        fi
-
-        PR_NUMBER=$(echo "$PR_JSON" | jq -r '.number')
-        BRANCH=$(echo "$PR_JSON" | jq -r '.headRefName')
-        VERSION=${BRANCH#release/v}
-        echo "Refreshing PR #${PR_NUMBER} (${BRANCH}, v${VERSION})"
-
-        git fetch origin "$BRANCH" main --tags --quiet
-
-        # Find the tag immediately before this release's own tag (version-
-        # sorted, not by ancestry) — the branch's own bump commit is buried
-        # partway up its history under however many "merge main in" commits
-        # rebase.yml has added since, so walking from its tip for the
-        # "previous" tag via `describe` would find the wrong one, and this
-        # release's own tag (v${VERSION}) may not even be merged to main yet.
-        PREV_TAG=$(git tag --sort=-v:refname | grep -A1 "^v${VERSION}$" | tail -1)
-        if [ "$PREV_TAG" = "v${VERSION}" ]; then
-          PREV_TAG="v0.0.0"
-        fi
-        PREV_TAG=${PREV_TAG:-v0.0.0}
-        echo "Previous tag: ${PREV_TAG}"
-
-        # Match analyze-changes' own skip patterns (docs/ci/chore/style/test
-        # commits, merges, dependabot) so the refreshed changelog stays in
-        # the same format as the original.
-        CHANGELOG=$(git log "${PREV_TAG}..origin/${BRANCH}" --pretty=format:"%s" | grep -Ev \
-          -e '^docs?(\(.*\))?:' \
-          -e '^ci(\(.*\))?:' \
-          -e '^chore(\(.*\))?:' \
-          -e '^style(\(.*\))?:' \
-          -e '^test(\(.*\))?:' \
-          -e "^Merge (branch|remote-tracking branch|pull request)" \
-          -e '[Uu]pdate.*dependabot' \
-          | sed 's/^/- /')
-
-        if [ -z "$CHANGELOG" ]; then
-          echo "No commits found in range — leaving PR body untouched"
-          exit 0
-        fi
-
-        printf 'Automated version bump to %s.\n\n## Changes in this release\n\n%s\n\n## Installation\n\n```bash\npip install bolster==%s\n```\n\n## Documentation\n\n- [Documentation](https://bolster.help)\n- [PyPI Package](https://pypi.org/project/bolster/%s/)\n\n---\n*This PR was automatically created by the release workflow.*\n' \
-          "${VERSION}" "${CHANGELOG}" "${VERSION}" "${VERSION}" \
-          > /tmp/pr-body.md
-
-        gh pr edit "$PR_NUMBER" --body-file /tmp/pr-body.md
-        echo "Updated PR #${PR_NUMBER} description"
-
-  open-release-pr:
-    needs: analyze-changes
-    if: needs.analyze-changes.outputs.should_release == 'true'
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v7
-      with:
-        fetch-depth: 0
-        token: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Setup Python and uv
-      uses: astral-sh/setup-uv@v7
-      with:
-        python-version: "3.11"
-
-    - name: Install dependencies
-      run: uv sync --dev
-
-    - name: Configure git
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-
-    - name: Bump version
-      run: |
-        uv run bump-my-version bump ${{ needs.analyze-changes.outputs.version_bump }}
-        NEW_VERSION=$(uv run bump-my-version show current_version)
-        echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-
-    - name: Generate changelog entry
-      env:
-        CHANGELOG_ENTRY: ${{ needs.analyze-changes.outputs.changelog }}
-      run: |
-        python3 - <<'PYEOF'
-        import os
-        from datetime import date
-        from pathlib import Path
-
-        version = os.environ["NEW_VERSION"]
-        entry_text = os.environ["CHANGELOG_ENTRY"]
-        entry = f"\n## [{version}] - {date.today()}\n\n{entry_text}\n"
-
-        path = Path("CHANGELOG.md")
-        content = path.read_text()
-        # Insert new entry after the first heading line (newest at top)
-        lines = content.split("\n")
-        for i, line in enumerate(lines):
-            if line.startswith("# "):
-                lines.insert(i + 1, entry)
-                break
-        path.write_text("\n".join(lines))
-        PYEOF
-
-    - name: Push version bump branch, tag, and open PR
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        CHANGELOG_ENTRY: ${{ needs.analyze-changes.outputs.changelog }}
-      run: |
-        BRANCH="release/v${NEW_VERSION}"
-
-        # Idempotency: if the tag already exists (e.g. a previous run pushed the
-        # tag but failed before creating the PR), skip straight to PR creation.
-        if git ls-remote --exit-code origin "refs/tags/v${NEW_VERSION}" 2>/dev/null; then
-          echo "Tag v${NEW_VERSION} already exists on remote — checking for open PR"
-          EXISTING_PR=$(gh pr list --head "$BRANCH" --base main --json number --jq '.[0].number' 2>/dev/null || true)
-          if [ -n "$EXISTING_PR" ]; then
-            echo "PR #${EXISTING_PR} already open for ${BRANCH} — nothing to do"
-            exit 0
-          fi
-          echo "No PR found for ${BRANCH} — opening one now"
-          gh pr create \
-            --title "chore: bump version to ${NEW_VERSION}" \
-            --body "Automated version bump to ${NEW_VERSION} (retry — tag was already pushed in a previous run)." \
-            --label "version:skip" \
-            --base main \
-            --head "$BRANCH"
-          exit 0
-        fi
-
-        git checkout -b "$BRANCH"
-        git add .
-        git commit -m "chore: bump version to ${NEW_VERSION}"
-        git tag "v${NEW_VERSION}"
-        git push origin "$BRANCH"
-        git push origin "v${NEW_VERSION}"
-
-        # Write PR body to a file. Use printf with a format string to avoid
-        # YAML parsing issues with backticks and braces in heredoc content.
-        printf 'Automated version bump to %s.\n\n## Changes in this release\n\n%s\n\n## Installation\n\n```bash\npip install bolster==%s\n```\n\n## Documentation\n\n- [Documentation](https://bolster.help)\n- [PyPI Package](https://pypi.org/project/bolster/%s/)\n\n---\n*This PR was automatically created by the release workflow.*\n' \
-          "${NEW_VERSION}" "${CHANGELOG_ENTRY}" "${NEW_VERSION}" "${NEW_VERSION}" \
-          > /tmp/pr-body.md
-
-        # automerge.yml handles auto-merge for github-actions[bot] PRs;
-        # do not pass --auto-merge here as it can fail if the repo feature
-        # is not enabled, which would leave the tag pushed but no PR created.
-        gh pr create \
-          --title "chore: bump version to ${NEW_VERSION}" \
-          --body-file /tmp/pr-body.md \
-          --label "version:skip" \
-          --base main \
-          --head "$BRANCH"
+                  gh pr edit "$PR_NUMBER" --body-file /tmp/pr-body.md
+                  echo "Updated PR #${PR_NUMBER} description"

@@ -1,0 +1,270 @@
+name: Release Logic (Reusable)
+# Shared conventional-commit release workflow. Called by auto-release.yml in
+# this repo and by andrewbolster/mcp.bolster.online via workflow_call.
+#
+# Inputs
+# ------
+# version_bump   : override bump type ('auto' means analyse commits)
+# block_minor    : when true, feat: commits require manual workflow_dispatch
+# package_name   : PyPI package name (used in PR body installation snippet)
+# docs_url       : documentation URL (omitted from PR body when blank)
+# pypi_base_url  : PyPI package base URL, e.g. https://pypi.org/project/bolster
+#                  (omitted from PR body when blank)
+#
+# Jobs
+# ----
+# analyze-changes : inspects commits since last tag, resolves bump type
+# open-release-pr : bumps version, inserts changelog entry, opens PR
+
+on:
+    workflow_call:
+        inputs:
+            version_bump:
+                description: "Version bump override (auto, patch, minor, major)"
+                default: "auto"
+                type: string
+            block_minor:
+                description: "Block automatic minor bumps; require workflow_dispatch"
+                default: true
+                type: boolean
+            package_name:
+                description: "PyPI package name for PR body installation snippet"
+                required: true
+                type: string
+            docs_url:
+                description: "Documentation URL for PR body (leave blank to omit)"
+                default: ""
+                type: string
+            pypi_base_url:
+                description: "PyPI base URL, e.g. https://pypi.org/project/bolster (leave blank to omit)"
+                default: ""
+                type: string
+
+permissions: read-all
+
+jobs:
+    analyze-changes:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            pull-requests: read
+        outputs:
+            should_release: ${{ steps.analyze.outputs.should_release }}
+            version_bump: ${{ steps.analyze.outputs.version_bump }}
+            changelog: ${{ steps.analyze.outputs.changelog }}
+        steps:
+            - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+              with:
+                  fetch-depth: 0
+
+            - name: Analyze changes and determine version bump
+              id: analyze
+              uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553  # v9
+              with:
+                  script: |
+                      const { execSync } = require('child_process');
+
+                      let lastTag;
+                      try {
+                        lastTag = execSync('git describe --tags --abbrev=0', { encoding: 'utf-8' }).trim();
+                      } catch (e) {
+                        lastTag = 'v0.0.0';
+                      }
+                      console.log(`Last tag: ${lastTag}`);
+
+                      const commits = execSync(`git log ${lastTag}..HEAD --pretty=format:"%s"`, { encoding: 'utf-8' })
+                        .split('\n')
+                        .filter(line => line.trim());
+                      console.log(`Commits since ${lastTag}:`, commits);
+
+                      const skipPatterns = [
+                        /^docs?(\(.*\))?:/,
+                        /^ci(\(.*\))?:/,
+                        /^chore(\(.*\))?:/,
+                        /^style(\(.*\))?:/,
+                        /^test(\(.*\))?:/,
+                        /Merge pull request/,
+                        /Update.*dependabot/i
+                      ];
+                      const releaseCommits = commits.filter(c => !skipPatterns.some(p => p.test(c)));
+
+                      // Manual override: caller passes the workflow_dispatch input through
+                      const versionBumpInput = '${{ inputs.version_bump }}';
+                      if (versionBumpInput && versionBumpInput !== 'auto') {
+                        core.setOutput('should_release', 'true');
+                        core.setOutput('version_bump', versionBumpInput);
+                        core.setOutput('changelog', 'Manual release triggered');
+                        return;
+                      }
+
+                      // PR label override (version:skip / version:patch / etc.)
+                      let labelOverride = null;
+                      try {
+                        const headSha = execSync('git rev-parse HEAD', { encoding: 'utf-8' }).trim();
+                        const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          commit_sha: headSha,
+                        });
+                        for (const pr of prs.data) {
+                          const vLabel = pr.labels.map(l => l.name).find(n => n.startsWith('version:'));
+                          if (vLabel) {
+                            labelOverride = vLabel.replace('version:', '');
+                            console.log(`PR #${pr.number} label override: ${labelOverride}`);
+                            break;
+                          }
+                        }
+                      } catch (e) {
+                        console.log(`Could not check PR labels: ${e.message}`);
+                      }
+
+                      if (labelOverride === 'skip') {
+                        console.log('PR label version:skip — skipping release');
+                        core.setOutput('should_release', 'false');
+                        return;
+                      }
+
+                      if (releaseCommits.length === 0 && !labelOverride) {
+                        console.log('No release-worthy changes found');
+                        core.setOutput('should_release', 'false');
+                        return;
+                      }
+
+                      let versionBump = labelOverride || 'patch';
+                      if (!labelOverride) {
+                        let hasBreaking = false;
+                        let hasFeatures = false;
+                        for (const commit of releaseCommits) {
+                          if (commit.includes('BREAKING CHANGE') || commit.includes('!:')) { hasBreaking = true; break; }
+                          if (commit.match(/^feat(\(.*\))?:/)) hasFeatures = true;
+                        }
+                        if (hasBreaking) versionBump = 'major';
+                        else if (hasFeatures) versionBump = 'minor';
+                      }
+
+                      // Gate: major always requires manual dispatch; minor too when block_minor=true
+                      const blockMinor = '${{ inputs.block_minor }}' === 'true';
+                      if (versionBump === 'major' || (versionBump === 'minor' && blockMinor)) {
+                        console.log(`${versionBump} bump detected — requires manual workflow_dispatch`);
+                        core.setOutput('should_release', 'false');
+                        return;
+                      }
+
+                      const changelog = releaseCommits.map(c => `- ${c}`).join('\n');
+                      core.setOutput('should_release', 'true');
+                      core.setOutput('version_bump', versionBump);
+                      core.setOutput('changelog', changelog);
+                      console.log(`Release decision: ${versionBump}`);
+
+    open-release-pr:
+        needs: analyze-changes
+        if: needs.analyze-changes.outputs.should_release == 'true'
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+            pull-requests: write
+        steps:
+            - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+              with:
+                  fetch-depth: 0
+                  token: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Setup Python and uv
+              uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9  # v7
+              with:
+                  python-version: "3.11"
+
+            - name: Install dependencies
+              run: uv sync --dev
+
+            - name: Configure git
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+
+            - name: Bump version
+              run: |
+                  uv run bump-my-version bump ${{ needs.analyze-changes.outputs.version_bump }}
+                  NEW_VERSION=$(uv run bump-my-version show current_version)
+                  echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+
+            - name: Generate changelog entry
+              env:
+                  CHANGELOG_ENTRY: ${{ needs.analyze-changes.outputs.changelog }}
+              run: |
+                  python3 - <<'PYEOF'
+                  import os
+                  from datetime import date
+                  from pathlib import Path
+
+                  version = os.environ["NEW_VERSION"]
+                  entry_text = os.environ["CHANGELOG_ENTRY"]
+                  entry = f"\n## [{version}] - {date.today()}\n\n{entry_text}\n"
+
+                  path = Path("CHANGELOG.md")
+                  content = path.read_text()
+                  lines = content.split("\n")
+                  for i, line in enumerate(lines):
+                      if line.startswith("# "):
+                          lines.insert(i + 1, entry)
+                          break
+                  path.write_text("\n".join(lines))
+                  PYEOF
+
+            - name: Push version bump branch, tag, and open PR
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  CHANGELOG_ENTRY: ${{ needs.analyze-changes.outputs.changelog }}
+                  PACKAGE_NAME: ${{ inputs.package_name }}
+                  DOCS_URL: ${{ inputs.docs_url }}
+                  PYPI_BASE_URL: ${{ inputs.pypi_base_url }}
+              run: |
+                  BRANCH="release/v${NEW_VERSION}"
+
+                  # Idempotency: tag already pushed in a previous run
+                  if git ls-remote --exit-code origin "refs/tags/v${NEW_VERSION}" 2>/dev/null; then
+                    echo "Tag v${NEW_VERSION} already exists — checking for open PR"
+                    EXISTING_PR=$(gh pr list --head "$BRANCH" --base main --json number --jq '.[0].number' 2>/dev/null || true)
+                    if [ -n "$EXISTING_PR" ]; then
+                      echo "PR #${EXISTING_PR} already open — nothing to do"
+                      exit 0
+                    fi
+                    gh pr create \
+                      --title "chore: bump version to ${NEW_VERSION}" \
+                      --body "Automated version bump to ${NEW_VERSION} (retry — tag was already pushed in a previous run)." \
+                      --label "version:skip" \
+                      --base main \
+                      --head "$BRANCH"
+                    exit 0
+                  fi
+
+                  git checkout -b "$BRANCH"
+                  git add .
+                  git commit -m "chore: bump version to ${NEW_VERSION}"
+                  git tag "v${NEW_VERSION}"
+                  git push origin "$BRANCH"
+                  git push origin "v${NEW_VERSION}"
+
+                  # Build optional PR body sections
+                  INSTALL_SECTION=""
+                  if [ -n "$PACKAGE_NAME" ]; then
+                    INSTALL_SECTION="## Installation\n\n\`\`\`bash\npip install ${PACKAGE_NAME}==${NEW_VERSION}\n\`\`\`\n\n"
+                  fi
+                  DOCS_SECTION=""
+                  if [ -n "$DOCS_URL" ] || [ -n "$PYPI_BASE_URL" ]; then
+                    DOCS_SECTION="## Documentation\n\n"
+                    [ -n "$DOCS_URL" ]      && DOCS_SECTION="${DOCS_SECTION}- [Documentation](${DOCS_URL})\n"
+                    [ -n "$PYPI_BASE_URL" ] && DOCS_SECTION="${DOCS_SECTION}- [PyPI Package](${PYPI_BASE_URL}/${NEW_VERSION}/)\n"
+                    DOCS_SECTION="${DOCS_SECTION}\n"
+                  fi
+
+                  printf "Automated version bump to %s.\n\n## Changes in this release\n\n%s\n\n%s%s---\n*This PR was automatically created by the release workflow.*\n" \
+                    "${NEW_VERSION}" "${CHANGELOG_ENTRY}" "${INSTALL_SECTION}" "${DOCS_SECTION}" \
+                    > /tmp/pr-body.md
+
+                  gh pr create \
+                    --title "chore: bump version to ${NEW_VERSION}" \
+                    --body-file /tmp/pr-body.md \
+                    --label "version:skip" \
+                    --base main \
+                    --head "$BRANCH"

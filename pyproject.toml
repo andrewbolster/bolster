@@ -6,6 +6,7 @@ authors = [
     {name = "Andrew Bolster", email = "andrew.bolster@gmail.com"},
 ]
 readme = "README.md"
+license = {file = "LICENSE"}
 classifiers = [
     'Development Status :: 2 - Pre-Alpha',
     'Intended Audience :: Developers',
@@ -212,6 +213,9 @@ pre_commit_hooks = []
 post_commit_hooks = []
 
 [dependency-groups]
+fuzz = [
+    "atheris>=3.0",
+]
 dev = [
     "pre-commit",
     "pytest>=9.0.3",
@@ -220,6 +224,7 @@ dev = [
     "pytest-cov",
     "pytest-mock",
     "ruff",
+    "bandit>=1.7",
     "nbmake",
     "bump-my-version>=0.15.4",
     "pydocstyle",

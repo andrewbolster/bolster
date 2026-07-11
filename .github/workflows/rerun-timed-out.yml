@@ -5,8 +5,7 @@ on:
     workflows: ["PyTest"]
     types: [completed]
 
-permissions:
-  actions: write
+permissions: read-all
 
 jobs:
   rerun-if-single-timeout:
@@ -16,6 +15,8 @@ jobs:
       github.event.workflow_run.conclusion == 'failure' &&
       github.event.workflow_run.run_attempt == 1
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
     steps:
       - name: Check for exactly one timed-out job
         id: check
