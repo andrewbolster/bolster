@@ -49,9 +49,9 @@ import traceback
 from collections import Counter, defaultdict
 from collections.abc import Callable, Generator, Hashable, Iterable, Iterator, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
-from functools import partial, wraps
+from functools import partial, reduce, wraps
 from itertools import chain, groupby, islice
-from operator import itemgetter
+from operator import getitem, itemgetter
 from pathlib import Path
 from typing import (
     Any,
@@ -705,6 +705,11 @@ def flatten_dict(d: dict, head: str = "", sep: str = ":") -> dict[str, Any]:
     return new_d
 
 
+def nested_defaultdict():
+    """Return a defaultdict that auto-creates nested defaultdicts on access."""
+    return defaultdict(nested_defaultdict)
+
+
 def uncollect_object(d: dict) -> dict[Hashable, Any]:
     """Convert flat dictionary back to nested structure using path tuples."""
     new_d = {}
@@ -714,6 +719,16 @@ def uncollect_object(d: dict) -> dict[Hashable, Any]:
         else:
             new_d[k] = v
     return new_d
+
+
+def getFromDict(dataDict, mapList):
+    """Retrieve a value from a nested dict by following a sequence of keys."""
+    return reduce(getitem, mapList, dataDict)
+
+
+def setInDict(dataDict, mapList, value):
+    """Set a value in a nested dict by following a sequence of keys."""
+    getFromDict(dataDict, mapList[:-1])[mapList[-1]] = value
 
 
 def dict_concat_safe(d: dict, keys: list[Hashable], default: Any | None = None) -> Iterator[Any]:
