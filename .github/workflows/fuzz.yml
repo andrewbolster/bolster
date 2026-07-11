@@ -1,0 +1,34 @@
+name: Fuzz
+
+permissions: read-all
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+
+jobs:
+    fuzz:
+        name: Atheris fuzz (60s)
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+        steps:
+            - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+
+            - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9  # v7
+              with:
+                  python-version: "3.12"
+                  enable-cache: true
+                  cache-dependency-glob: "uv.lock"
+
+            - name: Install with fuzz extras
+              run: uv sync --extra fuzz
+
+            - name: Run fuzzer
+              run: |
+                  uv run python fuzz/fuzz_parsers.py \
+                    -max_total_time=60 \
+                    -print_final_stats=1 \
+                    2>&1

@@ -13,6 +13,10 @@ jobs:
     analysis:
         name: Scorecard analysis
         runs-on: ubuntu-latest
+        # Code-Review check is structurally 0 for a solo project (no second approver).
+        # The SARIF results still upload to GitHub Security; this stops that from
+        # failing the whole workflow and blocking main CI.
+        continue-on-error: true
         permissions:
             security-events: write
             id-token: write

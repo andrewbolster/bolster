@@ -9,14 +9,15 @@ on:
                 required: false
                 type: string
 
-permissions:
-    contents: write
-    pull-requests: write
+permissions: read-all
 
 jobs:
     auto-rebase:
         name: Rebase PRs
         runs-on: ubuntu-latest
+        permissions:
+            contents: write
+            pull-requests: write
         timeout-minutes: 15
         steps:
             - name: Checkout main
