@@ -25,7 +25,7 @@ Example:
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pandas as pd
 
@@ -143,7 +143,7 @@ def get_departures(
         TranslinkValidationError: If the API returns an unexpected response.
     """
     if dt is None:
-        dt = datetime.now(tz=timezone.utc)
+        dt = datetime.now(tz=UTC)
 
     all_deps: list[pd.DataFrame] = []
     current_dt = dt
@@ -425,7 +425,7 @@ def get_direct_journeys(
     from .timetable import find_direct_trips
 
     if dt is None:
-        dt = datetime.now(tz=timezone.utc)
+        dt = datetime.now(tz=UTC)
 
     # Resolve stop names → ATCOCodes via the CIF stop lookup (fuzzy name match)
     lookup = get_stop_lookup()
@@ -454,7 +454,7 @@ def get_direct_journeys(
     from zoneinfo import ZoneInfo
 
     tz_london = ZoneInfo("Europe/London")
-    ref_local = dt.astimezone(tz_london) if dt.tzinfo else dt.replace(tzinfo=timezone.utc).astimezone(tz_london)
+    ref_local = dt.astimezone(tz_london) if dt.tzinfo else dt.replace(tzinfo=UTC).astimezone(tz_london)
     ref_hhmm = ref_local.strftime("%H%M")
     # days string is MTWTFSS (index 0=Mon … 6=Sun); weekday() returns 0=Mon … 6=Sun
     weekday_idx = ref_local.weekday()

@@ -16,7 +16,7 @@ import datetime
 
 import pytest
 
-from bolster.data_sources.nisra import cancer_waiting_times as cwt
+from bolster.data_sources.health_ni import cancer_waiting_times as cwt
 
 
 class Test31DayByTrustIntegrity:

@@ -18,8 +18,8 @@ import datetime
 import pandas as pd
 import pytest
 
-from bolster.data_sources.nisra import elective_waiting_times as ewt
-from bolster.data_sources.nisra._base import NISRAValidationError
+from bolster.data_sources.health_ni import elective_waiting_times as ewt
+from bolster.data_sources.health_ni._base import NISRAValidationError
 
 
 class TestElectiveWaitingTimesIntegrity:

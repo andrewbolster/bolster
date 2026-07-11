@@ -58,7 +58,7 @@ class TestPlanningNIWideIntegrity:
 
     def test_column_types(self, df):
         assert pd.api.types.is_datetime64_any_dtype(df["date"])
-        assert df["financial_year"].dtype == object
+        assert pd.api.types.is_string_dtype(df["financial_year"]) or pd.api.types.is_object_dtype(df["financial_year"])
         assert pd.api.types.is_integer_dtype(df["year"])
 
     def test_history_starts_2015_16(self, df):

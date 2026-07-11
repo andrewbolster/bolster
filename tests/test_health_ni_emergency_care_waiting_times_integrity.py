@@ -11,7 +11,7 @@ import datetime
 import pandas as pd
 import pytest
 
-from bolster.data_sources.nisra import emergency_care_waiting_times as ecwt
+from bolster.data_sources.health_ni import emergency_care_waiting_times as ecwt
 
 
 class TestEmergencyCareIntegrity:
@@ -99,7 +99,7 @@ class TestValidation:
 
     def test_validate_empty_dataframe(self):
         """validate_data raises NISRAValidationError on empty DataFrame."""
-        from bolster.data_sources.nisra._base import NISRAValidationError
+        from bolster.data_sources.health_ni._base import NISRAValidationError
 
         empty = pd.DataFrame(
             columns=["date", "year", "month", "trust", "attendance_type", "total", "pct_within_4hrs"]
@@ -109,7 +109,7 @@ class TestValidation:
 
     def test_validate_missing_columns(self):
         """validate_data raises NISRAValidationError when required columns are missing."""
-        from bolster.data_sources.nisra._base import NISRAValidationError
+        from bolster.data_sources.health_ni._base import NISRAValidationError
 
         df = pd.DataFrame({"date": [pd.Timestamp("2024-01-01")], "year": [2024]})
         with pytest.raises(NISRAValidationError, match="Missing required columns"):
@@ -117,7 +117,7 @@ class TestValidation:
 
     def test_validate_pct_out_of_range(self):
         """validate_data raises NISRAValidationError when pct_within_4hrs > 1."""
-        from bolster.data_sources.nisra._base import NISRAValidationError
+        from bolster.data_sources.health_ni._base import NISRAValidationError
 
         df = pd.DataFrame(
             {
@@ -135,7 +135,7 @@ class TestValidation:
 
     def test_validate_negative_pct(self):
         """validate_data raises NISRAValidationError when pct_within_4hrs < 0."""
-        from bolster.data_sources.nisra._base import NISRAValidationError
+        from bolster.data_sources.health_ni._base import NISRAValidationError
 
         df = pd.DataFrame(
             {
@@ -165,3 +165,35 @@ class TestValidation:
             }
         )
         assert ecwt.validate_data(df) is True
+
+
+class TestParseNumericCol:
+    """Unit tests for _parse_numeric_col — no network calls.
+
+    These guard against regressions where the dtype==object guard silently
+    skipped comma-stripping under PyArrow-backed string dtypes (pandas 3.0+
+    defaults infer_string=True, so string columns are no longer dtype==object).
+    """
+
+    def test_plain_integers(self):
+        s = pd.Series(["100", "200", "300"])
+        result = ecwt._parse_numeric_col(s)
+        assert list(result) == [100.0, 200.0, 300.0]
+
+    def test_comma_formatted_numbers(self):
+        """Comma-separated thousands must parse correctly under PyArrow strings."""
+        s = pd.Series(["1,234", "5,678", "999"])
+        result = ecwt._parse_numeric_col(s)
+        assert list(result) == [1234.0, 5678.0, 999.0]
+
+    def test_already_numeric_series(self):
+        s = pd.Series([100, 200, 300])
+        result = ecwt._parse_numeric_col(s)
+        assert list(result) == [100.0, 200.0, 300.0]
+
+    def test_nulls_become_nan(self):
+        s = pd.Series(["1,000", None, "500"])
+        result = ecwt._parse_numeric_col(s)
+        assert result[0] == 1000.0
+        assert pd.isna(result[1])
+        assert result[2] == 500.0

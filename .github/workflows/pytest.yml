@@ -6,26 +6,36 @@ on:
     pull_request:
         branches: ["main"]
 
-# Only one PyTest run (across all branches/PRs) hits the live NISRA/
-# NIAssembly/etc endpoints at a time. Removed in #1946 on the theory that
-# the download cache made cross-branch throttling unnecessary, but on
-# 2026-06-28 removing it let 7 branches' full matrices (~28 jobs) fire
-# within 28 seconds of each other, and every one of them timed out against
-# data.niassembly.gov.uk — a server that degrades under concurrent load
-# rather than rate-limiting (no HTTP 429s observed) looks exactly like
-# this. Runs queue rather than cancel, so a slow run delays but doesn't
-# drop later ones.
+# Concurrency design (keep this comment before changing the block):
+# Per-ref + cancel-in-progress was chosen over a single global queue after
+# 7 PRs toggled between the two strategies in ~2 weeks (PRs #1938–#1950).
+#
+# The alternative (group: pytest-all, cancel-in-progress: false) serialises
+# ALL runs to avoid concurrent load on upstream NISRA/NI Assembly APIs. But
+# it was dropped because:
+#   1. The ~/.cache/bolster download cache (actions/cache, daily key) means
+#      most network hits are served from cache rather than hitting upstream,
+#      so concurrent runs don't pile on the same endpoints.
+#   2. The retry-on-timeout workflow (rerun-timed-out.yml) handles the residual
+#      flakiness from throttled upstreams, removing the main motivation for
+#      serialising globally.
+#   3. A global queue starves fast-feedback: when several PRs are open
+#      simultaneously, every push waits for all earlier runs to finish.
+#
+# If upstream throttling becomes a problem again, revisit the cache TTL and
+# retry settings in src/bolster/utils/web.py before reaching for the global
+# queue — serialising CI is a blunt instrument.
 concurrency:
-    group: pytest-all
-    cancel-in-progress: false
+    group: ${{ github.event_name }}-${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
 
 jobs:
     build:
         runs-on: ubuntu-latest
         strategy:
-            max-parallel: 4
+            max-parallel: 1
             matrix:
-                python-version: ["3.10", "3.11", "3.12", "3.13"]
+                python-version: ["3.11", "3.12", "3.13"]
 
         steps:
             - uses: actions/checkout@v7
@@ -47,7 +57,7 @@ jobs:
               run: echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
 
             - name: Cache downloaded source data
-              uses: actions/cache@v4
+              uses: actions/cache@v6
               with:
                   path: ~/.cache/bolster
                   # Key rotates daily so a successful download survives between

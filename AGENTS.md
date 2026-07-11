@@ -45,6 +45,22 @@ uv run bolster --help                                # CLI
 
 **Coverage gate**: always run the full coverage suite before pushing. The `pre-push` hook in `.pre-commit-config.yaml` enforces this automatically when using `git push`. `cli.py` is omitted from coverage by design — confirm it's absent from `cov.xml` with `grep cli cov.xml` (should return nothing).
 
+## Tool Preferences
+
+- Use `uv run` for all Python commands (not `python` or `pip`)
+- Use `gh` CLI for GitHub operations
+
+## Git Workflow — IMPORTANT
+
+**Never commit directly to `main`.** All changes must go through a PR:
+
+1. `git checkout -b fix/<name>` (or `feat/<name>`)
+1. Commit changes on the branch
+1. `gh pr create` — include summary and any relevant issue references
+1. Wait for CI to pass before merging
+
+This applies even to small fixes. The only exception is post-merge follow-up commits already agreed with the user in the same session.
+
 ## Standards
 
 - **No mocks** - tests use real data with `scope="class"` fixtures
@@ -61,7 +77,7 @@ uv run bolster --help                                # CLI
 ```python
 from bolster.utils.web import session
 
-response = session.get(url, timeout=30)  # Retries on 500/502/503/504
+response = session.get(url)  # Retries on 500/502/503/504; 30s timeout applied automatically
 ```
 
 Do NOT use raw `requests.get()` - it lacks retry logic and causes CI flakiness.
@@ -108,23 +124,26 @@ Three specialized agents for the data source development lifecycle.
 
 **Purpose**: Discover and evaluate potential new data sources before building.
 
+**Trigger**: Automatically on any open `data-source-candidate` issue that has no evaluation comment yet. Also invokable manually: "Use the data-explore agent to evaluate issue #NNN" or "evaluate all unevaluated data-source-candidate issues". Optionally, run `/nisra-feed-review` first to discover and create new `data-source-candidate` issues before evaluating.
+
 **Workflow**:
 
-1. **Discover** - Use `uv run bolster nisra feed --limit 20` to see recent publications, check README coverage table
-1. **Gap analysis** - Compare feed entries vs implemented modules
-1. **Research** - For each candidate, evaluate accessibility, format, history
-1. **Validate** - Write disposable scripts in `/tmp/` to test assumptions
+1. **Find scope** - Run `gh issue list --label "data-source-candidate" --state open` to find candidate issues. If directed at a specific issue, use that; otherwise process all with no evaluation comment.
+1. **Gap analysis** - Compare against README coverage table and existing modules in `src/bolster/data_sources/`
+1. **Research** - For each candidate, evaluate accessibility, format, history. Check PxStat first (`https://data.nisra.gov.uk/`).
+1. **Validate** - Write disposable scripts in `/tmp/` to test assumptions. Never commit these.
 1. **Score** - Rate on accessibility, stability, usefulness, complexity
-1. **Recommend** - Output structured evaluation with next steps
+1. **Output** - Post evaluation as a comment on the `data-source-candidate` issue. Do not create new issues or modify `src/`.
 
 **Key behaviors**:
 
 - Do NOT write production code
 - Do NOT create files in `src/`
-- Disposable scripts only - never commit exploration code
+- Disposable scripts only — never commit exploration code
 - Be honest about integration complexity
+- Always post output as a comment on the originating `data-source-candidate` issue
 
-**Output format**:
+**Output format** (post as issue comment):
 
 ```markdown
 ## Data Source Evaluation: [Name]
@@ -140,24 +159,25 @@ Three specialized agents for the data source development lifecycle.
 
 **Purpose**: Build production-quality data source modules with tests and CLI.
 
+**Trigger**: Invoked manually after a `data-explore` evaluation is marked RECOMMENDED on a `data-source-candidate` issue. "Use the data-build agent to implement issue #NNN" or "build the data source from issue #NNN".
+
 **Workflow**:
 
-1. **Check CI status** - Before starting, run `gh pr list` and `gh run list` to check for failing tests
-1. **Branch** - `git checkout -b feature/<name>` (or use existing feature branch)
-1. **Study patterns** - Read similar modules before writing
-1. **Implement** in order:
-   - Core module in `src/bolster/data_sources/<source>/`
-   - Update `__init__.py` exports
-   - Data integrity tests in `tests/test_<source>_<name>_integrity.py`
-   - Cross-validation tests if related data exists
-   - CLI command in `src/bolster/cli.py`
-   - README coverage table update
-1. **Quality checks**:
-   - Run `uv run pytest tests/ -q --no-cov` - ALL tests must pass (not just new ones)
-   - Run `make test` (or `uv run pytest tests/ -q --cov=src/bolster --cov-report=xml:cov.xml`) - >90% coverage on new code, required before push
-   - Run `uv run pre-commit run --all-files` - must be clean
-1. **PR** - Create with `gh pr create`, include insights from the data
-1. **Verify CI** - After PR, run `gh pr checks` to confirm CI passes
+1. **Find spec** - If directed at a specific issue, read it. Otherwise run `gh issue list --label "data-source-candidate" --state open` and find issues with a RECOMMENDED `data-explore` evaluation comment. Confirm with the user before proceeding if ambiguous.
+1. **Check CI status** - Run `gh pr list` and `gh run list --limit 5` to confirm no failing tests on `main` before starting.
+1. **Branch** - `git checkout -b feat/<name>` from a clean `main`.
+1. **Study patterns** - Read 2-3 similar existing modules before writing any code.
+1. **Implement in phases** — commit after each phase to enable safe rollback:
+   - **Phase 1**: Core module in `src/bolster/data_sources/<source>/` + `__init__.py` exports. Commit: `feat(<name>): add core module`
+   - **Phase 2**: Data integrity tests in `tests/test_<source>_<name>_integrity.py`. Run `uv run pytest tests/test_<source>_<name>_integrity.py -v` — must pass. Commit: `test(<name>): add integrity tests`
+   - **Phase 3**: CLI command in `src/bolster/cli.py` + README coverage table update. Commit: `feat(<name>): add CLI command and update README`
+   - **Phase 4** (if applicable): Cross-validation tests against related datasets. Commit: `test(<name>): add cross-validation`
+1. **Quality checks** — before pushing:
+   - `uv run pytest tests/ -q --no-cov` — ALL tests must pass, not just new ones
+   - `make test` — >90% coverage on new code
+   - `uv run pre-commit run --all-files` — must be clean
+1. **PR** - Only push and `gh pr create` once all quality checks pass locally. Include 2-3 example insights from the data and link the originating `data-source-candidate` issue with `Closes #NNN`.
+1. **Verify CI** - After PR, run `gh pr checks` to confirm CI passes. Do not merge until green.
 
 **Module template (PxStat — preferred for NISRA)**:
 
@@ -223,13 +243,15 @@ class TestValidation:
 
 ## Agent: data-review
 
-**Purpose**: Review PRs for consistency, shared utilities, and quality.
+**Purpose**: Review open PRs that implement a `data-source-candidate` for consistency, shared utilities, and quality.
+
+**Trigger**: Invoked manually against a specific PR: "Use the data-review agent to review PR #NNN". Also invokable as a batch: "review all open data-source PRs". Only review PRs that touch `src/bolster/data_sources/` — skip dependency bumps, CI changes, and documentation-only PRs.
 
 **Before reviewing**:
 
-1. Run `gh pr list` to see open PRs
-1. Run `gh pr checks <PR#>` to check CI status
-1. If CI is failing, identify the failing tests before reviewing code
+1. Confirm the PR implements or modifies a data source (touches `src/bolster/data_sources/`). If not, skip.
+1. Run `gh pr checks <PR#>` to check CI status — if checks are still running, wait; if failing, identify the root cause before proceeding.
+1. Read the linked `data-source-candidate` issue (if any) to understand the intended scope.
 
 **Checklist**:
 
@@ -240,7 +262,7 @@ class TestValidation:
 
 ### Code Quality
 
-- \[ \] Follows existing module patterns
+- \[ \] Follows existing module patterns (compare to a similar module in `src/bolster/data_sources/`)
 - \[ \] Uses shared utilities from `_base.py` or `pxstat.py` (no reinventing)
 - \[ \] For NISRA data: uses `pxstat.read_dataset()` if the matrix exists; falls back to `_base.download_file()` only if not in PxStat
 - \[ \] Uses `web.session` for HTTP requests (not raw `requests.get()`)
@@ -260,6 +282,7 @@ class TestValidation:
 - \[ \] CLI command added and documented
 - \[ \] README coverage table updated
 - \[ \] Pre-commit checks pass
+- \[ \] `data-source-candidate` issue referenced with `Closes #NNN`
 
 ### Opportunities
 
@@ -267,7 +290,35 @@ class TestValidation:
 - \[ \] Any patterns that could be generalized?
 - \[ \] Cross-validation with related datasets?
 
-**Output**: Structured review with specific line references and suggestions.
+**Output**: Post a structured review as a PR review comment with specific file:line references. Use GitHub's review API via `gh pr review <PR#> --comment --body "..."`. Do not approve or request changes — comment only.
+
+## Agent: data-maintenance
+
+**Purpose**: Review recently merged PRs to keep documentation current and surface emerging shared utility candidates as actionable issues.
+
+**Trigger**: Runs on a monthly schedule (first Monday of each month). Also invokable manually: "Use the data-maintenance agent to review last month's merges".
+
+**Workflow**:
+
+1. **Find scope** - Run `gh pr list --state merged --base main --limit 50 --json number,title,mergedAt,labels` and filter to PRs merged in the last 30 days. Skip PRs labelled `version:skip`, `dependencies`, or `documentation`.
+1. **README audit** - For each merged PR that touches `src/bolster/data_sources/`, verify:
+   - The new module appears in the README coverage table
+   - The CLI command is documented (`uv run bolster --help` output matches)
+   - `docs/data_sources.rst` references the new module
+     If any are missing, open a single `gh issue create --label "documentation"` issue listing all gaps found.
+1. **Shared utility scan** - Read the diff of each qualifying PR (`gh pr diff <PR#>`). Look for:
+   - Repeated patterns across ≥2 PRs (URL construction, date parsing, Excel sheet discovery, pagination)
+   - Code in a module that duplicates something already in `_base.py`, `pxstat.py`, `utils/web.py`, or `utils/cache.py`
+   - New helper functions defined inline that belong in a shared utility
+     For each identified pattern, open a `gh issue create --label "enhancement"` issue describing the candidate utility, which PRs introduced the pattern, and a sketch of the proposed API.
+1. **Summary** - Open a single `gh issue create --label "maintenance"` issue titled "Monthly Maintenance Review — <Month Year>" linking all issues raised (or noting "nothing to report" if clean).
+
+**Key behaviors**:
+
+- Read-only on code — do NOT open PRs or modify `src/`
+- Open the minimum number of issues needed — batch documentation gaps into one issue, not one per module
+- Be conservative on shared utility candidates — only flag patterns seen in ≥2 separate PRs
+- Do not re-raise issues that are already open with the same label and similar title
 
 ______________________________________________________________________
 
