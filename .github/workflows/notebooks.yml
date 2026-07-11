@@ -1,5 +1,7 @@
 name: Test Notebooks
 
+permissions: read-all
+
 on:
     push:
         branches: [main]
@@ -14,15 +16,15 @@ jobs:
         name: Notebooks
         runs-on: ubuntu-latest
         steps:
-          - uses: actions/checkout@v7
+          - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
             with:
                 fetch-depth: 0
           - name: Set up Python ${{ env.python-version }}
-            uses: actions/setup-python@v6
+            uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
             with:
                 python-version: ${{ env.python-version }}
           - name: Install uv and set the python version
-            uses: astral-sh/setup-uv@v7
+            uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9  # v7
             with:
                 python-version: ${{ env.python-version }}
                 enable-cache: true

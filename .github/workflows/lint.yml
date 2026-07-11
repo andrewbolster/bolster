@@ -1,5 +1,7 @@
 name: Lint With Ruff
 
+permissions: read-all
+
 on:
     push:
         branches: ["main"]
@@ -10,16 +12,16 @@ jobs:
     lint:
         runs-on: ubuntu-latest
         steps:
-          - uses: actions/checkout@v7
-          - uses: astral-sh/ruff-action@v3
+          - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+          - uses: astral-sh/ruff-action@146cd51f235777a9bc491eead18e0d5a4b05406a  # v3
             with:
               src: "./src"  # Only check src directory to match pre-commit scope
 
     security:
         runs-on: ubuntu-latest
         steps:
-          - uses: actions/checkout@v7
-          - uses: astral-sh/setup-uv@v7
+          - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+          - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9  # v7
             with:
               python-version: "3.11"
           - name: Install bandit
