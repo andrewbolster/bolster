@@ -39,7 +39,9 @@ logger = logging.getLogger(__name__)
 ua = f"@Bolster/{version_no} (+http://bolster.online/)"
 
 _PAGE_CACHE_DIR = Path.home() / ".cache" / "bolster" / "_pages"
-_PAGE_CACHE_TTL_SECONDS = 3600  # 1 hour for successful responses
+_PAGE_CACHE_TTL_SECONDS = (
+    86400  # 24 hours — matches the GH Actions daily cache key so all matrix jobs hit disk rather than network
+)
 _PAGE_CACHE_404_TTL_SECONDS = 600  # 10 minutes for 404s
 DEFAULT_TIMEOUT = 30  # seconds; applied to every get/head unless caller overrides
 
