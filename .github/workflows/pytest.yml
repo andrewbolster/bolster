@@ -6,6 +6,25 @@ on:
     pull_request:
         branches: ["main"]
 
+# Concurrency design (keep this comment before changing the block):
+# Per-ref + cancel-in-progress was chosen over a single global queue after
+# 7 PRs toggled between the two strategies in ~2 weeks (PRs #1938–#1950).
+#
+# The alternative (group: pytest-all, cancel-in-progress: false) serialises
+# ALL runs to avoid concurrent load on upstream NISRA/NI Assembly APIs. But
+# it was dropped because:
+#   1. The ~/.cache/bolster download cache (actions/cache, daily key) means
+#      most network hits are served from cache rather than hitting upstream,
+#      so concurrent runs don't pile on the same endpoints.
+#   2. The retry-on-timeout workflow (rerun-timed-out.yml) handles the residual
+#      flakiness from throttled upstreams, removing the main motivation for
+#      serialising globally.
+#   3. A global queue starves fast-feedback: when several PRs are open
+#      simultaneously, every push waits for all earlier runs to finish.
+#
+# If upstream throttling becomes a problem again, revisit the cache TTL and
+# retry settings in src/bolster/utils/web.py before reaching for the global
+# queue — serialising CI is a blunt instrument.
 concurrency:
     group: ${{ github.event_name }}-${{ github.workflow }}-${{ github.ref }}
     cancel-in-progress: true
