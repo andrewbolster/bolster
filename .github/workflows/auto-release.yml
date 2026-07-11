@@ -16,9 +16,7 @@ on:
                     - minor
                     - major
 
-permissions:
-    contents: write
-    pull-requests: write
+permissions: read-all
 
 jobs:
     release:
@@ -38,6 +36,9 @@ jobs:
         # but never regenerates the PR description. This job re-derives the
         # changelog and updates the PR body on every push to main.
         runs-on: ubuntu-latest
+        permissions:
+            contents: write
+            pull-requests: write
         steps:
             - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
               with:

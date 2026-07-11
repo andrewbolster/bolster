@@ -4,13 +4,14 @@ name: Bot Pull Request Approve and Merge
 
 on: pull_request_target
 
-permissions:
-    pull-requests: write
-    contents: write
+permissions: read-all
 
 jobs:
     auto-merge-bot-prs:
         runs-on: ubuntu-latest
+        permissions:
+            pull-requests: write
+            contents: write
         # Support multiple trusted bots
         if: |
             github.actor == 'dependabot[bot]' ||
