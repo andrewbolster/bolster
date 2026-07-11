@@ -77,7 +77,7 @@ This applies even to small fixes. The only exception is post-merge follow-up com
 ```python
 from bolster.utils.web import session
 
-response = session.get(url, timeout=30)  # Retries on 500/502/503/504
+response = session.get(url)  # Retries on 500/502/503/504; 30s timeout applied automatically
 ```
 
 Do NOT use raw `requests.get()` - it lacks retry logic and causes CI flakiness.
