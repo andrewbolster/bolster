@@ -706,6 +706,7 @@ def flatten_dict(d: dict, head: str = "", sep: str = ":") -> dict[str, Any]:
 
 
 def nested_defaultdict():
+    """Return a defaultdict that auto-creates nested defaultdicts on access."""
     return defaultdict(nested_defaultdict)
 
 
@@ -721,10 +722,12 @@ def uncollect_object(d: dict) -> dict[Hashable, Any]:
 
 
 def getFromDict(dataDict, mapList):
+    """Retrieve a value from a nested dict by following a sequence of keys."""
     return reduce(getitem, mapList, dataDict)
 
 
 def setInDict(dataDict, mapList, value):
+    """Set a value in a nested dict by following a sequence of keys."""
     getFromDict(dataDict, mapList[:-1])[mapList[-1]] = value
 
 
