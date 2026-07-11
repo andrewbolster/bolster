@@ -37,22 +37,27 @@ jobs:
             - name: Update PR branches
               if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.pr_number == '')
               run: |
-                  set +e  # Don't exit on errors - we want to process all PRs
-                  echo "Updating all PRs with latest main (including drafts and failing CI)..."
+                  set +e  # Don't exit on errors - we want to try each candidate
+                  echo "Looking for one PR to rebase (auto-merge PRs prioritised)..."
 
-                  gh pr list --state open --json number,headRefName,mergeStateStatus \
-                    --jq '.[] | select(.mergeStateStatus != "CLEAN") | [.number, .headRefName] | @tsv' | \
+                  # Sort: auto-merge PRs (autoMergeRequest != null) first, then by number.
+                  # Rebase only the first eligible PR per trigger so CI runs don't flood.
+                  gh pr list --state open \
+                    --json number,headRefName,mergeStateStatus,autoMergeRequest \
+                    --jq '[.[] | select(.mergeStateStatus != "CLEAN") |
+                          {n: .number, b: .headRefName,
+                           p: (if .autoMergeRequest != null then 0 else 1 end)}] |
+                         sort_by(.p, .n) | .[] | [.n, .b] | @tsv' | \
                   while IFS=$'\t' read -r pr branch; do
                     echo "----------------------------------------"
 
                     # Skip if this branch already has a PyTest run queued/in-progress:
-                    # pushing now would just supersede that run before it gets a turn
-                    # in the global concurrency queue, restarting the wait from zero
-                    # instead of letting it finish.
+                    # pushing now would supersede that run before it gets a turn in the
+                    # concurrency queue, restarting the wait from zero.
                     pending=$(gh run list --workflow=pytest.yml --branch "$branch" --limit 1 \
                       --json status --jq '.[0].status // ""')
                     if [ "$pending" = "queued" ] || [ "$pending" = "in_progress" ]; then
-                      echo "⏳ PR #$pr ($branch) already has a $pending PyTest run — skipping this cycle"
+                      echo "⏳ PR #$pr ($branch) already has a $pending PyTest run — trying next"
                       continue
                     fi
 
@@ -62,12 +67,14 @@ jobs:
                     git checkout "$branch"
                     if git merge --no-edit origin/main; then
                       git push origin "$branch"
-                      echo "✓ Successfully updated PR #$pr"
+                      git checkout main
+                      echo "✓ Successfully updated PR #$pr — one rebase per trigger, stopping"
+                      break  # One rebase per push-to-main; next PR gets its turn on the next trigger
                     else
                       git merge --abort
-                      echo "✗ Merge conflict in PR #$pr — skipping"
+                      git checkout main
+                      echo "✗ Merge conflict in PR #$pr — trying next"
                     fi
-                    git checkout main
                   done
               env:
                   GITHUB_TOKEN: ${{ secrets.BOLSTER_TOKEN }}
