@@ -61,7 +61,7 @@ def hash_url(url: str) -> str:
         >>> hash_url("https://example.com/data.csv")
         '2a01ab0de708440185cbb6473893860c'
     """
-    return hashlib.md5(url.encode()).hexdigest()
+    return hashlib.md5(url.encode(), usedforsecurity=False).hexdigest()
 
 
 class CachedDownloader:

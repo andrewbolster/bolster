@@ -6,6 +6,7 @@ authors = [
     {name = "Andrew Bolster", email = "andrew.bolster@gmail.com"},
 ]
 readme = "README.md"
+license = {file = "LICENSE"}
 classifiers = [
     'Development Status :: 2 - Pre-Alpha',
     'Intended Audience :: Developers',
@@ -222,6 +223,7 @@ dev = [
     "pytest-cov",
     "pytest-mock",
     "ruff",
+    "bandit>=1.7",
     "nbmake",
     "bump-my-version>=0.15.4",
     "pydocstyle",

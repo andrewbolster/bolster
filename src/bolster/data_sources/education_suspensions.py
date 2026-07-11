@@ -78,7 +78,7 @@ class EducationSuspensionsParseError(EducationSuspensionsError):
 
 
 def _hash_url(url: str) -> str:
-    return hashlib.md5(url.encode()).hexdigest()
+    return hashlib.md5(url.encode(), usedforsecurity=False).hexdigest()
 
 
 def _cached_file(url: str) -> Path | None:
