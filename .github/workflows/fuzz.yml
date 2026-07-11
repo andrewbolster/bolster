@@ -23,8 +23,8 @@ jobs:
                   enable-cache: true
                   cache-dependency-glob: "uv.lock"
 
-            - name: Install with fuzz extras
-              run: uv sync --extra fuzz
+            - name: Install with fuzz group
+              run: uv sync --group fuzz
 
             - name: Run fuzzer
               run: |
