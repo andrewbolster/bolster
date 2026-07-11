@@ -210,16 +210,21 @@ def get_latest_dva_publication_url() -> tuple[str, str, datetime]:
     raise DVADataNotFoundError("Could not find any DVA monthly tests publications in the last 6 months")
 
 
-def _parse_month_year(date_str: str) -> datetime | None:
-    """Parse a 'YYYY Month' string into a datetime.
+def _parse_month_year(date_str: str | datetime) -> datetime | None:
+    """Parse a date value into a datetime.
 
     Args:
-        date_str: String like '2024 December' or '2025 January'
+        date_str: String like '2024 December', or a datetime object (openpyxl
+            returns datetime directly from newer DVA Excel files)
 
     Returns:
         datetime object or None if parsing fails
     """
-    if not date_str or not isinstance(date_str, str):
+    if not date_str:
+        return None
+    if isinstance(date_str, datetime):
+        return date_str.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if not isinstance(date_str, str):
         return None
 
     date_str = date_str.strip()
@@ -285,7 +290,7 @@ def parse_vehicle_tests(file_path: str | Path) -> pd.DataFrame:
     # Find the vehicle tests sheet
     sheet_name = None
     for name in wb.sheetnames:
-        if "1_1a" in name and "Veh" in name:
+        if ("1_1a" in name or "1.1a" in name) and "Veh" in name:
             sheet_name = name
             break
 
@@ -304,7 +309,7 @@ def parse_vehicle_tests(file_path: str | Path) -> pd.DataFrame:
         if not date_str or not tests:
             continue
 
-        date = _parse_month_year(str(date_str))
+        date = _parse_month_year(date_str)
         if not date:
             continue
 
@@ -369,7 +374,7 @@ def parse_driver_tests(file_path: str | Path) -> pd.DataFrame:
     # Find the driver tests sheet
     sheet_name = None
     for name in wb.sheetnames:
-        if "2_1" in name and "Driver" in name:
+        if ("2_1" in name or "2.1" in name) and "Driver" in name:
             sheet_name = name
             break
 
@@ -388,7 +393,7 @@ def parse_driver_tests(file_path: str | Path) -> pd.DataFrame:
         if not date_str or not tests:
             continue
 
-        date = _parse_month_year(str(date_str))
+        date = _parse_month_year(date_str)
         if not date:
             continue
 
@@ -453,7 +458,7 @@ def parse_theory_tests(file_path: str | Path) -> pd.DataFrame:
     # Find the theory tests sheet
     sheet_name = None
     for name in wb.sheetnames:
-        if "3_1" in name and "Theory" in name:
+        if ("3_1" in name or "3.1" in name) and "Theory" in name:
             sheet_name = name
             break
 
@@ -472,7 +477,7 @@ def parse_theory_tests(file_path: str | Path) -> pd.DataFrame:
         if not date_str or not tests:
             continue
 
-        date = _parse_month_year(str(date_str))
+        date = _parse_month_year(date_str)
         if not date:
             continue
 
