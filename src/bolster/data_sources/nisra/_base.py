@@ -1,6 +1,7 @@
 """Common utilities for NISRA data sources."""
 
 import logging
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -263,7 +264,7 @@ def parse_month_year(month_str: str, format: str = "%B %Y") -> pd.Timestamp | No
 
     try:
         return pd.to_datetime(month_str, format=format)
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, re.error):
         return None
 
 
