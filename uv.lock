@@ -2048,15 +2048,15 @@ wheels = [
 
 [[package]]
 name = "plotly"
-version = "6.8.0"
+version = "6.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "narwhals" },
     { name = "packaging" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/94/fd/d72c292d78aadb93d1a9bcd76bf3c678271040c7cf10abe5788b33040a39/plotly-6.8.0.tar.gz", hash = "sha256:e088e7ddc68d4f70e3d66659224727a45296d71d2b8284181862d3d8f1f0d88f", size = 6915161, upload-time = "2026-06-03T18:33:40.226Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/96/07/795c79dbce40c39bece88e69d049babbd23ffa95b5d117f248db8ea03abb/plotly-6.9.0.tar.gz", hash = "sha256:967ad33e8c704fed051800d11d985eb206a9c795c14206b30a6f463ed9c67d0d", size = 6919903, upload-time = "2026-07-09T14:55:59.982Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f9/14/abe5ce876ab5b66ee3c691bf537fcd43d037aea55d447aacf74630a8f31e/plotly-6.8.0-py3-none-any.whl", hash = "sha256:13c5c4a0f70b74cab1913eda0de49b826df5931708eb6f9c3010040614700ec8", size = 9902055, upload-time = "2026-06-03T18:33:34.26Z" },
+    { url = "https://files.pythonhosted.org/packages/24/18/d8544811ab076f876c4892b3714f5b0dad335e1dc33aef826df431b8325d/plotly-6.9.0-py3-none-any.whl", hash = "sha256:36bebe2f1bb13884774fe61689c329071446f6ce4a8927fb1f0d6fb24f581236", size = 9909646, upload-time = "2026-07-09T14:55:55.421Z" },
 ]
 
 [[package]]
@@ -3057,16 +3057,18 @@ wheels = [
 
 [[package]]
 name = "sphinx-github-changelog"
-version = "1.7.2"
+version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "docutils" },
-    { name = "requests" },
+    { name = "httpx" },
+    { name = "myst-parser" },
     { name = "sphinx" },
+    { name = "tenacity" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/04/8a/e3b943c59927280c9c5bfb94064845a57f36bc2e021435adbfb7d3ecca1f/sphinx_github_changelog-1.7.2.tar.gz", hash = "sha256:79f11f30ec5b1ae52a1742a6dc702644203b164732a1af4b049ebe522ff484e4", size = 78662, upload-time = "2026-03-23T21:49:45.238Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e6/f0/806d02d9a28a5a36ce7bb01dd38ca086e50d2732615435276dbdd2333657/sphinx_github_changelog-2.3.0.tar.gz", hash = "sha256:704a6dfca5426b70b0bbcfb426937cb900935a69c0343690af8602bd50d100f8", size = 84798, upload-time = "2026-05-27T00:21:15.445Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/81/6c/d8db14cbf2171cae049660eacddf858a35818343e618b442993a8b0a8885/sphinx_github_changelog-1.7.2-py3-none-any.whl", hash = "sha256:fef384fb9b60bfb8f1c4cc5941dab674b0e52456cd3fe05ef2c763833054d680", size = 11416, upload-time = "2026-03-23T21:49:43.74Z" },
+    { url = "https://files.pythonhosted.org/packages/d5/3a/961b4ebaaed1ef8d4df52d9dc376c540cc22c5bb6c9f1c09f2d735e04665/sphinx_github_changelog-2.3.0-py3-none-any.whl", hash = "sha256:6f4d2ffe2dd4dc0c8980b1bc3fbfced5454c9224d15a4b367ebee6c14e5edd5f", size = 14252, upload-time = "2026-05-27T00:21:14.173Z" },
 ]
 
 [[package]]
