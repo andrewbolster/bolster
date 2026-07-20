@@ -14,6 +14,7 @@ from bolster.utils.html_tables import (
     make_html_table,
     make_nested_column_html_table_header,
     parse_html_table_data,
+    table_walker,
 )
 
 
@@ -363,3 +364,54 @@ class TestParseHtmlTableData:
         }
         with pytest.raises(KeyError):
             parse_html_table_data(table_data, index_by="record")
+
+    def test_inconsistent_column_heights_raises_value_error(self):
+        """ValueError when a data row omits a column so one leaf ends up shorter."""
+        table_data = {
+            0: {0: "", 1: "A", 2: "B"},
+            1: {0: 0, 1: 10, 2: 20},
+            2: {0: 1, 1: 11},  # missing column 2 — B leaf will be shorter
+        }
+        with pytest.raises(ValueError, match="not the same height"):
+            parse_html_table_data(table_data, index_by="record")
+
+
+class TestTableWalkerDirect:
+    """Direct unit tests for table_walker edge cases not reached by round-trip tests."""
+
+    def test_col_min_skips_and_last_col_recurses(self):
+        """Line 71 (col_min skip) and line 92 (else-recurse for last col) fire
+        when the last column in a header row is NOT the global max key."""
+        # Row 0 ends at col 2, but row 1 has a col at index 3 (max_key=3).
+        # 'b' is last in row 0 with _w=None and _id=2 != max_key=3 → line 92.
+        # The recursive call for 'b' has col_min=1; row 1's col 1 satisfies
+        # _id <= col_min (1<=1) → line 71 fires and skips it.
+        table_data = {
+            0: {0: "", 1: "a", 2: "b"},
+            1: {1: "x", 2: "y", 3: "z"},
+        }
+        result = table_walker(table_data, row_index=0)
+        assert result == {"": [], "a": [], "b": {"y": [], "z": []}}
+
+    def test_empty_schema_returned_as_list(self):
+        """Line 95 fires when all child-row columns fall outside col_max."""
+        # 'grp' spans cols 0-4 (width=5); the recursive call on row 1 has
+        # col_max=4, but row 1 only has cols 6 and 7 — both > col_max.
+        # The recursive loop body never runs, leaving schema={}, which becomes [].
+        table_data = {
+            0: {0: "grp", 5: "other"},
+            1: {6: "x", 7: "y"},
+        }
+        result = table_walker(table_data, row_index=0)
+        assert result["grp"] == []
+
+
+class TestIterateTablesBareRows:
+    """Tests for <table> elements whose direct children are bare <tr> rows
+    (no <tbody> wrapper), exercising the else-branch in parse_table_data."""
+
+    def test_header_only_bare_tr_table_yields_placeholder_row(self):
+        """A bare-tr table with only a header row synthesises one empty-string row."""
+        html = "<table><tr><th>name</th><th>score</th></tr></table>"
+        parsed = next(iterate_tables(html))
+        assert parsed == [{"name": "", "score": ""}]
