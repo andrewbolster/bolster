@@ -48,7 +48,7 @@ jobs:
               with:
                   python-version: ${{ matrix.python-version }}
             - name: Install uv and set the python version
-              uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9  # v7
+              uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7
               with:
                   python-version: ${{ matrix.python-version }}
                   enable-cache: true
@@ -77,13 +77,13 @@ jobs:
               run: uv run pytest tests --cov-branch --cov-report=xml --cov=bolster --cov --junitxml=junit.xml -o junit_family=legacy
 
             - name: Upload coverage reports to Codecov
-              uses: codecov/codecov-action@a99c28d3f0da835de33ff2feb2e15691c7b9641f  # v7
+              uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v7
               with:
                   token: ${{ secrets.CODECOV_TOKEN }}
 
             - name: Upload test results to Codecov
               if: ${{ !cancelled() }}
-              uses: codecov/codecov-action@a99c28d3f0da835de33ff2feb2e15691c7b9641f  # v7
+              uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v7
               with:
                   report_type: test_results
                   token: ${{ secrets.CODECOV_TOKEN }}
