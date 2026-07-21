@@ -221,6 +221,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Child Protection Statistics | `health_ni.child_protection` | ✅ |
 | NI Planning Activity Statistics (DfI) | `nisra.planning_statistics` | ✅ |
 | NI Housing Stock Statistics (DoF/LPS) | `nisra.housing_stock` | ✅ |
+| NI Homelessness Bulletin (DfC/NIHE) | `nisra.homelessness` | ✅ |
 | Registrar General Quarterly Tables | `nisra.registrar_general` | ✅ |
 | Tourism - Hotel Occupancy | `nisra.tourism.occupancy` | ✅ |
 | Tourism - SSA Occupancy | `nisra.tourism.occupancy` | ✅ |

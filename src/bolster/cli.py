@@ -39,6 +39,7 @@ from .data_sources.nisra import construction_output as nisra_construction
 from .data_sources.nisra import deaths as nisra_deaths
 from .data_sources.nisra import deprivation as nisra_deprivation
 from .data_sources.nisra import drug_related_deaths as nisra_drug_related_deaths
+from .data_sources.nisra import homelessness as nisra_homelessness
 from .data_sources.nisra import housing_stock as nisra_housing_stock
 from .data_sources.nisra import index_of_production as nisra_iop
 from .data_sources.nisra import index_of_services as nisra_ios
@@ -6154,6 +6155,81 @@ def nisra_housing_stock_cmd(geo, year_filter, output_format, force_refresh, save
         raise click.Abort() from e
 
 
+@nisra.command(name="homelessness")
+@click.option(
+    "--section",
+    type=click.Choice(["presentations", "acceptances", "all"], case_sensitive=False),
+    default="presentations",
+    help="Data section to return (default: presentations)",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_homelessness_cmd(section, output_format, force_refresh, save):  # pragma: no cover
+    """NI Homelessness Bulletin Statistics (DfC / NIHE).
+
+    Biannual homelessness presentations and acceptances by Local Government
+    District (LGD) and six-month period (Apr–Sep, Oct–Mar).
+    Coverage: 2018/19 to present.
+
+    Examples:
+        Presentations by LGD (default)::
+
+            bolster nisra homelessness
+
+        Acceptances data::
+
+            bolster nisra homelessness --section acceptances
+
+        Both sections combined::
+
+            bolster nisra homelessness --section all
+
+        Save to JSON::
+
+            bolster nisra homelessness --section all --format json --save homelessness.json
+
+    Source:
+        https://www.communities-ni.gov.uk/articles/northern-ireland-homelessness-bulletin
+    """
+    console = Console()
+
+    try:
+        with console.status(f"[bold green]Downloading homelessness data (section={section})..."):
+            data = nisra_homelessness.get_latest_data(section=section, force_refresh=force_refresh)
+
+        console.print("[green]Homelessness data retrieved successfully[/green]")
+        console.print(f"[cyan]Rows: {len(data)}[/cyan]")
+        if not data.empty and "year" in data.columns:
+            console.print(f"[dim]Years: {data['year'].min()}–{data['year'].max()}[/dim]")
+
+        if save:
+            if output_format == "json" or save.endswith(".json"):
+                data.to_json(save, orient="records", indent=2)
+            else:
+                data.to_csv(save, index=False)
+            console.print(f"[green]Saved to: {save}[/green]")
+            return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
 @nisra.command(name="baby-names")
 @click.option("--year", type=int, default=None, help="Filter by registration year")
 @click.option(
@@ -7920,6 +7996,7 @@ def list_sources():
     click.echo("  nisra baby-names           Baby name registrations (1997–present)")
     click.echo("  nisra occupancy            Tourism hotel/SSA occupancy surveys")
     click.echo("  nisra visitors             Tourism visitor statistics")
+    click.echo("  nisra homelessness         NI Homelessness Bulletin (DfC/NIHE, biannual)")
 
     click.echo("\nPSNI DATA MODULES (bolster psni <command>)")
     click.echo("  psni rtc                   Road traffic collisions, casualties, vehicles")
