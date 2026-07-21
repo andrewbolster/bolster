@@ -31,13 +31,17 @@ from __future__ import annotations
 import contextlib
 import logging
 import re
+from typing import TYPE_CHECKING
 
 import pandas as pd
 from bs4 import BeautifulSoup
 
 from bolster.utils.web import session
 
-from ._base import NISRAValidationError, download_file
+from ._base import NISRADataNotFoundError, NISRAValidationError, download_file  # noqa: F401
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +85,7 @@ def get_latest_publication_url() -> str:
         True
     """
     try:
-        response = session.get(_HUB_URL, timeout=30)
+        response = session.get(_HUB_URL)
         response.raise_for_status()
         soup = BeautifulSoup(response.content, "html.parser")
 
@@ -100,7 +104,7 @@ def get_latest_publication_url() -> str:
                 if "homelessness-bulletin" in href.lower() and "publications" in href.lower():
                     if href.startswith("/"):
                         href = f"https://www.communities-ni.gov.uk{href}"
-                    pub_resp = session.get(href, timeout=30)
+                    pub_resp = session.get(href)
                     pub_resp.raise_for_status()
                     pub_soup = BeautifulSoup(pub_resp.content, "html.parser")
                     for a2 in pub_soup.find_all("a", href=True):
@@ -133,10 +137,11 @@ def _parse_lgd_period_sheet(sheet_df: pd.DataFrame, value_col_name: str) -> pd.D
     """Parse a homelessness LGD-by-period sheet into long format.
 
     These sheets have a composite header where:
-    - Row 1: year labels (each spanning two data columns via merged cells → NaNs)
-    - Row 2: period labels (same pattern)
-    - Row 3: column descriptions (LGD name, count, rate per 1000, count, rate ...)
-    - Row 4+: one row per LGD, last row = Northern Ireland total
+    - Row 0 (``iloc[0]``): title row, skipped
+    - Row 1 (``iloc[1]``): year labels (each spanning two data columns via merged cells → NaNs)
+    - Row 2 (``iloc[2]``): period labels (same pattern)
+    - Row 3 (``iloc[3]``): column descriptions (LGD name, count, rate per 1000, count, rate ...)
+    - Row 4+ (``iloc[4:]``): one row per LGD, last row = Northern Ireland total
 
     Args:
         sheet_df: Raw DataFrame read with ``header=None``.
@@ -260,7 +265,7 @@ def _normalise_period(period: str) -> str:
     return period
 
 
-def parse_presentations(file_path: str | object) -> pd.DataFrame:
+def parse_presentations(file_path: str | Path) -> pd.DataFrame:
     """Parse the presentations-by-LGD sheet from a homelessness bulletin workbook.
 
     Args:
@@ -280,7 +285,7 @@ def parse_presentations(file_path: str | object) -> pd.DataFrame:
     return _parse_lgd_period_sheet(raw, "presentations")
 
 
-def parse_acceptances(file_path: str | object) -> pd.DataFrame:
+def parse_acceptances(file_path: str | Path) -> pd.DataFrame:
     """Parse the acceptances-by-LGD sheet from a homelessness bulletin workbook.
 
     Args:
@@ -409,6 +414,6 @@ def validate_data(df: pd.DataFrame, section: str = "presentations") -> bool:
     if not ni_rows.empty:
         max_count = ni_rows[count_col].max()
         if max_count < 1000:
-            raise NISRAValidationError(f"NI total {section} implausibly low (max={max_count}); expected >1000")
+            raise NISRAValidationError(f"NI total {count_col} implausibly low (max={max_count}); expected >1000")
 
     return True

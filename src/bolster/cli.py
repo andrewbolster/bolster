@@ -7884,6 +7884,7 @@ def list_sources():
     click.echo("  nisra baby-names           Baby name registrations (1997–present)")
     click.echo("  nisra occupancy            Tourism hotel/SSA occupancy surveys")
     click.echo("  nisra visitors             Tourism visitor statistics")
+    click.echo("  nisra homelessness         NI Homelessness Bulletin (DfC/NIHE, biannual)")
 
     click.echo("\nPSNI DATA MODULES (bolster psni <command>)")
     click.echo("  psni rtc                   Road traffic collisions, casualties, vehicles")

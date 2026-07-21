@@ -11,6 +11,8 @@ Coverage: biannual (Apr–Sep and Oct–Mar), 2018/19 to present.
 
 from __future__ import annotations
 
+import re
+
 import pandas as pd
 import pytest
 
@@ -100,6 +102,10 @@ class TestAcceptancesIntegrity:
     def df(self) -> pd.DataFrame:
         return homelessness.get_latest_data(section="acceptances")
 
+    @pytest.fixture(scope="class")
+    def presentations_df(self) -> pd.DataFrame:
+        return homelessness.get_latest_data(section="presentations")
+
     def test_returns_dataframe(self, df: pd.DataFrame) -> None:
         assert isinstance(df, pd.DataFrame)
         assert not df.empty
@@ -123,10 +129,11 @@ class TestAcceptancesIntegrity:
             f"NI acceptances {count:,} not within 5% of expected {_NI_APR_SEP_2025_ACCEPTANCES:,}"
         )
 
-    def test_acceptances_lte_presentations(self, df: pd.DataFrame) -> None:
+    def test_acceptances_lte_presentations(self, df: pd.DataFrame, presentations_df: pd.DataFrame) -> None:
         """NI-level acceptances must not exceed presentations in any period."""
-        pres = homelessness.get_latest_data(section="presentations")
-        ni_pres = pres[pres["lgd"] == "Northern Ireland"].set_index(["year", "period"])["presentations"]
+        ni_pres = presentations_df[presentations_df["lgd"] == "Northern Ireland"].set_index(["year", "period"])[
+            "presentations"
+        ]
         ni_acc = df[df["lgd"] == "Northern Ireland"].set_index(["year", "period"])["acceptances"]
         shared = ni_pres.index.intersection(ni_acc.index)
         for idx in shared:
@@ -156,6 +163,44 @@ class TestCombinedIntegrity:
 
     def test_no_negative_counts(self, df: pd.DataFrame) -> None:
         assert (df["count"].dropna() >= 0).all()
+
+
+class TestHousingStockCrossValidation:
+    """Cross-validate homelessness rates against housing stock data."""
+
+    @pytest.fixture(scope="class")
+    def presentations(self) -> pd.DataFrame:
+        return homelessness.get_latest_data(section="presentations")
+
+    @pytest.fixture(scope="class")
+    def housing_stock_df(self) -> pd.DataFrame:
+        from bolster.data_sources.nisra import housing_stock
+
+        return housing_stock.get_latest_housing_stock(geo="lgd")
+
+    def test_presentations_per_1000_dwellings_plausible(
+        self, presentations: pd.DataFrame, housing_stock_df: pd.DataFrame
+    ) -> None:
+        """NI total presentations-per-1000-dwellings should be in [5, 50] for each overlapping year."""
+
+        def _first_year(y: str) -> int | None:
+            m = re.match(r"(\d{4})", y)
+            return int(m.group(1)) if m else None
+
+        ni_pres = presentations[presentations["lgd"] == "Northern Ireland"].copy()
+        ni_pres["stock_year"] = ni_pres["year"].map(_first_year)
+        ni_annual = ni_pres.groupby("stock_year")["presentations"].sum()
+
+        ni_hs = housing_stock_df[housing_stock_df["lgd_name"] == "Northern Ireland"].set_index("year")["total"]
+
+        shared_years = ni_annual.index.intersection(ni_hs.index)
+        assert len(shared_years) >= 3, f"Too few overlapping years: {sorted(shared_years)}"
+
+        for yr in shared_years:
+            rate = ni_annual[yr] / ni_hs[yr] * 1000
+            assert 5 <= rate <= 50, (
+                f"Year {yr}: presentations-per-1000-dwellings={rate:.1f} outside expected 5–50 range"
+            )
 
 
 class TestValidationEdgeCases:
