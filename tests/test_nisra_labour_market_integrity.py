@@ -33,9 +33,14 @@ Author: Claude Code
 Date: 2025-12-21
 """
 
+import tempfile
+from pathlib import Path
+
+import openpyxl
 import pytest
 
 from bolster.data_sources.nisra import labour_market
+from bolster.data_sources.nisra.labour_market import NISRADataNotFoundError
 
 
 class TestHelperFunctions:
@@ -682,6 +687,44 @@ class TestMonthlyLMRIntegrity:
         for col in numeric_cols:
             negatives = overview[overview[col] < 0]
             assert len(negatives) == 0, f"Column '{col}' has {len(negatives)} negative values"
+
+
+class TestMonthlyLMRValidation:
+    """Unit tests for parse_monthly_lmr_structure error branches — no network calls."""
+
+    def _make_xlsx(self, sheet_name: str, rows: list) -> Path:
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = sheet_name
+        for row in rows:
+            ws.append(row)
+        tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
+        wb.save(tmp.name)
+        return Path(tmp.name)
+
+    def test_missing_sheet_raises(self):
+        """parse_monthly_lmr_structure raises if sheet '2.1' is absent."""
+        path = self._make_xlsx("wrong_sheet", [["data"]])
+        with pytest.raises(NISRADataNotFoundError, match="Sheet '2.1'"):
+            labour_market.parse_monthly_lmr_structure(path)
+
+    def test_missing_header_row_raises(self):
+        """parse_monthly_lmr_structure raises if 'Rolling monthly quarter' header is absent."""
+        path = self._make_xlsx("2.1", [["Not a header"], ["Some data"]])
+        with pytest.raises(NISRADataNotFoundError, match="header row"):
+            labour_market.parse_monthly_lmr_structure(path)
+
+    def test_no_data_rows_raises(self):
+        """parse_monthly_lmr_structure raises if header is found but no data rows match."""
+        path = self._make_xlsx(
+            "2.1",
+            [
+                ["Rolling monthly quarter", "Pop 16+", "Active", "Employed", "Unemployed", "Inactive"],
+                ["Not a data row", None, None, None, None, None],
+            ],
+        )
+        with pytest.raises(NISRADataNotFoundError, match="No data rows"):
+            labour_market.parse_monthly_lmr_structure(path)
 
 
 class TestMonthlyLMRDiscovery:
