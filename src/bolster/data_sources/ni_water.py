@@ -27,6 +27,7 @@ with support for both current quality data and historical zone mapping.
 
 import csv
 import logging
+import re
 from io import StringIO
 from urllib.error import HTTPError
 
@@ -37,11 +38,44 @@ from bolster.utils.web import session
 
 logger = logging.getLogger(__name__)
 
-# Legacy postcode to zone mapping (still functional)
-POSTCODE_DATASET_URL = "https://admin.opendatani.gov.uk/dataset/38a9a8f1-9346-41a2-8e5f-944d87d9caf2/resource/f2bc12c1-4277-4db5-8bd3-b7bb027cc401/download/postcode-v-zone-lookup-by-year.csv"
+_NIWATER_DATASET_ID = "38a9a8f1-9346-41a2-8e5f-944d87d9caf2"
+_CKAN_API_BASE = "https://admin.opendatani.gov.uk/api/3/action"
 
-# Modern water quality data from OpenDataNI
-WATER_QUALITY_CSV_URL = "https://admin.opendatani.gov.uk/dataset/38a9a8f1-9346-41a2-8e5f-944d87d9caf2/resource/02d85526-c082-482c-b205-a318f97fd18d/download/2024-ni-water-customer-tap-supply-point-results.csv"
+_niwater_resources_cache: list | None = None
+
+
+def _get_niwater_resources() -> list:
+    """Fetch the resource list for the NI Water dataset from the CKAN API."""
+    global _niwater_resources_cache
+    if _niwater_resources_cache is not None:
+        return _niwater_resources_cache
+    r = session.get(f"{_CKAN_API_BASE}/package_show", params={"id": _NIWATER_DATASET_ID})
+    r.raise_for_status()
+    _niwater_resources_cache = r.json()["result"]["resources"]
+    return _niwater_resources_cache
+
+
+def _get_niwater_resource_url(name_fragment: str) -> str:
+    """Return the download URL of the first resource whose name contains name_fragment (case-insensitive)."""
+    fragment_lower = name_fragment.lower()
+    for res in _get_niwater_resources():
+        if fragment_lower in res["name"].lower():
+            return res["url"]
+    raise RuntimeError(f"No NI Water resource found matching '{name_fragment}'")
+
+
+def _get_latest_results_csv_url() -> str:
+    """Return the URL of the most recent annual Customer Tap results CSV."""
+    pattern = re.compile(r"^(\d{4}) NI Water Customer Tap & Authorised Supply Point Results$", re.IGNORECASE)
+    candidates = []
+    for res in _get_niwater_resources():
+        m = pattern.match(res["name"])
+        if m and res["url"].endswith(".csv"):
+            candidates.append((int(m.group(1)), res["url"]))
+    if not candidates:
+        raise RuntimeError("No annual NI Water results CSV found in dataset")
+    return max(candidates)[1]
+
 
 T_HARDNESS = pd.CategoricalDtype(["Soft", "Moderately Soft", "Slightly Hard", "Moderately Hard"], ordered=True)
 
@@ -82,9 +116,10 @@ def get_water_quality_csv_data() -> pd.DataFrame:
     if _water_quality_cache is not None:
         return _water_quality_cache
 
-    logger.info(f"Downloading water quality data from {WATER_QUALITY_CSV_URL}")
+    url = _get_latest_results_csv_url()
+    logger.info(f"Downloading water quality data from {url}")
 
-    with session.get(WATER_QUALITY_CSV_URL, timeout=30) as r:
+    with session.get(url, timeout=30) as r:
         r.raise_for_status()
         _water_quality_cache = pd.read_csv(StringIO(r.text))
 
@@ -211,10 +246,11 @@ def get_postcode_to_water_supply_zone() -> dict[str, str]:
     97
 
     """
-    with session.get(POSTCODE_DATASET_URL, stream=True) as r:
-        lines = (line.decode("utf-8") for line in r.iter_lines())
+    url = _get_niwater_resource_url("Postcode v Zone Lookup")
+    with session.get(url, stream=True) as r:
+        lines = (line.decode("utf-8-sig") for line in r.iter_lines())
         reader = csv.DictReader(lines)
-        keys = reader.fieldnames[:2]  # Take POSTCODE and first year
+        keys = reader.fieldnames[:2]  # POSTCODE and most-recent year column
         zones = dict([row[k] for k in keys] for row in reader)
         if not zones:
             raise RuntimeError("No data found")
