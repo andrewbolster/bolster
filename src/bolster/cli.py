@@ -1945,7 +1945,7 @@ def nisra_drug_related_deaths_cmd(dimension, output_format, force_refresh, save)
 @nisra.command(name="labour-market")
 @click.option(
     "--dimension",
-    type=click.Choice(["employment", "economic_inactivity", "lgd", "all"], case_sensitive=False),
+    type=click.Choice(["employment", "economic_inactivity", "lgd", "overview", "all"], case_sensitive=False),
     default="all",
     help="Which dimension to retrieve (default: all)",
 )
@@ -2007,6 +2007,11 @@ def nisra_labour_market_cmd(dimension, table_deprecated, output_format, force_re
 
     Tables
     ------
+    overview
+        Monthly Labour Market Report summary (Table 2.1a)
+        • Rolling 3-month population/employment/unemployment/inactivity totals
+        • Seasonally adjusted, published monthly
+        • Most current data — typically 2-3 months ahead of quarterly tables
     employment
         Employment by age band and sex (Table 2.15)
         • Percentage distribution across age groups
@@ -2024,7 +2029,7 @@ def nisra_labour_market_cmd(dimension, table_deprecated, output_format, force_re
         • Population 16+, employment rates, economic activity
         • Annual data only (published separately)
     all
-        All quarterly tables (excludes LGD annual data)
+        All quarterly tables plus monthly overview
 
     Definitions
     -----------
@@ -2050,11 +2055,14 @@ def nisra_labour_market_cmd(dimension, table_deprecated, output_format, force_re
         with console.status("[bold green]Downloading latest NISRA labour market data..."):
             if dimension == "all":
                 data = {
+                    "overview": nisra_labour_market.get_latest_labour_market_overview(force_refresh=force_refresh),
                     "employment": nisra_labour_market.get_latest_employment(force_refresh=force_refresh),
                     "economic_inactivity": nisra_labour_market.get_latest_economic_inactivity(
                         force_refresh=force_refresh
                     ),
                 }
+            elif dimension == "overview":
+                data = nisra_labour_market.get_latest_labour_market_overview(force_refresh=force_refresh)
             elif dimension == "employment":
                 data = nisra_labour_market.get_latest_employment(force_refresh=force_refresh)
             elif dimension == "economic_inactivity":
@@ -2070,7 +2078,12 @@ def nisra_labour_market_cmd(dimension, table_deprecated, output_format, force_re
 
             for dim_name, df in data.items():
                 console.print(f"   • {dim_name}: {len(df)} records")
-                if not df.empty and "quarter_period" in df.columns:
+                if not df.empty and "rolling_quarter" in df.columns:
+                    periods = df["rolling_quarter"].tolist()
+                    console.print(
+                        f"     [dim]Time series: {len(periods)} rolling quarters ({periods[0]} to {periods[-1]})[/dim]"
+                    )
+                elif not df.empty and "quarter_period" in df.columns:
                     periods = df["quarter_period"].unique()
                     console.print(f"     [dim]Period: {periods[0]}[/dim]")
                 elif not df.empty and "time_period" in df.columns:
@@ -2082,7 +2095,12 @@ def nisra_labour_market_cmd(dimension, table_deprecated, output_format, force_re
             console.print(f"[green]✅ Retrieved {dimension} dimension successfully[/green]")
             console.print(f"[cyan]📊 Total records: {len(data)}[/cyan]")
             if not data.empty:
-                if "quarter_period" in data.columns:
+                if "rolling_quarter" in data.columns:
+                    periods = data["rolling_quarter"].tolist()
+                    console.print(
+                        f"[dim]Time series: {len(periods)} rolling quarters ({periods[0]} to {periods[-1]})[/dim]"
+                    )
+                elif "quarter_period" in data.columns:
                     periods = data["quarter_period"].unique()
                     console.print(f"[dim]Period: {periods[0]}[/dim]")
                 elif "time_period" in data.columns:
@@ -7885,7 +7903,7 @@ def list_sources():
     click.echo("  nisra population           Annual mid-year population estimates")
     click.echo("  nisra population-projections  Population projections to 2072 (NI + LGD)")
     click.echo("  nisra migration            Migration estimates (derived + official LTI)")
-    click.echo("  nisra labour-market        Quarterly Labour Force Survey (employment)")
+    click.echo("  nisra labour-market        LFS: quarterly employment/inactivity + monthly overview")
     click.echo("  nisra quarterly-employment-survey  Employee jobs by sector (QES)")
     click.echo("  nisra ashe                 Annual earnings survey (10 dimensions)")
     click.echo("  nisra composite-index      NI Composite Economic Index (NICEI)")

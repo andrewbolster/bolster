@@ -466,11 +466,14 @@ def parse_economic_inactivity(file_path: str | Path) -> pd.DataFrame:
     return pd.DataFrame(records)
 
 
-def get_latest_lfs_publication_url() -> tuple[str, str, str]:
+def get_latest_lfs_publication_url(force_refresh: bool = False) -> tuple[str, str, str]:
     """Find the latest Labour Force Survey quarterly tables publication.
 
     Scrapes the NISRA Labour Market statistics mother page to find the most recent
     "Quarterly Labour Force Survey Tables" publication.
+
+    Args:
+        force_refresh: If True, bypass the page-discovery cache as well as the file cache.
 
     Returns:
         Tuple of (excel_file_url, year, quarter)
@@ -492,7 +495,7 @@ def get_latest_lfs_publication_url() -> tuple[str, str, str]:
     mother_page = "https://www.nisra.gov.uk/statistics/labour-market-and-social-welfare"
 
     try:
-        response = session.get(mother_page, timeout=30)
+        response = session.get(mother_page, timeout=30, force_refresh=force_refresh)
         response.raise_for_status()
         soup = BeautifulSoup(response.content, "html.parser")
 
@@ -515,7 +518,7 @@ def get_latest_lfs_publication_url() -> tuple[str, str, str]:
         logger.info(f"Found latest LFS publication: {latest_pub['text']}")
 
         # Now fetch the publication page to get the Excel file
-        pub_response = session.get(latest_pub["url"], timeout=30)
+        pub_response = session.get(latest_pub["url"], timeout=30, force_refresh=force_refresh)
         pub_response.raise_for_status()
         pub_soup = BeautifulSoup(pub_response.content, "html.parser")
 
@@ -605,6 +608,253 @@ def get_latest_lfs_publication_url() -> tuple[str, str, str]:
         raise NISRADataNotFoundError(f"Failed to fetch LFS publication list: {e}") from e
 
 
+# ============================================================================
+# Monthly Labour Market Report (LMR) Functions
+# ============================================================================
+
+_LMR_MONTH_NAMES = [
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+]
+
+
+def get_latest_monthly_lmr_url(force_refresh: bool = False) -> tuple[str, int, int]:
+    """Find the latest monthly Labour Market Report publication URL.
+
+    NISRA publishes a monthly Labour Market Report in addition to the quarterly LFS Tables.
+    Monthly reports are grouped by year on collection pages (e.g.,
+    ``/publications/labour-market-reports-2026``). This function follows the two-hop
+    structure: mother page → yearly collection → latest monthly publication → Excel file.
+
+    The monthly report contains rolling 3-month averages (e.g., "Mar-May 2026") and is
+    typically 2–3 months more current than the quarterly LFS Tables file.
+
+    Args:
+        force_refresh: If True, bypass the page-discovery cache.
+
+    Returns:
+        Tuple of (excel_file_url, year, month_number)
+        - excel_file_url: Full URL to the main LFS tables Excel file
+        - year: Publication year as int (e.g., 2026)
+        - month_number: Publication month as int 1-12 (e.g., 7 for July)
+
+    Raises:
+        NISRADataNotFoundError: If no monthly publication found
+
+    Example:
+        >>> url, year, month = get_latest_monthly_lmr_url()
+        >>> url.startswith('https://')
+        True
+    """
+    from bs4 import BeautifulSoup
+
+    mother_page = "https://www.nisra.gov.uk/statistics/labour-market-and-social-welfare"
+
+    try:
+        response = session.get(mother_page, timeout=30, force_refresh=force_refresh)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.content, "html.parser")
+
+        # Step 1: Find the most recent yearly collection page ("Labour Market Reports - YYYY")
+        collection_url = None
+        for link in soup.find_all("a", href=True):
+            text = link.get_text(strip=True)
+            href = link["href"]
+            if re.match(r"Labour Market Reports\s*-\s*\d{4}", text) and "/publications/labour-market-reports-" in href:
+                collection_url = f"{LFS_BASE_URL}{href}" if href.startswith("/") else href
+                logger.info(f"Found LMR collection page: {text} → {collection_url}")
+                break
+
+        if not collection_url:  # pragma: no cover
+            raise NISRADataNotFoundError("No 'Labour Market Reports - YYYY' collection page found on mother page")
+
+        # Step 2: Find the latest individual monthly report that has a /publications/ page
+        # (earlier months may link to datavis only and have no downloadable Excel)
+        coll_response = session.get(collection_url, timeout=30, force_refresh=force_refresh)
+        coll_response.raise_for_status()
+        coll_soup = BeautifulSoup(coll_response.content, "html.parser")
+
+        monthly_links = []
+        for link in coll_soup.find_all("a", href=True):
+            text = link.get_text(strip=True)
+            href = link["href"]
+            if (
+                re.match(r"Labour Market Report\s*-\s*\w+ \d{4}", text)
+                and "/publications/labour-market-report-" in href
+            ):
+                full_href = f"{LFS_BASE_URL}{href}" if href.startswith("/") else href
+                monthly_links.append({"text": text, "url": full_href})
+
+        if not monthly_links:  # pragma: no cover
+            raise NISRADataNotFoundError(f"No individual monthly LMR publication links found on {collection_url}")
+
+        # Try each month newest-first (collection page lists oldest-first) until we find Excel
+        for pub in reversed(monthly_links):
+            pub_response = session.get(pub["url"], timeout=30, force_refresh=force_refresh)
+            if not pub_response.ok:  # pragma: no cover
+                continue
+            pub_soup = BeautifulSoup(pub_response.content, "html.parser")
+
+            excel_url = None
+            for link in pub_soup.find_all("a", href=True):
+                href = link["href"]
+                if (
+                    "lmr-labour-force-survey-tables-" in href.lower()
+                    and "historical" not in href.lower()
+                    and href.endswith(".xlsx")
+                ):
+                    excel_url = f"{LFS_BASE_URL}{href}" if href.startswith("/") else href
+                    break
+
+            if not excel_url:  # pragma: no cover
+                logger.debug(f"No Excel file on {pub['url']}, trying next month")
+                continue
+
+            # Extract year and month from filename, e.g. lmr-labour-force-survey-tables-july-2026.xlsx
+            filename = excel_url.split("/")[-1]
+            m = re.search(
+                r"lmr-labour-force-survey-tables-(" + "|".join(_LMR_MONTH_NAMES) + r")-(\d{4})\.xlsx",
+                filename.lower(),
+            )
+            if not m:  # pragma: no cover
+                logger.debug(f"Could not parse month/year from filename: {filename}")
+                continue
+
+            month_name = m.group(1)
+            year = int(m.group(2))
+            month_number = _LMR_MONTH_NAMES.index(month_name) + 1
+            logger.info(f"Found monthly LMR Excel: {month_name} {year} at {excel_url}")
+            return (excel_url, year, month_number)
+
+        raise NISRADataNotFoundError(
+            "No downloadable Excel file found in any monthly LMR publication"
+        )  # pragma: no cover
+
+    except NISRADataNotFoundError:
+        raise
+    except Exception as e:  # pragma: no cover
+        raise NISRADataNotFoundError(f"Failed to fetch monthly LMR publication: {e}") from e
+
+
+def parse_monthly_lmr_structure(file_path: str | Path) -> pd.DataFrame:
+    """Parse Table 2.1a: NI Labour Market Structure from the monthly LMR file.
+
+    Extracts the rolling 3-month aggregate labour market summary (age 16+):
+    population, total economically active, total in employment, unemployed,
+    and economically inactive. Data is seasonally adjusted.
+
+    Args:
+        file_path: Path to the monthly LFS tables Excel file.
+
+    Returns:
+        DataFrame with columns:
+            - rolling_quarter: Rolling 3-month period label (e.g., "Mar-May 2026")
+            - population_16plus: Population aged 16 and over (thousands)
+            - economically_active: Total economically active (thousands)
+            - in_employment: Total in employment (thousands)
+            - unemployed: Unemployed (thousands)
+            - economically_inactive: Economically inactive (thousands)
+
+    Example:
+        >>> url, year, month = get_latest_monthly_lmr_url()
+        >>> from bolster.data_sources.nisra._base import download_file
+        >>> path = download_file(url, cache_ttl_hours=30*24)
+        >>> df = parse_monthly_lmr_structure(path)
+        >>> 'in_employment' in df.columns
+        True
+    """
+    wb = load_workbook(file_path, data_only=True)
+
+    if "2.1" not in wb.sheetnames:
+        raise NISRADataNotFoundError("Sheet '2.1' (Labour Market Structure) not found in monthly LMR file")
+
+    sheet = wb["2.1"]
+
+    # Find the header row for Table 2.1a (contains "Rolling monthly quarter")
+    header_row = None
+    for row_idx, row in enumerate(sheet.iter_rows(min_row=1, max_row=15, values_only=True), start=1):
+        if row[0] and "Rolling monthly quarter" in str(row[0]):
+            header_row = row_idx
+            break
+
+    if not header_row:
+        raise NISRADataNotFoundError("Could not find header row in sheet 2.1")
+
+    records = []
+    for row in sheet.iter_rows(min_row=header_row + 1, values_only=True):
+        period = row[0]
+        # Stop at empty rows or annotation rows (e.g., "Change on quarter")
+        if not period or not re.match(r"[A-Z][a-z]+-[A-Z][a-z]+ \d{4}", str(period)):
+            break
+
+        pop = safe_int(row[1])
+        active = safe_int(row[2])
+        employed = safe_int(row[3])
+        unemployed = safe_int(row[4])
+        inactive = safe_int(row[5])
+
+        records.append(
+            {
+                "rolling_quarter": str(period).strip(),
+                "population_16plus": pop,
+                "economically_active": active,
+                "in_employment": employed,
+                "unemployed": unemployed,
+                "economically_inactive": inactive,
+            }
+        )
+
+    if not records:
+        raise NISRADataNotFoundError("No data rows found in sheet 2.1")
+
+    return pd.DataFrame(records)
+
+
+def get_latest_labour_market_overview(force_refresh: bool = False) -> pd.DataFrame:
+    """Get the latest monthly Labour Market Report overview data.
+
+    Downloads the most recently published monthly Labour Market Report and returns
+    the rolling 3-month labour market structure summary (Table 2.1a). This data is
+    published monthly and is typically 2–3 months more current than the quarterly
+    LFS Tables.
+
+    Args:
+        force_refresh: If True, bypass both the page-discovery and file caches.
+
+    Returns:
+        DataFrame with columns:
+            - rolling_quarter: Rolling 3-month label (e.g., "Mar-May 2026")
+            - population_16plus: Population aged 16+ (thousands, seasonally adjusted)
+            - economically_active: Total economically active (thousands)
+            - in_employment: Total in employment (thousands)
+            - unemployed: Unemployed (thousands)
+            - economically_inactive: Economically inactive (thousands)
+
+    Example:
+        >>> df = get_latest_labour_market_overview()
+        >>> 'in_employment' in df.columns
+        True
+        >>> len(df) > 0
+        True
+    """
+    excel_url, year, month = get_latest_monthly_lmr_url(force_refresh=force_refresh)
+    logger.info(f"Downloading monthly LMR: month {month} of {year}")
+
+    # Monthly reports change monthly; cache for 30 days
+    file_path = download_file(excel_url, cache_ttl_hours=30 * 24, force_refresh=force_refresh)
+    return parse_monthly_lmr_structure(file_path)
+
+
 def get_latest_employment(force_refresh: bool = False) -> pd.DataFrame:
     """Get the latest quarterly employment data by age and sex.
 
@@ -626,7 +876,7 @@ def get_latest_employment(force_refresh: bool = False) -> pd.DataFrame:
         True
     """
     # Discover latest publication from NISRA website
-    excel_url, year, quarter = get_latest_lfs_publication_url()
+    excel_url, year, quarter = get_latest_lfs_publication_url(force_refresh=force_refresh)
 
     # Download directly using the discovered URL
     logger.info(f"Downloading latest LFS data: {quarter} {year}")
@@ -656,7 +906,7 @@ def get_latest_economic_inactivity(force_refresh: bool = False) -> pd.DataFrame:
         True
     """
     # Discover latest publication from NISRA website
-    excel_url, year, quarter = get_latest_lfs_publication_url()
+    excel_url, year, quarter = get_latest_lfs_publication_url(force_refresh=force_refresh)
 
     # Download directly using the discovered URL
     logger.info(f"Downloading latest LFS data: {quarter} {year}")
