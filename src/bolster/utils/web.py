@@ -116,6 +116,7 @@ class CachingSession(requests.Session):
 
     def get(self, url, **kwargs):  # noqa: D102
         kwargs.setdefault("timeout", DEFAULT_TIMEOUT)
+        force_refresh = kwargs.pop("force_refresh", False)
         if kwargs.get("params"):
             return super().get(url, **kwargs)
 
@@ -123,6 +124,10 @@ class CachingSession(requests.Session):
         url_hash = hashlib.md5(url.encode(), usedforsecurity=False).hexdigest()
         cache_path = _PAGE_CACHE_DIR / f"{url_hash}.html"
         cache_404_path = _PAGE_CACHE_DIR / f"{url_hash}.404"
+
+        if force_refresh:
+            cache_path.unlink(missing_ok=True)
+            cache_404_path.unlink(missing_ok=True)
 
         now = datetime.now()
 
