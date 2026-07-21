@@ -33,9 +33,14 @@ Author: Claude Code
 Date: 2025-12-21
 """
 
+import tempfile
+from pathlib import Path
+
+import openpyxl
 import pytest
 
 from bolster.data_sources.nisra import labour_market
+from bolster.data_sources.nisra.labour_market import NISRADataNotFoundError
 
 
 class TestHelperFunctions:
@@ -589,3 +594,159 @@ class TestLGDEmploymentIntegrity:
     def test_no_duplicates(self, latest_lgd_employment):
         """Test that there are no duplicate LGD rows."""
         assert not latest_lgd_employment["lgd"].duplicated().any()
+
+
+class TestMonthlyLMRIntegrity:
+    """Test suite for monthly Labour Market Report overview data (Table 2.1a).
+
+    Validates the rolling 3-month summary from the monthly LMR publication track,
+    which is published more frequently and more recently than the quarterly LFS Tables.
+    """
+
+    @pytest.fixture(scope="class")
+    def overview(self):
+        """Fetch latest monthly LMR overview once for the test class."""
+        return labour_market.get_latest_labour_market_overview(force_refresh=False)
+
+    def test_overview_data_exists(self, overview):
+        """Monthly LMR overview must be non-empty."""
+        assert overview is not None
+        assert len(overview) > 0, "Monthly LMR overview should not be empty"
+
+    def test_required_columns(self, overview):
+        """Must contain all expected columns."""
+        expected = {
+            "rolling_quarter",
+            "population_16plus",
+            "economically_active",
+            "in_employment",
+            "unemployed",
+            "economically_inactive",
+        }
+        assert expected.issubset(set(overview.columns)), (
+            f"Missing columns. Expected: {expected}, Got: {set(overview.columns)}"
+        )
+
+    def test_rolling_quarter_format(self, overview):
+        """Rolling quarter labels must match expected pattern (e.g. 'Mar-May 2025')."""
+        import re
+
+        for label in overview["rolling_quarter"]:
+            assert re.match(r"[A-Z][a-z]+-[A-Z][a-z]+ \d{4}", label), (
+                f"Unexpected rolling quarter format: {label!r}"
+            )
+
+    def test_at_least_one_year_of_data(self, overview):
+        """Must cover at least 6 rolling monthly quarters (roughly half a year)."""
+        assert len(overview) >= 6, f"Expected ≥6 rows, got {len(overview)}"
+
+    def test_population_plausible(self, overview):
+        """NI population 16+ should be roughly 1.4–1.7M."""
+        for val in overview["population_16plus"].dropna():
+            assert 1_400_000 <= val <= 1_700_000, (
+                f"Population 16+ value {val:,} outside plausible range [1.4M, 1.7M]"
+            )
+
+    def test_employment_within_population(self, overview):
+        """In-employment must be less than total population 16+."""
+        for _, row in overview.iterrows():
+            if row["in_employment"] and row["population_16plus"]:
+                assert row["in_employment"] < row["population_16plus"], (
+                    f"In-employment ({row['in_employment']:,}) ≥ population ({row['population_16plus']:,})"
+                    f" in {row['rolling_quarter']}"
+                )
+
+    def test_active_plus_inactive_equals_population(self, overview):
+        """Economically active + inactive must equal total population 16+."""
+        for _, row in overview.iterrows():
+            active = row["economically_active"]
+            inactive = row["economically_inactive"]
+            pop = row["population_16plus"]
+            if active and inactive and pop:
+                diff = abs((active + inactive) - pop)
+                assert diff <= 2000, (
+                    f"{row['rolling_quarter']}: active ({active:,}) + inactive ({inactive:,})"
+                    f" = {active + inactive:,}, population = {pop:,}, diff = {diff:,}"
+                )
+
+    def test_employed_within_active(self, overview):
+        """In-employment must be ≤ total economically active."""
+        for _, row in overview.iterrows():
+            if row["in_employment"] and row["economically_active"]:
+                assert row["in_employment"] <= row["economically_active"], (
+                    f"{row['rolling_quarter']}: in_employment ({row['in_employment']:,})"
+                    f" > economically_active ({row['economically_active']:,})"
+                )
+
+    def test_no_negative_values(self, overview):
+        """All numeric columns must be non-negative."""
+        numeric_cols = [
+            "population_16plus", "economically_active", "in_employment",
+            "unemployed", "economically_inactive",
+        ]
+        for col in numeric_cols:
+            negatives = overview[overview[col] < 0]
+            assert len(negatives) == 0, f"Column '{col}' has {len(negatives)} negative values"
+
+
+class TestMonthlyLMRValidation:
+    """Unit tests for parse_monthly_lmr_structure error branches — no network calls."""
+
+    def _make_xlsx(self, sheet_name: str, rows: list) -> Path:
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = sheet_name
+        for row in rows:
+            ws.append(row)
+        tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
+        wb.save(tmp.name)
+        return Path(tmp.name)
+
+    def test_missing_sheet_raises(self):
+        """parse_monthly_lmr_structure raises if sheet '2.1' is absent."""
+        path = self._make_xlsx("wrong_sheet", [["data"]])
+        with pytest.raises(NISRADataNotFoundError, match="Sheet '2.1'"):
+            labour_market.parse_monthly_lmr_structure(path)
+
+    def test_missing_header_row_raises(self):
+        """parse_monthly_lmr_structure raises if 'Rolling monthly quarter' header is absent."""
+        path = self._make_xlsx("2.1", [["Not a header"], ["Some data"]])
+        with pytest.raises(NISRADataNotFoundError, match="header row"):
+            labour_market.parse_monthly_lmr_structure(path)
+
+    def test_no_data_rows_raises(self):
+        """parse_monthly_lmr_structure raises if header is found but no data rows match."""
+        path = self._make_xlsx(
+            "2.1",
+            [
+                ["Rolling monthly quarter", "Pop 16+", "Active", "Employed", "Unemployed", "Inactive"],
+                ["Not a data row", None, None, None, None, None],
+            ],
+        )
+        with pytest.raises(NISRADataNotFoundError, match="No data rows"):
+            labour_market.parse_monthly_lmr_structure(path)
+
+
+class TestMonthlyLMRDiscovery:
+    """Test the monthly LMR URL discovery function."""
+
+    def test_discovery_returns_tuple(self):
+        """get_latest_monthly_lmr_url must return (url, year, month_number)."""
+        result = labour_market.get_latest_monthly_lmr_url()
+        assert isinstance(result, tuple)
+        assert len(result) == 3
+
+    def test_discovery_url_is_xlsx(self):
+        """Discovered URL must point to an .xlsx file."""
+        url, _, _ = labour_market.get_latest_monthly_lmr_url()
+        assert url.endswith(".xlsx"), f"Expected .xlsx URL, got: {url}"
+
+    def test_discovery_year_reasonable(self):
+        """Discovered year must be recent."""
+        _, year, _ = labour_market.get_latest_monthly_lmr_url()
+        assert 2023 <= year <= 2030, f"Year {year} outside expected range"
+
+    def test_discovery_month_valid(self):
+        """Discovered month must be 1–12."""
+        _, _, month = labour_market.get_latest_monthly_lmr_url()
+        assert 1 <= month <= 12, f"Month {month} outside 1–12 range"
