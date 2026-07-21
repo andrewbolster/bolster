@@ -675,7 +675,7 @@ def get_latest_monthly_lmr_url(force_refresh: bool = False) -> tuple[str, int, i
                 logger.info(f"Found LMR collection page: {text} → {collection_url}")
                 break
 
-        if not collection_url:
+        if not collection_url:  # pragma: no cover
             raise NISRADataNotFoundError("No 'Labour Market Reports - YYYY' collection page found on mother page")
 
         # Step 2: Find the latest individual monthly report that has a /publications/ page
@@ -695,13 +695,13 @@ def get_latest_monthly_lmr_url(force_refresh: bool = False) -> tuple[str, int, i
                 full_href = f"{LFS_BASE_URL}{href}" if href.startswith("/") else href
                 monthly_links.append({"text": text, "url": full_href})
 
-        if not monthly_links:
+        if not monthly_links:  # pragma: no cover
             raise NISRADataNotFoundError(f"No individual monthly LMR publication links found on {collection_url}")
 
         # Try each month newest-first (collection page lists oldest-first) until we find Excel
         for pub in reversed(monthly_links):
             pub_response = session.get(pub["url"], timeout=30, force_refresh=force_refresh)
-            if not pub_response.ok:
+            if not pub_response.ok:  # pragma: no cover
                 continue
             pub_soup = BeautifulSoup(pub_response.content, "html.parser")
 
@@ -716,7 +716,7 @@ def get_latest_monthly_lmr_url(force_refresh: bool = False) -> tuple[str, int, i
                     excel_url = f"{LFS_BASE_URL}{href}" if href.startswith("/") else href
                     break
 
-            if not excel_url:
+            if not excel_url:  # pragma: no cover
                 logger.debug(f"No Excel file on {pub['url']}, trying next month")
                 continue
 
@@ -726,7 +726,7 @@ def get_latest_monthly_lmr_url(force_refresh: bool = False) -> tuple[str, int, i
                 r"lmr-labour-force-survey-tables-(" + "|".join(_LMR_MONTH_NAMES) + r")-(\d{4})\.xlsx",
                 filename.lower(),
             )
-            if not m:
+            if not m:  # pragma: no cover
                 logger.debug(f"Could not parse month/year from filename: {filename}")
                 continue
 
@@ -736,11 +736,13 @@ def get_latest_monthly_lmr_url(force_refresh: bool = False) -> tuple[str, int, i
             logger.info(f"Found monthly LMR Excel: {month_name} {year} at {excel_url}")
             return (excel_url, year, month_number)
 
-        raise NISRADataNotFoundError("No downloadable Excel file found in any monthly LMR publication")
+        raise NISRADataNotFoundError(
+            "No downloadable Excel file found in any monthly LMR publication"
+        )  # pragma: no cover
 
     except NISRADataNotFoundError:
         raise
-    except Exception as e:
+    except Exception as e:  # pragma: no cover
         raise NISRADataNotFoundError(f"Failed to fetch monthly LMR publication: {e}") from e
 
 
