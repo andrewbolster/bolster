@@ -8,501 +8,223 @@
 ![Documentation](https://img.shields.io/readthedocs/bolster?style=for-the-badge)
 [![Ruff](https://img.shields.io/badge/Code%20Quality-Ruff-red?logo=ruff&logoColor=white&style=for-the-badge)](https://github.com/astral-sh/ruff)
 [![uv](https://img.shields.io/badge/Package%20Manager-uv-green?logo=python&logoColor=white&style=for-the-badge)](https://github.com/astral-sh/uv)
-[![Pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white&style=for-the-badge)](https://pre-commit.com/)
 
-> **Bolster's Brain, you've been warned** 🧠
+A Python library for accessing Northern Ireland and UK government open data.
+Covers population, health, crime, economy, transport, housing, and more —
+each source normalised into a clean pandas DataFrame with a matching CLI command.
 
-A comprehensive Python utility library for data science, web scraping, cloud services, and general development workflows. Originally designed as a personal toolkit, Bolster has evolved into a robust collection of utilities that enhance productivity across data analysis, system administration, and software development tasks.
+**Full documentation**: [bolster.readthedocs.io](https://bolster.readthedocs.io)
 
-## 🚀 Quick Start
+______________________________________________________________________
 
-### Installation
+## Installation
 
 ```bash
 pip install bolster
 ```
 
-### Basic Usage
-
-```python
-import bolster
-
-# Efficient data processing with built-in progress tracking
-data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-results = bolster.poolmap(lambda x: x**2, data)
-print(results)  # {1: 1, 2: 4, 3: 9, 4: 16, ...}
-
-
-# Smart retry logic with exponential backoff
-@bolster.backoff(Exception, tries=3, delay=1, backoff=2)
-def unreliable_api_call():
-    # Your potentially failing code here
-    return "Success!"
-
-
-# Efficient tree/dict navigation
-nested_data = {
-    "users": {
-        "active": [{"name": "Alice", "age": 25}, {"name": "Bob", "age": 30}],
-        "inactive": [{"name": "Charlie", "age": 35}],
-    }
-}
-
-# Find all ages recursively
-ages = bolster.get_recursively(nested_data, "age")
-print(ages)  # [25, 30, 35]
-
-# Flatten nested structures
-flat = bolster.flatten_dict(nested_data)
-print(flat["users:active:0:name"])  # 'Alice'
-```
-
-## 🎯 Core Features
-
-### Concurrency & Performance
-
-- **`poolmap()`**: ThreadPoolExecutor wrapper with progress monitoring and robust error handling
-- **`exceptional_executor()`**: Graceful handling of failed futures in concurrent operations
-- **`backoff()`**: Exponential backoff retry decorator for unreliable operations
-- **`memoize()`**: Instance method caching with hit/miss tracking for performance optimization
-
-### Data Processing & Transformation
-
-- **`aggregate()`**: Pandas-like groupby operations for dictionaries and lists
-- **`transform_()`**: Flexible data transformation with key mapping and function application
-- **`batch()` / `chunks()`**: Efficient sequence partitioning for processing large datasets
-- **Compression utilities**: `compress_for_relay()` / `decompress_from_relay()` for data serialization
-
-### Tree & Dictionary Navigation
-
-- **`get_recursively()`**: Extract values from deeply nested structures by key
-- **`flatten_dict()`**: Convert nested dictionaries to flat key-value pairs
-- **Tree analysis**: `breadth()`, `depth()`, `leaves()`, `leaf_paths()` for structure inspection
-- **Path navigation**: `keys_at()`, `items_at()` for level-specific data access
-
-### Development & Debugging
-
-- **`arg_exception_logger()`**: Decorator for debugging function calls with automatic argument logging
-- **`MultipleErrors`**: Accumulate and handle multiple exceptions in complex workflows
-- **`working_directory()`**: Context manager for safe directory operations
-- **`pretty_print_request()`**: HTTP request debugging with automatic auth redaction
-
-## 📊 Data Sources
-
-Bolster includes specialized modules for working with Northern Ireland and UK data sources:
-
-### Northern Ireland Water Quality
-
-```python
-from bolster.data_sources.ni_water import get_water_quality, get_water_quality_by_zone
-
-# Get comprehensive water quality data for all NI supply zones
-df = get_water_quality()
-print(df.shape)  # Shows number of zones and parameters
-
-# Get specific zone data
-zone_data = get_water_quality_by_zone("BALM")  # Belfast Malone area
-print(f"Hardness: {zone_data['NI Hardness Classification']}")
-```
-
-### Electoral Office for Northern Ireland (EONI)
-
-```python
-from bolster.data_sources.eoni import get_election_results
-
-# Get Assembly election results
-results_2016 = get_election_results(2016)
-results_2022 = get_election_results(2022)
-
-# Compare party performance across elections
-comparison = bolster.diff(results_2022, results_2016)
-```
-
-### Companies House Data
-
-```python
-from bolster.data_sources.companies_house import search_companies, get_company_details
-
-# Search for companies
-results = search_companies("Technology")
-
-# Get detailed company information
-company = get_company_details("12345678")  # Company number
-print(f"{company['name']} - Status: {company['status']}")
-```
-
-### UK Met Office
-
-```python
-from bolster.data_sources.metoffice import get_precipitation_data
-
-# Get weather data for a specific location
-weather = get_precipitation_data("Belfast", start_date="2024-01-01", end_date="2024-01-31")
-```
-
-### Northern Ireland House Price Index
-
-```python
-from bolster.data_sources.ni_house_price_index import (
-    get_hpi_trends,
-    get_sales_volumes,
-    get_average_prices,
-)
-
-# Get HPI index trends over time (Q1 2005 - present)
-hpi = get_hpi_trends()
-print(hpi[["Period", "NI House Price Index", "Annual Change"]].tail())
-
-# Get property sales volumes by type
-sales = get_sales_volumes()
-print(f"Total sales in latest quarter: {sales.iloc[-1]['Total']:,}")
-
-# Get average sale prices
-prices = get_average_prices()
-print(f"Current median price: £{prices.iloc[-1]['Simple Median']:,.0f}")
-```
-
-### NISRA Statistics
-
-Comprehensive access to Northern Ireland Statistics and Research Agency (NISRA) data:
-
-```python
-from bolster.data_sources.nisra import population, births, deaths, migration
-
-# Mid-year population estimates by geography and demographics
-pop_df = population.get_latest_population()
-print(f"NI Population: {pop_df['population'].sum():,}")
-
-# Monthly birth registrations
-births_df = births.get_latest_births()
-
-# Weekly death registrations with excess deaths analysis
-deaths_df = deaths.get_latest_deaths()
-
-# Migration estimates derived from demographic components
-migration_df = migration.get_latest_migration()
-```
-
-Additional NISRA modules: `labour_market`, `index_of_production`, `index_of_services`, `construction_output`, `composite_index`, `marriages`, `ashe` (earnings survey), `quarterly_employment_survey`, `stillbirths`.
-
-Department of Health NI modules (under `health_ni`): `emergency_care_waiting_times`, `elective_waiting_times`, `cancer_waiting_times`, `diagnostic_waiting_times`, `disease_prevalence`, `child_protection`.
-
-See [NISRA module documentation](https://bolster.readthedocs.io/en/latest/data_sources/nisra.html) for full API reference.
-
-#### NISRA RSS Feed Coverage
-
-The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-statistics.atom?organisations%5B%5D=northern-ireland-statistics-and-research-agency) tracks new NISRA publications. Current implementation status:
-
-| Publication | Module | Status |
-|-------------|--------|--------|
-| Claimant Count (UC + JSA) | `nisra.claimant_count` | ✅ |
-| Labour Market Statistics | `nisra.labour_market` | ✅ |
-| Weekly/Monthly Deaths | `nisra.deaths` | ✅ |
-| Monthly Births/Stillbirths | `nisra.births` | ✅ |
-| Monthly Marriages & Civil Partnerships | `nisra.marriages` | ✅ |
-| NI Composite Economic Index | `nisra.composite_index` | ✅ |
-| Construction Bulletin | `nisra.construction_output` | ✅ |
-| Index of Production | `nisra.index_of_production` | ✅ |
-| Index of Services | `nisra.index_of_services` | ✅ |
-| Quarterly Employment Survey | `nisra.quarterly_employment_survey` | ✅ |
-| Emergency Care Waiting Times | `health_ni.emergency_care_waiting_times` | ✅ |
-| Elective/Outpatient Waiting Times | `health_ni.elective_waiting_times` | ✅ |
-| Monthly Stillbirths | `nisra.stillbirths` | ✅ |
-| Population Estimates | `nisra.population` | ✅ |
-| Migration Estimates (Derived + Official LTI) | `nisra.migration` | ✅ |
-| Population Projections (NI-level, biennial vintage) | `nisra.population_projections` | ✅ |
-| Population Projections — LGD sub-areas (2022-based, 2022–2047) | `nisra.population_projections` | ✅ |
-| Annual Survey of Hours & Earnings | `nisra.ashe` | ✅ |
-| DVA Monthly Tests Statistics | `dva` | ✅ |
-| UK Gender Pay Gap Reporting | `gender_pay_gap` | ✅ |
-| Individual Wellbeing | `nisra.wellbeing` | ✅ |
-| Cancer Waiting Times | `health_ni.cancer_waiting_times` | ✅ |
-| Diagnostic Waiting Times | `health_ni.diagnostic_waiting_times` | ✅ |
-| Child Protection Statistics | `health_ni.child_protection` | ✅ |
-| NI Planning Activity Statistics (DfI) | `nisra.planning_statistics` | ✅ |
-| NI Housing Stock Statistics (DoF/LPS) | `nisra.housing_stock` | ✅ |
-| Registrar General Quarterly Tables | `nisra.registrar_general` | ✅ |
-| Tourism - Hotel Occupancy | `nisra.tourism.occupancy` | ✅ |
-| Tourism - SSA Occupancy | `nisra.tourism.occupancy` | ✅ |
-| Tourism - Visitor Statistics | `nisra.tourism.visitor_statistics` | ✅ |
-| Baby Names NI (annual, 1997–present) | `nisra.baby_names` | ✅ |
-| NI School Suspensions (DE) | `education_suspensions` | ✅ |
-| NICTS Mortgages Action for Possession (DoJ) | `justice.mortgages` | ✅ |
-| Work Quality NI (NISRA) | `nisra.work_quality` | ✅ |
-| NI LAC Municipal Waste Statistics (DAERA) | `daera_waste` | ✅ |
-| NI Claimant Count (UC + JSA, DfC/ONS) | `nisra.claimant_count` | ✅ |
-| PSNI Police Ombudsman Complaints | `psni.police_ombudsman` | ✅ |
-| Public Confidence in Official Statistics (NISRA PCOS) | `nisra.public_confidence` | ✅ |
-| Disease Prevalence Registers (PHA/DoH) | `health_ni.disease_prevalence` | ✅ |
-| Drug-Related & Drug Misuse Deaths | `nisra.drug_related_deaths` | ✅ |
-| PSNI Stop & Search (OpenDataNI) | `psni.stop_and_search` | ✅ |
-| PSNI PACE Stop & Search / Arrests | `psni.pace` | ✅ |
-| ONS UK Inflation (CPI / CPIH / RPI) | `ons_cpi` | ✅ |
-| Bank of England Base Rate | `boe_base_rate` | ✅ |
-| NI Assembly — MLAs, Parties, Constituencies | `niassembly.members` | ✅ |
-| NI Assembly — Questions (oral & written, 2007–present) | `niassembly.questions` | ✅ |
-| NI Assembly — Votes/Divisions (per-member records) | `niassembly.votes` | ✅ |
-| NI Business Register (IDBR, annual) | `nisra.business_register` | ✅ |
-| NI Multiple Deprivation Measure 2017 (NIMDM, SOA-level) | `nisra.deprivation` | ✅ |
-| Translink Live Departures & Vehicle Positions | `translink` | ✅ |
-| Security Situation Statistics | - | ❌ Cloudflare-blocked |
-| Anti-social Behaviour | - | ❌ Cloudflare-blocked |
-| Domestic Abuse Incidents/Crimes | - | ❌ Cloudflare-blocked |
-| Drug Seizures & Arrests | - | ❌ Cloudflare-blocked |
-| Hate Incidents & Crimes | - | ❌ Cloudflare-blocked |
-| Road Traffic Collisions | `psni.road_traffic_collisions` | ✅ |
-| PSNI Crime Statistics | `psni.crime_statistics` | ⚠️ historical only (Apr 2001–Dec 2021); `get_latest` raises `PSNIDataStaleError` |
-| Police Ombudsman Complaints | `psni.police_ombudsman` | ✅ |
-| Stop & Search | `psni.stop_and_search` | ✅ |
-| PACE Stop & Search / Arrests | `psni.pace` | ✅ |
-
-#### Infrastructure NI Publication Discovery
-
-The [Infrastructure NI publications portal](https://www.infrastructure-ni.gov.uk/publications) provides advanced filtering capabilities beyond basic publication types. Analysis of the sidebar filtering system reveals additional organizational dimensions that could enhance data source discovery:
-
-**Next Steps Analysis Directions:**
-
-- **Topic categorization**: Publications span transport, environment, planning, and infrastructure domains
-- **Geographic filtering**: Regional breakdown capabilities for localized analysis
-- **Date range analysis**: Historical publication patterns and frequency tracking
-- **Document format analysis**: Structured data availability vs. narrative reports
-- **Cross-departmental integration**: Links with other NI government department publications
-
-This systematic analysis could identify gaps in current DVA coverage and reveal additional structured datasets suitable for bolster integration.
-
-## ☁️ Cloud Services
-
-### AWS Integration
-
-```python
-from bolster.aws import get_session, S3Handler, DynamoHandler
-
-# Get configured AWS session
-session = get_session(profile="production")
-
-# S3 operations with best practices
-s3 = S3Handler(session)
-s3.upload_file("local_file.txt", "bucket-name", "remote/path/file.txt")
-
-# DynamoDB operations
-dynamo = DynamoHandler(session)
-items = dynamo.scan_table("user-data", filters={"status": "active"})
-```
-
-### Azure Integration
-
-```python
-from bolster.azure import AzureHandler
-
-# Azure Blob Storage operations
-azure = AzureHandler(connection_string="DefaultEndpointsProtocol=https;...")
-azure.upload_blob("container", "blob_name", data)
-```
-
-## 🌐 Web Scraping & HTTP
-
-```python
-from bolster.web import safe_request, parse_html_table
-
-# Robust HTTP requests with automatic retries
-response = safe_request("https://api.example.com/data", max_retries=3, timeout=30)
-
-# Parse HTML tables into pandas DataFrames
-tables = parse_html_table("https://example.com/tables")
-print(tables[0].head())  # First table as DataFrame
-```
-
-## 🖥️ Command Line Interface
-
-Bolster includes a CLI for common operations:
-
-```bash
-# Get precipitation data
-bolster get-precipitation --location "Belfast" --start-date "2024-01-01"
-
-# Get help on available commands
-bolster --help
-```
-
-## 🔧 Advanced Examples
-
-### Concurrent Data Processing
-
-```python
-import bolster
-from datetime import datetime
-
-
-# Process large datasets with progress tracking
-def process_user_data(user_id):
-    # Simulate data processing
-    return {"user_id": user_id, "processed_at": datetime.now()}
-
-
-user_ids = range(1000)  # 1000 users to process
-
-# Process with automatic progress bar and error handling
-results = bolster.poolmap(
-    process_user_data,
-    user_ids,
-    max_workers=10,
-    progress=True,  # Shows progress bar
-)
-
-print(f"Processed {len(results)} users successfully")
-```
-
-### Smart Caching and Memoization
-
-```python
-class DataProcessor:
-    @bolster.memoize
-    def expensive_calculation(self, data_hash):
-        # Expensive operation that we want to cache
-        import time
-
-        time.sleep(2)  # Simulate expensive operation
-        return f"Processed: {data_hash}"
-
-
-processor = DataProcessor()
-
-# First call - takes 2 seconds
-result1 = processor.expensive_calculation("abc123")
-
-# Second call with same input - returns immediately from cache
-result2 = processor.expensive_calculation("abc123")
-
-# Check cache performance
-print(f"Cache hits: {len(processor._memoize__hits)}")
-print(f"Cache misses: {len(processor._memoize__misses)}")
-```
-
-### Robust API Integration with Backoff
-
-```python
-import requests
-import bolster
-
-
-@bolster.backoff((requests.RequestException, ConnectionError), tries=5, delay=1, backoff=2)
-def fetch_api_data(url):
-    response = requests.get(url, timeout=10)
-    response.raise_for_status()
-    return response.json()
-
-
-# This will automatically retry with exponential backoff on failure
-data = fetch_api_data("https://api.unreliable-service.com/data")
-```
-
-### Complex Data Transformation
-
-```python
-# Transform API response to database format
-api_response = {
-    "user_name": "john_doe",
-    "user_email": "john@example.com",
-    "account_type": "premium",
-    "signup_timestamp": "2024-01-01T12:00:00Z",
-}
-
-# Define transformation rules
-rules = {
-    "user_name": ("username", str.upper),  # Rename and transform
-    "user_email": ("email", None),  # Keep as-is but rename
-    "account_type": ("tier", lambda x: x.title()),  # Transform value
-    "signup_timestamp": ("created_at", bolster.parse_iso_datetime),
-}
-
-# Apply transformation
-db_record = bolster.transform_(api_response, rules)
-print(db_record)
-# {'username': 'JOHN_DOE', 'email': 'john@example.com',
-#  'tier': 'Premium', 'created_at': datetime(2024, 1, 1, 12, 0, 0)}
-```
-
-## 🏗️ Development Setup
-
-### Prerequisites
-
-- Python 3.9+ (3.10, 3.11, 3.12, 3.13 supported)
-- [uv](https://docs.astral.sh/uv/) (fast Python package manager)
-
-### Installation for Development
-
-```bash
-# Clone the repository
-git clone https://github.com/andrewbolster/bolster.git
-cd bolster
-
-# Install with development dependencies
-uv sync --all-extras --dev
-
-# Install pre-commit hooks
-uv run pre-commit install
-
-# Run tests
-uv run pytest
-
-# Run with coverage
-uv run pytest --cov=bolster --cov-report=html
-
-# Build documentation
-cd docs && uv run make html
-```
-
-### Running Tests
-
-```bash
-# Run all tests
-uv run pytest
-
-# Run with verbose output and coverage
-uv run pytest -v --cov=bolster --cov-report=term-missing
-
-# Run specific test file
-uv run pytest tests/test_core_utilities.py
-
-# Skip network-dependent tests (useful if SSL issues)
-uv run pytest -m "not network"
-```
-
-## 📚 Documentation
-
-- **Full Documentation**: [https://bolster.readthedocs.io](https://bolster.readthedocs.io)
-- **API Reference**: Auto-generated from docstrings
-- **Examples**: See `/notebooks` directory for Jupyter notebook examples
-- **Data Sources**: Detailed documentation for each data source module
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
-
-### Development Guidelines
-
-1. **Testing**: Ensure all new features have comprehensive tests
-1. **Documentation**: Add docstrings and update README for new features
-1. **Code Style**: Follow the existing code style (enforced by ruff)
-1. **Type Hints**: Include type annotations for all public functions
-1. **Performance**: Consider performance implications for data processing functions
-
-## 📄 License
-
-This project is licensed under the GNU General Public License v3 (GPLv3) - see the [LICENSE](https://github.com/andrewbolster/bolster/blob/main/LICENSE) file for details.
-
-## 🐛 Bug Reports
-
-If you encounter any bugs or issues, please file a bug report at:
-[https://github.com/andrewbolster/bolster/issues](https://github.com/andrewbolster/bolster/issues)
-
-## 🔗 Links
-
-- **PyPI**: [https://pypi.org/project/bolster/](https://pypi.org/project/bolster/)
-- **GitHub**: [https://github.com/andrewbolster/bolster](https://github.com/andrewbolster/bolster)
-- **Documentation**: [https://bolster.readthedocs.io](https://bolster.readthedocs.io)
-- **Author**: [Andrew Bolster](https://github.com/andrewbolster)
+Requires Python 3.11+.
 
 ______________________________________________________________________
 
-*Built with ❤️ for data science, automation, and general productivity enhancement.*
+## What can you do with it?
+
+A few examples using real data:
+
+**Who is claiming UC/JSA, and where?**
+
+```python
+from bolster.data_sources.nisra import claimant_count
+
+df = claimant_count.get_latest_claimant_count("lgd")
+# 33,930 claimants across NI as of May 2026
+# Derry City & Strabane has the highest rate at 4.1%
+print(
+    df[df["date"] == df["date"].max()].sort_values("claimant_rate_total_pct", ascending=False)[
+        ["geography", "claimants_total", "claimant_rate_total_pct"]
+    ]
+)
+```
+
+**How many people are on the hypertension register at each GP practice?**
+
+```python
+from bolster.data_sources.health_ni import disease_prevalence
+
+# NI-wide: 304,952 patients on the hypertension register in 2024/25
+summary = disease_prevalence.get_latest_disease_prevalence(level="ni")
+
+# GP-practice level: ~360 practices across ~17 financial years
+gp = disease_prevalence.get_latest_gp_prevalence()
+print(gp[gp["disease"] == "Hypertension"].groupby("financial_year")["registered_patients"].sum())
+```
+
+**How is NI's economy tracking against pre-pandemic levels?**
+
+```python
+from bolster.data_sources.nisra import composite_index
+
+df = composite_index.get_latest_nicei()
+# NICEI at 105.9 in Q1 2026 (base 100 = 2016)
+# Breakdown by sector: services, production, construction, agriculture
+print(df.tail(4)[["year", "quarter", "nicei", "services", "production"]])
+```
+
+**What are A&E waiting times doing across HSC Trusts?**
+
+```python
+from bolster.data_sources.health_ni import emergency_care_waiting_times
+
+df = emergency_care_waiting_times.get_latest_data()
+# Monthly attendance and % seen within 4 hours by Trust and department type
+latest = df[df["date"] == df["date"].max()]
+print(latest.groupby("trust")["pct_within_4hrs"].mean().sort_values())
+```
+
+**What is the median full-time weekly wage in NI?**
+
+```python
+from bolster.data_sources.nisra import ashe
+
+df = ashe.get_latest_ashe_timeseries("weekly")
+# £713.10 median full-time weekly earnings in 2025
+print(df[df["work_pattern"] == "Full-time"].tail(5)[["year", "median_weekly_earnings"]])
+```
+
+______________________________________________________________________
+
+## Data sources
+
+Sources are organised by publisher. Each module follows the same pattern:
+`get_latest_*()` returns a tidy DataFrame; `bolster <command> --help` gives
+CLI access.
+
+### NISRA — NI Statistics and Research Agency
+
+People and society:
+[`population`](https://bolster.readthedocs.io/en/latest/data_sources.html#population),
+[`births`](https://bolster.readthedocs.io/en/latest/data_sources.html#births),
+[`deaths`](https://bolster.readthedocs.io/en/latest/data_sources.html#deaths),
+[`marriages`](https://bolster.readthedocs.io/en/latest/data_sources.html#marriages),
+[`stillbirths`](https://bolster.readthedocs.io/en/latest/data_sources.html#stillbirths),
+[`migration`](https://bolster.readthedocs.io/en/latest/data_sources.html#migration),
+[`population_projections`](https://bolster.readthedocs.io/en/latest/data_sources.html#population-projections),
+[`baby_names`](https://bolster.readthedocs.io/en/latest/data_sources.html#baby-names),
+[`registrar_general`](https://bolster.readthedocs.io/en/latest/data_sources.html#registrar-general-quarterly-tables),
+[`deprivation`](https://bolster.readthedocs.io/en/latest/data_sources.html#deprivation-nimdm-2017),
+[`wellbeing`](https://bolster.readthedocs.io/en/latest/data_sources.html#wellbeing),
+[`public_confidence`](https://bolster.readthedocs.io/en/latest/data_sources.html#public-confidence-in-official-statistics),
+[`drug_related_deaths`](https://bolster.readthedocs.io/en/latest/data_sources.html#drug-related-deaths)
+
+Economy and labour:
+[`labour_market`](https://bolster.readthedocs.io/en/latest/data_sources.html#labour-market),
+[`claimant_count`](https://bolster.readthedocs.io/en/latest/data_sources.html#claimant-count),
+[`ashe`](https://bolster.readthedocs.io/en/latest/data_sources.html#annual-survey-of-hours-and-earnings-ashe),
+[`quarterly_employment_survey`](https://bolster.readthedocs.io/en/latest/data_sources.html#quarterly-employment-survey),
+[`composite_index`](https://bolster.readthedocs.io/en/latest/data_sources.html#composite-economic-index-nicei),
+[`index_of_production`](https://bolster.readthedocs.io/en/latest/data_sources.html#index-of-production-services),
+[`index_of_services`](https://bolster.readthedocs.io/en/latest/data_sources.html#index-of-production-services),
+[`construction_output`](https://bolster.readthedocs.io/en/latest/data_sources.html#construction-output),
+[`business_register`](https://bolster.readthedocs.io/en/latest/data_sources.html#business-register-idbr),
+[`planning_statistics`](https://bolster.readthedocs.io/en/latest/data_sources.html#planning-statistics),
+[`housing_stock`](https://bolster.readthedocs.io/en/latest/data_sources.html#housing-stock),
+[`tourism`](https://bolster.readthedocs.io/en/latest/data_sources.html#tourism-occupancy),
+[`work_quality`](https://bolster.readthedocs.io/en/latest/data_sources.html#id1)
+
+### Department of Health NI (`health_ni`)
+
+[`disease_prevalence`](https://bolster.readthedocs.io/en/latest/data_sources.html#disease-prevalence) (NI / LGD / HSCT / GP-practice level),
+[`cancer_waiting_times`](https://bolster.readthedocs.io/en/latest/data_sources.html#cancer-waiting-times),
+[`diagnostic_waiting_times`](https://bolster.readthedocs.io/en/latest/data_sources.html#diagnostic-waiting-times),
+[`elective_waiting_times`](https://bolster.readthedocs.io/en/latest/data_sources.html#elective-waiting-times),
+[`emergency_care_waiting_times`](https://bolster.readthedocs.io/en/latest/data_sources.html#emergency-care-waiting-times),
+[`child_protection`](https://bolster.readthedocs.io/en/latest/data_sources.html#child-protection)
+
+### PSNI — Police Service of Northern Ireland
+
+[`crime_statistics`](https://bolster.readthedocs.io/en/latest/data_sources.html#crime-statistics) (historical),
+[`road_traffic_collisions`](https://bolster.readthedocs.io/en/latest/data_sources.html#road-traffic-collisions),
+[`stop_and_search`](https://bolster.readthedocs.io/en/latest/data_sources.html#stop-and-search),
+[`pace`](https://bolster.readthedocs.io/en/latest/data_sources.html#pace-statistics),
+[`police_ombudsman`](https://bolster.readthedocs.io/en/latest/data_sources.html#police-ombudsman)
+
+### Other sources
+
+| Source | Module | What it covers |
+|--------|--------|----------------|
+| DVA | `dva` | Vehicle, driver, and theory test statistics (monthly) |
+| NI Water | `ni_water` | Drinking water quality by supply zone and postcode |
+| NI House Price Index | `ni_house_price_index` | Quarterly house price index and sales volumes |
+| NI Assembly | `niassembly` | MLAs, oral/written questions, votes (2007–present) |
+| EONI | `eoni` | Assembly election results (2016, 2022) |
+| Translink | `translink` | Live departures and vehicle positions |
+| ONS | `ons_cpi` | CPI / CPIH / RPI inflation indices |
+| Bank of England | `boe_base_rate` | Official Bank Rate (1694–present) |
+| Companies House | `companies_house` | UK company data |
+| Gender Pay Gap | `gender_pay_gap` | UK GPG reporting (250+ employees, 2017–present) |
+| DAERA | `daera_waste` | NI municipal waste statistics |
+| Justice (NICTS) | `justice` | Mortgage possession actions |
+| Met Office | `metoffice` | UK precipitation maps (requires API key) |
+
+______________________________________________________________________
+
+## CLI
+
+Every data source has a matching CLI command:
+
+```bash
+bolster nisra deaths                        # latest weekly deaths
+bolster nisra claimant-count --breakdown lgd
+bolster nisra composite-index
+bolster health-ni disease-prevalence --level gp
+bolster psni stop-and-search
+bolster translink departures "Europa Buscentre"
+bolster water-quality BT1 5GS
+bolster dva vehicle-tests
+bolster --help                              # full command list
+```
+
+______________________________________________________________________
+
+## Utilities
+
+Bolster also includes general-purpose helpers used internally:
+
+- **`poolmap()`** — ThreadPoolExecutor with progress bar and error handling
+- **`backoff()`** — exponential backoff retry decorator
+- **`memoize()`** — instance method cache with hit/miss tracking
+- **`get_recursively()`** / **`flatten_dict()`** — nested dict navigation
+- **`CachedDownloader`** — disk-cached HTTP download with TTL
+- **`session`** — shared `requests.Session` with retry/jitter logic
+
+```python
+import bolster
+
+results = bolster.poolmap(lambda x: x**2, range(1000), max_workers=4)
+
+
+@bolster.backoff(Exception, tries=3, delay=1, backoff=2)
+def unreliable(): ...
+```
+
+______________________________________________________________________
+
+## Development
+
+```bash
+git clone https://github.com/andrewbolster/bolster.git
+cd bolster
+uv sync --all-extras --dev
+uv run pre-commit install
+uv run pytest tests/ -q --no-cov        # quick run
+uv run pytest tests/ --cov=src/bolster  # with coverage
+```
+
+See [AGENTS.md](AGENTS.md) for the data source development workflow and
+[CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+______________________________________________________________________
+
+## License
+
+[GNU General Public License v3](https://github.com/andrewbolster/bolster/blob/main/LICENSE)
