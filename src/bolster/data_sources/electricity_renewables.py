@@ -60,6 +60,12 @@ _DATAVIS_URL = "https://datavis.nisra.gov.uk/Economy/electricity-consumption-and
 
 _FIGURE_PATTERN = re.compile(r'href="data:text/csv;base64,([^"]+)"[^>]*>([^<]+)')
 
+# Title substrings used to locate figures regardless of their ordinal position
+_FIGURE_RENEWABLE_PCT = "Figure 1"
+_FIGURE_CONSUMPTION = "Figure 3"
+_FIGURE_TECHNOLOGY = "Figure 5"
+_FIGURE_MONTHLY_GEN = "Figure 7"
+
 # ─── Column mappings ──────────────────────────────────────────────────────────
 
 _RENEWABLE_PCT_COLS = {
@@ -257,20 +263,20 @@ def get_latest_data(force_refresh: bool = False) -> dict[str, pd.DataFrame]:
     if not figures:  # pragma: no cover
         raise ElectricityDataNotFoundError(f"No figure CSV data found in {_DATAVIS_URL}")
 
-    titles = list(figures.keys())
-    logger.info("Found %d figures: %s", len(titles), titles)
+    logger.info("Found %d figures: %s", len(figures), list(figures.keys()))
 
-    def _parse(idx: int, col_map: dict[str, str]) -> pd.DataFrame:
-        if idx >= len(titles):  # pragma: no cover
-            raise ElectricityDataNotFoundError(f"Expected figure index {idx} not found")
-        rows = _decode_figure_csv(figures[titles[idx]])
+    def _parse(title_substr: str, col_map: dict[str, str]) -> pd.DataFrame:
+        key = next((k for k in figures if title_substr in k), None)
+        if key is None:  # pragma: no cover
+            raise ElectricityDataNotFoundError(f"Figure matching '{title_substr}' not found in page")
+        rows = _decode_figure_csv(figures[key])
         return _rows_to_dataframe(rows, col_map)
 
     data: dict[str, pd.DataFrame] = {
-        "renewable_pct": _parse(0, _RENEWABLE_PCT_COLS),
-        "consumption": _parse(2, _CONSUMPTION_COLS),
-        "generation_by_technology": _parse(4, _TECHNOLOGY_COLS),
-        "generation_monthly": _parse(6, _MONTHLY_GEN_COLS),
+        "renewable_pct": _parse(_FIGURE_RENEWABLE_PCT, _RENEWABLE_PCT_COLS),
+        "consumption": _parse(_FIGURE_CONSUMPTION, _CONSUMPTION_COLS),
+        "generation_by_technology": _parse(_FIGURE_TECHNOLOGY, _TECHNOLOGY_COLS),
+        "generation_monthly": _parse(_FIGURE_MONTHLY_GEN, _MONTHLY_GEN_COLS),
     }
 
     for key, df in data.items():
@@ -343,5 +349,22 @@ def validate_data(df: pd.DataFrame, key: str = "renewable_pct") -> bool:
             raise ElectricityValidationError("total_consumption_gwh has negative values")
         if total.median() < 1000:
             raise ElectricityValidationError("total_consumption_gwh implausibly low (median < 1000 GWh)")
+
+    if key == "generation_by_technology":
+        for col in ("wind_gwh", "solar_pv_gwh"):
+            vals = df[col].dropna()
+            if (vals < 0).any():
+                raise ElectricityValidationError(f"{col} has negative values")
+        if df["wind_gwh"].dropna().median() < 100:
+            raise ElectricityValidationError("wind_gwh implausibly low (median < 100 GWh)")
+
+    if key == "generation_monthly":
+        for col in ("renewable_generation_gwh", "non_renewable_generation_gwh"):
+            vals = df[col].dropna()
+            if (vals < 0).any():
+                raise ElectricityValidationError(f"{col} has negative values")
+        combined = df["renewable_generation_gwh"].fillna(0) + df["non_renewable_generation_gwh"].fillna(0)
+        if (combined == 0).any():
+            raise ElectricityValidationError("generation_monthly has rows with zero total generation")
 
     return True
