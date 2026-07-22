@@ -41,7 +41,6 @@ Example:
 """
 
 import logging
-import re
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
@@ -49,12 +48,10 @@ from typing import Literal
 import pandas as pd
 from openpyxl import load_workbook
 
-from bolster.utils.web import session
-
 from ._base import (
-    NISRADataNotFoundError,
     NISRAValidationError,
     download_file,
+    find_publication_link,
     safe_int,
 )
 
@@ -78,64 +75,12 @@ def get_latest_births_publication_url() -> str:
     Raises:
         NISRADataNotFoundError: If publication or file not found
     """
-    from bs4 import BeautifulSoup
-
-    mother_page = BIRTHS_BASE_URL
-
-    try:
-        response = session.get(mother_page, timeout=30)
-        response.raise_for_status()
-    except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch births mother page: {e}") from e
-
-    soup = BeautifulSoup(response.content, "html.parser")
-
-    # Find "Monthly Births" publication link
-    pub_link = None
-    for link in soup.find_all("a", href=True):
-        link_text = link.get_text(strip=True)
-        if "Monthly Births" in link_text and "publications" in link["href"]:
-            href = link["href"]
-            if href.startswith("/"):
-                href = f"https://www.nisra.gov.uk{href}"
-            pub_link = href
-            logger.info(f"Found Monthly Births publication: {link_text}")
-            break
-
-    if not pub_link:
-        raise NISRADataNotFoundError("Could not find 'Monthly Births' publication on mother page")
-
-    # Scrape the publication page for Excel file
-    try:
-        pub_response = session.get(pub_link, timeout=30)
-        pub_response.raise_for_status()
-    except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}") from e
-
-    pub_soup = BeautifulSoup(pub_response.content, "html.parser")
-
-    # Find Excel file link
-    excel_url = None
-    for link in pub_soup.find_all("a", href=True):
-        href = link["href"]
-        if href.endswith(".xlsx") and "Monthly" in href and "Births" in href:
-            if href.startswith("/"):
-                href = f"https://www.nisra.gov.uk{href}"
-            excel_url = href
-
-            # Extract month/year from filename for logging
-            # Pattern: "Monthly Births November 2025.xlsx"
-            match = re.search(r"Monthly\s+Births\s+([A-Za-z]+)\s+(\d{4})", href)
-            if match:
-                month = match.group(1)
-                year = match.group(2)
-                logger.info(f"Found latest births file: {month} {year}")
-            break
-
-    if not excel_url:
-        raise NISRADataNotFoundError("Could not find Excel file on publication page")
-
-    return excel_url
+    return find_publication_link(
+        hub_url=BIRTHS_BASE_URL,
+        pub_text_contains="Monthly Births",
+        pub_href_contains="publications",
+        file_href_contains="Births",
+    )
 
 
 def parse_births_file(

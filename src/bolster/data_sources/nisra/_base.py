@@ -57,18 +57,23 @@ def download_file(url: str, cache_ttl_hours: int = 24, force_refresh: bool = Fal
         raise NISRADataNotFoundError(str(e)) from e
 
 
-def scrape_download_links(page_url: str, file_extension: str = ".xlsx") -> list[dict]:
+def scrape_download_links(
+    page_url: str,
+    file_extension: str = ".xlsx",
+    base_url: str = "https://www.nisra.gov.uk",
+) -> list[dict]:
     """Scrape download links from a NISRA page.
 
     Args:
         page_url: URL of the NISRA page to scrape
         file_extension: File extension to filter for (default: .xlsx)
+        base_url: Base URL for resolving relative hrefs (default: https://www.nisra.gov.uk)
 
     Returns:
         List of dicts with 'url' and 'text' keys
     """
     try:
-        response = session.get(page_url, timeout=30)
+        response = session.get(page_url)
         response.raise_for_status()
     except Exception as e:
         raise NISRADataError(f"Failed to fetch page {page_url}: {e}") from e
@@ -79,17 +84,95 @@ def scrape_download_links(page_url: str, file_extension: str = ".xlsx") -> list[
     for a_tag in soup.find_all("a", href=True):
         href = a_tag["href"]
         if file_extension in href.lower():
-            # Make absolute URL
-            if href.startswith("/"):
-                url = f"https://www.nisra.gov.uk{href}"
-            elif not href.startswith("http"):
-                url = f"https://www.nisra.gov.uk/{href}"
-            else:
-                url = href
-
-            links.append({"url": url, "text": a_tag.get_text(strip=True)})
+            links.append({"url": make_absolute_url(href, base_url), "text": a_tag.get_text(strip=True)})
 
     return links
+
+
+def find_publication_link(
+    hub_url: str,
+    pub_text_contains: str | None = None,
+    pub_href_contains: str | None = None,
+    file_extension: str = ".xlsx",
+    file_href_contains: str | None = None,
+    base_url: str = "https://www.nisra.gov.uk",
+    force_refresh: bool = False,
+) -> str:
+    """Two-hop NISRA URL discovery: hub page → publication page → file URL.
+
+    Finds the first publication link on a NISRA hub/statistics page that matches
+    the given text and/or href criteria, then fetches that publication page to
+    find the download file.
+
+    Args:
+        hub_url: URL of the NISRA statistics/hub page listing publications.
+        pub_text_contains: If set, the publication link text must contain this string.
+        pub_href_contains: If set, the publication link href must contain this string.
+        file_extension: File extension to match on the publication page (default: ".xlsx").
+        file_href_contains: If set, the file link href must also contain this string.
+        base_url: Base URL for resolving relative hrefs (default: https://www.nisra.gov.uk).
+        force_refresh: If True, bypass the page cache for both requests.
+
+    Returns:
+        Absolute URL of the matched download file.
+
+    Raises:
+        NISRADataNotFoundError: If the publication link or file cannot be found.
+
+    Example:
+        >>> url = find_publication_link(
+        ...     "https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/births",
+        ...     pub_text_contains="Monthly Births",
+        ...     pub_href_contains="publications",
+        ...     file_href_contains="Births",
+        ... )
+        >>> url.endswith(".xlsx")
+        True
+    """
+    try:
+        response = session.get(hub_url, force_refresh=force_refresh)
+        response.raise_for_status()
+    except Exception as e:
+        raise NISRADataNotFoundError(f"Failed to fetch hub page {hub_url}: {e}") from e
+
+    soup = BeautifulSoup(response.content, "html.parser")
+    pub_link = None
+    for a_tag in soup.find_all("a", href=True):
+        href = a_tag["href"]
+        text = a_tag.get_text(strip=True)
+        if pub_text_contains and pub_text_contains not in text:
+            continue
+        if pub_href_contains and pub_href_contains.lower() not in href.lower():
+            continue
+        pub_link = make_absolute_url(href, base_url)
+        logger.debug("Found publication link: %s", pub_link)
+        break
+
+    if not pub_link:
+        raise NISRADataNotFoundError(
+            f"No publication link found on {hub_url} "
+            f"(text_contains={pub_text_contains!r}, href_contains={pub_href_contains!r})"
+        )
+
+    try:
+        pub_response = session.get(pub_link, force_refresh=force_refresh)
+        pub_response.raise_for_status()
+    except Exception as e:
+        raise NISRADataNotFoundError(f"Failed to fetch publication page {pub_link}: {e}") from e
+
+    pub_soup = BeautifulSoup(pub_response.content, "html.parser")
+    for a_tag in pub_soup.find_all("a", href=True):
+        href = a_tag["href"]
+        if file_extension not in href.lower():
+            continue
+        if file_href_contains and file_href_contains not in href:
+            continue
+        return make_absolute_url(href, base_url)
+
+    raise NISRADataNotFoundError(
+        f"No {file_extension} file found on publication page {pub_link}"
+        + (f" (href_contains={file_href_contains!r})" if file_href_contains else "")
+    )
 
 
 def clear_cache(pattern: str | None = None) -> int:
