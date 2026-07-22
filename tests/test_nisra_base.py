@@ -335,7 +335,7 @@ class TestScrapeDownloadLinks:
         ]
 
         assert result == expected_links
-        mock_session.get.assert_called_once_with("https://www.nisra.gov.uk/data", timeout=30)
+        mock_session.get.assert_called_once_with("https://www.nisra.gov.uk/data")
 
     @patch('bolster.data_sources.nisra._base.session')
     def test_scrape_download_links_network_error(self, mock_session):
