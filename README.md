@@ -231,6 +231,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | NICTS Mortgages Action for Possession (DoJ) | `justice.mortgages` | ✅ |
 | Work Quality NI (NISRA) | `nisra.work_quality` | ✅ |
 | NI LAC Municipal Waste Statistics (DAERA) | `daera_waste` | ✅ |
+| NI Electricity Consumption & Renewable Generation (DfE) | `electricity_renewables` | ✅ |
 | NI Claimant Count (UC + JSA, DfC/ONS) | `nisra.claimant_count` | ✅ |
 | PSNI Police Ombudsman Complaints | `psni.police_ombudsman` | ✅ |
 | Public Confidence in Official Statistics (NISRA PCOS) | `nisra.public_confidence` | ✅ |
