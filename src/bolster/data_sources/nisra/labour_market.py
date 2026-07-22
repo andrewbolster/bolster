@@ -77,6 +77,7 @@ from bolster.data_sources.nisra._base import (
     CACHE_DIR,
     NISRADataNotFoundError,
     download_file,
+    find_publication_link,
     safe_float,
     safe_int,
 )
@@ -489,123 +490,45 @@ def get_latest_lfs_publication_url(force_refresh: bool = False) -> tuple[str, st
         >>> url.startswith('https://')
         True
     """
-    from bs4 import BeautifulSoup
+    excel_url = find_publication_link(
+        hub_url="https://www.nisra.gov.uk/statistics/labour-market-and-social-welfare",
+        pub_text_contains="Quarterly Labour Force Survey Tables",
+        file_href_contains="lmr-labour-force-survey-quarterly-tables",
+        force_refresh=force_refresh,
+    )
 
-    # Mother page listing all labour market publications
-    mother_page = "https://www.nisra.gov.uk/statistics/labour-market-and-social-welfare"
+    # Extract quarter and year from filename
+    # Pattern: lmr-labour-force-survey-quarterly-tables-July-September-25.xlsx
+    filename = excel_url.split("/")[-1]
+    match = re.search(
+        r"(January|February|March|April|May|June|July|August|September|October|November|December)-"
+        r"(January|February|March|April|May|June|July|August|September|October|November|December)-"
+        r"(\d{2})",
+        filename,
+    )
 
-    try:
-        response = session.get(mother_page, timeout=30, force_refresh=force_refresh)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.content, "html.parser")
+    if not match:
+        raise NISRADataNotFoundError(f"Could not extract quarter and year from filename: {filename}")
 
-        # Find all links with "Quarterly Labour Force Survey Tables" in text
-        lfs_links = []
-        for link in soup.find_all("a", href=True):
-            link_text = link.get_text(strip=True)
-            if "Quarterly Labour Force Survey Tables" in link_text:
-                href = link["href"]
-                # Make absolute URL if needed
-                if href.startswith("/"):
-                    href = f"https://www.nisra.gov.uk{href}"
-                lfs_links.append({"text": link_text, "url": href})
+    month_to_abbrev = {
+        "January": "Jan",
+        "February": "Feb",
+        "March": "Mar",
+        "April": "Apr",
+        "May": "May",
+        "June": "Jun",
+        "July": "Jul",
+        "August": "Aug",
+        "September": "Sep",
+        "October": "Oct",
+        "November": "Nov",
+        "December": "Dec",
+    }
 
-        if not lfs_links:
-            raise NISRADataNotFoundError("No Quarterly Labour Force Survey Tables publications found")
-
-        # First link should be the latest (page shows newest first)
-        latest_pub = lfs_links[0]
-        logger.info(f"Found latest LFS publication: {latest_pub['text']}")
-
-        # Now fetch the publication page to get the Excel file
-        pub_response = session.get(latest_pub["url"], timeout=30, force_refresh=force_refresh)
-        pub_response.raise_for_status()
-        pub_soup = BeautifulSoup(pub_response.content, "html.parser")
-
-        # Find Excel file link for quarterly tables
-        excel_url = None
-        for link in pub_soup.find_all("a", href=True):
-            href = link["href"]
-            if "lmr-labour-force-survey-quarterly-tables" in href.lower() and href.endswith(".xlsx"):
-                excel_url = f"https://www.nisra.gov.uk{href}" if href.startswith("/") else href
-                break
-
-        if not excel_url:
-            raise NISRADataNotFoundError(f"No Excel file found on publication page: {latest_pub['url']}")
-
-        # Extract quarter and year from filename or page content
-        # Filename pattern: lmr-labour-force-survey-quarterly-tables-July-September-25.xlsx
-        filename = excel_url.split("/")[-1]
-        match = re.search(
-            r"(January|February|March|April|May|June|July|August|September|October|November|December)-"
-            r"(January|February|March|April|May|June|July|August|September|October|November|December)-"
-            r"(\d{2})",
-            filename,
-        )
-
-        if match:
-            first_month = match.group(1)
-            third_month = match.group(2)
-            year_short = match.group(3)
-            year = f"20{year_short}"
-
-            # Map months to quarter format
-            month_to_abbrev = {
-                "January": "Jan",
-                "February": "Feb",
-                "March": "Mar",
-                "April": "Apr",
-                "May": "May",
-                "June": "Jun",
-                "July": "Jul",
-                "August": "Aug",
-                "September": "Sep",
-                "October": "Oct",
-                "November": "Nov",
-                "December": "Dec",
-            }
-
-            quarter = f"{month_to_abbrev[first_month]}-{month_to_abbrev[third_month]}"
-            logger.info(f"Extracted quarter: {quarter} {year}")
-            return (excel_url, year, quarter)
-
-        # Fallback: Try to extract from page content
-        page_text = pub_soup.get_text()
-        match = re.search(
-            r"(January|February|March|April|May|June|July|August|September|October|November|December)\s+to\s+"
-            r"(January|February|March|April|May|June|July|August|September|October|November|December)\s+"
-            r"(\d{4})",
-            page_text,
-        )
-
-        if match:
-            first_month = match.group(1)
-            third_month = match.group(2)
-            year = match.group(3)
-
-            month_to_abbrev = {
-                "January": "Jan",
-                "February": "Feb",
-                "March": "Mar",
-                "April": "Apr",
-                "May": "May",
-                "June": "Jun",
-                "July": "Jul",
-                "August": "Aug",
-                "September": "Sep",
-                "October": "Oct",
-                "November": "Nov",
-                "December": "Dec",
-            }
-
-            quarter = f"{month_to_abbrev[first_month]}-{month_to_abbrev[third_month]}"
-            logger.info(f"Extracted quarter from page content: {quarter} {year}")
-            return (excel_url, year, quarter)
-
-        raise NISRADataNotFoundError("Could not extract quarter and year from publication")
-
-    except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch LFS publication list: {e}") from e
+    year = f"20{match.group(3)}"
+    quarter = f"{month_to_abbrev[match.group(1)]}-{month_to_abbrev[match.group(2)]}"
+    logger.info("Extracted quarter: %s %s from %s", quarter, year, filename)
+    return (excel_url, year, quarter)
 
 
 # ============================================================================

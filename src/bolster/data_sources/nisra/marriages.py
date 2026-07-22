@@ -48,9 +48,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from bolster.utils.web import session
-
-from ._base import NISRADataNotFoundError, NISRAValidationError, download_file
+from ._base import NISRAValidationError, download_file, find_publication_link
 
 logger = logging.getLogger(__name__)
 
@@ -73,75 +71,15 @@ def get_latest_marriages_publication_url() -> tuple[str, str]:
     Raises:
         NISRADataNotFoundError: If publication or file not found
     """
-    from bs4 import BeautifulSoup
-
-    mother_page = MARRIAGES_BASE_URL
-
-    try:
-        response = session.get(mother_page, timeout=30)
-        response.raise_for_status()
-    except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch marriages mother page: {e}") from e
-
-    soup = BeautifulSoup(response.content, "html.parser")
-
-    # Find latest "Monthly Marriages" publication
-    # Pattern: "Monthly Marriages - November 2025" or similar
-    pub_link = None
-    pub_date = None
-
-    for link in soup.find_all("a", href=True):
-        link_text = link.get_text(strip=True)
-
-        # Match "Monthly Marriages" publications
-        if "Monthly Marriages" in link_text and "publications" in link["href"]:
-            href = link["href"]
-
-            if href.startswith("/"):
-                href = f"https://www.nisra.gov.uk{href}"
-
-            # Extract month/year from link text if available
-            # Pattern: "Monthly Marriages - November 2025"
-            date_match = re.search(r"([A-Z][a-z]+)\s+(\d{4})", link_text)
-            if date_match:
-                pub_date = f"{date_match.group(1)} {date_match.group(2)}"
-
-            # Take first match (should be newest due to reverse chronological order)
-            pub_link = href
-            logger.info(f"Found Monthly Marriages publication: {link_text}")
-            break
-
-    if not pub_link:
-        raise NISRADataNotFoundError("Could not find Monthly Marriages publication on mother page")
-
-    # Scrape the publication page for Excel file
-    try:
-        pub_response = session.get(pub_link, timeout=30)
-        pub_response.raise_for_status()
-    except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}") from e
-
-    pub_soup = BeautifulSoup(pub_response.content, "html.parser")
-
-    # Find marriages Excel file
-    # Pattern: "Monthly Marriages November 2025.xlsx" or similar
-    excel_url = None
-
-    for link in pub_soup.find_all("a", href=True):
-        href = link["href"]
-
-        if "Marriages" in href and href.endswith(".xlsx"):
-            if href.startswith("/"):
-                href = f"https://www.nisra.gov.uk{href}"
-
-            excel_url = href
-            logger.info(f"Found marriages Excel file: {href}")
-            break
-
-    if not excel_url:
-        raise NISRADataNotFoundError("Could not find marriages Excel file on publication page")
-
-    return excel_url, pub_date or "Unknown"
+    excel_url = find_publication_link(
+        hub_url=MARRIAGES_BASE_URL,
+        pub_text_contains="Monthly Marriages",
+        pub_href_contains="publications",
+        file_href_contains="Marriages",
+    )
+    date_match = re.search(r"([A-Z][a-z]+)\s+(\d{4})\.xlsx", excel_url)
+    pub_date = f"{date_match.group(1)} {date_match.group(2)}" if date_match else "Unknown"
+    return excel_url, pub_date
 
 
 def parse_marriages_file(file_path: str | Path) -> pd.DataFrame:
@@ -401,71 +339,14 @@ def get_latest_civil_partnerships_publication_url() -> tuple[str, str]:
     Raises:
         NISRADataNotFoundError: If publication or file not found
     """
-    from bs4 import BeautifulSoup
-
-    mother_page = CIVIL_PARTNERSHIPS_BASE_URL
-
-    try:
-        response = session.get(mother_page, timeout=30)
-        response.raise_for_status()
-    except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch civil partnerships page: {e}") from e
-
-    soup = BeautifulSoup(response.content, "html.parser")
-
-    # Find "Monthly Civil Partnerships" publication link
-    pub_link = None
-    pub_date = None
-
-    for link in soup.find_all("a", href=True):
-        link_text = link.get_text(strip=True)
-
-        if "monthly-civil-partnerships" in link["href"].lower():
-            href = link["href"]
-
-            if href.startswith("/"):
-                href = f"https://www.nisra.gov.uk{href}"
-
-            pub_link = href
-            logger.info(f"Found Monthly Civil Partnerships publication: {link_text}")
-            break
-
-    if not pub_link:
-        raise NISRADataNotFoundError("Could not find Monthly Civil Partnerships publication")
-
-    # Scrape the publication page for Excel file
-    try:
-        pub_response = session.get(pub_link, timeout=30)
-        pub_response.raise_for_status()
-    except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch publication page: {e}") from e
-
-    pub_soup = BeautifulSoup(pub_response.content, "html.parser")
-
-    # Find civil partnerships Excel file
-    excel_url = None
-
-    for link in pub_soup.find_all("a", href=True):
-        href = link["href"]
-
-        if "Civil" in href and "Partnership" in href and href.endswith(".xlsx"):
-            if href.startswith("/"):
-                href = f"https://www.nisra.gov.uk{href}"
-
-            # Extract date from filename if possible
-            # Pattern: "Monthly Civil Partnerships December 2025.xlsx"
-            date_match = re.search(r"([A-Z][a-z]+)\s+(\d{4})\.xlsx", href)
-            if date_match:
-                pub_date = f"{date_match.group(1)} {date_match.group(2)}"
-
-            excel_url = href
-            logger.info(f"Found civil partnerships Excel file: {href}")
-            break
-
-    if not excel_url:
-        raise NISRADataNotFoundError("Could not find civil partnerships Excel file on publication page")
-
-    return excel_url, pub_date or "Unknown"
+    excel_url = find_publication_link(
+        hub_url=CIVIL_PARTNERSHIPS_BASE_URL,
+        pub_href_contains="monthly-civil-partnerships",
+        file_href_contains="Partnership",
+    )
+    date_match = re.search(r"([A-Z][a-z]+)\s+(\d{4})\.xlsx", excel_url)
+    pub_date = f"{date_match.group(1)} {date_match.group(2)}" if date_match else "Unknown"
+    return excel_url, pub_date
 
 
 def parse_civil_partnerships_file(file_path: str | Path) -> pd.DataFrame:
