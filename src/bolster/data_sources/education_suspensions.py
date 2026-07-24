@@ -32,7 +32,6 @@ Example:
     True
 """
 
-import hashlib
 import logging
 from pathlib import Path
 from urllib.parse import urljoin
@@ -40,6 +39,7 @@ from urllib.parse import urljoin
 import bs4
 import pandas as pd
 
+from bolster.utils.cache import hash_url
 from bolster.utils.web import session
 
 logger = logging.getLogger(__name__)
@@ -77,13 +77,9 @@ class EducationSuspensionsParseError(EducationSuspensionsError):
 # ---------------------------------------------------------------------------
 
 
-def _hash_url(url: str) -> str:
-    return hashlib.md5(url.encode(), usedforsecurity=False).hexdigest()
-
-
 def _cached_file(url: str) -> Path | None:
     """Return path to a cached copy of *url* if it exists and is fresh."""
-    url_hash = _hash_url(url)
+    url_hash = hash_url(url)
     ext = Path(url.split("?")[0]).suffix or ".xlsx"
     cache_path = CACHE_DIR / f"{url_hash}{ext}"
     if cache_path.exists():
@@ -103,7 +99,7 @@ def _download_file(url: str, force_refresh: bool = False) -> Path:
         if cached:
             return cached
 
-    url_hash = _hash_url(url)
+    url_hash = hash_url(url)
     ext = Path(url.split("?")[0]).suffix or ".xlsx"
     cache_path = CACHE_DIR / f"{url_hash}{ext}"
 

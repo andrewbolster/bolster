@@ -57,6 +57,7 @@ from pathlib import Path
 import pandas as pd
 from bs4 import BeautifulSoup
 
+from bolster.utils.cache import hash_url
 from bolster.utils.web import session
 
 logger = logging.getLogger(__name__)
@@ -82,13 +83,6 @@ class DVADataNotFoundError(DVADataError):
     pass
 
 
-def _hash_url(url: str) -> str:
-    """Generate a safe filename from a URL."""
-    import hashlib
-
-    return hashlib.md5(url.encode(), usedforsecurity=False).hexdigest()
-
-
 def _download_file(url: str, cache_ttl_hours: int = 24, force_refresh: bool = False) -> Path:
     """Download a file with caching support.
 
@@ -103,7 +97,7 @@ def _download_file(url: str, cache_ttl_hours: int = 24, force_refresh: bool = Fa
     Raises:
         DVADataNotFoundError: If download fails
     """
-    url_hash = _hash_url(url)
+    url_hash = hash_url(url)
     ext = Path(url).suffix or ".xlsx"
     cache_path = CACHE_DIR / f"{url_hash}{ext}"
 
