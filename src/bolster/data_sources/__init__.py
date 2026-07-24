@@ -18,6 +18,7 @@ Various scrapers and API wrappers for NI government data:
 - boe_base_rate: Bank of England official Bank Rate (base rate)
 - niassembly: NI Assembly AIMS — MLAs, Questions, and Votes (OGL v3.0)
 - translink: Live and scheduled bus/rail departures + vehicle positions (Translink NI)
+- electricity_renewables: NI electricity consumption and renewable generation statistics (DfE/NISRA, quarterly)
 
 Most have corresponding CLI commands.
 """

@@ -17,6 +17,7 @@ from .data_sources.boe_base_rate import get_rate_changes as get_boe_rate_changes
 from .data_sources.cineworld import get_cinema_listings
 from .data_sources.companies_house import get_companies_house_records_that_might_be_in_farset, query_basic_company_data
 from .data_sources.daera_waste import get_latest_waste_statistics, validate_waste_data
+from .data_sources.electricity_renewables import get_latest_data as get_electricity_data
 from .data_sources.eoni import get_results as get_ni_election_results
 from .data_sources.health_ni import cancer_waiting_times as nisra_cancer
 from .data_sources.health_ni import diagnostic_waiting_times as nisra_diagnostic
@@ -82,6 +83,7 @@ def cli(verbose, args=None):
         * nisra                NISRA statistics (deaths, births, population, economic indicators)
         * psni                 PSNI statistics (road traffic collisions)
         * daera                DAERA statistics (municipal waste)
+        * dfe                  DfE statistics (electricity and renewables)
 
     Business & Property:
         * companies-house      UK Companies House data queries
@@ -1118,6 +1120,116 @@ def daera_waste_cmd(force_refresh, council, financial_year, summary, save, outpu
                 console.print(f"[dim]Showing first 50 of {len(out):,} rows[/dim]")
                 out = out.head(50)
             click.echo(out.to_string(index=False))
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise SystemExit(1) from e
+
+
+@cli.group()
+def dfe():
+    """DfE (Department for the Economy) statistics.
+
+    Commands for accessing Northern Ireland energy and economy statistics
+    published by the Department for the Economy.
+    """
+    pass
+
+
+@dfe.command(name="electricity")
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option(
+    "--dataset",
+    type=click.Choice(["renewable-pct", "consumption", "generation-by-technology", "generation-monthly", "all"]),
+    default="renewable-pct",
+    help="Which dataset to display (default: renewable-pct)",
+)
+@click.option("--year", type=int, help="Filter by year")
+@click.option("--summary", is_flag=True, help="Show summary statistics only")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json", "table"]),
+    default="csv",
+    help="Output format",
+)
+def dfe_electricity_cmd(force_refresh, dataset, year, summary, save, output_format):
+    r"""NI Electricity Consumption and Renewable Generation statistics.
+
+    Downloads the latest quarterly electricity report from DfE/NISRA covering
+    NI's progress toward the 80% renewable electricity target by 2030.
+
+    Four datasets are available:
+
+    \b
+    renewable-pct          Rolling 12-month and monthly renewable % of consumption
+    consumption            Total consumption, renewable/non-renewable, net imports (GWh)
+    generation-by-technology  Breakdown by wind, hydro, bioenergy, landfill gas, solar PV
+    generation-monthly     Monthly renewable and non-renewable generation (GWh, Feb 2018+)
+
+    Examples:
+    \b
+        bolster dfe electricity                                  # Latest renewable %
+        bolster dfe electricity --dataset consumption            # Consumption data
+        bolster dfe electricity --dataset all --format csv       # All datasets
+        bolster dfe electricity --dataset renewable-pct --year 2024  # Filter by year
+        bolster dfe electricity --summary                        # Summary statistics
+        bolster dfe electricity --save electricity.csv           # Save to CSV
+    """
+    console = Console()
+
+    dataset_map = {
+        "renewable-pct": "renewable_pct",
+        "consumption": "consumption",
+        "generation-by-technology": "generation_by_technology",
+        "generation-monthly": "generation_monthly",
+    }
+
+    try:
+        with console.status("[bold green]Downloading DfE electricity statistics..."):
+            data = get_electricity_data(force_refresh=force_refresh)
+
+        keys = list(dataset_map.values()) if dataset == "all" else [dataset_map[dataset]]
+
+        for key in keys:
+            df = data[key]
+
+            if year is not None:
+                df = df[df["year"] == year]
+
+            if summary:
+                console.print(f"\n[bold]{key}[/bold]")
+                console.print(f"  Rows: {len(df)}")
+                console.print(f"  Date range: {df['date'].min().date()} – {df['date'].max().date()}")
+                numeric_cols = [c for c in df.columns if c not in ("date", "year", "month")]
+                for col in numeric_cols:
+                    vals = df[col].dropna()
+                    if len(vals):
+                        console.print(
+                            f"  {col}: latest={vals.iloc[-1]:.1f}, min={vals.min():.1f}, max={vals.max():.1f}"
+                        )
+                continue
+
+            out = df.drop(columns=["year", "month"], errors="ignore")
+
+            if save:
+                fname = save if len(keys) == 1 else f"{key}_{save}"
+                if output_format == "json":
+                    out.to_json(fname, orient="records", date_format="iso", indent=2)
+                else:
+                    out.to_csv(fname, index=False)
+                console.print(f"[green]Saved {key} to {fname}[/green]")
+                continue
+
+            if output_format == "json":
+                click.echo(out.to_json(orient="records", date_format="iso", indent=2))
+            elif output_format == "table":
+                if len(keys) > 1:
+                    console.print(f"\n[bold]{key}[/bold]")
+                click.echo(out.to_string(index=False))
+            else:
+                click.echo(out.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")
@@ -7896,6 +8008,7 @@ def list_sources():
     click.echo("  gender-pay-gap             UK Gender Pay Gap Reporting service")
     click.echo("  ons-cpi                    ONS UK inflation indices (CPI, CPIH, RPI)")
     click.echo("  boe-base-rate              Bank of England official Bank Rate (base rate)")
+    click.echo("  dfe electricity            NI electricity consumption & renewable generation (%)")
 
     click.echo("\nUSAGE EXAMPLES")
     click.echo("  bolster water-quality BT1 5GS              # Water quality by postcode")
