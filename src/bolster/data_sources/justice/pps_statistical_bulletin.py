@@ -570,9 +570,13 @@ def parse_data(file_path: Path) -> pd.DataFrame:
         category, breakdown, value, marker.
 
     Raises:
+        PPSDataNotFoundError: If the workbook cannot be read.
         PPSDataError: If the workbook contains no parseable tables.
     """
-    book = pd.read_excel(Path(file_path), sheet_name=None, header=None)
+    try:
+        book = pd.read_excel(Path(file_path), sheet_name=None, header=None)
+    except (OSError, ValueError) as e:
+        raise PPSDataNotFoundError(f"Failed to read workbook {file_path}: {e}") from e
 
     frames = []
     for sheet_name, frame in book.items():
@@ -664,10 +668,11 @@ def get_historical_data(max_publications: int = 5, force_refresh: bool = False) 
         raise PPSDataNotFoundError("No bulletins could be parsed")
 
     combined = pd.concat(frames, ignore_index=True)
-    return combined.drop_duplicates(
+    deduplicated = combined.drop_duplicates(
         subset=["table", "financial_year", "category", "breakdown"],
         keep="first",
-    ).reset_index(drop=True)
+    )
+    return deduplicated.sort_values(["year", "table", "category", "breakdown"], kind="stable").reset_index(drop=True)
 
 
 def list_tables(force_refresh: bool = False) -> list[str]:
