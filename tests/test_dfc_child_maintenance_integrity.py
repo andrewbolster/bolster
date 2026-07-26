@@ -13,13 +13,40 @@ import pytest
 from bolster.data_sources.dfc import child_maintenance as cm
 
 
+@pytest.fixture(scope="session")
+def cms_publications():
+    """Publication list for the whole session, doubling as a reachability probe.
+
+    The DfC site answers 503 to CI runner IPs, and the shared session's retry
+    ladder makes every blocked call cost ~90 seconds. Probing once keeps a bad
+    day cheap instead of timing the job out.
+    """
+    try:
+        return cm.list_publications()
+    except cm.CMSDataNotFoundError as e:
+        pytest.skip(f"communities-ni.gov.uk unavailable: {e}")
+
+
+@pytest.fixture(autouse=True)
+def _require_cms_service(request):
+    if request.node.get_closest_marker("integration"):
+        request.getfixturevalue("cms_publications")
+
+
+def _fetch(call, *args, **kwargs):
+    try:
+        return call(*args, **kwargs)
+    except cm.CMSDataNotFoundError as e:
+        pytest.skip(f"communities-ni.gov.uk unavailable: {e}")
+
+
 @pytest.mark.integration
 class TestPublicationDiscovery:
     """Publications are discovered from the topic page."""
 
     @pytest.fixture(scope="class")
-    def publications(self):
-        return cm.list_publications()
+    def publications(self, cms_publications):
+        return cms_publications
 
     def test_publications_found(self, publications):
         assert len(publications) >= 10
@@ -38,7 +65,7 @@ class TestPublicationDiscovery:
         assert len(set(urls)) == len(urls)
 
     def test_xlsx_locatable(self, publications):
-        url = cm.find_publication_xlsx(publications[0]["url"])
+        url = _fetch(cm.find_publication_xlsx, publications[0]["url"])
         assert url.lower().endswith(".xlsx")
 
     def test_missing_publication_raises(self):
@@ -52,7 +79,7 @@ class TestLatestPublication:
 
     @pytest.fixture(scope="class")
     def df(self):
-        return cm.get_latest_data()
+        return _fetch(cm.get_latest_data)
 
     def test_validates(self, df):
         assert cm.validate_data(df)
@@ -104,7 +131,7 @@ class TestHistoricalStitching:
 
     @pytest.fixture(scope="class")
     def df(self):
-        return cm.get_historical_data(max_publications=6)
+        return _fetch(cm.get_historical_data, max_publications=6)
 
     def test_validates(self, df):
         assert cm.validate_data(df)
@@ -114,11 +141,11 @@ class TestHistoricalStitching:
         assert not df.duplicated(subset=keys).any()
 
     def test_extends_beyond_single_release(self, df):
-        latest = cm.get_latest_data()
+        latest = _fetch(cm.get_latest_data)
         assert df["date"].min() < latest["date"].min()
 
     def test_characteristics_gain_quarters(self, df):
-        latest = cm.get_latest_data()
+        latest = _fetch(cm.get_latest_data)
         table = "paying_parent_characteristics"
         assert df[df["table"] == table]["date"].nunique() > latest[latest["table"] == table]["date"].nunique()
 
@@ -144,7 +171,7 @@ class TestTableAccessors:
 
     @pytest.fixture(scope="class")
     def df(self):
-        return cm.get_latest_data()
+        return _fetch(cm.get_latest_data)
 
     @pytest.mark.parametrize(
         ("accessor", "table"),
@@ -385,11 +412,10 @@ class TestValidation:
 
 @pytest.mark.integration
 class TestCaching:
-    def test_download_is_cached(self):
-        publication = cm.list_publications()[0]
-        url = cm.find_publication_xlsx(publication["url"])
-        first = cm.download_file(url)
-        second = cm.download_file(url)
+    def test_download_is_cached(self, cms_publications):
+        url = _fetch(cm.find_publication_xlsx, cms_publications[0]["url"])
+        first = _fetch(cm.download_file, url)
+        second = _fetch(cm.download_file, url)
         assert first == second
         assert first.exists()
 
