@@ -23,6 +23,7 @@ Available modules:
     - planning_statistics: NI Planning Activity Statistics - quarterly applications, by council
     - population_projections: Population projections by age, sex, and geography (2022-2072)
     - registrar_general: Registrar General Quarterly Tables (quarterly births, deaths, marriages, LGD breakdowns)
+    - teacher_workforce: Teachers in grant-aided schools — headcount, FTE and pupil:teacher ratios by LGD
     - baby_names: Annual baby name registrations (1997–present) by sex and rank
     - tourism: Tourism statistics including occupancy surveys, visitor stats (subpackage)
     - wellbeing: Individual wellbeing statistics (life satisfaction, happiness, anxiety, loneliness)
@@ -118,6 +119,11 @@ Examples:
     >>> 'businesses' in df.columns
     True
 
+    >>> from bolster.data_sources.nisra import teacher_workforce
+    >>> df = teacher_workforce.get_headcount()
+    >>> 'all_teachers' in set(df['statistic'])
+    True
+
 """
 
 from . import (
@@ -145,6 +151,7 @@ from . import (
     quarterly_employment_survey,
     registrar_general,
     stillbirths,
+    teacher_workforce,
     tourism,
     wellbeing,
     work_quality,
@@ -175,6 +182,7 @@ __all__ = [
     "public_confidence",
     "registrar_general",
     "stillbirths",
+    "teacher_workforce",
     "tourism",
     "wellbeing",
     "work_quality",
