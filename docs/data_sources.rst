@@ -723,18 +723,48 @@ NI Courts and Tribunals Service (NICTS) statistics.
 Mortgage Possession Actions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Quarterly mortgage possession actions (applications, orders, and warrants) by
-court district.
+Quarterly mortgage possession proceedings in the Chancery Division of the NI
+High Court: cases received, cases disposed, and the final orders made.
 
 .. code-block:: python
 
-    from bolster.data_sources import justice
+    from bolster.data_sources.justice import mortgages
 
-    df = justice.get_latest_mortgage_possession_actions()
+    tables = mortgages.get_latest_data()
+    received = tables["received"]
 
 .. code-block:: console
 
-    $ bolster justice mortgage-possession
+    $ bolster justice mortgages
+    $ bolster justice mortgages --table disposed
+
+Quarterly Court Business Figures
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Provisional case receipts, disposals, and outstanding workload across all ten
+NICTS court datasets — Court of Appeal (criminal and civil), the three High
+Court divisions, Crown, County, Magistrates', Children Order proceedings, and
+judicial sitting days. Annual totals from 2017 plus quarterly figures for the
+most recent years, returned as a single tidy long frame.
+
+.. code-block:: python
+
+    from bolster.data_sources.justice import nicts_quarterly
+
+    # Every court, every period
+    df = nicts_quarterly.get_latest_data()
+
+    # A single court
+    crown = nicts_quarterly.get_crown_court()
+
+    # What court keys are available?
+    nicts_quarterly.list_courts()
+
+.. code-block:: console
+
+    $ bolster justice nicts-quarterly --list-courts
+    $ bolster justice nicts-quarterly --court crown_court
+    $ bolster justice nicts-quarterly --annual --format json
 
 ----
 
