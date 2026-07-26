@@ -238,6 +238,8 @@ def _parse_quarter(value: object) -> pd.Timestamp | None:
         Timestamp('2026-03-31 00:00:00')
         >>> _parse_quarter("Quarter Ending") is None
         True
+        >>> _parse_quarter("") is None
+        True
     """
     if value is None or (isinstance(value, float) and pd.isna(value)):
         return None
@@ -250,6 +252,12 @@ def _parse_quarter(value: object) -> pd.Timestamp | None:
             stamp = pd.Timestamp(pd.to_datetime(text, format="%b-%y"))
         except ValueError:
             return None
+
+    # Blank cells coerce to NaT rather than raising, and NaT survives the offset
+    # arithmetic below, so a blank quarter column would otherwise emit rows with
+    # an unusable date.
+    if pd.isna(stamp):
+        return None
 
     return stamp + pd.offsets.MonthEnd(0)
 
