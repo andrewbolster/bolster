@@ -11,14 +11,14 @@ Eight tables are published in a single Excel workbook, one worksheet each. They
 have incompatible shapes, so the parser flattens them into one tidy frame keyed
 by a ``table`` discriminator:
 
-- ``applications`` - applications received per quarter (Table 1).
-- ``clearances`` - how many applications cleared, and how fast (Table 2).
-- ``arrangements`` - live caseload split by service type (Table 3).
-- ``children_covered`` - children covered, split by paying status (Table 4).
-- ``paying_parents`` - parents due to pay and their compliance bands (Table 5).
-- ``paying_parent_characteristics`` - gender, age, children, cases (Table 6).
-- ``maintenance`` - maintenance due and paid, in pounds (Table 7).
-- ``enforcement`` - collections by enforcement mechanism, in pounds (Table 8).
+- ``applications`` - applications received per quarter.
+- ``clearances`` - how many applications cleared, and how fast.
+- ``arrangements`` - live caseload split by service type.
+- ``children_covered`` - children covered, split by paying status.
+- ``paying_parents`` - parents due to pay and their compliance bands.
+- ``paying_parent_characteristics`` - gender, age, children, cases.
+- ``maintenance`` - maintenance due and paid, in pounds.
+- ``enforcement`` - collections by enforcement mechanism, in pounds.
 
 Each row is one (table, date, category, subcategory, measure) observation. The
 ``measure`` column says how to read ``value``: ``count`` for people and cases,
@@ -33,15 +33,20 @@ Data Source:
 
 Update Frequency: Quarterly
 Geographic Coverage: Northern Ireland
-Reference Period: December 2020 - present
+Reference Period: December 2019 - present (applications back to December 2015)
 
 .. note::
-    Not every table carries the full back series. Tables 1, 3, 5, 7 and 8 go
-    back to December 2020 in every release, but Table 2 only shows the last
-    four quarters, Table 4 starts at March 2024, and Table 6 is a single-quarter
-    snapshot. Use :func:`get_historical_data` to stitch those short tables
-    together across releases — it turns Table 6 from one quarter of paying
-    parent demographics into the full published run.
+    A single release does not carry the full back series. Most tables show the
+    last few years, ``clearances`` only the last four quarters, and
+    ``paying_parent_characteristics`` a single quarter. Use
+    :func:`get_historical_data` to stitch releases together — it turns that
+    one-quarter demographic snapshot into the full published run.
+
+.. note::
+    Worksheet numbering is not stable across releases. Paying Parent
+    Characteristics was inserted as Table 6 in June 2024, pushing the money and
+    enforcement tables down one, so sheets are identified by their title rather
+    than their number.
 
 .. note::
     Counts are rounded to the nearest 10 and money to the nearest 100, so
@@ -95,17 +100,28 @@ _MONTH_NUMBERS = {
     "december": 12,
 }
 
-# Worksheet name -> table key. Front matter sheets are absent from this map.
-_SHEET_TABLES = {
-    "Table 1": "applications",
-    "Table 2": "clearances",
-    "Table 3": "arrangements",
-    "Table 4": "children_covered",
-    "Table 5": "paying_parents",
-    "Table 6": "paying_parent_characteristics",
-    "Table 7": "maintenance",
-    "Table 8": "enforcement",
-}
+# Table titles -> table key, matched as casefolded substrings of the sheet's
+# "Table N. <title>" line. Sheet *numbers* are not stable: Paying Parent
+# Characteristics was inserted as Table 6 in the June 2024 release, shifting
+# Money Due and Paid and Enforcement Collections down one, so keying on the
+# worksheet name would file enforcement figures under maintenance for every
+# earlier publication. Ordered because "Paying Parent Characteristics" must be
+# tested before the looser "Paying Parents".
+_TABLE_TITLE_PATTERNS = (
+    ("applications to the northern ireland", "applications"),
+    ("application clearances", "clearances"),
+    ("composition of child maintenance arrangements", "arrangements"),
+    ("children covered", "children_covered"),
+    ("paying parent characteristics", "paying_parent_characteristics"),
+    ("paying parents", "paying_parents"),
+    ("due and paid", "maintenance"),
+    ("enforcement collections", "enforcement"),
+)
+
+_TABLE_KEYS = frozenset(table for _, table in _TABLE_TITLE_PATTERNS)
+
+# Number of leading rows searched for a sheet's "Table N. <title>" line
+_TITLE_SEARCH_ROWS = 8
 
 # Money tables; everything else is people, cases or proportions
 _AMOUNT_TABLES = {"maintenance", "enforcement"}
@@ -127,6 +143,15 @@ _CHARACTERISTIC_GROUPS = {
 # double-counts it.
 _CATEGORY_ALIASES = {
     "parents using the collect & pay service who": "Collect & Pay",
+}
+
+# Table 7's rows were renamed from "Money ..." to "Maintenance ..." in the March
+# 2025 release with the figures unchanged, so each series would otherwise appear
+# twice in a merged history under both spellings.
+_SUBCATEGORY_ALIASES = {
+    ("maintenance", "money due to be paid through collect & pay"): "Maintenance due to be paid through Collect & Pay",
+    ("maintenance", "money due to be paid through direct pay"): "Maintenance due to be paid through Direct Pay",
+    ("maintenance", "money paid through collect & pay"): "Maintenance paid through Collect & Pay",
 }
 
 # Row label marking the end of the data block on every sheet
@@ -370,8 +395,10 @@ def _canonicalise_labels(df: pd.DataFrame) -> pd.DataFrame:
 def _parse_row_oriented(frame: pd.DataFrame, table: str) -> list[dict]:
     """Parse a sheet laid out with quarters down the first column.
 
-    Covers Tables 1, 3, 4, 5, 7 and 8. Table 5 additionally carries a merged
-    group header one row above the column labels, which becomes ``category``.
+    Covers every table except ``clearances`` and
+    ``paying_parent_characteristics``. ``paying_parents`` additionally carries a
+    merged group header one row above the column labels, which becomes
+    ``category``.
 
     Args:
         frame: Raw sheet read with ``header=None``.
@@ -416,6 +443,7 @@ def _parse_row_oriented(frame: pd.DataFrame, table: str) -> list[dict]:
             if value is None:
                 continue
             subcategory, measure = _measure_for(table, label)
+            subcategory = _SUBCATEGORY_ALIASES.get((table, subcategory.casefold()), subcategory)
             records.append(
                 {
                     "table": table,
@@ -635,6 +663,34 @@ def download_file(url: str, cache_ttl_hours: int = _CACHE_TTL_HOURS, force_refre
         raise CMSDataNotFoundError(str(e)) from e
 
 
+def _table_for_sheet(frame: pd.DataFrame) -> str | None:
+    """Identify which statistical table a worksheet holds, from its title line.
+
+    Args:
+        frame: Raw worksheet, read with ``header=None``.
+
+    Returns:
+        Table key, or None for front matter and unrecognised sheets.
+
+    Example:
+        >>> import pandas as pd
+        >>> sheet = pd.DataFrame([["Back to Contents"], ["Table 7. Enforcement Collections"]])
+        >>> _table_for_sheet(sheet)
+        'enforcement'
+    """
+    for _, row in frame.head(_TITLE_SEARCH_ROWS).iterrows():
+        for cell in row:
+            if not isinstance(cell, str):
+                continue
+            title = cell.strip().casefold()
+            if not title.startswith("table"):
+                continue
+            for pattern, table in _TABLE_TITLE_PATTERNS:
+                if pattern in title:
+                    return table
+    return None
+
+
 def parse_workbook(file_path: Path) -> pd.DataFrame:
     """Parse every statistical table from a workbook into one tidy frame.
 
@@ -653,10 +709,10 @@ def parse_workbook(file_path: Path) -> pd.DataFrame:
 
     records: list[dict] = []
     for sheet in workbook.sheet_names:
-        table = _SHEET_TABLES.get(str(sheet).strip())
+        frame = workbook.parse(sheet, header=None)
+        table = _table_for_sheet(frame)
         if table is None:
             continue
-        frame = workbook.parse(sheet, header=None)
         if table == "clearances":
             parsed = _parse_clearances(frame)
         elif table == "paying_parent_characteristics":
@@ -754,7 +810,7 @@ def list_tables(df: pd.DataFrame | None = None) -> list[str]:
         True
     """
     if df is None:
-        return sorted(_SHEET_TABLES.values())
+        return sorted(_TABLE_KEYS)
     return sorted(df["table"].unique())
 
 
@@ -766,42 +822,42 @@ def _get_table(table: str, df: pd.DataFrame | None, force_refresh: bool) -> pd.D
 
 
 def get_applications(df: pd.DataFrame | None = None, force_refresh: bool = False) -> pd.DataFrame:
-    """Get applications received per quarter (Table 1)."""
+    """Get applications received per quarter."""
     return _get_table("applications", df, force_refresh)
 
 
 def get_clearances(df: pd.DataFrame | None = None, force_refresh: bool = False) -> pd.DataFrame:
-    """Get application clearance volumes and timeliness (Table 2)."""
+    """Get application clearance volumes and timeliness."""
     return _get_table("clearances", df, force_refresh)
 
 
 def get_arrangements(df: pd.DataFrame | None = None, force_refresh: bool = False) -> pd.DataFrame:
-    """Get the composition of live maintenance arrangements (Table 3)."""
+    """Get the composition of live maintenance arrangements."""
     return _get_table("arrangements", df, force_refresh)
 
 
 def get_children_covered(df: pd.DataFrame | None = None, force_refresh: bool = False) -> pd.DataFrame:
-    """Get children covered by arrangements, split by paying status (Table 4)."""
+    """Get children covered by arrangements, split by paying status."""
     return _get_table("children_covered", df, force_refresh)
 
 
 def get_paying_parents(df: pd.DataFrame | None = None, force_refresh: bool = False) -> pd.DataFrame:
-    """Get paying parents and their compliance bands (Table 5)."""
+    """Get paying parents and their compliance bands."""
     return _get_table("paying_parents", df, force_refresh)
 
 
 def get_characteristics(df: pd.DataFrame | None = None, force_refresh: bool = False) -> pd.DataFrame:
-    """Get paying parent gender, age and caseload characteristics (Table 6)."""
+    """Get paying parent gender, age and caseload characteristics."""
     return _get_table("paying_parent_characteristics", df, force_refresh)
 
 
 def get_maintenance(df: pd.DataFrame | None = None, force_refresh: bool = False) -> pd.DataFrame:
-    """Get child maintenance due and paid, in pounds (Table 7)."""
+    """Get child maintenance due and paid, in pounds."""
     return _get_table("maintenance", df, force_refresh)
 
 
 def get_enforcement(df: pd.DataFrame | None = None, force_refresh: bool = False) -> pd.DataFrame:
-    """Get enforcement collections by mechanism, in pounds (Table 8)."""
+    """Get enforcement collections by mechanism, in pounds."""
     return _get_table("enforcement", df, force_refresh)
 
 
@@ -835,7 +891,7 @@ def validate_data(df: pd.DataFrame, min_records: int = 400) -> bool:
     if len(df) < min_records:
         raise CMSValidationError(f"Expected at least {min_records} records, got {len(df)}")
 
-    unknown_tables = set(df["table"]) - set(_SHEET_TABLES.values())
+    unknown_tables = set(df["table"]) - _TABLE_KEYS
     if unknown_tables:
         raise CMSValidationError(f"Unknown tables: {sorted(unknown_tables)}")
 
@@ -843,8 +899,8 @@ def validate_data(df: pd.DataFrame, min_records: int = 400) -> bool:
     if unknown_measures:
         raise CMSValidationError(f"Unknown measures: {sorted(unknown_measures)}")
 
-    if not df["year"].between(2018, 2100).all():
-        raise CMSValidationError("Year values outside plausible range 2018-2100")
+    if not df["year"].between(2012, 2100).all():
+        raise CMSValidationError("Year values outside plausible range 2012-2100")
 
     if not df["quarter"].isin({1, 2, 3, 4}).all():
         raise CMSValidationError("Quarter values outside range 1-4")
