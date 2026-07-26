@@ -5187,6 +5187,143 @@ def nisra_elective_waiting_times_cmd(waiting_type, trust, year, output_format, f
         raise click.Abort() from e
 
 
+@nisra.command(name="hsc-workforce")
+@click.option(
+    "--dimension",
+    type=click.Choice(
+        [
+            "all",
+            "summary",
+            "staff_group",
+            "sub_staff_group",
+            "organisation",
+            "organisation_staff_group",
+            "other_organisation_staff_group",
+            "pay_band",
+            "leavers",
+            "joiners",
+            "stability",
+        ],
+        case_sensitive=False,
+    ),
+    default="summary",
+    help="Which workbook table to retrieve (default: summary)",
+)
+@click.option("--organisation", help="Filter by organisation name (e.g. Belfast)")
+@click.option("--staff-group", help="Filter by staff group name (e.g. Medical)")
+@click.option("--year", type=int, help="Filter data for a specific calendar year")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save output to file (specify filename)")
+def nisra_hsc_workforce_cmd(dimension, organisation, staff_group, year, output_format, force_refresh, save):
+    r"""NI HSC Workforce Statistics — quarterly staff numbers.
+
+    \b
+    Department of Health quarterly census of Health and Social Care staff,
+    covering 24 quarter-end reference dates from June 2020 to March 2026.
+    Each release carries a six-year series at its own quarter point, so the
+    four published workbooks combine into a continuous quarterly history.
+
+    \b
+    Dimensions:
+
+      summary                         Headline WTE, headcount, active posts
+      staff_group / sub_staff_group   Breakdown by staff group
+      organisation                    Breakdown by trust and other HSC body
+      organisation_staff_group        Organisation x staff group cross-tab
+      other_organisation_staff_group  Non-trust bodies, same cross-tab
+      pay_band                        Agenda for Change band shares
+      leavers / joiners / stability   Financial-year turnover measures
+
+    \b
+    Examples::
+
+        bolster nisra hsc-workforce
+        bolster nisra hsc-workforce --dimension organisation
+        bolster nisra hsc-workforce --dimension pay_band --staff-group Medical
+        bolster nisra hsc-workforce --dimension stability --format json
+        bolster nisra hsc-workforce --dimension staff_group --save workforce.csv
+
+    \b
+    Key insights (as of March 2026): the workforce grew from 61,994 WTE in
+    June 2020 to 68,341 WTE; 76,855 people hold 77,705 active posts; and the
+    annual leaving rate fell from 8.1% in 2021/22 to 6.3% in 2025/26.
+
+    \b
+    Source:
+        https://www.health-ni.gov.uk/articles/staff-numbers
+    """
+    from rich.console import Console
+
+    from bolster.data_sources.health_ni import hsc_workforce as hw
+
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading HSC workforce statistics..."):
+            data = hw.get_latest_data(force_refresh=force_refresh)
+
+        if dimension != "all":
+            data = data[data["table"] == dimension]
+            if data.empty:
+                console.print(f"[yellow]No data found for dimension='{dimension}'[/yellow]")
+                return
+
+        if organisation:
+            data = data[data["organisation"].str.contains(organisation, case=False, na=False)]
+            if data.empty:
+                console.print(f"[yellow]No data found for organisation matching '{organisation}'[/yellow]")
+                return
+
+        if staff_group:
+            data = data[data["staff_group"].str.contains(staff_group, case=False, na=False)]
+            if data.empty:
+                console.print(f"[yellow]No data found for staff group matching '{staff_group}'[/yellow]")
+                return
+
+        if year:
+            data = data[data["year"] == year]
+            if data.empty:
+                console.print(f"[yellow]No data found for year {year}[/yellow]")
+                return
+
+        console.print(f"[green]Retrieved {len(data):,} records[/green]")
+
+        if not data.empty:
+            console.print(f"[dim]Period: {data['date'].min():%Y-%m-%d} to {data['date'].max():%Y-%m-%d}[/dim]")
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", date_format="iso", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Data saved to: {save}[/green]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            console.print("\n[bold]Data:[/bold]")
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
 @nisra.command(name="registrar-general")
 @click.option("--latest", is_flag=True, help="Get the most recent quarterly tables data")
 @click.option("--quarterly", is_flag=True, help="Show full quarterly time series")

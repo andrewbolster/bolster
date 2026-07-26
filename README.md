@@ -219,6 +219,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Cancer Waiting Times | `health_ni.cancer_waiting_times` | ✅ |
 | Diagnostic Waiting Times | `health_ni.diagnostic_waiting_times` | ✅ |
 | Child Protection Statistics | `health_ni.child_protection` | ✅ |
+| HSC Workforce Statistics | `health_ni.hsc_workforce` | ✅ |
 | NI Planning Activity Statistics (DfI) | `nisra.planning_statistics` | ✅ |
 | NI Housing Stock Statistics (DoF/LPS) | `nisra.housing_stock` | ✅ |
 | NI Homelessness Bulletin (DfC/NIHE) | `nisra.homelessness` | ✅ |

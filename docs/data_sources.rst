@@ -526,6 +526,30 @@ statistics from the Department of Health.
 
     $ bolster nisra child-protection
 
+HSC Workforce
+~~~~~~~~~~~~~
+
+Quarterly Health and Social Care staff numbers by staff group, organisation,
+and Agenda for Change pay band, together with financial-year turnover and
+workforce stability measures.  Each quarterly release carries a six-year
+series at its own quarter point, so the published workbooks combine into a
+continuous quarterly history from June 2020.
+
+.. code-block:: python
+
+    from bolster.data_sources.health_ni import hsc_workforce
+
+    df = hsc_workforce.get_latest_data()
+
+    hsc_workforce.get_summary(df)        # headline WTE, headcount, active posts
+    hsc_workforce.get_organisations(df)  # by trust and other HSC body
+    hsc_workforce.get_turnover(df)       # leavers, joiners, stability rates
+
+.. code-block:: console
+
+    $ bolster nisra hsc-workforce
+    $ bolster nisra hsc-workforce --dimension organisation
+
 ----
 
 PSNI
