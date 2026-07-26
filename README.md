@@ -228,6 +228,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Tourism - Visitor Statistics | `nisra.tourism.visitor_statistics` | ✅ |
 | Baby Names NI (annual, 1997–present) | `nisra.baby_names` | ✅ |
 | NI School Suspensions (DE) | `education_suspensions` | ✅ |
+| NI School Leavers Survey (DE) | `nisra.school_leavers` | ✅ |
 | NICTS Mortgages Action for Possession (DoJ) | `justice.mortgages` | ✅ |
 | Work Quality NI (NISRA) | `nisra.work_quality` | ✅ |
 | NI LAC Municipal Waste Statistics (DAERA) | `daera_waste` | ✅ |
