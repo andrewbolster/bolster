@@ -24,6 +24,7 @@ from .data_sources.health_ni import diagnostic_waiting_times as nisra_diagnostic
 from .data_sources.health_ni import disease_prevalence as nisra_disease_prevalence
 from .data_sources.health_ni import emergency_care_waiting_times as nisra_emergency
 from .data_sources.justice import mortgages as justice_mortgages
+from .data_sources.justice import nicts_quarterly as justice_nicts_quarterly
 from .data_sources.metoffice import get_uk_precipitation
 from .data_sources.ni_house_price_index import build as get_ni_house_prices
 from .data_sources.ni_water import get_postcode_to_water_supply_zone, get_water_quality_by_zone
@@ -7297,7 +7298,8 @@ def justice():
     """NI Department of Justice / NICTS statistics.
 
     Access official justice statistics from the Northern Ireland Courts and
-    Tribunals Service (NICTS), including mortgage actions for possession.
+    Tribunals Service (NICTS), including quarterly court business figures and
+    mortgage actions for possession.
     """
     pass
 
@@ -7373,6 +7375,127 @@ def justice_mortgages_cmd(table, output_format, force_refresh, save, summary):
             console.print(f"   Coverage: {int(data['year'].min())}-{int(data['year'].max())}")
             console.print(f"   Peak year: {peak_year} ({int(annual.max()):,} applications)")
             console.print(f"   Latest complete annual total: {int(annual.iloc[-1]):,} ({int(annual.index[-1])})")
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.astype(str).to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.astype(str).to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@justice.command(name="nicts-quarterly")
+@click.option(
+    "--court",
+    default="all",
+    help="Court dataset key, or 'all' (default). Use --list-courts to see the options.",
+)
+@click.option("--list-courts", is_flag=True, help="List available court dataset keys and exit")
+@click.option("--year", type=int, help="Filter to a single calendar year")
+@click.option("--quarter", type=int, help="Filter to a single quarter (1-4); excludes annual totals")
+@click.option("--annual", is_flag=True, help="Show annual totals only, excluding quarterly rows")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics instead of full data")
+def justice_nicts_quarterly_cmd(court, list_courts, year, quarter, annual, output_format, force_refresh, save, summary):
+    r"""NICTS quarterly provisional court business figures.
+
+    \b
+    Case receipts, disposals and outstanding workload across all ten NICTS
+    court datasets — Court of Appeal (criminal and civil), the three High
+    Court divisions, Crown, County, Magistrates', Children Order proceedings,
+    and judicial sitting days. Annual totals from 2017 plus quarterly figures
+    for the most recent years.
+
+    Examples:
+        Every court, every period::
+
+            bolster justice nicts-quarterly
+
+        See which court keys are available::
+
+            bolster justice nicts-quarterly --list-courts
+
+        Crown Court only::
+
+            bolster justice nicts-quarterly --court crown_court
+
+        Magistrates' Courts, most recent full year::
+
+            bolster justice nicts-quarterly --court magistrates_courts --year 2024
+
+        Annual totals as JSON::
+
+            bolster justice nicts-quarterly --annual --format json
+
+    Source:
+        https://www.justice-ni.gov.uk/publications/nicts-business-data
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        if list_courts:
+            with console.status("[bold green]Downloading NICTS quarterly data..."):
+                courts = justice_nicts_quarterly.list_courts(force_refresh=force_refresh)
+            console.print("[bold]Available courts:[/bold]")
+            for name in courts:
+                console.print(f"   {name}")
+            return
+
+        with console.status("[bold green]Downloading NICTS quarterly data..."):
+            data = justice_nicts_quarterly.get_latest_data(court=court, force_refresh=force_refresh)
+
+        if year is not None:
+            data = data[data["year"] == year]
+        if annual:
+            data = data[data["quarter"].isna()]
+        if quarter is not None:
+            data = data[data["quarter"] == quarter]
+
+        if data.empty:
+            console.print("[yellow]No data matches the requested filters[/yellow]")
+            return
+
+        console.print("[green]NICTS quarterly data retrieved successfully[/green]")
+        console.print(f"[cyan]Court: {court} | Rows: {len(data)}[/cyan]")
+
+        if summary:
+            console.print("\n[bold]Summary:[/bold]")
+            console.print(f"   Coverage: {int(data['year'].min())}-{int(data['year'].max())}")
+            console.print(f"   Courts: {data['court'].nunique()}")
+            console.print(f"   Categories: {data['category'].nunique()}")
+            console.print(f"   Periods: {data['period'].nunique()}")
             if not save:
                 return
 
