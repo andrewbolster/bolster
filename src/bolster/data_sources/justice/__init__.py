@@ -3,6 +3,8 @@
 Modules wrapping statistical publications from the Department of Justice (DoJ)
 and the Northern Ireland Courts and Tribunals Service (NICTS):
 
+- first_time_entrants: First time entrants to the criminal justice system,
+  broken down by age band, gender, offence classification and disposal type.
 - mortgages: Mortgage actions for possession (cases received, disposed, and
   final orders made in the Chancery Division of the NI High Court).
 - nicts_quarterly: Quarterly provisional court business figures across all ten
