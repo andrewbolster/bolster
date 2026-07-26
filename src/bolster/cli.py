@@ -25,6 +25,7 @@ from .data_sources.health_ni import disease_prevalence as nisra_disease_prevalen
 from .data_sources.health_ni import emergency_care_waiting_times as nisra_emergency
 from .data_sources.justice import mortgages as justice_mortgages
 from .data_sources.justice import nicts_quarterly as justice_nicts_quarterly
+from .data_sources.justice import pps_statistical_bulletin as justice_pps_statistical_bulletin
 from .data_sources.metoffice import get_uk_precipitation
 from .data_sources.ni_house_price_index import build as get_ni_house_prices
 from .data_sources.ni_water import get_postcode_to_water_supply_zone, get_water_quality_by_zone
@@ -7359,6 +7360,137 @@ def justice_nicts_quarterly_cmd(court, list_courts, year, quarter, annual, outpu
             console.print(f"   Courts: {data['court'].nunique()}")
             console.print(f"   Categories: {data['category'].nunique()}")
             console.print(f"   Periods: {data['period'].nunique()}")
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.astype(str).to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.astype(str).to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@justice.command(name="pps-statistical-bulletin")
+@click.option(
+    "--table",
+    default="all",
+    help="Table key such as '1a' or '3a', or 'all' (default). Use --list-tables to see the options.",
+)
+@click.option("--list-tables", is_flag=True, help="List available table keys and exit")
+@click.option("--year", help="Filter to a financial year, e.g. '2024/25'")
+@click.option("--historical", is_flag=True, help="Stitch several annual bulletins into one series")
+@click.option(
+    "--max-publications",
+    type=int,
+    default=5,
+    help="Number of annual bulletins to combine when --historical is set (default: 5)",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics instead of full data")
+def justice_pps_statistical_bulletin_cmd(
+    table, list_tables, year, historical, max_publications, output_format, force_refresh, save, summary
+):
+    r"""Public Prosecution Service statistical bulletin.
+
+    \b
+    PPS casework statistics: files and defendants received from police,
+    prosecution and diversion decisions by offence group, the time taken to
+    reach a decision, and the outcomes of contested Crown and Magistrates'
+    court cases. Each annual bulletin restates the prior financial year, so a
+    single download covers two years.
+
+    Examples:
+        Every table in the latest bulletin::
+
+            bolster justice pps-statistical-bulletin
+
+        See which table keys are available::
+
+            bolster justice pps-statistical-bulletin --list-tables
+
+        Files received from police (table 1a)::
+
+            bolster justice pps-statistical-bulletin --table 1a
+
+        Prosecution decisions for one financial year::
+
+            bolster justice pps-statistical-bulletin --table 3a --year 2024/25
+
+        Five bulletins stitched into one series::
+
+            bolster justice pps-statistical-bulletin --historical --format json
+
+    Source:
+        https://www.ppsni.gov.uk/pps-statistical-bulletin
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        if list_tables:
+            with console.status("[bold green]Downloading PPS statistical bulletin..."):
+                tables = justice_pps_statistical_bulletin.list_tables(force_refresh=force_refresh)
+            console.print("[bold]Available tables:[/bold]")
+            for name in tables:
+                console.print(f"   {name}")
+            return
+
+        with console.status("[bold green]Downloading PPS statistical bulletin..."):
+            if historical:
+                data = justice_pps_statistical_bulletin.get_historical_data(
+                    max_publications=max_publications, force_refresh=force_refresh
+                )
+                if table != "all":
+                    data = data[data["table"] == table.lower()]
+            else:
+                data = justice_pps_statistical_bulletin.get_latest_data(table=table, force_refresh=force_refresh)
+
+        if year:
+            data = data[data["financial_year"] == year]
+
+        if data.empty:
+            console.print("[yellow]No data matches the requested filters[/yellow]")
+            return
+
+        console.print("[green]PPS statistical bulletin retrieved successfully[/green]")
+        console.print(f"[cyan]Table: {table} | Rows: {len(data)}[/cyan]")
+
+        if summary:
+            console.print("\n[bold]Summary:[/bold]")
+            console.print(f"   Coverage: {data['financial_year'].min()}-{data['financial_year'].max()}")
+            console.print(f"   Tables: {data['table'].nunique()}")
+            console.print(f"   Categories: {data['category'].nunique()}")
+            console.print(f"   Suppressed cells: {int(data['value'].isna().sum())}")
             if not save:
                 return
 

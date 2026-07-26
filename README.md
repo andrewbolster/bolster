@@ -230,6 +230,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | NI School Suspensions (DE) | `education_suspensions` | ✅ |
 | NICTS Mortgages Action for Possession (DoJ) | `justice.mortgages` | ✅ |
 | NICTS Quarterly Court Business Figures (DoJ) | `justice.nicts_quarterly` | ✅ |
+| PPS Statistical Bulletin (PPS NI) | `justice.pps_statistical_bulletin` | ✅ |
 | Work Quality NI (NISRA) | `nisra.work_quality` | ✅ |
 | NI LAC Municipal Waste Statistics (DAERA) | `daera_waste` | ✅ |
 | NI Electricity Consumption & Renewable Generation (DfE) | `electricity_renewables` | ✅ |
