@@ -766,6 +766,36 @@ most recent years, returned as a single tidy long frame.
     $ bolster justice nicts-quarterly --court crown_court
     $ bolster justice nicts-quarterly --annual --format json
 
+Prosecutions, Convictions and Out of Court Disposals
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Annual figures on how criminal cases are resolved: convictions and conviction
+rates by court tier, the mix of out of court disposals (cautions, informed
+warnings, penalty notices, youth conference plans), and diversionary disposals
+by gender and age band. Publications run from 2008 to the present.
+
+.. code-block:: python
+
+    from bolster.data_sources.justice import prosecutions_convictions as pcd
+
+    # Conviction rates by court tier
+    df = pcd.get_prosecutions_convictions()
+
+    # Court versus out of court resolution
+    cases = pcd.get_cases_dealt_with()
+
+    # Out of court disposals by type
+    disposals = pcd.get_out_of_court_disposals()
+
+    # Diversionary disposals by age band
+    by_age = pcd.get_diversionary_disposals(by="age")
+
+.. code-block:: console
+
+    $ bolster justice prosecutions-convictions --summary
+    $ bolster justice prosecutions-convictions --dataset out-of-court
+    $ bolster justice prosecutions-convictions --dataset diversionary --by age
+
 ----
 
 Translink

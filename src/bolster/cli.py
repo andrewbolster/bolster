@@ -25,6 +25,7 @@ from .data_sources.health_ni import disease_prevalence as nisra_disease_prevalen
 from .data_sources.health_ni import emergency_care_waiting_times as nisra_emergency
 from .data_sources.justice import mortgages as justice_mortgages
 from .data_sources.justice import nicts_quarterly as justice_nicts_quarterly
+from .data_sources.justice import prosecutions_convictions as justice_prosecutions
 from .data_sources.metoffice import get_uk_precipitation
 from .data_sources.ni_house_price_index import build as get_ni_house_prices
 from .data_sources.ni_water import get_postcode_to_water_supply_zone, get_water_quality_by_zone
@@ -7359,6 +7360,138 @@ def justice_nicts_quarterly_cmd(court, list_courts, year, quarter, annual, outpu
             console.print(f"   Courts: {data['court'].nunique()}")
             console.print(f"   Categories: {data['category'].nunique()}")
             console.print(f"   Periods: {data['period'].nunique()}")
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.astype(str).to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.astype(str).to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@justice.command(name="prosecutions-convictions")
+@click.option(
+    "--dataset",
+    type=click.Choice(["cases", "prosecutions", "out-of-court", "diversionary", "all"], case_sensitive=False),
+    default="prosecutions",
+    help="Which table to extract (default: prosecutions). 'all' returns the full long frame.",
+)
+@click.option(
+    "--by",
+    type=click.Choice(["gender", "age"], case_sensitive=False),
+    default="gender",
+    help="Breakdown for --dataset diversionary (default: gender)",
+)
+@click.option("--year", type=int, help="Publication year (default: most recent)")
+@click.option("--list-tables", is_flag=True, help="List the tables in the workbook and exit")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics instead of full data")
+def justice_prosecutions_convictions_cmd(dataset, by, year, list_tables, output_format, force_refresh, save, summary):
+    r"""Court prosecutions, convictions and out of court disposals in NI.
+
+    \b
+    Annual Department of Justice figures covering how criminal cases are
+    resolved: convictions and conviction rates by court tier, the mix of out
+    of court disposals (cautions, informed warnings, penalty notices, youth
+    conference plans), and diversionary disposals broken down by gender and
+    age band.
+
+    Examples:
+        Conviction rates by court tier::
+
+            bolster justice prosecutions-convictions
+
+        Cases dealt with, court versus out of court::
+
+            bolster justice prosecutions-convictions --dataset cases
+
+        Out of court disposals by type::
+
+            bolster justice prosecutions-convictions --dataset out-of-court
+
+        Diversionary disposals by age band::
+
+            bolster justice prosecutions-convictions --dataset diversionary --by age
+
+        An earlier publication as JSON::
+
+            bolster justice prosecutions-convictions --year 2022 --format json
+
+    Source:
+        https://www.justice-ni.gov.uk/articles/court-prosecution-conviction-and-out-court-disposal-statistics
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        if list_tables:
+            with console.status("[bold green]Downloading prosecutions and convictions data..."):
+                tables = justice_prosecutions.list_tables(year=year)
+            console.print("[bold]Available tables:[/bold]")
+            for row in tables.itertuples():
+                console.print(f"   {row.table_id:>4}  {row.table_title} ({row.records} records)")
+            return
+
+        with console.status("[bold green]Downloading prosecutions and convictions data..."):
+            if dataset == "cases":
+                data = justice_prosecutions.get_cases_dealt_with(year=year)
+            elif dataset == "out-of-court":
+                data = justice_prosecutions.get_out_of_court_disposals(year=year)
+            elif dataset == "diversionary":
+                data = justice_prosecutions.get_diversionary_disposals(year=year, by=by)
+            elif dataset == "all":
+                data = justice_prosecutions.get_latest_data(year=year, force_refresh=force_refresh)
+            else:
+                data = justice_prosecutions.get_prosecutions_convictions(year=year)
+
+        if data.empty:
+            console.print("[yellow]No data returned[/yellow]")
+            return
+
+        console.print("[green]Prosecutions and convictions data retrieved successfully[/green]")
+        console.print(f"[cyan]Dataset: {dataset} | Rows: {len(data)}[/cyan]")
+
+        if summary:
+            console.print("\n[bold]Summary:[/bold]")
+            if "year" in data.columns:
+                console.print(f"   Coverage: {int(data['year'].min())}-{int(data['year'].max())}")
+            if "conviction_rate" in data.columns:
+                latest = data[data["year"] == data["year"].max()]
+                for row in latest.itertuples():
+                    console.print(f"   {row.court}: {row.conviction_rate:.1%} of {int(row.total_findings):,} findings")
+            elif "table_id" in data.columns:
+                console.print(f"   Tables: {data['table_id'].nunique()}")
             if not save:
                 return
 
