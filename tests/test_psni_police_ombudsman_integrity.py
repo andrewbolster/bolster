@@ -12,7 +12,21 @@ import pandas as pd
 import pytest
 
 from bolster.data_sources.psni import police_ombudsman
-from bolster.data_sources.psni._base import PSNIValidationError
+from bolster.data_sources.psni._base import PSNIDataNotFoundError, PSNIValidationError
+
+
+def _fetch(breakdown: str) -> pd.DataFrame:
+    """Fetch a breakdown, skipping the test class if the publisher blocks us.
+
+    policeombudsman.org sits behind a WAF that returns 403 to non-residential
+    IPs, so CI cannot reach it at all. Skipping keeps that outage from failing
+    the whole suite while still exercising the tests wherever the site is
+    reachable.
+    """
+    try:
+        return police_ombudsman.get_latest_complaints(breakdown)
+    except PSNIDataNotFoundError as e:
+        pytest.skip(f"Police Ombudsman site unavailable: {e}")
 
 
 # ── Annual totals ──────────────────────────────────────────────────────────────
@@ -24,7 +38,7 @@ class TestAnnualTotalsIntegrity:
     @pytest.fixture(scope="class")
     def totals(self):
         """Download and return the annual totals breakdown."""
-        return police_ombudsman.get_latest_complaints("totals")
+        return _fetch("totals")
 
     def test_required_columns(self, totals):
         """DataFrame must contain year, year_label, complaints columns."""
@@ -80,7 +94,7 @@ class TestDistrictIntegrity:
     @pytest.fixture(scope="class")
     def by_district(self):
         """Download and return the annual by-district breakdown."""
-        return police_ombudsman.get_latest_complaints("by_district")
+        return _fetch("by_district")
 
     def test_required_columns(self, by_district):
         assert {"year", "year_label", "district", "lgd_code", "complaints"}.issubset(
@@ -141,7 +155,7 @@ class TestAllegationTypeIntegrity:
     @pytest.fixture(scope="class")
     def by_allegation(self):
         """Download and return the annual by-allegation-type breakdown."""
-        return police_ombudsman.get_latest_complaints("by_allegation_type")
+        return _fetch("by_allegation_type")
 
     def test_required_columns(self, by_allegation):
         assert {"year", "allegation_type", "allegation_subtype", "allegations"}.issubset(
@@ -185,7 +199,7 @@ class TestOutcomeIntegrity:
     @pytest.fixture(scope="class")
     def by_outcome(self):
         """Download and return the annual by-outcome breakdown."""
-        return police_ombudsman.get_latest_complaints("by_outcome")
+        return _fetch("by_outcome")
 
     def test_required_columns(self, by_outcome):
         assert {"year", "outcome", "closures"}.issubset(by_outcome.columns)
@@ -212,7 +226,7 @@ class TestQuarterlyIntegrity:
     @pytest.fixture(scope="class")
     def quarterly(self):
         """Download and return quarterly complaint data."""
-        return police_ombudsman.get_latest_complaints("quarterly")
+        return _fetch("quarterly")
 
     def test_required_columns(self, quarterly):
         assert {"year", "year_label", "quarter", "complaints"}.issubset(quarterly.columns)
