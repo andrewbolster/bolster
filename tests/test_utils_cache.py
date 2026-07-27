@@ -1,20 +1,20 @@
 """Tests for bolster.utils.cache module."""
 
+import shutil
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
-import shutil
+from unittest.mock import Mock, patch
 
 import pytest
 import requests
 
 from bolster.utils.cache import (
-    CachedDownloader,
-    DownloadError,
-    CacheError,
-    hash_url,
     CACHE_BASE,
+    CachedDownloader,
+    CacheError,
+    DownloadError,
+    hash_url,
 )
 
 

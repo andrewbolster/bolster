@@ -11,13 +11,12 @@ import pandas as pd
 import pytest
 
 from bolster.data_sources.daera_waste import (
-    DAERAValidationError,
     NI_COUNCILS_POST_2015,
+    DAERAValidationError,
     get_latest_waste_statistics,
     get_waste_publication_url,
     validate_waste_data,
 )
-
 
 # ── Publication discovery ────────────────────────────────────────────────────
 

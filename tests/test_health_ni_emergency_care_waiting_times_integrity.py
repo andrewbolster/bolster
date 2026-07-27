@@ -44,7 +44,7 @@ class TestEmergencyCareIntegrity:
     def test_all_five_trusts_present(self, latest_data):
         """All 5 HSC Trusts must appear in the data."""
         actual = set(latest_data["trust"].unique())
-        assert ecwt.EXPECTED_TRUSTS == actual, (
+        assert actual == ecwt.EXPECTED_TRUSTS, (
             f"Expected trusts {ecwt.EXPECTED_TRUSTS}, got {actual}"
         )
 

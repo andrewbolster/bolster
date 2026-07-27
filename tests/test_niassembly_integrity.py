@@ -13,7 +13,6 @@ import pytest
 from bolster.data_sources.niassembly import members, questions, votes
 from bolster.data_sources.niassembly.questions import _resolve_department_id
 
-
 # ── Members ──────────────────────────────────────────────────────────────────
 
 

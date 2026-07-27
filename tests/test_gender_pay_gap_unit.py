@@ -16,7 +16,6 @@ from click.testing import CliRunner
 from bolster.cli import cli
 from bolster.data_sources import gender_pay_gap
 
-
 # ---------------------------------------------------------------------------
 # Minimal valid DataFrame for use in unit tests
 # ---------------------------------------------------------------------------

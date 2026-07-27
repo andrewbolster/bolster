@@ -150,7 +150,7 @@ class TestValidateFunction:
         """Build a minimal valid DataFrame for testing."""
         rows = []
         for trust in ("Belfast", "Northern", "South Eastern", "Southern", "Western"):
-            for i in range(2):
+            for _ in range(2):
                 rows.append({
                     "date": pd.Timestamp("2023-06-01"),
                     "quarter": "2022/23Q1",

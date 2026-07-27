@@ -259,7 +259,7 @@ class TestEmploymentDataIntegrity:
 
         if duplicates.any():
             dup_records = non_empty[duplicates][["age_group", "sex", "percentage", "number"]]
-            assert False, f"Found {duplicates.sum()} duplicate age/sex combinations:\n{dup_records}"
+            raise AssertionError(f"Found {duplicates.sum()} duplicate age/sex combinations:\n{dup_records}")
 
 
 class TestEconomicInactivityDataIntegrity:
@@ -364,7 +364,9 @@ class TestEconomicInactivityDataIntegrity:
 
         if duplicates.any():
             dup_records = latest_inactivity[duplicates]
-            assert False, f"Found {duplicates.sum()} duplicate time_period/sex combinations:\n{dup_records}"
+            raise AssertionError(
+                f"Found {duplicates.sum()} duplicate time_period/sex combinations:\n{dup_records}"
+            )
 
     def test_historical_data_completeness(self, latest_inactivity):
         """Test that historical data includes multiple years.
@@ -698,9 +700,9 @@ class TestMonthlyLMRValidation:
         ws.title = sheet_name
         for row in rows:
             ws.append(row)
-        tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
-        wb.save(tmp.name)
-        return Path(tmp.name)
+        path = Path(tempfile.mkdtemp()) / "lmr.xlsx"
+        wb.save(path)
+        return path
 
     def test_missing_sheet_raises(self):
         """parse_monthly_lmr_structure raises if sheet '2.1' is absent."""

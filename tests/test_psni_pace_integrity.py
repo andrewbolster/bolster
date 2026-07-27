@@ -38,12 +38,12 @@ class TestStopSearchIntegrity:
         assert len(reasons) >= 4, f"Expected at least 4 search reasons, got: {reasons}"
 
     def test_known_reasons_present(self, stop_search_data):
-        reasons = set(str(r) for r in stop_search_data["reason"].unique())
+        reasons = {str(r) for r in stop_search_data["reason"].unique()}
         assert any("Stolen" in r for r in reasons), "Expected 'Stolen Articles' reason"
         assert any("Fireworks" in r for r in reasons), "Expected 'Fireworks' reason"
 
     def test_all_months_present(self, stop_search_data):
-        months = set(str(m) for m in stop_search_data["month"].unique())
+        months = {str(m) for m in stop_search_data["month"].unique()}
         expected = {"Apr", "May", "Jun", "Jul", "Aug", "Sept", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar"}
         assert expected == months, f"Missing months: {expected - months}"
 
@@ -55,7 +55,7 @@ class TestStopSearchIntegrity:
         assert stop_search_data["year"].dtype in (int, "int64", "int32")
 
     def test_metric_values(self, stop_search_data):
-        metrics = set(str(m) for m in stop_search_data["metric"].unique())
+        metrics = {str(m) for m in stop_search_data["metric"].unique()}
         assert "Searches" in metrics
         assert "Arrests" in metrics
 
@@ -86,25 +86,25 @@ class TestArrestsIntegrity:
         assert (arrests_data["count"] >= 0).all()
 
     def test_gender_categories_present(self, arrests_data):
-        categories = set(str(c) for c in arrests_data["category"].unique())
+        categories = {str(c) for c in arrests_data["category"].unique()}
         assert "Male" in categories, f"Expected 'Male' category, got: {categories}"
         assert "Female" in categories, f"Expected 'Female' category, got: {categories}"
 
     def test_total_category_present(self, arrests_data):
-        categories = set(str(c) for c in arrests_data["category"].unique())
+        categories = {str(c) for c in arrests_data["category"].unique()}
         assert "Total" in categories
 
     def test_solicitor_category_present(self, arrests_data):
-        categories = set(str(c) for c in arrests_data["category"].unique())
+        categories = {str(c) for c in arrests_data["category"].unique()}
         assert any("solicitor" in c.lower() for c in categories), f"Expected solicitor category, got: {categories}"
 
     def test_all_quarters_present(self, arrests_data):
-        quarters = set(str(q) for q in arrests_data["quarter"].unique())
+        quarters = {str(q) for q in arrests_data["quarter"].unique()}
         for q in ("Q1", "Q2", "Q3", "Q4"):
             assert any(q in qstr for qstr in quarters), f"Missing quarter {q} in {quarters}"
 
     def test_annual_total_present(self, arrests_data):
-        quarters = set(str(q) for q in arrests_data["quarter"].unique())
+        quarters = {str(q) for q in arrests_data["quarter"].unique()}
         assert any("Annual" in q for q in quarters), f"Expected annual total row, got: {quarters}"
 
     def test_gender_totals_consistent(self, arrests_data):
@@ -112,7 +112,7 @@ class TestArrestsIntegrity:
         for quarter in arrests_data["quarter"].unique():
             q_data = arrests_data[arrests_data["quarter"] == quarter]
 
-            def _get(cat):
+            def _get(cat, q_data=q_data):
                 row = q_data[q_data["category"] == cat]
                 return int(row["count"].iloc[0]) if not row.empty else 0
 

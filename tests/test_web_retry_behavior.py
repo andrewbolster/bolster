@@ -5,11 +5,11 @@ from unittest.mock import Mock, patch
 
 import pytest
 import requests
-from requests.adapters import HTTPAdapter
 from requests import exceptions as requests_exceptions
+from requests.adapters import HTTPAdapter
 from waybackpy import exceptions as wayback_exceptions
 
-from bolster.utils.web import _retry_strategy, session, RateLimitAwareRetry, resilient_get, get_last_valid
+from bolster.utils.web import RateLimitAwareRetry, _retry_strategy, resilient_get, session
 
 
 class TestRetryConfiguration:
@@ -155,7 +155,7 @@ class TestRateLimitAwareRetry:
         # This should trigger the warning log and set _last_status
         with patch('bolster.utils.web.logger.warning') as mock_logger:
             # Call increment - this covers lines 51-53
-            new_retry = retry.increment(
+            retry.increment(
                 method='GET',
                 url='https://example.com/test',
                 response=mock_response

@@ -36,7 +36,6 @@ from bolster.data_sources.translink.vehicles import (
     validate_vehicles,
 )
 
-
 # ---------------------------------------------------------------------------
 # _base: net_ticks_to_timestamp
 # ---------------------------------------------------------------------------

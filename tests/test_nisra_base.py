@@ -3,29 +3,27 @@
 These tests validate the shared utility functions in the NISRA _base module.
 """
 
-from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
-import tempfile
+from unittest.mock import Mock, patch
 
 import pandas as pd
 import pytest
-from bs4 import BeautifulSoup
 
 from bolster.data_sources.nisra._base import (
+    NISRADataError,
+    NISRADataNotFoundError,
+    NISRAValidationError,
     add_date_columns,
+    clear_cache,
     download_file,
+    extract_column_mapping,
+    find_header_row,
     make_absolute_url,
+    parse_age_breakdowns,
     parse_month_year,
     safe_float,
     safe_int,
     scrape_download_links,
-    clear_cache,
-    find_header_row,
-    extract_column_mapping,
-    parse_age_breakdowns,
-    NISRADataError,
-    NISRADataNotFoundError,
-    NISRAValidationError,
 )
 from bolster.utils.cache import DownloadError
 
