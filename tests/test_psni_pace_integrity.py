@@ -123,7 +123,7 @@ class TestArrestsIntegrity:
             if total > 0:
                 assert male + female + other == total, (
                     f"Gender totals don't add up for {quarter}: "
-                    f"{male} + {female} + {other} = {male+female+other} != {total}"
+                    f"{male} + {female} + {other} = {male + female + other} != {total}"
                 )
 
     def test_total_arrests_reasonable(self, arrests_data):

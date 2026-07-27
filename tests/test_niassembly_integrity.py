@@ -36,9 +36,7 @@ class TestCurrentMembers:
             "PartyName",
             "ConstituencyName",
         }
-        assert required.issubset(set(df.columns)), (
-            f"Missing columns: {required - set(df.columns)}"
-        )
+        assert required.issubset(set(df.columns)), f"Missing columns: {required - set(df.columns)}"
 
     def test_parties_present(self, df):
         """Expect at least 5 distinct parties in the Assembly."""
@@ -99,9 +97,7 @@ class TestDivisions:
 
     def test_divisions_schema(self, df):
         required = {"DocumentID", "DivisionDate", "DivisionSubject"}
-        assert required.issubset(set(df.columns)), (
-            f"Missing columns: {required - set(df.columns)}"
-        )
+        assert required.issubset(set(df.columns)), f"Missing columns: {required - set(df.columns)}"
 
     def test_division_dates_parsed(self, df):
         assert pd.api.types.is_datetime64_any_dtype(df["DivisionDate"])
@@ -149,9 +145,7 @@ class TestQuestionsByDepartment:
 
     def test_questions_schema(self, df):
         required = {"DocumentId", "TabledDate", "QuestionText"}
-        assert required.issubset(set(df.columns)), (
-            f"Missing columns: {required - set(df.columns)}"
-        )
+        assert required.issubset(set(df.columns)), f"Missing columns: {required - set(df.columns)}"
 
     def test_tabled_dates_parsed(self, df):
         assert pd.api.types.is_datetime64_any_dtype(df["TabledDate"])
@@ -242,9 +236,7 @@ class TestValidationEdgeCases:
             def json(self):
                 return {"QuestionsList": None}
 
-        monkeypatch.setattr(
-            questions_mod.session, "get", lambda *a, **kw: FakeResponse()
-        )
+        monkeypatch.setattr(questions_mod.session, "get", lambda *a, **kw: FakeResponse())
         df = questions_mod.get_questions_by_department(82)
         assert isinstance(df, pd.DataFrame)
         assert df.empty
@@ -262,9 +254,7 @@ class TestValidationEdgeCases:
             def json(self):
                 return {"DivisionList": None}
 
-        monkeypatch.setattr(
-            votes_mod.session, "get", lambda *a, **kw: FakeResponse()
-        )
+        monkeypatch.setattr(votes_mod.session, "get", lambda *a, **kw: FakeResponse())
         df = votes_mod.get_all_divisions()
         assert isinstance(df, pd.DataFrame)
         assert df.empty
@@ -280,9 +270,7 @@ class TestValidationEdgeCases:
             def raise_for_status(self):
                 pass
 
-        monkeypatch.setattr(
-            votes_mod.session, "get", lambda *a, **kw: FakeResponse()
-        )
+        monkeypatch.setattr(votes_mod.session, "get", lambda *a, **kw: FakeResponse())
         df = votes_mod.get_division_votes(999)
         assert isinstance(df, pd.DataFrame)
         assert df.empty
@@ -298,9 +286,7 @@ class TestValidationEdgeCases:
             def raise_for_status(self):
                 pass
 
-        monkeypatch.setattr(
-            votes_mod.session, "get", lambda *a, **kw: FakeResponse()
-        )
+        monkeypatch.setattr(votes_mod.session, "get", lambda *a, **kw: FakeResponse())
         df = votes_mod.get_division_votes(999)
         assert isinstance(df, pd.DataFrame)
         assert df.empty

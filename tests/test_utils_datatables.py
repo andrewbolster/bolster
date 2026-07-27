@@ -21,6 +21,7 @@ from bolster.utils.datatables import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_dt_html(col_arrays: list, headers: list[str] | None = None) -> str:
     """Build a minimal HTML page containing a DT widget JSON block."""
     if headers is None:
@@ -39,11 +40,7 @@ def _make_dt_html(col_arrays: list, headers: list[str] | None = None) -> str:
     }
 
     script_content = json.dumps(payload)
-    return (
-        "<!DOCTYPE html><html><body>"
-        f'<script type="application/json">{script_content}</script>'
-        "</body></html>"
-    )
+    return f'<!DOCTYPE html><html><body><script type="application/json">{script_content}</script></body></html>'
 
 
 # ---------------------------------------------------------------------------
@@ -106,9 +103,7 @@ class TestExtractDataTablesPayload:
         """A JSON script without column-transposed data must raise."""
         payload = {"x": {"data": "not-a-list", "container": ""}}
         html = (
-            "<!DOCTYPE html><html><body>"
-            f'<script type="application/json">{json.dumps(payload)}</script>'
-            "</body></html>"
+            f'<!DOCTYPE html><html><body><script type="application/json">{json.dumps(payload)}</script></body></html>'
         )
         with pytest.raises(DataTablesError, match="No DataTables column-transposed payload"):
             _extract_datatables_payload(html)
@@ -117,9 +112,7 @@ class TestExtractDataTablesPayload:
         """Row-oriented data (list of dicts) must not be treated as DT widget."""
         payload = {"x": {"data": [{"col": 1}, {"col": 2}], "container": ""}}
         html = (
-            "<!DOCTYPE html><html><body>"
-            f'<script type="application/json">{json.dumps(payload)}</script>'
-            "</body></html>"
+            f'<!DOCTYPE html><html><body><script type="application/json">{json.dumps(payload)}</script></body></html>'
         )
         with pytest.raises(DataTablesError, match="No DataTables column-transposed payload"):
             _extract_datatables_payload(html)

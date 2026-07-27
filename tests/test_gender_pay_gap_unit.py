@@ -20,6 +20,7 @@ from bolster.data_sources import gender_pay_gap
 # Minimal valid DataFrame for use in unit tests
 # ---------------------------------------------------------------------------
 
+
 def _make_df(n=2):
     """Return a minimal DataFrame that passes validate_data."""
     return pd.DataFrame(
@@ -60,6 +61,7 @@ def _make_df(n=2):
 # Module-level unit tests (no network)
 # ---------------------------------------------------------------------------
 
+
 class TestGetAllYearsSkipsFailingYears:
     """get_all_years() should log a warning and skip years that raise."""
 
@@ -82,6 +84,7 @@ class TestGetAllYearsSkipsFailingYears:
 
     def test_raises_when_all_years_fail(self, monkeypatch):
         """If every year fails, get_all_years() raises GenderPayGapError."""
+
         def fake_get_data(year, postcode_prefix=None, force_refresh=False):
             raise gender_pay_gap.GenderPayGapError("always fails")
 
@@ -124,6 +127,7 @@ class TestValidateDataEdgeCases:
 # CLI unit tests via CliRunner
 # ---------------------------------------------------------------------------
 
+
 class TestGenderPayGapCLI:
     """CLI command invocation tests — exercise all major branches."""
 
@@ -135,7 +139,9 @@ class TestGenderPayGapCLI:
     def patch_gpg(self, monkeypatch):
         """Monkeypatch the GPG module so CLI tests don't hit the network."""
         monkeypatch.setattr(gender_pay_gap, "get_available_years", lambda: [2023, 2024])
-        monkeypatch.setattr(gender_pay_gap, "get_data", lambda year, postcode_prefix=None, force_refresh=False: _make_df())
+        monkeypatch.setattr(
+            gender_pay_gap, "get_data", lambda year, postcode_prefix=None, force_refresh=False: _make_df()
+        )
         monkeypatch.setattr(gender_pay_gap, "get_all_years", lambda postcode_prefix=None: _make_df())
 
     def test_default_invocation(self, runner, patch_gpg):

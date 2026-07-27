@@ -73,9 +73,7 @@ class TestWasteDataIntegrity:
             "lac_waste_arisings_tonnes",
             "hh_waste_arisings_tonnes",
         }
-        assert required.issubset(set(df.columns)), (
-            f"Missing: {required - set(df.columns)}"
-        )
+        assert required.issubset(set(df.columns)), f"Missing: {required - set(df.columns)}"
 
     def test_no_negative_lac_arisings(self, df):
         vals = df["lac_waste_arisings_tonnes"].dropna()
