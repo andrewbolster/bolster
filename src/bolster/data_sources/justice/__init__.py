@@ -7,6 +7,9 @@ and the Northern Ireland Courts and Tribunals Service (NICTS):
   final orders made in the Chancery Division of the NI High Court).
 - nicts_quarterly: Quarterly provisional court business figures across all ten
   NICTS court datasets, from the Court of Appeal to the Magistrates' Courts.
+- prosecutions_convictions: Annual court prosecutions, convictions and out of
+  court disposals, including conviction rates by court tier and diversionary
+  disposals by gender and age.
 
 Most have corresponding CLI commands under ``bolster justice ...``.
 """
