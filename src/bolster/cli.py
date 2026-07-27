@@ -17,6 +17,7 @@ from .data_sources.boe_base_rate import get_rate_changes as get_boe_rate_changes
 from .data_sources.cineworld import get_cinema_listings
 from .data_sources.companies_house import get_companies_house_records_that_might_be_in_farset, query_basic_company_data
 from .data_sources.daera_waste import get_latest_waste_statistics, validate_waste_data
+from .data_sources.dfi import school_travel as dfi_school_travel
 from .data_sources.electricity_renewables import get_latest_data as get_electricity_data
 from .data_sources.eoni import get_results as get_ni_election_results
 from .data_sources.health_ni import cancer_waiting_times as nisra_cancer
@@ -7145,6 +7146,142 @@ def education_suspensions_cmd(year, output_format, force_refresh, save, summary)
 
         if output_format == "json":
             click.echo(data.to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@cli.group(name="dfi")
+def dfi():
+    """NI Department for Infrastructure statistics.
+
+    Access official statistics from the Department for Infrastructure,
+    including the Young Persons' Behaviour and Attitudes Survey module on
+    travel to and from school.
+    """
+    pass
+
+
+@dfi.command(name="school-travel")
+@click.option(
+    "--table",
+    type=click.Choice(["detail", "trend"], case_sensitive=False),
+    default="detail",
+    help="Detail tables with confidence intervals, or the multi-year trend (default: detail)",
+)
+@click.option(
+    "--breakdown",
+    type=click.Choice(["all", "sex", "year_group"], case_sensitive=False),
+    help="Filter detail tables to one breakdown type",
+)
+@click.option("--question", help="Filter to questions containing this text (case-insensitive)")
+@click.option("--list-questions", is_flag=True, help="List available questions and exit")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics instead of full data")
+def dfi_school_travel_cmd(table, breakdown, question, list_questions, output_format, force_refresh, save, summary):
+    r"""YPBAS: travel to and from school.
+
+    \b
+    How young people travel to and from school, how they would like to
+    travel, perceived road safety, and walking/cycling participation. Detail
+    tables carry 95% confidence intervals and break down by sex and school
+    year group; trend tables cover 2016, 2019, 2022 and 2025.
+
+    Examples:
+        Latest detail tables::
+
+            bolster dfi school-travel
+
+        Multi-year trend::
+
+            bolster dfi school-travel --table trend
+
+        Year-group breakdown for one question::
+
+            bolster dfi school-travel --breakdown year_group --question "travel most of the way TO school"
+
+        List the available questions::
+
+            bolster dfi school-travel --list-questions
+
+    Source:
+        https://www.infrastructure-ni.gov.uk/articles/young-persons-behaviour-and-attitude-survey
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        if list_questions:
+            with console.status("[bold green]Downloading YPBAS school travel data..."):
+                questions = dfi_school_travel.list_questions(force_refresh=force_refresh)
+            for text in questions:
+                click.echo(text)
+            return
+
+        with console.status("[bold green]Downloading YPBAS school travel data..."):
+            if table == "trend":
+                data = dfi_school_travel.get_trend_data(force_refresh=force_refresh)
+            else:
+                data = dfi_school_travel.get_latest_data(force_refresh=force_refresh)
+
+        if breakdown and table == "detail":
+            data = data[data["breakdown_type"] == breakdown.lower()]
+
+        if question:
+            data = data[data["question"].str.contains(question, case=False, na=False)]
+
+        if data.empty:
+            console.print("[yellow]No rows match those filters[/yellow]")
+            return
+
+        console.print("[green]School travel data retrieved successfully[/green]")
+        console.print(f"[cyan]Table: {table} | Rows: {len(data)}[/cyan]")
+
+        if summary:
+            console.print("\n[bold]Summary:[/bold]")
+            console.print(f"   Questions: {data['question'].nunique()}")
+            if table == "trend":
+                years = sorted(data["survey_year"].unique().tolist())
+                console.print(f"   Survey years: {', '.join(str(y) for y in years)}")
+            else:
+                console.print(f"   Survey year: {int(data['survey_year'].iloc[0])}")
+                console.print(f"   Breakdowns: {', '.join(sorted(data['breakdown'].unique()))}")
+                console.print(f"   Suppressed cells: {int(data['suppressed'].sum())}")
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.astype(str).to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.astype(str).to_json(orient="records", indent=2))
         else:
             console.print(data.to_csv(index=False), end="")
 
