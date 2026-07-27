@@ -515,26 +515,37 @@ def get_diversionary_disposals(year: int | None = None, by: str = "gender") -> p
     )
 
 
-def validate_data(df: pd.DataFrame, min_records: int = 1000) -> None:
+def validate_data(df: pd.DataFrame, min_records: int = 1000) -> bool:
     """Validate a parsed long frame.
 
     Args:
         df: Frame from :func:`get_latest_data`.
         min_records: Minimum acceptable record count.
 
+    Returns:
+        True if the frame passes every check.
+
     Raises:
         ProsecutionsValidationError: If the frame is malformed or too small.
     """
+    if df is None or df.empty:
+        raise ProsecutionsValidationError("DataFrame is empty")
+
     required = {"table_id", "table_title", "row_label", "row_group", "column", "value"}
     missing = required - set(df.columns)
     if missing:
         raise ProsecutionsValidationError(f"Missing required columns: {sorted(missing)}")
 
     if len(df) < min_records:
-        raise ProsecutionsValidationError(f"Expected at least {min_records} records, got {len(df)}")
+        raise ProsecutionsValidationError(f"Too few records: expected at least {min_records}, got {len(df)}")
+
+    if (df.value.dropna() < 0).any():
+        raise ProsecutionsValidationError("Negative values found")
 
     if df.value.isna().mean() > 0.25:
         raise ProsecutionsValidationError(f"Too many unparsed values: {df.value.isna().mean():.1%}")
+
+    return True
 
 
 def clear_cache() -> int:
