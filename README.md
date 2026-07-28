@@ -248,6 +248,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | NI Business Register (IDBR, annual) | `nisra.business_register` | ✅ |
 | NI Multiple Deprivation Measure 2017 (NIMDM, SOA-level) | `nisra.deprivation` | ✅ |
 | Translink Live Departures & Vehicle Positions | `translink` | ✅ |
+| Family Resources Survey Report NI (DfC) | `dfc.family_resources_survey` | ✅ |
 | Security Situation Statistics | - | ❌ Cloudflare-blocked |
 | Anti-social Behaviour | - | ❌ Cloudflare-blocked |
 | Domestic Abuse Incidents/Crimes | - | ❌ Cloudflare-blocked |

@@ -903,6 +903,34 @@ composition table).
 
 ----
 
+Family Resources Survey (DfC)
+-----------------------------
+
+Annual Department for Communities survey of Northern Ireland household
+income, state support receipt, housing tenure, caring responsibilities,
+disability, and household food security, with UK comparators.  The module
+discovers the latest edition at runtime; machine-readable tables are
+published from 2024/25 onwards.
+
+.. code-block:: python
+
+    from bolster.data_sources.dfc import family_resources_survey as frs
+
+    edition, url = frs.find_latest_edition()
+    food_security = frs.get_food_security_by_region()
+    tenure = frs.get_tenure_by_district()
+
+.. code-block:: console
+
+    $ bolster dfc frs --list-datasets
+    $ bolster dfc frs --dataset food-security-region
+    $ bolster dfc frs --dataset tenure-district --format csv --save tenure.csv
+
+Suppressed values (``".."``) are returned as ``NaN`` and negligible values
+(``"-"``) as ``0.0``.
+
+----
+
 Discovering New Publications
 -----------------------------
 

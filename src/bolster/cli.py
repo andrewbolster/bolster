@@ -1128,6 +1128,137 @@ def daera_waste_cmd(force_refresh, council, financial_year, summary, save, outpu
 
 
 @cli.group()
+def dfc():
+    """DfC (Department for Communities) statistics.
+
+    Commands for accessing Northern Ireland social statistics published by
+    the Department for Communities.
+    """
+    pass
+
+
+_FRS_DATASETS = {
+    "food-security-region": ("get_food_security_by_region", "Food security by UK country and English region"),
+    "food-security-composition": ("get_food_security_by_composition", "Food security by household composition"),
+    "food-security-disability": ("get_food_security_by_disability", "Food security by household disability status"),
+    "food-security-state-support": ("get_food_security_by_state_support", "Food security by state support receipt"),
+    "food-security-tenure": ("get_food_security_by_tenure", "Food security by housing tenure"),
+    "income-sources": ("get_income_sources", "Household income by source, NI vs UK"),
+    "state-support-country": ("get_state_support_by_country", "State support receipt by UK country"),
+    "state-support-trend": ("get_state_support_trend", "State support receipt over time"),
+    "tenure-trend": ("get_tenure_trend", "Housing tenure over time"),
+    "tenure-district": ("get_tenure_by_district", "Housing tenure by local government district"),
+    "housing-cost-burden": ("get_housing_cost_burden", "Households spending 30%+ of income on housing"),
+    "carers": ("get_carer_prevalence", "Informal carer prevalence by age group"),
+    "disability": ("get_disability_prevalence", "Disability prevalence by age group"),
+    "disability-district": ("get_disability_by_district", "Disability prevalence by local government district"),
+}
+
+
+@dfc.command(name="frs")
+@click.option(
+    "--dataset",
+    type=click.Choice(sorted(_FRS_DATASETS), case_sensitive=False),
+    default="food-security-region",
+    help="Which table to retrieve (default: food-security-region)",
+)
+@click.option("--list-datasets", is_flag=True, help="List available datasets and exit")
+@click.option("--summary", is_flag=True, help="Show summary statistics only")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+def dfc_frs_cmd(dataset, list_datasets, summary, save, force_refresh, output_format):
+    """Family Resources Survey Report for Northern Ireland.
+
+    Annual DfC survey of household income, state support, tenure, caring
+    responsibilities, disability, and household food security. Northern
+    Ireland figures are published alongside UK comparators.
+
+    Examples:
+        List every available table::
+
+            bolster dfc frs --list-datasets
+
+        Food security by UK country and English region::
+
+            bolster dfc frs --dataset food-security-region
+
+        Housing tenure by local government district::
+
+            bolster dfc frs --dataset tenure-district --summary
+
+        Export the income breakdown::
+
+            bolster dfc frs --dataset income-sources --format csv --save income.csv
+
+    Data Notes:
+        - Machine-readable tables are published from the 2024/25 edition onwards
+        - ".." marks values suppressed for small sample sizes (returned as NaN)
+        - "-" marks negligible values (returned as 0.0)
+    """
+    from bolster.data_sources.dfc import family_resources_survey as frs
+
+    console = Console()
+
+    if list_datasets:
+        from rich.table import Table
+
+        table = Table(title="Family Resources Survey datasets")
+        table.add_column("Dataset", style="cyan")
+        table.add_column("Description")
+        for name, (_, description) in sorted(_FRS_DATASETS.items()):
+            table.add_row(name, description)
+        console.print(table)
+        return
+
+    accessor, description = _FRS_DATASETS[dataset.lower()]
+
+    try:
+        with console.status(f"[bold green]Downloading FRS {dataset}..."):
+            edition, _ = frs.find_latest_edition()
+            df = getattr(frs, accessor)(force_refresh=force_refresh)
+
+        if save:
+            if save.endswith(".json"):
+                df.to_json(save, orient="records", indent=2)
+            else:
+                df.to_csv(save, index=False)
+            console.print(f"[green]Saved {len(df)} rows to {save}[/green]")
+            return
+
+        if summary:
+            console.print(
+                Panel(
+                    f"[bold cyan]{description}[/bold cyan]\n"
+                    f"[green]Edition:[/green] {edition}\n"
+                    f"[green]Rows:[/green] {len(df):,}\n"
+                    f"[green]Columns:[/green] {', '.join(df.columns)}",
+                    title="Summary",
+                    border_style="cyan",
+                )
+            )
+            return
+
+        if output_format == "json":
+            click.echo(df.to_json(orient="records", indent=2))
+        elif output_format == "csv":
+            click.echo(df.to_csv(index=False))
+        else:
+            console.print(f"[bold blue]{description}[/bold blue] [dim](FRS {edition})[/dim]\n")
+            click.echo(df.to_string(index=False))
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise SystemExit(1) from e
+
+
+@cli.group()
 def dfe():
     """DfE (Department for the Economy) statistics.
 
