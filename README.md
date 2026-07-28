@@ -231,6 +231,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | NI School Leavers Survey (DE) | `nisra.school_leavers` | ✅ |
 | NICTS Mortgages Action for Possession (DoJ) | `justice.mortgages` | ✅ |
 | NICTS Quarterly Court Business Figures (DoJ) | `justice.nicts_quarterly` | ✅ |
+| PBNI Caseload Statistics (annual + quarterly) | `justice.pbni_caseload` | ✅ |
 | Work Quality NI (NISRA) | `nisra.work_quality` | ✅ |
 | NI LAC Municipal Waste Statistics (DAERA) | `daera_waste` | ✅ |
 | NI Electricity Consumption & Renewable Generation (DfE) | `electricity_renewables` | ✅ |

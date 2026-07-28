@@ -732,10 +732,11 @@ Standardised house price index for Northern Ireland.
 
 ----
 
-Justice — NICTS
----------------
+Justice
+-------
 
-NI Courts and Tribunals Service (NICTS) statistics.
+Department of Justice, its sponsored bodies, and the NI Courts and Tribunals
+Service (NICTS).
 
 Mortgage Possession Actions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -782,6 +783,29 @@ most recent years, returned as a single tidy long frame.
     $ bolster justice nicts-quarterly --list-courts
     $ bolster justice nicts-quarterly --court crown_court
     $ bolster justice nicts-quarterly --annual --format json
+
+PBNI Caseload
+~~~~~~~~~~~~~
+
+Probation Board for Northern Ireland caseload statistics — annual (31 March
+snapshot, five years of history) and quarterly bulletins covering the people
+under probation supervision, their orders, demographics, risk assessments, and
+registered victims.
+
+.. code-block:: python
+
+    from bolster.data_sources.justice import pbni_caseload
+
+    df = pbni_caseload.get_annual_caseload()
+
+    # Any published breakdown
+    orders = pbni_caseload.get_latest_data("order_type", frequency="quarterly")
+    pbni_caseload.list_dimensions("quarterly")
+
+.. code-block:: console
+
+    $ bolster justice pbni-caseload --summary
+    $ bolster justice pbni-caseload --frequency quarterly --dimension order_type
 
 ----
 
