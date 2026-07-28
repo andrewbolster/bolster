@@ -25,6 +25,7 @@ from .data_sources.health_ni import disease_prevalence as nisra_disease_prevalen
 from .data_sources.health_ni import emergency_care_waiting_times as nisra_emergency
 from .data_sources.justice import mortgages as justice_mortgages
 from .data_sources.justice import nicts_quarterly as justice_nicts_quarterly
+from .data_sources.justice import pbni_caseload as justice_pbni
 from .data_sources.metoffice import get_uk_precipitation
 from .data_sources.ni_house_price_index import build as get_ni_house_prices
 from .data_sources.ni_water import get_postcode_to_water_supply_zone, get_water_quality_by_zone
@@ -7160,9 +7161,10 @@ def education_suspensions_cmd(year, output_format, force_refresh, save, summary)
 def justice():
     """NI Department of Justice / NICTS statistics.
 
-    Access official justice statistics from the Northern Ireland Courts and
-    Tribunals Service (NICTS), including quarterly court business figures and
-    mortgage actions for possession.
+    Access official justice statistics from the Department of Justice, its
+    sponsored bodies, and the Northern Ireland Courts and Tribunals Service
+    (NICTS) - mortgage actions for possession, quarterly court business figures
+    and PBNI probation caseload.
     """
     pass
 
@@ -7387,6 +7389,128 @@ def justice_nicts_quarterly_cmd(court, list_courts, year, quarter, annual, outpu
         console.print("\n[yellow]Troubleshooting:[/yellow]")
         console.print("   - Check your internet connection")
         console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@justice.command(name="pbni-caseload")
+@click.option(
+    "--frequency",
+    type=click.Choice(["annual", "quarterly"], case_sensitive=False),
+    default="annual",
+    help="Publication cadence (default: annual)",
+)
+@click.option(
+    "--dimension",
+    default="caseload",
+    help="Breakdown to show, or 'all'. Use --list-dimensions to see the options.",
+)
+@click.option("--list-dimensions", is_flag=True, help="List available dimensions and exit")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics instead of full data")
+def justice_pbni_caseload_cmd(frequency, dimension, list_dimensions, output_format, force_refresh, save, summary):
+    r"""PBNI: Probation Board NI caseload statistics.
+
+    \b
+    Snapshots of everyone under probation supervision in Northern Ireland -
+    caseload and service-user counts, order types, demographics, ACE/PPANI/SROSH
+    risk assessments, and victims registered with the Victim Information Scheme.
+    Annual bulletins run from 2022; quarterly bulletins from 2024.
+
+    Examples:
+        Annual caseload headline series::
+
+            bolster justice pbni-caseload
+
+        Quarterly series::
+
+            bolster justice pbni-caseload --frequency quarterly
+
+        See what breakdowns are published::
+
+            bolster justice pbni-caseload --list-dimensions
+
+        Order types held by service users::
+
+            bolster justice pbni-caseload --dimension order_type
+
+        Save as CSV::
+
+            bolster justice pbni-caseload --save pbni.csv
+
+    Source:
+        https://www.gov.uk/government/statistics/probation-board-ni-annual-caseload
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        if list_dimensions:
+            console.print(f"[bold]{frequency.capitalize()} dimensions:[/bold]")
+            for name in justice_pbni.list_dimensions(frequency):
+                console.print(f"   {name}")
+            return
+
+        with console.status(f"[bold green]Downloading PBNI {frequency} caseload data..."):
+            data = justice_pbni.get_latest_data(dimension=dimension, frequency=frequency, force_refresh=force_refresh)
+
+        if dimension == "all":
+            console.print("[green]PBNI caseload data retrieved successfully[/green]")
+            for name, frame in data.items():
+                console.print(f"\n[bold cyan]{name}[/bold cyan] ({len(frame)} rows)")
+                console.print(frame.to_csv(index=False), end="")
+            return
+
+        console.print("[green]PBNI caseload data retrieved successfully[/green]")
+        console.print(f"[cyan]Frequency: {frequency} | Dimension: {dimension} | Rows: {len(data)}[/cyan]")
+
+        if summary and dimension == "caseload":
+            latest = data.iloc[-1]
+            first = data.iloc[0]
+            change = latest["caseload"] - first["caseload"]
+            console.print("\n[bold]Summary:[/bold]")
+            console.print(f"   Coverage: {first['date']:%Y-%m-%d} to {latest['date']:%Y-%m-%d}")
+            console.print(f"   Latest caseload: {int(latest['caseload']):,}")
+            console.print(f"   Latest service users: {int(latest['service_users']):,}")
+            console.print(f"   Orders per service user: {latest['caseload'] / latest['service_users']:.2f}")
+            console.print(f"   Change over period: {change:+,}")
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.astype(str).to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.astype(str).to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        console.print("   - Use --list-dimensions to check the dimension name")
         raise click.Abort() from e
 
 
