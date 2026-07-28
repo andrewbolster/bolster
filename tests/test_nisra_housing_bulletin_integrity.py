@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 
 from bolster.data_sources.nisra import housing_bulletin as hb
-from bolster.data_sources.nisra._base import NISRAValidationError
+from bolster.data_sources.nisra._base import NISRADataNotFoundError, NISRAValidationError
 
 _QUARTERS = {"Apr-Jun", "Jul-Sep", "Oct-Dec", "Jan-Mar"}
 
@@ -160,6 +160,25 @@ class TestValidation:
 
     def test_tolerates_nan_numerics(self):
         df = pd.DataFrame({"lgd": ["Belfast"], "total_stock": [float("nan")]})
+        assert hb.validate_data(df) is True
+
+
+class TestTableDispatch:
+    def test_list_tables_is_sorted_and_complete(self):
+        tables = hb.list_tables()
+        assert tables == sorted(tables)
+        assert len(tables) == 9
+
+    def test_unknown_table_rejected(self):
+        with pytest.raises(NISRADataNotFoundError, match="Unknown table"):
+            hb.get_latest_data(table="not-a-table")
+
+
+@pytest.mark.network
+class TestTableDispatchLive:
+    @pytest.mark.parametrize("table", hb.list_tables())
+    def test_every_table_returns_valid_data(self, table):
+        df = hb.get_latest_data(table=table)
         assert hb.validate_data(df) is True
 
 

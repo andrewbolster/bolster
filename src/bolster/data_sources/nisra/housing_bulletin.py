@@ -42,9 +42,10 @@ from bs4 import BeautifulSoup
 
 from bolster.utils.web import session
 
-from ._base import NISRADataNotFoundError, NISRAValidationError, download_file  # noqa: F401
+from ._base import NISRADataNotFoundError, NISRAValidationError, download_file
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -678,6 +679,56 @@ def get_affordable_warmth(force_refresh: bool = False) -> pd.DataFrame:
         records.append(record)
 
     return pd.DataFrame(records)
+
+
+_TABLES: dict[str, Callable[..., pd.DataFrame]] = {
+    "starts": get_social_housing_starts,
+    "completions": get_social_housing_completions,
+    "stock": get_dwelling_stock_by_tenure,
+    "waiting-list": get_waiting_list_trend,
+    "waiting-list-district": get_waiting_list_by_district,
+    "allocations-district": get_allocations_by_district,
+    "sales": get_new_dwelling_sales,
+    "sales-district": get_new_dwelling_sales_by_district,
+    "affordable-warmth": get_affordable_warmth,
+}
+
+
+def list_tables() -> list[str]:
+    """List the table names accepted by :func:`get_latest_data`.
+
+    Returns:
+        Sorted table names.
+
+    Example:
+        >>> 'stock' in list_tables()
+        True
+    """
+    return sorted(_TABLES)
+
+
+def get_latest_data(table: str = "stock", force_refresh: bool = False) -> pd.DataFrame:
+    """Fetch one table from the latest bulletin by name.
+
+    Args:
+        table: One of the names returned by :func:`list_tables`.
+        force_refresh: If ``True``, bypass the local cache and re-download.
+
+    Returns:
+        The requested DataFrame.
+
+    Raises:
+        NISRADataNotFoundError: If ``table`` is not a known table name.
+
+    Example:
+        >>> df = get_latest_data('stock')
+        >>> 'lgd' in df.columns
+        True
+    """
+    accessor = _TABLES.get(table)
+    if accessor is None:
+        raise NISRADataNotFoundError(f"Unknown table {table!r}. Available: {', '.join(list_tables())}")
+    return accessor(force_refresh=force_refresh)
 
 
 def _download(force_refresh: bool = False) -> str | Path:

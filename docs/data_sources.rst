@@ -323,6 +323,36 @@ by type (detached, semi-detached, terraced, flat) and Local Government District.
 
     $ bolster nisra housing-stock
 
+Housing Bulletin
+~~~~~~~~~~~~~~~~
+
+NI Housing Bulletin (DfC) — quarterly housing statistics compiled from NIHE,
+LPS and NHBC administrative sources. Nine tables: social housing starts and
+completions by tenure, dwelling stock by tenure and district, the social
+housing waiting list and allocations, new dwelling sales and average prices,
+and the Affordable Warmth Scheme.
+
+Homelessness tables from the same workbook are not parsed here — the richer
+LGD-level series lives in :mod:`bolster.data_sources.nisra.homelessness`.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import housing_bulletin
+
+    stock = housing_bulletin.get_dwelling_stock_by_tenure()
+    starts = housing_bulletin.get_social_housing_starts()
+    sales = housing_bulletin.get_new_dwelling_sales()
+
+    # Or fetch any table by name
+    housing_bulletin.list_tables()
+    df = housing_bulletin.get_latest_data('waiting-list')
+
+.. code-block:: console
+
+    $ bolster nisra housing-bulletin --list-tables
+    $ bolster nisra housing-bulletin --table starts
+    $ bolster nisra housing-bulletin --table sales --summary
+
 Drug-Related Deaths
 ~~~~~~~~~~~~~~~~~~~
 

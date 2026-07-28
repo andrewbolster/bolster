@@ -42,6 +42,7 @@ from .data_sources.nisra import deaths as nisra_deaths
 from .data_sources.nisra import deprivation as nisra_deprivation
 from .data_sources.nisra import drug_related_deaths as nisra_drug_related_deaths
 from .data_sources.nisra import homelessness as nisra_homelessness
+from .data_sources.nisra import housing_bulletin as nisra_housing_bulletin
 from .data_sources.nisra import housing_stock as nisra_housing_stock
 from .data_sources.nisra import index_of_production as nisra_iop
 from .data_sources.nisra import index_of_services as nisra_ios
@@ -6232,6 +6233,119 @@ def nisra_homelessness_cmd(section, output_format, force_refresh, save):  # prag
         raise click.Abort() from e
 
 
+@nisra.command(name="housing-bulletin")
+@click.option(
+    "--table",
+    default="stock",
+    help="Table to show. Use --list-tables to see the options.",
+)
+@click.option("--list-tables", is_flag=True, help="List available tables and exit")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics instead of full data")
+def nisra_housing_bulletin_cmd(table, list_tables, output_format, force_refresh, save, summary):
+    r"""NI Housing Bulletin (DfC, quarterly).
+
+    \b
+    Quarterly housing statistics from the Department for Communities - social
+    housing starts and completions by tenure, the dwelling stock by tenure and
+    district, the social housing waiting list and allocations, new dwelling
+    sales and prices, and the Affordable Warmth Scheme.
+
+    \b
+    Homelessness tables are not included here; the richer LGD-level series is
+    available via `bolster nisra homelessness`.
+
+    Examples:
+        Dwelling stock by tenure and district (default)::
+
+            bolster nisra housing-bulletin
+
+        See what tables are published::
+
+            bolster nisra housing-bulletin --list-tables
+
+        Social housing starts by tenure::
+
+            bolster nisra housing-bulletin --table starts
+
+        New dwelling sales and average prices::
+
+            bolster nisra housing-bulletin --table sales --summary
+
+        Save as JSON::
+
+            bolster nisra housing-bulletin --table waiting-list --format json --save wl.json
+
+    Source:
+        https://www.communities-ni.gov.uk/articles/northern-ireland-housing-bulletin
+    """
+    console = Console()
+
+    try:
+        if list_tables:
+            console.print("[bold]Available tables:[/bold]")
+            for name in nisra_housing_bulletin.list_tables():
+                console.print(f"   {name}")
+            return
+
+        with console.status(f"[bold green]Downloading housing bulletin table '{table}'..."):
+            data = nisra_housing_bulletin.get_latest_data(table=table, force_refresh=force_refresh)
+
+        console.print("[green]Housing bulletin data retrieved successfully[/green]")
+        console.print(f"[cyan]Table: {table} | Rows: {len(data)}[/cyan]")
+
+        if summary:
+            console.print("\n[bold]Summary:[/bold]")
+            if "financial_year" in data.columns:
+                console.print(f"   Coverage: {data['financial_year'].min()} to {data['financial_year'].max()}")
+            if "lgd" in data.columns:
+                console.print(f"   Districts: {data['lgd'].nunique()}")
+            numeric = data.select_dtypes(include="number")
+            for column in numeric.columns:
+                if "price" in column:
+                    console.print(f"   {column}: mean {numeric[column].mean():,.0f}")
+                else:
+                    console.print(f"   {column}: total {numeric[column].sum():,.0f}")
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        console.print("   - Use --list-tables to check the table name")
+        raise click.Abort() from e
+
+
 @nisra.command(name="baby-names")
 @click.option("--year", type=int, default=None, help="Filter by registration year")
 @click.option(
@@ -8244,6 +8358,7 @@ def list_sources():
     click.echo("  nisra occupancy            Tourism hotel/SSA occupancy surveys")
     click.echo("  nisra visitors             Tourism visitor statistics")
     click.echo("  nisra homelessness         NI Homelessness Bulletin (DfC/NIHE, biannual)")
+    click.echo("  nisra housing-bulletin     NI Housing Bulletin (DfC, quarterly)")
 
     click.echo("\nPSNI DATA MODULES (bolster psni <command>)")
     click.echo("  psni rtc                   Road traffic collisions, casualties, vehicles")
