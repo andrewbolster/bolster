@@ -23,6 +23,8 @@ from .data_sources.health_ni import cancer_waiting_times as nisra_cancer
 from .data_sources.health_ni import diagnostic_waiting_times as nisra_diagnostic
 from .data_sources.health_ni import disease_prevalence as nisra_disease_prevalence
 from .data_sources.health_ni import emergency_care_waiting_times as nisra_emergency
+from .data_sources.health_ni import hsc_recruitment as nisra_hsc_recruitment
+from .data_sources.health_ni import hsc_workforce as nisra_hsc_workforce
 from .data_sources.justice import mortgages as justice_mortgages
 from .data_sources.justice import nicts_quarterly as justice_nicts_quarterly
 from .data_sources.metoffice import get_uk_precipitation
@@ -6803,6 +6805,260 @@ def nisra_disease_prevalence_cmd(register, output_format, force_refresh, save, l
                     )
 
             console.print(rich_table)
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+def _emit_hsc_frame(console, data, output_format, save, title):
+    """Save or render an HSC frame, formatting dates and numerics generically."""
+    from rich.table import Table as RichTable
+
+    if save:
+        try:
+            if output_format == "json" or save.endswith(".json"):
+                data.to_json(save, orient="records", indent=2)
+            else:
+                data.to_csv(save, index=False)
+            console.print(f"[green]Saved to: {save}[/green]")
+            return
+        except PermissionError:
+            console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+            return
+        except Exception as e:
+            console.print(f"[red]Error saving file: {e}[/red]")
+            return
+
+    if output_format == "json":
+        click.echo(data.to_json(orient="records", indent=2))
+        return
+    if output_format == "csv":
+        console.print(data.to_csv(index=False), end="")
+        return
+
+    rich_table = RichTable(title=title)
+    numeric = [column for column in data.columns if pd.api.types.is_numeric_dtype(data[column])]
+    for column in data.columns:
+        rich_table.add_column(
+            column.replace("_", " ").title(),
+            justify="right" if column in numeric else "left",
+            style="green" if column in numeric else "cyan",
+        )
+
+    for _, row in data.head(200).iterrows():
+        cells = []
+        for column in data.columns:
+            value = row[column]
+            if pd.isna(value):
+                cells.append("-")
+            elif isinstance(value, pd.Timestamp):
+                cells.append(value.date().isoformat())
+            elif column in numeric:
+                # Rates and shares would collapse to 0.1 at one decimal place; the
+                # pay-band view mixes them with absolute WTE in a single column
+                cells.append(f"{value:,.3f}" if 0 < abs(value) < 1 else f"{value:,.1f}")
+            else:
+                cells.append(str(value))
+        rich_table.add_row(*cells)
+
+    console.print(rich_table)
+    if len(data) > 200:
+        console.print(f"[dim](showing first 200 of {len(data):,} rows — use --save to export all)[/dim]")
+
+
+@nisra.command(name="hsc-workforce")
+@click.option(
+    "--view",
+    type=click.Choice(
+        ["summary", "staff-group", "organisation", "cross-tab", "pay-band", "turnover"], case_sensitive=False
+    ),
+    default="summary",
+    show_default=True,
+    help="Which breakdown to return",
+)
+@click.option("--period", default=None, help="Bulletin to read, e.g. 'March 2026' (default: latest)")
+@click.option("--sub", is_flag=True, help="Use the profession-level cut (--view staff-group only)")
+@click.option(
+    "--measure",
+    type=click.Choice(["leavers", "joiners", "stability"], case_sensitive=False),
+    default="leavers",
+    show_default=True,
+    help="Turnover series (--view turnover only)",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_hsc_workforce_cmd(view, period, sub, measure, output_format, force_refresh, save):
+    r"""NI HSC Workforce Statistics (Department of Health).
+
+    \b
+    Quarterly size, composition and turnover of the Health and Social Care
+    workforce in Northern Ireland, from March 2021 to the latest census point.
+    Figures are whole-time equivalents (WTE) unless stated otherwise.
+
+    Examples:
+        Headline WTE and headcount time series::
+
+            bolster nisra hsc-workforce
+
+        WTE by staff group::
+
+            bolster nisra hsc-workforce --view staff-group
+
+        Profession-level cut::
+
+            bolster nisra hsc-workforce --view staff-group --sub
+
+        Staff group by employing organisation::
+
+            bolster nisra hsc-workforce --view cross-tab
+
+        Joiners for each financial year::
+
+            bolster nisra hsc-workforce --view turnover --measure joiners
+
+        Read an older bulletin::
+
+            bolster nisra hsc-workforce --period "September 2025"
+
+    Source:
+        https://www.health-ni.gov.uk/articles/staff-numbers
+    """
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading HSC workforce bulletin..."):
+            if force_refresh:
+                nisra_hsc_workforce.get_latest_data(period=period, force_refresh=True)
+
+            if view == "summary":
+                data = nisra_hsc_workforce.get_workforce_summary(period=period)
+            elif view == "staff-group":
+                data = nisra_hsc_workforce.get_workforce_by_staff_group(period=period, sub=sub)
+            elif view == "organisation":
+                data = nisra_hsc_workforce.get_workforce_by_organisation(period=period)
+            elif view == "cross-tab":
+                data = nisra_hsc_workforce.get_staff_group_by_organisation(period=period)
+            elif view == "pay-band":
+                data = nisra_hsc_workforce.get_pay_band_distribution(period=period)
+            else:
+                data = nisra_hsc_workforce.get_turnover(period=period, measure=measure)
+
+        if data.empty:
+            console.print("[yellow]No data found for the specified options[/yellow]")
+            return
+
+        console.print("[green]HSC workforce data retrieved successfully[/green]")
+        console.print(f"[cyan]Rows: {len(data):,}[/cyan]")
+
+        _emit_hsc_frame(console, data, output_format, save, f"HSC Workforce ({view})")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@nisra.command(name="hsc-recruitment")
+@click.option(
+    "--view",
+    type=click.Choice(
+        ["pay-band", "staff-group", "organisation", "rates", "profession", "doctors"], case_sensitive=False
+    ),
+    default="staff-group",
+    show_default=True,
+    help="Which breakdown to return",
+)
+@click.option("--period", default=None, help="Bulletin to read, e.g. 'March 2026' (default: latest)")
+@click.option("--sub", is_flag=True, help="Use the profession-level cut where available")
+@click.option(
+    "--grade",
+    type=click.Choice(["consultant", "locum", "sas"], case_sensitive=False),
+    default="consultant",
+    show_default=True,
+    help="Doctor grade (--view doctors only)",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_hsc_recruitment_cmd(view, period, sub, grade, output_format, force_refresh, save):
+    r"""NI HSC Active Recruitment Statistics (Department of Health).
+
+    \b
+    Quarterly vacancy counts and vacancy rates across the Health and Social
+    Care workforce in Northern Ireland, from March 2017 to the latest census
+    point. Consultant and SAS doctor vacancies begin in March 2020.
+
+    Examples:
+        Vacancies by staff group::
+
+            bolster nisra hsc-recruitment
+
+        Vacancy rates as a proportion of funded posts::
+
+            bolster nisra hsc-recruitment --view rates
+
+        Vacancies by employing organisation::
+
+            bolster nisra hsc-recruitment --view organisation
+
+        Consultant vacancies by specialty::
+
+            bolster nisra hsc-recruitment --view doctors --grade consultant
+
+        Export the profession breakdown::
+
+            bolster nisra hsc-recruitment --view profession --format csv --save vacancies.csv
+
+    Source:
+        https://www.health-ni.gov.uk/articles/staff-vacancies
+    """
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading HSC vacancies bulletin..."):
+            if force_refresh:
+                nisra_hsc_recruitment.get_latest_data(period=period, force_refresh=True)
+
+            if view == "pay-band":
+                data = nisra_hsc_recruitment.get_vacancies_by_pay_band(period=period, sub=sub)
+            elif view == "staff-group":
+                data = nisra_hsc_recruitment.get_vacancies_by_staff_group(period=period, sub=sub)
+            elif view == "organisation":
+                data = nisra_hsc_recruitment.get_vacancies_by_organisation(period=period)
+            elif view == "rates":
+                data = nisra_hsc_recruitment.get_vacancy_rates(period=period, sub=sub)
+            elif view == "profession":
+                data = nisra_hsc_recruitment.get_vacancies_by_profession(period=period)
+            else:
+                data = nisra_hsc_recruitment.get_doctor_vacancies(period=period, grade=grade)
+
+        if data.empty:
+            console.print("[yellow]No data found for the specified options[/yellow]")
+            return
+
+        console.print("[green]HSC vacancy data retrieved successfully[/green]")
+        console.print(f"[cyan]Rows: {len(data):,}[/cyan]")
+
+        _emit_hsc_frame(console, data, output_format, save, f"HSC Vacancies ({view})")
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
