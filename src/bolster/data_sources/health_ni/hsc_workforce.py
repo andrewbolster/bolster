@@ -149,16 +149,17 @@ def get_latest_data(period: str | pd.Timestamp | None = None, force_refresh: boo
     return parse_csv_tables(download_file(url, cache_ttl_hours=_CACHE_TTL_HOURS, force_refresh=force_refresh))
 
 
-def list_tables(period: str | pd.Timestamp | None = None) -> pd.DataFrame:
+def list_tables(period: str | pd.Timestamp | None = None, force_refresh: bool = False) -> pd.DataFrame:
     """List the sub-tables available in a bulletin.
 
     Args:
         period: Census point. Defaults to the most recent bulletin.
+        force_refresh: Bypass the download cache.
 
     Returns:
         DataFrame with ``table_id``, ``table_title`` and ``records`` columns.
     """
-    df = get_latest_data(period=period)
+    df = get_latest_data(period=period, force_refresh=force_refresh)
     return (
         df.groupby("table_id")
         .agg(table_title=("table_title", "first"), records=("value", "size"))
@@ -207,18 +208,23 @@ def _with_periods(table: pd.DataFrame) -> pd.DataFrame:
     return table.assign(period=periods)[periods.notna()]
 
 
-def get_workforce_summary(period: str | pd.Timestamp | None = None) -> pd.DataFrame:
+def get_workforce_summary(period: str | pd.Timestamp | None = None, force_refresh: bool = False) -> pd.DataFrame:
     """Get the headline workforce time series.
 
     Args:
         period: Census point. Defaults to the most recent bulletin.
+        force_refresh: Bypass the download cache.
 
     Returns:
         DataFrame with ``period``, ``measure`` and ``value`` columns. Measures
         are ``WTE``, ``Active Posts``, ``Individuals with multiple posts`` and
         ``Headcount``.
     """
-    table = _with_periods(_select_table(get_latest_data(period=period), r"^HSC Workforce \(WTE, Active Posts"))
+    table = _with_periods(
+        _select_table(
+            get_latest_data(period=period, force_refresh=force_refresh), r"^HSC Workforce \(WTE, Active Posts"
+        )
+    )
     return (
         table.rename(columns={"row_label": "measure"})[["period", "measure", "value"]]
         .sort_values(["period", "measure"])
@@ -226,19 +232,24 @@ def get_workforce_summary(period: str | pd.Timestamp | None = None) -> pd.DataFr
     )
 
 
-def get_workforce_by_staff_group(period: str | pd.Timestamp | None = None, sub: bool = False) -> pd.DataFrame:
+def get_workforce_by_staff_group(
+    period: str | pd.Timestamp | None = None,
+    sub: bool = False,
+    force_refresh: bool = False,
+) -> pd.DataFrame:
     """Get the WTE time series broken down by staff group.
 
     Args:
         period: Census point. Defaults to the most recent bulletin.
         sub: Return the finer sub staff group / profession breakdown instead of
             the eight headline staff groups.
+        force_refresh: Bypass the download cache.
 
     Returns:
         DataFrame with ``period``, ``staff_group`` and ``wte`` columns.
     """
     pattern = r"by Sub Staff Group" if sub else r"\(WTE\) by Staff Group,"
-    table = _with_periods(_select_table(get_latest_data(period=period), pattern))
+    table = _with_periods(_select_table(get_latest_data(period=period, force_refresh=force_refresh), pattern))
     return (
         table.rename(columns={"row_label": "staff_group", "value": "wte"})[["period", "staff_group", "wte"]]
         .sort_values(["period", "staff_group"])
@@ -246,16 +257,22 @@ def get_workforce_by_staff_group(period: str | pd.Timestamp | None = None, sub: 
     )
 
 
-def get_workforce_by_organisation(period: str | pd.Timestamp | None = None) -> pd.DataFrame:
+def get_workforce_by_organisation(
+    period: str | pd.Timestamp | None = None,
+    force_refresh: bool = False,
+) -> pd.DataFrame:
     """Get the WTE time series broken down by employing organisation.
 
     Args:
         period: Census point. Defaults to the most recent bulletin.
+        force_refresh: Bypass the download cache.
 
     Returns:
         DataFrame with ``period``, ``organisation`` and ``wte`` columns.
     """
-    table = _with_periods(_select_table(get_latest_data(period=period), r"\(WTE\) by HSC Organisation"))
+    table = _with_periods(
+        _select_table(get_latest_data(period=period, force_refresh=force_refresh), r"\(WTE\) by HSC Organisation")
+    )
     return (
         table.rename(columns={"row_label": "organisation", "value": "wte"})[["period", "organisation", "wte"]]
         .sort_values(["period", "organisation"])
@@ -263,7 +280,10 @@ def get_workforce_by_organisation(period: str | pd.Timestamp | None = None) -> p
     )
 
 
-def get_staff_group_by_organisation(period: str | pd.Timestamp | None = None) -> pd.DataFrame:
+def get_staff_group_by_organisation(
+    period: str | pd.Timestamp | None = None,
+    force_refresh: bool = False,
+) -> pd.DataFrame:
     """Get the reference-quarter cross-tab of organisation against staff group.
 
     The bulletin splits this across two tables, one for the regional trusts and
@@ -271,11 +291,14 @@ def get_staff_group_by_organisation(period: str | pd.Timestamp | None = None) ->
 
     Args:
         period: Census point. Defaults to the most recent bulletin.
+        force_refresh: Bypass the download cache.
 
     Returns:
         DataFrame with ``organisation``, ``staff_group`` and ``wte`` columns.
     """
-    table = _select_table(get_latest_data(period=period), r"\(WTE\) by (?:Regional|Other) HSC Trust")
+    table = _select_table(
+        get_latest_data(period=period, force_refresh=force_refresh), r"\(WTE\) by (?:Regional|Other) HSC Trust"
+    )
     return (
         table.rename(columns={"row_label": "organisation", "column": "staff_group", "value": "wte"})[
             ["organisation", "staff_group", "wte"]
@@ -285,18 +308,21 @@ def get_staff_group_by_organisation(period: str | pd.Timestamp | None = None) ->
     )
 
 
-def get_pay_band_distribution(period: str | pd.Timestamp | None = None) -> pd.DataFrame:
+def get_pay_band_distribution(period: str | pd.Timestamp | None = None, force_refresh: bool = False) -> pd.DataFrame:
     """Get the reference-quarter pay band profile of each staff group.
 
     Args:
         period: Census point. Defaults to the most recent bulletin.
+        force_refresh: Bypass the download cache.
 
     Returns:
         DataFrame with ``staff_group``, ``pay_band`` and ``share`` columns.
         ``share`` is a proportion in [0, 1] of that group's WTE, except in the
         ``Total WTE`` row which carries the group's absolute WTE.
     """
-    table = _select_table(get_latest_data(period=period), r"by Staff Group and Pay Band Group")
+    table = _select_table(
+        get_latest_data(period=period, force_refresh=force_refresh), r"by Staff Group and Pay Band Group"
+    )
     return (
         table.rename(columns={"row_label": "staff_group", "column": "pay_band", "value": "share"})[
             ["staff_group", "pay_band", "share"]
@@ -306,12 +332,17 @@ def get_pay_band_distribution(period: str | pd.Timestamp | None = None) -> pd.Da
     )
 
 
-def get_turnover(period: str | pd.Timestamp | None = None, measure: str = "leavers") -> pd.DataFrame:
+def get_turnover(
+    period: str | pd.Timestamp | None = None,
+    measure: str = "leavers",
+    force_refresh: bool = False,
+) -> pd.DataFrame:
     """Get a financial-year turnover time series.
 
     Args:
         period: Census point. Defaults to the most recent bulletin.
         measure: One of ``"leavers"``, ``"joiners"`` or ``"stability"``.
+        force_refresh: Bypass the download cache.
 
     Returns:
         DataFrame with ``financial_year``, ``metric`` and ``value`` columns.
@@ -323,7 +354,7 @@ def get_turnover(period: str | pd.Timestamp | None = None, measure: str = "leave
     if measure not in _TURNOVER_TABLES:
         raise ValueError(f"Unknown measure {measure!r}, expected one of {sorted(_TURNOVER_TABLES)}")
 
-    table = _select_table(get_latest_data(period=period), _TURNOVER_TABLES[measure])
+    table = _select_table(get_latest_data(period=period, force_refresh=force_refresh), _TURNOVER_TABLES[measure])
     return (
         table.rename(columns={"column": "financial_year", "row_label": "metric"})[["financial_year", "metric", "value"]]
         .sort_values(["financial_year", "metric"])

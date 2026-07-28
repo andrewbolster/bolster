@@ -6938,21 +6938,20 @@ def nisra_hsc_workforce_cmd(view, period, sub, measure, output_format, force_ref
 
     try:
         with console.status("[bold green]Downloading HSC workforce bulletin..."):
-            if force_refresh:
-                nisra_hsc_workforce.get_latest_data(period=period, force_refresh=True)
-
             if view == "summary":
-                data = nisra_hsc_workforce.get_workforce_summary(period=period)
+                data = nisra_hsc_workforce.get_workforce_summary(period=period, force_refresh=force_refresh)
             elif view == "staff-group":
-                data = nisra_hsc_workforce.get_workforce_by_staff_group(period=period, sub=sub)
+                data = nisra_hsc_workforce.get_workforce_by_staff_group(
+                    period=period, sub=sub, force_refresh=force_refresh
+                )
             elif view == "organisation":
-                data = nisra_hsc_workforce.get_workforce_by_organisation(period=period)
+                data = nisra_hsc_workforce.get_workforce_by_organisation(period=period, force_refresh=force_refresh)
             elif view == "cross-tab":
-                data = nisra_hsc_workforce.get_staff_group_by_organisation(period=period)
+                data = nisra_hsc_workforce.get_staff_group_by_organisation(period=period, force_refresh=force_refresh)
             elif view == "pay-band":
-                data = nisra_hsc_workforce.get_pay_band_distribution(period=period)
+                data = nisra_hsc_workforce.get_pay_band_distribution(period=period, force_refresh=force_refresh)
             else:
-                data = nisra_hsc_workforce.get_turnover(period=period, measure=measure)
+                data = nisra_hsc_workforce.get_turnover(period=period, measure=measure, force_refresh=force_refresh)
 
         if data.empty:
             console.print("[yellow]No data found for the specified options[/yellow]")
@@ -7035,21 +7034,24 @@ def nisra_hsc_recruitment_cmd(view, period, sub, grade, output_format, force_ref
 
     try:
         with console.status("[bold green]Downloading HSC vacancies bulletin..."):
-            if force_refresh:
-                nisra_hsc_recruitment.get_latest_data(period=period, force_refresh=True)
-
             if view == "pay-band":
-                data = nisra_hsc_recruitment.get_vacancies_by_pay_band(period=period, sub=sub)
+                data = nisra_hsc_recruitment.get_vacancies_by_pay_band(
+                    period=period, sub=sub, force_refresh=force_refresh
+                )
             elif view == "staff-group":
-                data = nisra_hsc_recruitment.get_vacancies_by_staff_group(period=period, sub=sub)
+                data = nisra_hsc_recruitment.get_vacancies_by_staff_group(
+                    period=period, sub=sub, force_refresh=force_refresh
+                )
             elif view == "organisation":
-                data = nisra_hsc_recruitment.get_vacancies_by_organisation(period=period)
+                data = nisra_hsc_recruitment.get_vacancies_by_organisation(period=period, force_refresh=force_refresh)
             elif view == "rates":
-                data = nisra_hsc_recruitment.get_vacancy_rates(period=period, sub=sub)
+                data = nisra_hsc_recruitment.get_vacancy_rates(period=period, sub=sub, force_refresh=force_refresh)
             elif view == "profession":
-                data = nisra_hsc_recruitment.get_vacancies_by_profession(period=period)
+                data = nisra_hsc_recruitment.get_vacancies_by_profession(period=period, force_refresh=force_refresh)
             else:
-                data = nisra_hsc_recruitment.get_doctor_vacancies(period=period, grade=grade)
+                data = nisra_hsc_recruitment.get_doctor_vacancies(
+                    period=period, grade=grade, force_refresh=force_refresh
+                )
 
         if data.empty:
             console.print("[yellow]No data found for the specified options[/yellow]")

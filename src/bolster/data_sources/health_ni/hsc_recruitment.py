@@ -151,16 +151,17 @@ def get_latest_data(period: str | pd.Timestamp | None = None, force_refresh: boo
     return parse_csv_tables(download_file(url, cache_ttl_hours=_CACHE_TTL_HOURS, force_refresh=force_refresh))
 
 
-def list_tables(period: str | pd.Timestamp | None = None) -> pd.DataFrame:
+def list_tables(period: str | pd.Timestamp | None = None, force_refresh: bool = False) -> pd.DataFrame:
     """List the sub-tables available in a bulletin.
 
     Args:
         period: Reference quarter. Defaults to the most recent bulletin.
+        force_refresh: Bypass the download cache.
 
     Returns:
         DataFrame with ``table_id``, ``table_title`` and ``records`` columns.
     """
-    df = get_latest_data(period=period)
+    df = get_latest_data(period=period, force_refresh=force_refresh)
     return (
         df.groupby("table_id")
         .agg(table_title=("table_title", "first"), records=("value", "size"))
@@ -210,19 +211,24 @@ def _as_series(table: pd.DataFrame, label: str, value: str) -> pd.DataFrame:
     )
 
 
-def get_vacancies_by_pay_band(period: str | pd.Timestamp | None = None, sub: bool = False) -> pd.DataFrame:
+def get_vacancies_by_pay_band(
+    period: str | pd.Timestamp | None = None,
+    sub: bool = False,
+    force_refresh: bool = False,
+) -> pd.DataFrame:
     """Get the reference-quarter vacancy cross-tab against pay band.
 
     Args:
         period: Reference quarter. Defaults to the most recent bulletin.
         sub: Return the finer sub staff group / profession breakdown instead of
             the headline staff groups.
+        force_refresh: Bypass the download cache.
 
     Returns:
         DataFrame with ``staff_group``, ``pay_band`` and ``vacancies`` columns.
     """
     pattern = r"by Sub Staff Group / Profession & Pay Band" if sub else r"by Staff Group & Pay Band"
-    table = _select_table(get_latest_data(period=period), pattern)
+    table = _select_table(get_latest_data(period=period, force_refresh=force_refresh), pattern)
     return (
         table.rename(columns={"row_label": "staff_group", "column": "pay_band", "value": "vacancies"})[
             ["staff_group", "pay_band", "vacancies"]
@@ -232,63 +238,82 @@ def get_vacancies_by_pay_band(period: str | pd.Timestamp | None = None, sub: boo
     )
 
 
-def get_vacancies_by_organisation(period: str | pd.Timestamp | None = None) -> pd.DataFrame:
+def get_vacancies_by_organisation(
+    period: str | pd.Timestamp | None = None,
+    force_refresh: bool = False,
+) -> pd.DataFrame:
     """Get the vacancy count time series by employing organisation.
 
     Args:
         period: Reference quarter. Defaults to the most recent bulletin.
+        force_refresh: Bypass the download cache.
 
     Returns:
         DataFrame with ``period``, ``organisation`` and ``vacancies`` columns.
     """
-    table = _select_table(get_latest_data(period=period), r"Recruited by HSC Organisation, 31 March")
+    table = _select_table(
+        get_latest_data(period=period, force_refresh=force_refresh), r"Recruited by HSC Organisation, 31 March"
+    )
     return _as_series(table, "organisation", "vacancies")
 
 
-def get_vacancies_by_staff_group(period: str | pd.Timestamp | None = None, sub: bool = False) -> pd.DataFrame:
+def get_vacancies_by_staff_group(
+    period: str | pd.Timestamp | None = None,
+    sub: bool = False,
+    force_refresh: bool = False,
+) -> pd.DataFrame:
     """Get the vacancy count time series by staff group.
 
     Args:
         period: Reference quarter. Defaults to the most recent bulletin.
         sub: Return the finer sub staff group / profession breakdown instead of
             the headline staff groups.
+        force_refresh: Bypass the download cache.
 
     Returns:
         DataFrame with ``period``, ``staff_group`` and ``vacancies`` columns.
     """
     pattern = r"Recruited by Sub Staff Group / Profession, 31 March" if sub else r"Recruited by Staff Group, 31 March"
-    table = _select_table(get_latest_data(period=period), pattern)
+    table = _select_table(get_latest_data(period=period, force_refresh=force_refresh), pattern)
     return _as_series(table, "staff_group", "vacancies")
 
 
-def get_vacancy_rates(period: str | pd.Timestamp | None = None, sub: bool = False) -> pd.DataFrame:
+def get_vacancy_rates(
+    period: str | pd.Timestamp | None = None,
+    sub: bool = False,
+    force_refresh: bool = False,
+) -> pd.DataFrame:
     """Get the vacancy rate time series by staff group.
 
     Args:
         period: Reference quarter. Defaults to the most recent bulletin.
         sub: Return the finer sub staff group / profession breakdown instead of
             the headline staff groups.
+        force_refresh: Bypass the download cache.
 
     Returns:
         DataFrame with ``period``, ``staff_group`` and ``vacancy_rate`` columns.
         Rates are proportions in [0, 1] of the staff group's establishment.
     """
     pattern = r"Vacancy Rates by Sub Staff Group" if sub else r"Vacancy Rates by Staff Group"
-    table = _select_table(get_latest_data(period=period), pattern)
+    table = _select_table(get_latest_data(period=period, force_refresh=force_refresh), pattern)
     return _as_series(table, "staff_group", "vacancy_rate")
 
 
-def get_vacancies_by_profession(period: str | pd.Timestamp | None = None) -> pd.DataFrame:
+def get_vacancies_by_profession(period: str | pd.Timestamp | None = None, force_refresh: bool = False) -> pd.DataFrame:
     """Get the vacancy count time series by individual profession.
 
     Args:
         period: Reference quarter. Defaults to the most recent bulletin.
+        force_refresh: Bypass the download cache.
 
     Returns:
         DataFrame with ``period``, ``staff_group``, ``profession`` and
         ``vacancies`` columns.
     """
-    table = _select_table(get_latest_data(period=period), r"Recruited by Profession, 31 March")
+    table = _select_table(
+        get_latest_data(period=period, force_refresh=force_refresh), r"Recruited by Profession, 31 March"
+    )
     periods = table.column.map(parse_period_column)
     return (
         table.assign(period=periods)[periods.notna()]
@@ -300,7 +325,11 @@ def get_vacancies_by_profession(period: str | pd.Timestamp | None = None) -> pd.
     )
 
 
-def get_doctor_vacancies(period: str | pd.Timestamp | None = None, grade: str = "consultant") -> pd.DataFrame:
+def get_doctor_vacancies(
+    period: str | pd.Timestamp | None = None,
+    grade: str = "consultant",
+    force_refresh: bool = False,
+) -> pd.DataFrame:
     """Get the medical vacancy time series by clinical specialty.
 
     Args:
@@ -308,6 +337,7 @@ def get_doctor_vacancies(period: str | pd.Timestamp | None = None, grade: str = 
         grade: One of ``"consultant"``, ``"locum"`` (directly employed locum
             consultants) or ``"sas"`` (specialty and associate specialist
             doctors).
+        force_refresh: Bypass the download cache.
 
     Returns:
         DataFrame with ``period``, ``specialty`` and ``vacancies`` columns.
@@ -318,7 +348,7 @@ def get_doctor_vacancies(period: str | pd.Timestamp | None = None, grade: str = 
     if grade not in _DOCTOR_GRADES:
         raise ValueError(f"Unknown grade {grade!r}, expected one of {sorted(_DOCTOR_GRADES)}")
 
-    table = _select_table(get_latest_data(period=period), _DOCTOR_GRADES[grade])
+    table = _select_table(get_latest_data(period=period, force_refresh=force_refresh), _DOCTOR_GRADES[grade])
     return _as_series(table, "specialty", "vacancies")
 
 
