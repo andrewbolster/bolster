@@ -241,6 +241,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Drug-Related & Drug Misuse Deaths | `nisra.drug_related_deaths` | ✅ |
 | PSNI Stop & Search (OpenDataNI) | `psni.stop_and_search` | ✅ |
 | PSNI PACE Stop & Search / Arrests | `psni.pace` | ✅ |
+| NI Road Safety Partnership Safety Camera Detections | `psni.road_safety_partnership` | ✅ |
 | ONS UK Inflation (CPI / CPIH / RPI) | `ons_cpi` | ✅ |
 | Bank of England Base Rate | `boe_base_rate` | ✅ |
 | NI Assembly — MLAs, Parties, Constituencies | `niassembly.members` | ✅ |
