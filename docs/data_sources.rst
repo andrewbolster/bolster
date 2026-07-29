@@ -601,6 +601,30 @@ arrests by gender and category, back to 2013/14.
 
     $ bolster psni pace
 
+Motoring Offences
+~~~~~~~~~~~~~~~~~
+
+Annual motoring offence enforcement outcomes — fixed penalty notices,
+referrals for prosecution and driver retraining courses. Disposal-type
+totals run from 1998; offence-group breakdowns by month, age, gender,
+district and disposal cover the latest year, with per-offence series for
+speeding, mobile phone, careless driving and drink/drug driving from 2011.
+
+Complements :mod:`~bolster.data_sources.psni.road_traffic_collisions`, which
+covers injury events rather than enforcement actions.
+
+.. code-block:: python
+
+    from bolster.data_sources.psni import motoring_offences
+
+    trends = motoring_offences.get_annual_trends()
+    districts = motoring_offences.get_offences_by_district()
+
+.. code-block:: console
+
+    $ bolster psni motoring-offences --list-tables
+    $ bolster psni motoring-offences --table district
+
 Police Ombudsman
 ~~~~~~~~~~~~~~~~
 
