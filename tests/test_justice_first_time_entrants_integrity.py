@@ -400,3 +400,104 @@ class TestParsing:
     def test_to_number_parses_values(self):
         assert fte._to_number("26.3") == pytest.approx(26.3)
         assert fte._to_number(7409) == 7409
+
+
+@pytest.mark.network
+class TestCrossValidation:
+    """The workbook's six worksheets must tell one consistent story.
+
+    Each breakdown is parsed independently from a different worksheet, so
+    agreement between them is real evidence the parse is right rather than a
+    tautology.
+    """
+
+    LATEST = "2024-25"
+
+    @pytest.fixture(scope="class")
+    def breakdowns(self):
+        return {dimension: fte.get_breakdown(dimension) for dimension in fte.DIMENSIONS}
+
+    @pytest.fixture(scope="class")
+    def split(self):
+        return fte.get_offence_disposal_split()
+
+    @pytest.fixture(scope="class")
+    def annual(self):
+        return fte.get_annual_series()
+
+    def _total(self, breakdowns, dimension, measure):
+        frame = breakdowns[dimension]
+        rows = frame[
+            (frame["measure"] == measure)
+            & (frame["category"] == "Total")
+            & (frame["financial_year"] == self.LATEST)
+        ]
+        assert len(rows) == 1
+        return rows.iloc[0]
+
+    def test_totals_agree_across_dimensions(self, breakdowns):
+        for measure in fte.MEASURES:
+            totals = {
+                dimension: tuple(self._total(breakdowns, dimension, measure)[["count", "denominator", "percentage"]])
+                for dimension in fte.DIMENSIONS
+            }
+            assert len(set(totals.values())) == 1, f"{measure} totals disagree: {totals}"
+
+    def test_categories_sum_to_total(self, breakdowns):
+        """Unsuppressed categories add up; suppressed ones can only fall short."""
+        for dimension, frame in breakdowns.items():
+            for measure in fte.MEASURES:
+                current = frame[(frame["measure"] == measure) & (frame["financial_year"] == self.LATEST)]
+                parts = current[current["category"] != "Total"]
+                total = self._total(breakdowns, dimension, measure)
+                summed = parts["count"].sum()
+                if parts["count"].isna().any():
+                    assert summed < total["count"], f"{dimension}/{measure}"
+                    assert summed > total["count"] * 0.95, f"{dimension}/{measure} shortfall too large"
+                else:
+                    assert summed == total["count"], f"{dimension}/{measure}"
+                    assert parts["denominator"].sum() == total["denominator"], f"{dimension}/{measure}"
+
+    def test_court_and_diversions_partition_all_disposals(self, breakdowns):
+        court = self._total(breakdowns, "offence", "court")
+        diversions = self._total(breakdowns, "offence", "diversions")
+        everything = self._total(breakdowns, "offence", "all")
+        assert court["count"] + diversions["count"] == everything["count"]
+        assert court["denominator"] + diversions["denominator"] == everything["denominator"]
+
+    def test_conviction_measures_share_a_denominator(self, breakdowns):
+        """First convictions and first offences at court both sit over all convictions."""
+        convictions = self._total(breakdowns, "gender", "convictions")
+        court = self._total(breakdowns, "gender", "court")
+        assert convictions["denominator"] == court["denominator"]
+        assert convictions["count"] >= court["count"]
+
+    def test_annual_series_matches_headline_breakdown(self, breakdowns, annual):
+        latest = annual.iloc[-1]
+        assert latest["financial_year"] == self.LATEST
+        assert latest["first_time_offender_pct"] == pytest.approx(
+            self._total(breakdowns, "age", "all")["percentage"], abs=0.05
+        )
+
+    def test_split_reconciles_with_offence_breakdown(self, breakdowns, split):
+        """Worksheets 3 and 4 report the same per-offence counts."""
+        offences = breakdowns["offence"]
+        current = offences[offences["financial_year"] == self.LATEST]
+        compared = 0
+        for _, row in split.iterrows():
+            for measure, column in (("court", "first_offence_convictions"), ("diversions", "first_offence_diversions")):
+                published = current[(current["measure"] == measure) & (current["category"] == row["offence"])]
+                assert len(published) == 1, row["offence"]
+                expected = published.iloc[0]["count"]
+                if pd.isna(expected) or pd.isna(row[column]):
+                    continue
+                assert row[column] == expected, f"{row['offence']}/{measure}"
+                compared += 1
+        assert compared > 20
+
+    def test_split_denominator_matches_offence_breakdown(self, breakdowns, split):
+        offences = breakdowns["offence"]
+        current = offences[(offences["measure"] == "all") & (offences["financial_year"] == self.LATEST)]
+        denominators = dict(zip(current["category"], current["denominator"], strict=True))
+        for _, row in split.iterrows():
+            assert row["all_convictions_and_diversions"] == denominators[row["offence"]], row["offence"]
