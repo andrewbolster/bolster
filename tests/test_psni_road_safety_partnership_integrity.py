@@ -456,3 +456,76 @@ class TestConstants:
 
     def test_age_bands_place_unknown_last(self):
         assert rsp.AGE_BANDS[-1] == "Unknown"
+
+
+@pytest.mark.network
+class TestCrossValidation:
+    """RSP detections must agree with the other PSNI and NISRA sources."""
+
+    @pytest.fixture(scope="class")
+    def rsp_districts(self):
+        return rsp.get_detections_by_district(year=2023)
+
+    @pytest.fixture(scope="class")
+    def rtc_districts(self):
+        from bolster.data_sources.psni import road_traffic_collisions
+
+        return road_traffic_collisions.get_casualties_by_district(2023)
+
+    def test_district_sets_match_road_traffic_collisions(self, rsp_districts, rtc_districts):
+        """Both PSNI sources must name the 11 districts identically."""
+        assert set(rsp_districts["district"]) == set(rtc_districts["district"])
+
+    def test_lgd_codes_match_road_traffic_collisions(self, rsp_districts, rtc_districts):
+        rsp_map = dict(zip(rsp_districts["district"], rsp_districts["lgd_code"]))
+        rtc_map = dict(zip(rtc_districts["district"], rtc_districts["lgd_code"]))
+        assert rsp_map == rtc_map
+
+    def test_detection_years_overlap_collision_years(self):
+        """RSP and RTC must share reporting years for joint analysis."""
+        from bolster.data_sources.psni import road_traffic_collisions
+
+        rsp_years = set(rsp.get_available_years())
+        rtc_years = set(road_traffic_collisions.get_available_years())
+        assert len(rsp_years & rtc_years) >= 5
+
+    def test_detections_vastly_exceed_injury_collisions(self):
+        """Camera detections are an order of magnitude more common than injury collisions."""
+        from bolster.data_sources.psni import road_traffic_collisions
+
+        rsp_annual = rsp.get_annual_summary()
+        rtc_annual = road_traffic_collisions.get_annual_summary()
+
+        shared = set(rsp_annual["year"]) & set(rtc_annual["year"])
+        assert shared
+
+        for year in sorted(shared):
+            detections = int(rsp_annual.loc[rsp_annual["year"] == year, "detections"].iloc[0])
+            collisions = int(rtc_annual.loc[rtc_annual["year"] == year, "collisions"].iloc[0])
+            assert detections > collisions * 5, f"{year}: {detections} detections vs {collisions} collisions"
+
+    def test_districts_resolve_against_the_shared_lgd_lookup(self, rsp_districts):
+        """Every district must map onto the project-wide LGD code table."""
+        from bolster.data_sources.psni.crime_statistics import get_lgd_code
+
+        for district, code in zip(rsp_districts["district"], rsp_districts["lgd_code"]):
+            assert get_lgd_code(district) == code
+
+    def test_detections_per_capita_are_plausible(self, rsp_districts):
+        """Detections per head must sit within a believable band for every district."""
+        from bolster.data_sources.nisra import population
+
+        pop = population.get_latest_population()
+        pop = pop[
+            (pop["sex"] == "All persons") & (pop["area"].str.contains("Local Government")) & (pop["year"] == 2023)
+        ]
+        by_lgd = pop.groupby("area_code")["population"].sum()
+
+        if by_lgd.empty:
+            pytest.skip("LGD-level population estimates unavailable for 2023")
+
+        for code, detections in zip(rsp_districts["lgd_code"], rsp_districts["detections"]):
+            if code not in by_lgd.index:
+                continue
+            per_1000 = detections / by_lgd[code] * 1000
+            assert 0 < per_1000 < 200, f"{code}: {per_1000:.1f} detections per 1,000 residents"
