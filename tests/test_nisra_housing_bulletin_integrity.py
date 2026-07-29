@@ -579,3 +579,77 @@ class TestAffordableWarmth:
         known = warmth[warmth["approvals"] > 0]
         per_approval = known["approvals_value"] / known["approvals"]
         assert per_approval.between(1_000, 20_000).all()
+
+
+@pytest.mark.network
+class TestCrossValidation:
+    """Cross-validate against the independent LPS stock and homelessness series."""
+
+    @pytest.fixture(scope="class")
+    def bulletin_stock(self):
+        return hb.get_dwelling_stock_by_tenure()
+
+    @pytest.fixture(scope="class")
+    def lps_stock(self):
+        from bolster.data_sources.nisra import housing_stock
+
+        df = housing_stock.get_latest_housing_stock(geo="lgd")
+        return df[df["year"] == df["year"].max()]
+
+    def test_district_totals_agree_within_ten_percent(self, bulletin_stock, lps_stock):
+        """Two independent counts of the same dwellings should be close.
+
+        The bulletin reports NIHE estimates of the total stock; housing_stock
+        counts domestic properties on the LPS valuation list. Different bases,
+        so exact agreement is not expected — but a large divergence would mean
+        one of the two parsers has drifted.
+        """
+        joined = pd.DataFrame(
+            {
+                "bulletin": bulletin_stock.set_index("lgd")["total_stock"],
+                "lps": lps_stock.set_index("lgd_name")["total"],
+            }
+        ).dropna()
+        assert len(joined) == 12, f"Districts failed to join: {sorted(joined.index)}"
+
+        divergence = ((joined["bulletin"] - joined["lps"]) / joined["lps"]).abs()
+        assert divergence.max() < 0.10, f"Largest divergence {divergence.max():.1%}"
+
+    def test_district_ranking_matches_lps(self, bulletin_stock, lps_stock):
+        """Both sources must agree on the relative size of each district."""
+        joined = pd.DataFrame(
+            {
+                "bulletin": bulletin_stock.set_index("lgd")["total_stock"],
+                "lps": lps_stock.set_index("lgd_name")["total"],
+            }
+        ).dropna()
+        joined = joined.drop(index="Northern Ireland")
+        assert joined["bulletin"].corr(joined["lps"], method="spearman") > 0.95
+
+    def test_lgd_names_are_canonical_across_modules(self, bulletin_stock):
+        """A rename in one module must not silently desync the other two."""
+        from bolster.data_sources.nisra import homelessness, housing_stock
+
+        bulletin = set(bulletin_stock["lgd"])
+        lps = set(housing_stock.get_latest_housing_stock(geo="lgd")["lgd_name"])
+        homeless = set(homelessness.get_latest_data(section="acceptances")["lgd"])
+
+        assert bulletin <= lps, f"Not in housing_stock: {sorted(bulletin - lps)}"
+        assert homeless <= bulletin, f"Not in housing_bulletin: {sorted(homeless - bulletin)}"
+
+    def test_fda_applicants_exceed_annual_homeless_acceptances(self, bulletin_stock):
+        """Waiting-list FDA status is a stock; acceptances are the annual flow into it.
+
+        Applicants holding Full Duty Applicant status at a point in time should
+        outnumber those accepted in any single reporting period.
+        """
+        from bolster.data_sources.nisra import homelessness
+
+        fda = hb.get_waiting_list_by_district().set_index("lgd")["applicants_with_fda_status"]
+        acceptances = homelessness.get_latest_data(section="acceptances")
+        latest = acceptances[acceptances["year"] == acceptances["year"].max()]
+        by_lgd = latest.groupby("lgd")["acceptances"].sum()
+
+        shared = fda.index.intersection(by_lgd.index)
+        assert len(shared) >= 10
+        assert (fda[shared] > by_lgd[shared]).all()
