@@ -11,6 +11,7 @@ from rich.panel import Panel
 from rich.text import Text
 
 from . import __version__
+from .data_sources import daera_greenhouse_gas as ghg
 from .data_sources import dva, education_suspensions, gender_pay_gap
 from .data_sources.boe_base_rate import get_latest_data as get_boe_base_rate
 from .data_sources.boe_base_rate import get_rate_changes as get_boe_rate_changes
@@ -84,7 +85,7 @@ def cli(verbose, args=None):
         * ni-elections         NI Assembly election results (2016-2022)
         * nisra                NISRA statistics (deaths, births, population, economic indicators)
         * psni                 PSNI statistics (road traffic collisions)
-        * daera                DAERA statistics (municipal waste)
+        * daera                DAERA statistics (municipal waste, greenhouse gas inventory)
         * dfe                  DfE statistics (electricity and renewables)
 
     Business & Property:
@@ -1118,6 +1119,130 @@ def daera_waste_cmd(force_refresh, council, financial_year, summary, save, outpu
             ]
             available_cols = [c for c in display_cols if c in df.columns]
             out = df[available_cols].copy()
+            if len(out) > 50:
+                console.print(f"[dim]Showing first 50 of {len(out):,} rows[/dim]")
+                out = out.head(50)
+            click.echo(out.to_string(index=False))
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise SystemExit(1) from e
+
+
+@daera.command(name="greenhouse-gas")
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option(
+    "--dataset",
+    type=click.Choice(
+        [
+            "by-sector",
+            "totals",
+            "sector-changes",
+            "gas-changes",
+            "by-gas-and-sector",
+            "revisions",
+            "pfg",
+            "uk-by-sector",
+            "uk-by-gas-and-sector",
+            "national-communication",
+            "tes",
+        ]
+    ),
+    default="by-sector",
+    help="Which table to display (default: by-sector)",
+)
+@click.option("--inventory-year", type=int, help="Inventory edition to read (default: latest)")
+@click.option("--year", type=int, help="Filter to a single reporting year")
+@click.option("--sector", help="Filter by sector name (partial match)")
+@click.option("--summary", is_flag=True, help="Show summary statistics only")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"]),
+    default="table",
+    help="Output format",
+)
+def daera_greenhouse_gas_cmd(force_refresh, dataset, inventory_year, year, sector, summary, save, output_format):
+    """NI Greenhouse Gas Inventory statistics.
+
+    Downloads the latest DAERA greenhouse gas inventory workbook, covering NI
+    emissions from 1990 onwards by sector, by gas, and under two alternative
+    sector classifications, with UK figures for comparison.
+
+    Examples:
+        bolster daera greenhouse-gas                          # Emissions by sector
+        bolster daera greenhouse-gas --dataset totals         # Headline time series
+        bolster daera greenhouse-gas --sector Agriculture     # Filter by sector
+        bolster daera greenhouse-gas --year 2024              # Single year
+        bolster daera greenhouse-gas --summary                # Summary only
+        bolster daera greenhouse-gas --save ghg.csv           # Save to CSV
+    """
+    console = Console()
+
+    accessors = {
+        "by-sector": ghg.get_emissions_by_sector,
+        "totals": ghg.get_annual_totals,
+        "sector-changes": ghg.get_sector_changes,
+        "gas-changes": ghg.get_gas_changes,
+        "by-gas-and-sector": ghg.get_emissions_by_gas_and_sector,
+        "revisions": ghg.get_inventory_revisions,
+        "pfg": ghg.get_pfg_progress,
+        "uk-by-sector": ghg.get_uk_emissions_by_sector,
+        "uk-by-gas-and-sector": ghg.get_uk_emissions_by_gas_and_sector,
+        "national-communication": ghg.get_national_communication_sectors,
+        "tes": ghg.get_tes_categories,
+    }
+
+    try:
+        with console.status("[bold green]Downloading DAERA greenhouse gas inventory..."):
+            df = accessors[dataset](year=inventory_year, force_refresh=force_refresh)
+
+        if sector and "sector" in df.columns:
+            df = df[df["sector"].str.contains(sector, case=False, na=False)]
+            if df.empty:
+                console.print(f"[yellow]No data found for sector matching '{sector}'[/yellow]")
+                return
+
+        if year is not None and "year" in df.columns:
+            df = df[df["year"] == year]
+            if df.empty:
+                console.print(f"[yellow]No data found for year {year}[/yellow]")
+                return
+
+        if save:
+            if save.endswith(".json"):
+                df.to_json(save, orient="records", indent=2)
+            else:
+                df.to_csv(save, index=False)
+            console.print(f"[green]Saved {len(df)} rows to {save}[/green]")
+            return
+
+        if summary:
+            totals = ghg.get_annual_totals(year=inventory_year)
+            latest = totals.iloc[-1]
+            baseline = totals.iloc[0]
+            change = (latest["emissions_ktco2e"] - baseline["emissions_ktco2e"]) / baseline["emissions_ktco2e"]
+            console.print(
+                Panel(
+                    f"[bold cyan]NI Greenhouse Gas Inventory[/bold cyan]\n"
+                    f"[green]Rows in '{dataset}':[/green] {len(df):,}\n"
+                    f"[green]Reporting years:[/green] {int(baseline['year'])} – {int(latest['year'])}\n"
+                    f"[green]{int(latest['year'])} total:[/green] "
+                    f"{latest['emissions_ktco2e'] / 1000:,.2f} MtCO2e\n"
+                    f"[green]Change since {int(baseline['year'])}:[/green] {change:+.1%}",
+                    title="Summary",
+                    border_style="cyan",
+                )
+            )
+            return
+
+        if output_format == "json":
+            click.echo(df.to_json(orient="records", indent=2))
+        elif output_format == "csv":
+            click.echo(df.to_csv(index=False))
+        else:
+            out = df
             if len(out) > 50:
                 console.print(f"[dim]Showing first 50 of {len(out):,} rows[/dim]")
                 out = out.head(50)
