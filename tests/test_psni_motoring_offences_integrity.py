@@ -246,6 +246,65 @@ class TestDispatcher:
         assert motoring_offences.get_latest_publication_url().endswith(".xlsx")
 
 
+@pytest.mark.network
+class TestCrossValidation:
+    """Every breakdown of the latest year should reconcile to the same total.
+
+    The workbook publishes the same year's offences sliced six different ways,
+    so any parsing error in one sheet shows up as a mismatch against the others.
+    """
+
+    @pytest.fixture(scope="class")
+    def latest_total(self):
+        trends = motoring_offences.get_annual_trends()
+        latest = trends["year"].max()
+        return int(trends[trends["year"] == latest]["offences"].sum())
+
+    def test_disposal_type_matches_trends(self, latest_total):
+        disposals = motoring_offences.get_offences_by_disposal_type()
+        latest = disposals["year"].max()
+        assert int(disposals[disposals["year"] == latest]["offences"].sum()) == latest_total
+
+    def test_by_month_matches_trends(self, latest_total):
+        assert int(motoring_offences.get_offences_by_month()["offences"].sum()) == latest_total
+
+    def test_offence_by_disposal_matches_trends(self, latest_total):
+        assert int(motoring_offences.get_offences_by_offence_and_disposal()["offences"].sum()) == latest_total
+
+    def test_age_and_gender_each_match_trends(self, latest_total):
+        totals = motoring_offences.get_offences_by_age_gender().groupby("breakdown")["offences"].sum()
+        assert int(totals["age"]) == latest_total
+        assert int(totals["gender"]) == latest_total
+
+    def test_district_totals_reconcile(self, latest_total):
+        """Districts exclude the 'Unknown' location, so they undershoot the total."""
+        district_total = int(motoring_offences.get_offences_by_district()["total"].sum())
+        assert district_total <= latest_total
+        assert district_total > latest_total * 0.9
+
+    def test_speeding_district_reconciles_with_series(self):
+        series = motoring_offences.get_offence_trends("speeding")
+        latest = series["year"].max()
+        series_total = int(series[series["year"] == latest]["offences"].sum())
+
+        district_total = int(motoring_offences.get_speeding_by_district()["offences"].sum())
+        assert district_total <= series_total
+        assert district_total > series_total * 0.9
+
+    def test_speeding_series_within_overall_total(self, latest_total):
+        series = motoring_offences.get_offence_trends("speeding")
+        latest = series["year"].max()
+        assert int(series[series["year"] == latest]["offences"].sum()) < latest_total
+
+    def test_districts_match_collisions_districts(self):
+        """District naming must line up with the collisions module via LGD codes."""
+        from bolster.data_sources.psni import road_traffic_collisions
+
+        offence_codes = set(motoring_offences.get_offences_by_district()["lgd_code"])
+        collision_codes = set(road_traffic_collisions.get_casualties_by_district()["lgd_code"].dropna())
+        assert offence_codes == collision_codes
+
+
 class TestValidation:
     """Pure validation logic — no network access required."""
 
