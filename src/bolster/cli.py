@@ -23,6 +23,7 @@ from .data_sources.health_ni import cancer_waiting_times as nisra_cancer
 from .data_sources.health_ni import diagnostic_waiting_times as nisra_diagnostic
 from .data_sources.health_ni import disease_prevalence as nisra_disease_prevalence
 from .data_sources.health_ni import emergency_care_waiting_times as nisra_emergency
+from .data_sources.justice import first_time_entrants as justice_fte
 from .data_sources.justice import mortgages as justice_mortgages
 from .data_sources.justice import nicts_quarterly as justice_nicts_quarterly
 from .data_sources.justice import pbni_caseload as justice_pbni
@@ -7511,6 +7512,132 @@ def justice_pbni_caseload_cmd(frequency, dimension, list_dimensions, output_form
         console.print("   - Check your internet connection")
         console.print("   - Try again with --force-refresh to bypass cache")
         console.print("   - Use --list-dimensions to check the dimension name")
+        raise click.Abort() from e
+
+
+@justice.command(name="first-time-entrants")
+@click.option(
+    "--table",
+    type=click.Choice(
+        ["annual", "age", "gender", "offence", "disposal", "offence-disposal"],
+        case_sensitive=False,
+    ),
+    default="annual",
+    help="Table to show (default: annual)",
+)
+@click.option(
+    "--measure",
+    type=click.Choice(sorted(justice_fte.MEASURES), case_sensitive=False),
+    help="Restrict a breakdown to one measure (default: all four)",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics instead of full data")
+def justice_first_time_entrants_cmd(table, measure, output_format, force_refresh, save, summary):
+    r"""DoJ: first time entrants to the NI criminal justice system.
+
+    \b
+    How many of the people convicted at court or given a formal diversionary
+    disposal each year were in the system for the first time, broken down by age
+    band, gender, offence and disposal type. Four measures are published: all
+    disposals, convictions only, court convictions and diversions.
+
+    Examples:
+        Ten-year headline series::
+
+            bolster justice first-time-entrants
+
+        First offence rate by age band::
+
+            bolster justice first-time-entrants --table age
+
+        Just the diversions measure, by offence::
+
+            bolster justice first-time-entrants --table offence --measure diversions
+
+        Court/diversion split over a common denominator::
+
+            bolster justice first-time-entrants --table offence-disposal
+
+        Save as CSV::
+
+            bolster justice first-time-entrants --table gender --save fte.csv
+
+    Source:
+        https://www.justice-ni.gov.uk/articles/first-time-entrants-criminal-justice-system
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading first time entrants data..."):
+            if table == "annual":
+                data = justice_fte.get_annual_series(force_refresh=force_refresh)
+            elif table == "offence-disposal":
+                data = justice_fte.get_offence_disposal_split(force_refresh=force_refresh)
+            else:
+                data = justice_fte.get_breakdown(table, measure=measure, force_refresh=force_refresh)
+
+        console.print("[green]First time entrants data retrieved successfully[/green]")
+        console.print(f"[cyan]Table: {table} | Rows: {len(data)}[/cyan]")
+
+        if summary:
+            console.print("\n[bold]Summary:[/bold]")
+            if table == "annual":
+                first, latest = data.iloc[0], data.iloc[-1]
+                console.print(f"   Coverage: {first['financial_year']} to {latest['financial_year']}")
+                console.print(f"   Latest first time offender rate: {latest['first_time_offender_pct']:.1f}%")
+                console.print(
+                    f"   Change over period: {latest['first_time_offender_pct'] - first['first_time_offender_pct']:+.1f}pp"
+                )
+            elif table == "offence-disposal":
+                total = data[data["offence"] == "Total"].iloc[0]
+                console.print(f"   Offence classifications: {len(data) - 1}")
+                console.print(f"   First offences at court: {int(total['first_offence_convictions']):,}")
+                console.print(f"   First offences diverted: {int(total['first_offence_diversions']):,}")
+            else:
+                latest_year = data["financial_year"].max()
+                current = data[(data["financial_year"] == latest_year) & (data["category"] != "Total")]
+                console.print(f"   Latest year: {latest_year}")
+                console.print(f"   Measures: {', '.join(sorted(data['measure'].unique()))}")
+                console.print(f"   Categories: {current['category'].nunique()}")
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.astype(str).to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.astype(str).to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        console.print("   - --measure only applies to the age/gender/offence/disposal tables")
         raise click.Abort() from e
 
 

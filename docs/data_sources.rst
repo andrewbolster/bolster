@@ -790,6 +790,33 @@ registered victims.
     $ bolster justice pbni-caseload --summary
     $ bolster justice pbni-caseload --frequency quarterly --dimension order_type
 
+First Time Entrants
+~~~~~~~~~~~~~~~~~~~
+
+How many of the people convicted at court or given a formal diversionary
+disposal each year were entering the criminal justice system for the first
+time. Four measures are published — all disposals, convictions only, court
+convictions and diversions — each broken down by age band, gender, offence
+classification and disposal type, alongside a ten-year headline series.
+
+.. code-block:: python
+
+    from bolster.data_sources.justice import first_time_entrants
+
+    series = first_time_entrants.get_annual_series()
+
+    # Any published breakdown, optionally restricted to one measure
+    by_age = first_time_entrants.get_breakdown("age", measure="all")
+
+    # Court and diversion routes over a common denominator
+    split = first_time_entrants.get_offence_disposal_split()
+
+.. code-block:: console
+
+    $ bolster justice first-time-entrants --summary
+    $ bolster justice first-time-entrants --table age
+    $ bolster justice first-time-entrants --table offence --measure diversions
+
 ----
 
 Translink
