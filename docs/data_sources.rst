@@ -386,6 +386,23 @@ Quarterly births, deaths, marriages, and LGD breakdowns.
 
     $ bolster nisra registrar-general
 
+Teacher Workforce
+~~~~~~~~~~~~~~~~~
+
+Annual teacher headcount, full-time equivalents and pupil:teacher ratios for
+grant-aided schools, by Local Government District and school type.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import teacher_workforce
+
+    df = teacher_workforce.get_teacher_counts()
+    ratios = teacher_workforce.get_pupil_teacher_ratios("Grammar")
+
+.. code-block:: console
+
+    $ bolster nisra teacher-workforce --summary
+
 Tourism — Occupancy
 ~~~~~~~~~~~~~~~~~~~~
 

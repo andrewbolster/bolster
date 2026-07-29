@@ -248,6 +248,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | NI Assembly — Votes/Divisions (per-member records) | `niassembly.votes` | ✅ |
 | NI Business Register (IDBR, annual) | `nisra.business_register` | ✅ |
 | NI Multiple Deprivation Measure 2017 (NIMDM, SOA-level) | `nisra.deprivation` | ✅ |
+| Teacher Workforce in Grant-Aided Schools (DE) | `nisra.teacher_workforce` | ✅ |
 | Translink Live Departures & Vehicle Positions | `translink` | ✅ |
 | Security Situation Statistics | - | ❌ Cloudflare-blocked |
 | Anti-social Behaviour | - | ❌ Cloudflare-blocked |

@@ -6997,6 +6997,136 @@ def nisra_claimant_count_cmd(breakdown, output_format, force_refresh, save):
         raise click.Abort() from e
 
 
+@nisra.command(name="teacher-workforce")
+@click.option(
+    "--table",
+    "table_name",
+    type=click.Choice(["counts", "fte", "ratios"], case_sensitive=False),
+    default="counts",
+    help="Which table to retrieve (default: counts)",
+)
+@click.option(
+    "--school-type",
+    help="Restrict fte/ratios to one school type (e.g. Primary, Grammar, Special)",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--summary", is_flag=True, help="Show the NI headcount trend instead of the raw table")
+@click.option("--force-refresh", is_flag=True, help="Ignored; PxStat always returns current data")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_teacher_workforce_cmd(table_name, school_type, output_format, summary, force_refresh, save):
+    r"""NISRA teacher workforce statistics for grant-aided schools.
+
+    \b
+    Annual school census data from the Department of Education, broken down by
+    Local Government District. Headcount counts every teacher in post; full-time
+    equivalent (FTE) weights part-time teachers by the fraction of a full
+    timetable they work, so FTE is always at or below headcount.
+
+    Tables available:
+        counts   Headcount by gender, contract type and age band
+        fte      Full-time equivalent teachers by school type
+        ratios   Pupil:teacher ratios by school type
+
+    \b
+    School types (for --school-type): All schools, Nursery, Primary,
+    Preparatory departments of grammar schools, Secondary (excluding grammar),
+    Grammar, Special.
+
+    Examples:
+        Show the headcount table::
+
+            bolster nisra teacher-workforce
+
+        Show the NI headcount trend with gender and part-time shares::
+
+            bolster nisra teacher-workforce --summary
+
+        Grammar school pupil:teacher ratios as CSV::
+
+            bolster nisra teacher-workforce --table ratios --school-type Grammar --format csv
+
+        Save primary FTE numbers to file::
+
+            bolster nisra teacher-workforce --table fte --school-type Primary --save primary_fte.csv
+
+    Source:
+        https://www.education-ni.gov.uk/articles/education-workforce
+    """
+    from rich.table import Table
+
+    from bolster.data_sources.nisra import teacher_workforce as tw_module
+
+    console = Console()
+
+    try:
+        with console.status(f"[bold green]Downloading NISRA teacher workforce ({table_name})..."):
+            if table_name == "counts":
+                data = tw_module.get_teacher_counts(force_refresh=force_refresh)
+                if summary:
+                    data = tw_module.get_workforce_summary(data)
+            elif table_name == "fte":
+                data = tw_module.get_fte_teachers(school_type, force_refresh=force_refresh)
+            else:
+                data = tw_module.get_pupil_teacher_ratios(school_type, force_refresh=force_refresh)
+
+        console.print(f"[green]Teacher workforce ({table_name}) retrieved successfully[/green]")
+        console.print(f"[cyan]Rows: {len(data)}[/cyan]")
+
+        if not data.empty and "academic_year" in data.columns:
+            years = data["academic_year"]
+            console.print(f"[dim]Academic years: {years.min()} – {years.max()}[/dim]")
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "table":
+            title = "Teacher Workforce — NI summary" if summary else f"Teacher Workforce — {table_name}"
+            table = Table(title=title, show_header=True, header_style="bold cyan")
+            for col in data.columns:
+                table.add_column(str(col))
+            for _, row in data.head(50).iterrows():
+                table.add_row(*[str(v) for v in row.values])
+            console.print(table)
+            if len(data) > 50:
+                console.print(f"\n[yellow]Showing first 50 of {len(data)} rows[/yellow]")
+
+        elif output_format == "csv":
+            click.echo(data.to_csv(index=False))
+
+        elif output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+
+    except ValueError as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        raise click.Abort() from e
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Confirm the PxStat API is reachable at https://data.nisra.gov.uk/")
+        console.print("   - Verify --school-type matches a published school type")
+        raise click.Abort() from e
+
+
 @psni.command(name="crime")
 @click.option(
     "--format",
