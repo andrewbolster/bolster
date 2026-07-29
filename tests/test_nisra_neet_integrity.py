@@ -12,6 +12,8 @@ Key validations:
 - Male and female counts sum to the published total
 - Recent data available (2025 or later)
 - ``validate_data`` rejects empty, malformed and out-of-range DataFrames
+- Cross-validation: the four tables agree with each other, and the LFS 16-24
+  population is consistent with NISRA mid-year population estimates
 """
 
 import pandas as pd
@@ -334,3 +336,80 @@ class TestValidation:
         sheet = pd.DataFrame({0: ["Country", "NI", "Source"], 1: ["Rate", 11.6, "NISRA"]})
         df = neet._labelled_table(sheet, "Country", "Rate")
         assert df["Country"].tolist() == ["NI"]
+
+
+@pytest.mark.network
+class TestCrossValidation:
+    """Cross-validate NEET tables against each other and related NISRA datasets."""
+
+    @pytest.fixture(scope="class")
+    def series(self) -> pd.DataFrame:
+        """Fetch the quarterly NEET series once for the test class."""
+        return neet.get_quarterly_series()
+
+    @pytest.fixture(scope="class")
+    def status(self) -> pd.DataFrame:
+        """Fetch the latest-quarter labour market status breakdown."""
+        return neet.get_labour_market_status()
+
+    @pytest.fixture(scope="class")
+    def composition(self) -> pd.DataFrame:
+        """Fetch the latest-quarter NEET composition breakdown."""
+        return neet.get_neet_composition()
+
+    @pytest.fixture(scope="class")
+    def uk(self) -> pd.DataFrame:
+        """Fetch the NI/UK NEET rate comparison."""
+        return neet.get_uk_comparison()
+
+    def test_composition_total_matches_quarterly_total(self, series: pd.DataFrame, composition: pd.DataFrame) -> None:
+        """Test the composition table's NEET total matches the latest quarterly count."""
+        composition_total = composition.loc[composition["status"].str.startswith("Total NEET"), "count"].iloc[0]
+        latest_total = series.iloc[-1]["total_neet"]
+        assert abs(composition_total - latest_total) <= 1000, (
+            f"Composition total {composition_total} disagrees with quarterly series {latest_total}"
+        )
+
+    def test_uk_table_ni_rate_matches_quarterly_rate(self, series: pd.DataFrame, uk: pd.DataFrame) -> None:
+        """Test the UK comparison's NI rate matches the latest quarterly NEET rate."""
+        ni_rate = uk.loc[uk["country"] == "NI", "neet_rate_pct"].iloc[0]
+        latest_rate = series.iloc[-1]["total_neet_rate_pct"]
+        assert abs(ni_rate - latest_rate) < 0.05, f"UK table NI rate {ni_rate} disagrees with series {latest_rate}"
+
+    def test_composition_components_are_subsets_of_status(
+        self, status: pd.DataFrame, composition: pd.DataFrame
+    ) -> None:
+        """Test NEET sub-groups never exceed the corresponding whole-population group."""
+        status_by_label = dict(zip(status["status"], status["count"], strict=True))
+        pairs = [
+            ("Unemployed (not in education or training)", "Unemployed"),
+            ("Economically inactive (not in education or training)", "Economically inactive"),
+        ]
+        for neet_label, status_label in pairs:
+            neet_count = composition.loc[composition["status"] == neet_label, "count"].iloc[0]
+            assert neet_count <= status_by_label[status_label], (
+                f"NEET {neet_label} ({neet_count}) exceeds all {status_label} ({status_by_label[status_label]})"
+            )
+
+    def test_neet_rate_consistent_with_status_population(self, series: pd.DataFrame, status: pd.DataFrame) -> None:
+        """Test the published NEET rate equals NEET count over the 16-24 population."""
+        population = status.loc[status["status"].str.startswith("Total population"), "count"].iloc[0]
+        latest = series.iloc[-1]
+        implied_rate = 100 * latest["total_neet"] / population
+        assert abs(implied_rate - latest["total_neet_rate_pct"]) < 1.0, (
+            f"Implied rate {implied_rate:.2f}% disagrees with published {latest['total_neet_rate_pct']}%"
+        )
+
+    def test_status_population_agrees_with_population_estimates(self, status: pd.DataFrame) -> None:
+        """Test the LFS 16-24 population is consistent with NISRA mid-year estimates."""
+        from bolster.data_sources.nisra import population as population_module
+
+        pop = population_module.get_latest_population(area="Northern Ireland")
+        latest_year = pop[(pop["year"] == pop["year"].max()) & (pop["sex"] == "All persons")]
+        bands = latest_year[(latest_year["age_5"].isin(["15-19", "20-24"])) & (latest_year["age_broad"] == "16-39")]
+        estimate = bands["population"].sum()
+
+        lfs_population = status.loc[status["status"].str.startswith("Total population"), "count"].iloc[0]
+        assert abs(estimate - lfs_population) / lfs_population < 0.10, (
+            f"LFS 16-24 population {lfs_population} differs from mid-year estimate {estimate} by more than 10%"
+        )
