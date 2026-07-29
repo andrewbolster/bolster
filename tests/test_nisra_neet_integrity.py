@@ -413,3 +413,21 @@ class TestCrossValidation:
         assert abs(estimate - lfs_population) / lfs_population < 0.10, (
             f"LFS 16-24 population {lfs_population} differs from mid-year estimate {estimate} by more than 10%"
         )
+
+
+class TestSideTableErrors:
+    """Unit tests for side-table discovery failures - no network calls needed."""
+
+    def test_missing_key_column_raises(self) -> None:
+        """Test that too few key columns for the requested offset raises."""
+        sheet = pd.DataFrame({0: ["Quarter", "Jan to Mar 2026"], 1: ["Male NEET", 14000]})
+        headers = ["Quarter", "Male NEET"]
+        with pytest.raises(NISRADataNotFoundError, match="Expected at least 2 'Quarter' columns"):
+            neet._side_table(sheet, headers, 0, "Quarter", {"Male NEET": "male_neet"}, skip=1)
+
+    def test_missing_value_column_raises(self) -> None:
+        """Test that an absent published column name raises rather than silently dropping."""
+        sheet = pd.DataFrame({0: ["Quarter", "Jan to Mar 2026"], 1: ["Male NEET", 14000]})
+        headers = ["Quarter", "Male NEET"]
+        with pytest.raises(NISRADataNotFoundError, match="Column 'Total NEET' not found"):
+            neet._side_table(sheet, headers, 0, "Quarter", {"Total NEET": "total_neet"})
