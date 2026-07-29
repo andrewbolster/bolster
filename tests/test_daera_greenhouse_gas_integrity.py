@@ -419,3 +419,105 @@ class TestValidateData:
     def test_infers_emissions_column(self):
         df = pd.DataFrame({"sector": ["Waste"], "emissions_mtco2e": [0.7]})
         assert validate_data(df) is True
+
+
+@pytest.mark.network
+class TestCrossValidation:
+    """Reconcile figures that appear in more than one workbook table."""
+
+    @pytest.fixture(scope="class")
+    def latest(self):
+        return int(get_emissions_by_sector()["year"].max())
+
+    @pytest.fixture(scope="class")
+    def headline_ktco2e(self, latest):
+        sectors = get_emissions_by_sector()
+        row = sectors[(sectors["sector"] == "Total") & (sectors["year"] == latest)]
+        return float(row["emissions_ktco2e"].iloc[0])
+
+    def test_national_communication_total_matches_headline(self, latest, headline_ktco2e):
+        """The alternative NC classification re-slices the same inventory."""
+        nc = get_national_communication_sectors()
+        row = nc[(nc["sector"] == "Total") & (nc["year"] == latest)]
+        assert float(row["emissions_ktco2e"].iloc[0]) == pytest.approx(headline_ktco2e, rel=1e-6)
+
+    def test_tes_grand_total_matches_headline(self, latest, headline_ktco2e):
+        tes = get_tes_categories()
+        row = tes[(tes["sector"] == "Grand Total") & (tes["year"] == latest)]
+        assert float(row["emissions_ktco2e"].iloc[0]) == pytest.approx(headline_ktco2e, rel=1e-6)
+
+    def test_pfg_progress_matches_headline(self, latest, headline_ktco2e):
+        """PfG progress is the headline series expressed in MtCO2e."""
+        pfg = get_pfg_progress()
+        row = pfg[pfg["year"] == latest]
+        assert float(row["emissions_mtco2e"].iloc[0]) == pytest.approx(
+            headline_ktco2e / 1000, rel=1e-6
+        )
+
+    def test_gas_changes_total_matches_headline(self, headline_ktco2e):
+        changes = get_gas_changes().set_index("gas")["latest_year_mtco2e"]
+        assert float(changes["Total"]) == pytest.approx(headline_ktco2e / 1000, rel=1e-6)
+
+    def test_gas_and_sector_totals_match_gas_changes(self):
+        """Table of gases by sector must agree with the gas summary table."""
+        by_gas = get_emissions_by_gas_and_sector()
+        totals = by_gas[by_gas["sector"] == "Total"].set_index("gas")["emissions_mtco2e"]
+        changes = get_gas_changes().set_index("gas")["latest_year_mtco2e"]
+
+        for gas in ("CO2", "CH4", "N2O"):
+            assert float(totals[gas]) == pytest.approx(float(changes[gas]), abs=0.01)
+
+        f_gases = float(totals[["HFCs", "PFCs", "SF6", "NF3"]].sum())
+        assert f_gases == pytest.approx(float(changes["F-gases"]), abs=0.01)
+
+    def test_sector_changes_match_headline_series(self, latest, headline_ktco2e):
+        changes = get_sector_changes().set_index("sector")["latest_year_mtco2e"]
+        assert float(changes["Total"]) == pytest.approx(headline_ktco2e / 1000, rel=1e-6)
+
+        sectors = get_emissions_by_sector()
+        current = sectors[sectors["year"] == latest].set_index("sector")["emissions_ktco2e"]
+        for sector in NI_SECTORS:
+            assert float(changes[sector]) == pytest.approx(
+                float(current[sector]) / 1000, abs=0.01
+            ), f"{sector} disagrees between the change table and the time series"
+
+    def test_revisions_current_edition_matches_series(self):
+        """Revision table's 'current edition' column is this year's inventory."""
+        revisions = get_inventory_revisions()
+        sectors = get_emissions_by_sector()
+
+        dated = revisions[revisions["period"].str.fullmatch(r"\d{4}")]
+        assert not dated.empty, "Expected at least one year-keyed revision period"
+
+        for period, group in dated.groupby("period"):
+            year = int(period)
+            row = group[group["sector"] == "Total"]
+            series = sectors[(sectors["sector"] == "Total") & (sectors["year"] == year)]
+            assert float(row["current_edition_mtco2e"].iloc[0]) == pytest.approx(
+                float(series["emissions_ktco2e"].iloc[0]) / 1000, abs=0.01
+            )
+
+    def test_uk_gas_and_sector_totals_match_uk_series(self, latest):
+        """UK comparison tables must reconcile with each other."""
+        uk_sectors = get_uk_emissions_by_sector()
+        row = uk_sectors[(uk_sectors["sector"] == "Total") & (uk_sectors["year"] == latest)]
+        uk_total = float(row["emissions_ktco2e"].iloc[0])
+
+        by_gas = get_uk_emissions_by_gas_and_sector()
+        gas_total = float(by_gas[by_gas["sector"] == "Total"]["emissions_ktco2e"].sum())
+        assert gas_total == pytest.approx(uk_total, rel=1e-6)
+
+    def test_ni_share_of_uk_is_plausible(self, latest, headline_ktco2e):
+        """NI is roughly 3% of UK population and a few percent of emissions."""
+        uk_sectors = get_uk_emissions_by_sector()
+        row = uk_sectors[(uk_sectors["sector"] == "Total") & (uk_sectors["year"] == latest)]
+        share = headline_ktco2e / float(row["emissions_ktco2e"].iloc[0])
+        assert 0.02 < share < 0.10, f"NI share of UK emissions implausible: {share:.3%}"
+
+    def test_annual_totals_match_sector_totals(self):
+        """The convenience accessor must not diverge from the source table."""
+        totals = get_annual_totals().set_index("year")["emissions_ktco2e"]
+        sectors = get_emissions_by_sector()
+        source = sectors[sectors["sector"] == "Total"].set_index("year")["emissions_ktco2e"]
+        assert totals.index.tolist() == source.index.tolist()
+        assert bool((totals - source).abs().lt(1e-6).all())
