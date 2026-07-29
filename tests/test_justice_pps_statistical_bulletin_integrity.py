@@ -478,3 +478,112 @@ class TestExceptionHierarchy:
 
     def test_validation_is_data_error(self):
         assert issubclass(PPSValidationError, PPSDataError)
+
+
+@pytest.mark.network
+class TestCrossValidation:
+    """Figures must reconcile across the published tables."""
+
+    @pytest.fixture(scope="class")
+    def decisions(self):
+        return pps.get_prosecutorial_decisions()
+
+    @pytest.fixture(scope="class")
+    def reasons(self):
+        return pps.get_no_prosecution_reasons()
+
+    @pytest.fixture(scope="class")
+    def files(self):
+        return pps.get_files_received()
+
+    @pytest.fixture(scope="class")
+    def crown(self):
+        return pps.get_court_outcomes(court="crown")
+
+    @pytest.fixture(scope="class")
+    def crown_rates(self):
+        return pps.get_conviction_rates(court="crown")
+
+    def test_no_prosecution_total_matches_decisions_table(self, decisions, reasons):
+        """Table 3b's overall total must equal Table 3a's No Prosecution row."""
+        from_3a = decisions[decisions["decision_type"] == "No Prosecution"].set_index(
+            ["financial_year", "region"]
+        )["decisions"]
+        from_3b = reasons[reasons["reason"].str.contains("All no prosecution", case=False, na=False)].set_index(
+            ["financial_year", "region"]
+        )["decisions"]
+
+        shared = from_3a.index.intersection(from_3b.index)
+        assert len(shared) > 0, "Tables 3a and 3b share no year/region keys"
+        for key in shared:
+            assert from_3a[key] == from_3b[key], f"No-prosecution mismatch for {key}"
+
+    def test_regions_sum_to_all_pps_decisions(self, decisions):
+        """Regional decision counts must sum to the All PPS total."""
+        self._assert_regions_sum(decisions, "decision_type", "decisions")
+
+    def test_regions_sum_to_all_pps_files(self, files):
+        """Regional file counts must sum to the All PPS total."""
+        self._assert_regions_sum(files, "file_type", "files")
+
+    def test_regions_sum_to_all_pps_reasons(self, reasons):
+        """Regional no-prosecution reasons must sum to the All PPS total."""
+        self._assert_regions_sum(reasons, "reason", "decisions")
+
+    @staticmethod
+    def _assert_regions_sum(df, category_col, value_col):
+        checked = 0
+        for (year, category), group in df.groupby(["financial_year", category_col]):
+            totals = group[group["region"] == pps.ALL_PPS][value_col]
+            parts = group[group["region"] != pps.ALL_PPS][value_col]
+            if totals.empty or parts.isna().any() or totals.isna().any():
+                continue
+            assert parts.sum() == totals.iloc[0], f"{year} {category}: regions do not sum to All PPS"
+            checked += 1
+        assert checked > 0, "No year/category combination was checkable"
+
+    def test_conviction_rate_matches_outcome_counts(self, crown, crown_rates):
+        """The published rate must equal convicted / all defendants."""
+        convicted = crown[crown["outcome"].str.contains("convicted", case=False, na=False)]
+        totals = crown[crown["outcome"].str.contains("all defendants", case=False, na=False)]
+        assert not convicted.empty and not totals.empty
+
+        convicted = convicted.set_index(["financial_year", "region"])["defendants"]
+        totals = totals.set_index(["financial_year", "region"])["defendants"]
+        published = crown_rates.set_index(["financial_year", "region"])["conviction_rate_pct"]
+
+        checked = 0
+        for key in published.index:
+            if key not in convicted.index or totals.get(key) in (None, 0):
+                continue
+            derived = float(convicted[key]) / float(totals[key]) * 100
+            assert abs(derived - published[key]) < 0.01, f"Conviction rate mismatch for {key}"
+            checked += 1
+        assert checked > 0, "No conviction rate was checkable"
+
+    def test_agency_files_smaller_than_police_files(self, files):
+        """Non-police agencies submit far fewer files than the police."""
+        agencies = pps.get_files_from_agencies()
+        police_total = files[(files["region"] == pps.ALL_PPS) & (files["file_type"].str.contains("All Files"))][
+            "files"
+        ].max()
+        agency_total = agencies["files"].sum()
+        assert 0 < agency_total < police_total
+
+    def test_editions_agree_on_overlapping_year(self):
+        """Each edition restates its predecessor; the restatement must match."""
+        latest = pps.get_prosecutorial_decisions()
+        previous = pps.get_prosecutorial_decisions(edition="2024/25")
+
+        shared_years = set(latest["financial_year"]) & set(previous["financial_year"])
+        assert shared_years, "Consecutive editions share no financial year"
+
+        keys = ["financial_year", "region", "decision_type"]
+        merged = latest[latest["financial_year"].isin(shared_years)].merge(
+            previous[previous["financial_year"].isin(shared_years)],
+            on=keys,
+            suffixes=("_new", "_old"),
+        )
+        assert not merged.empty
+        comparable = merged.dropna(subset=["decisions_new", "decisions_old"])
+        assert (comparable["decisions_new"] == comparable["decisions_old"]).all()
