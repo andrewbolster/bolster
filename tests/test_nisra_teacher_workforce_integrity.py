@@ -283,3 +283,55 @@ class TestSummaryArithmetic:
     def test_percentage_columns(self, summary):
         assert summary["female_pct"].tolist() == [75.0, 80.0]
         assert summary["part_time_pct"].tolist() == [20.0, 20.0]
+
+
+@pytest.mark.network
+class TestCrossValidation:
+    """The three matrices should agree with each other and with themselves."""
+
+    @pytest.fixture(scope="class")
+    def counts(self):
+        return tw.get_teacher_counts()
+
+    @pytest.fixture(scope="class")
+    def fte(self):
+        return tw.get_fte_teachers()
+
+    def test_gender_partitions_the_workforce(self, counts):
+        assert (counts["female_teachers"] + counts["male_teachers"] == counts["all_teachers"]).all()
+
+    def test_contract_type_partitions_the_workforce(self, counts):
+        assert (counts["full_time_teachers"] + counts["part_time_teachers"] == counts["all_teachers"]).all()
+
+    def test_age_bands_partition_the_workforce(self, counts):
+        banded = counts["teachers_under_30"] + counts["teachers_30_to_59"] + counts["teachers_60_and_over"]
+        assert (banded == counts["all_teachers"]).all()
+
+    def test_districts_sum_to_the_ni_total(self, counts):
+        for year, group in counts.groupby("academic_year"):
+            ni = group[group["geography"] == tw.NI_TOTAL]["all_teachers"].iloc[0]
+            districts = group[group["geography"] != tw.NI_TOTAL]["all_teachers"].sum()
+            assert districts == ni, f"{year}: districts {districts} != NI {ni}"
+
+    def test_school_types_sum_to_all_schools_fte(self, fte):
+        """Each part is published to one decimal place, so the sum can drift by 0.1."""
+        keys = ["academic_year", "geography"]
+        overall = fte[fte["school_type"] == "All schools"].set_index(keys)["fte_teachers"]
+        parts = fte[fte["school_type"] != "All schools"].groupby(keys)["fte_teachers"].sum()
+
+        drift = (overall - parts).abs().round(6)
+        assert drift.max() <= 0.1, drift[drift > 0.1]
+
+    def test_fte_never_exceeds_headcount(self, counts, fte):
+        """Part-time staff count as less than one FTE, so FTE <= headcount."""
+        overall = fte[fte["school_type"] == "All schools"]
+        merged = counts.merge(overall, on=["academic_year", "geography"])
+
+        assert len(merged) == len(overall), "headcount and FTE cover different districts"
+        assert (merged["fte_teachers"] <= merged["all_teachers"]).all()
+
+    def test_matrices_share_the_same_geographies(self, counts, fte):
+        assert set(counts["geography"]) == set(fte["geography"])
+
+    def test_matrices_share_the_same_years(self, counts, fte):
+        assert set(counts["academic_year"]) == set(fte["academic_year"])
