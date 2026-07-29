@@ -242,8 +242,8 @@ def _read_block(sheet: pd.DataFrame, header_row: int, n_label_cols: int = 1) -> 
     Args:
         sheet: Header-less sheet DataFrame.
         header_row: Index of the row holding column names.
-        n_label_cols: Number of leading identifier columns; the column at this
-            index is used as the numeric probe.
+        n_label_cols: Number of leading identifier columns; everything to the
+            right of these is expected to be numeric.
 
     Returns:
         DataFrame with cleaned column names and only the data rows.
@@ -255,8 +255,11 @@ def _read_block(sheet: pd.DataFrame, header_row: int, n_label_cols: int = 1) -> 
         label = sheet.iat[index, 0]
         if label is None or (isinstance(label, float) and pd.isna(label)):
             break
-        probe = sheet.iat[index, n_label_cols]
-        if not isinstance(probe, int | float) or pd.isna(probe):
+        # Footnote and source rows carry text in column 0 and nothing numeric
+        # beside it.  Genuine data rows may still have individual gaps, so the
+        # whole row is checked rather than a single probe cell.
+        values = sheet.iloc[index, n_label_cols:]
+        if not any(isinstance(value, int | float) and not pd.isna(value) for value in values):
             break
         if str(label).strip() in _NON_DATA_LABELS:
             continue
