@@ -219,6 +219,56 @@ class TestDispatcher:
             wh.get_latest_data("not-a-table")
 
 
+@pytest.mark.network
+class TestCrossValidation:
+    """Cross-validate the two independent sources against each other."""
+
+    @pytest.fixture(scope="class")
+    def ni(self) -> pd.DataFrame:
+        return wh.get_northern_ireland_series()
+
+    @pytest.fixture(scope="class")
+    def status(self) -> pd.DataFrame:
+        return wh.get_economic_status_summary()
+
+    def test_status_split_matches_ons_latest(self, ni: pd.DataFrame, status: pd.DataFrame) -> None:
+        """NISRA's headline split should match the latest ONS NI quarter."""
+        latest = ni.dropna().iloc[-1]
+        published = dict(zip(status["status"], status["percentage"], strict=True))
+        pairs = (
+            ("work_rich", latest["working_rate"]),
+            ("mixed", latest["mixed_rate"]),
+            ("workless", latest["workless_rate"]),
+        )
+        for key, ons_rate in pairs:
+            assert abs(published[key] - ons_rate) < 0.5, (
+                f"{key}: NISRA {published[key]} vs ONS {ons_rate:.2f} for {latest['period']}"
+            )
+
+    def test_ni_is_subset_of_uk_totals(self) -> None:
+        """NI household counts must be smaller than the UK aggregate."""
+        regional = wh.get_regional_series().dropna(subset=["households"])
+        latest_year = regional["year"].max()
+        recent = regional[regional["year"] == latest_year]
+        ni = recent[recent["region"] == "Northern Ireland"]["households"].sum()
+        uk = recent[recent["region"] == "United Kingdom"]["households"].sum()
+        assert 0 < ni < uk, f"NI {ni} not a plausible share of UK {uk}"
+
+    def test_female_activity_headline_consistent(self) -> None:
+        """The 'all females' row should reconcile across the two age tables."""
+        by_age = wh.get_female_activity_by_age()
+        by_children = wh.get_female_activity_by_children()
+        headline = by_age[by_age["age_group"].str.startswith("All females")].iloc[0]
+        with_children = by_children[by_children["dependent_children"] == "1 or more"].iloc[0]
+        assert abs(headline["with_dependent_children"] - with_children["activity_rate"]) < 0.5
+
+    def test_household_types_sum_matches_status_sum(self) -> None:
+        """Both NISRA breakdowns should partition the same household universe."""
+        types_total = wh.get_household_types()["percentage"].sum()
+        status_total = wh.get_economic_status_summary()["percentage"].sum()
+        assert abs(types_total - status_total) < 1.0
+
+
 class TestPeriodParsing:
     """Unit tests for period label parsing - no network calls needed."""
 
