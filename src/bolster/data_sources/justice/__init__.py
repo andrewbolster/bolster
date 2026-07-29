@@ -10,10 +10,12 @@ its sponsored bodies, and the Northern Ireland Courts and Tribunals Service
   NICTS court datasets, from the Court of Appeal to the Magistrates' Courts.
 - pbni_caseload: Probation Board for Northern Ireland caseload statistics
   (annual and quarterly snapshots of people under probation supervision).
+- pps_statistical_bulletin: Public Prosecution Service caseload, prosecutorial
+  decisions and court outcomes, by PPS region.
 
 Most have corresponding CLI commands under ``bolster justice ...``.
 """
 
-from . import mortgages, nicts_quarterly, pbni_caseload
+from . import mortgages, nicts_quarterly, pbni_caseload, pps_statistical_bulletin
 
-__all__ = ["mortgages", "nicts_quarterly", "pbni_caseload"]
+__all__ = ["mortgages", "nicts_quarterly", "pbni_caseload", "pps_statistical_bulletin"]
