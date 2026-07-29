@@ -26,6 +26,7 @@ from .data_sources.health_ni import emergency_care_waiting_times as nisra_emerge
 from .data_sources.justice import mortgages as justice_mortgages
 from .data_sources.justice import nicts_quarterly as justice_nicts_quarterly
 from .data_sources.justice import pbni_caseload as justice_pbni
+from .data_sources.justice import pps_statistical_bulletin as justice_pps
 from .data_sources.metoffice import get_uk_precipitation
 from .data_sources.ni_house_price_index import build as get_ni_house_prices
 from .data_sources.ni_water import get_postcode_to_water_supply_zone, get_water_quality_by_zone
@@ -7511,6 +7512,140 @@ def justice_pbni_caseload_cmd(frequency, dimension, list_dimensions, output_form
         console.print("   - Check your internet connection")
         console.print("   - Try again with --force-refresh to bypass cache")
         console.print("   - Use --list-dimensions to check the dimension name")
+        raise click.Abort() from e
+
+
+@justice.command(name="pps-bulletin")
+@click.option(
+    "--table",
+    type=click.Choice(
+        [
+            "files-received",
+            "files-by-offence",
+            "files-from-agencies",
+            "decisions",
+            "no-prosecution",
+            "court-outcomes",
+            "conviction-rates",
+            "summary",
+        ],
+        case_sensitive=False,
+    ),
+    default="decisions",
+    help="Which published table to show (default: decisions)",
+)
+@click.option(
+    "--court",
+    type=click.Choice(["crown", "magistrates"], case_sensitive=False),
+    default="crown",
+    help="Court tier for --table court-outcomes/conviction-rates (default: crown)",
+)
+@click.option("--edition", help="Financial year of the bulletin, e.g. 2024/25 (default: latest)")
+@click.option("--list-editions", is_flag=True, help="List available bulletin editions and exit")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def justice_pps_bulletin_cmd(table, court, edition, list_editions, output_format, force_refresh, save):
+    r"""PPS: Public Prosecution Service statistical bulletin.
+
+    \b
+    Caseload, prosecutorial decisions and court outcomes for the Public
+    Prosecution Service for Northern Ireland, broken down by PPS region. Covers
+    files received from police and other agencies, decisions issued, reasons for
+    no prosecution, and defendant outcomes in the Crown and magistrates' courts.
+
+    Examples:
+        Prosecutorial decisions by region::
+
+            bolster justice pps-bulletin
+
+        Files received from police::
+
+            bolster justice pps-bulletin --table files-received
+
+        Why no prosecution was directed::
+
+            bolster justice pps-bulletin --table no-prosecution
+
+        Magistrates' court outcomes::
+
+            bolster justice pps-bulletin --table court-outcomes --court magistrates
+
+        NI-wide disposal rates::
+
+            bolster justice pps-bulletin --table summary
+
+        An earlier bulletin::
+
+            bolster justice pps-bulletin --edition 2022/23 --save pps.csv
+
+    Source:
+        https://www.ppsni.gov.uk/pps-statistical-bulletin
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        if list_editions:
+            console.print("[bold]Available bulletin editions:[/bold]")
+            for year in sorted(justice_pps.get_available_editions(), reverse=True):
+                console.print(f"   {year}")
+            return
+
+        getters = {
+            "files-received": justice_pps.get_files_received,
+            "files-by-offence": justice_pps.get_files_by_offence,
+            "files-from-agencies": justice_pps.get_files_from_agencies,
+            "decisions": justice_pps.get_prosecutorial_decisions,
+            "no-prosecution": justice_pps.get_no_prosecution_reasons,
+            "summary": justice_pps.get_prosecution_rate_summary,
+        }
+
+        with console.status("[bold green]Downloading PPS statistical bulletin..."):
+            if table in ("court-outcomes", "conviction-rates"):
+                getter = (
+                    justice_pps.get_court_outcomes if table == "court-outcomes" else justice_pps.get_conviction_rates
+                )
+                data = getter(court=court, edition=edition, force_refresh=force_refresh)
+            else:
+                data = getters[table](edition=edition, force_refresh=force_refresh)
+
+        console.print("[green]PPS bulletin data retrieved successfully[/green]")
+        console.print(f"[cyan]Table: {table} | Rows: {len(data)}[/cyan]")
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.astype(str).to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.astype(str).to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        console.print("   - Use --list-editions to check the edition name")
         raise click.Abort() from e
 
 

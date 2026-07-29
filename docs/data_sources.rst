@@ -790,6 +790,40 @@ registered victims.
     $ bolster justice pbni-caseload --summary
     $ bolster justice pbni-caseload --frequency quarterly --dimension order_type
 
+PPS Statistical Bulletin
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Public Prosecution Service for Northern Ireland caseload and outcomes, broken
+down by PPS region: files received from police and other agencies, prosecutorial
+decisions issued, reasons for directing no prosecution, and defendant outcomes
+in the Crown and magistrates' courts. Editions from 2021/22 onwards each carry
+two financial years, giving continuous coverage from 2020/21.
+
+.. note::
+
+    PPS moved from a two-region to a three-region operating model in the Autumn
+    2025 bulletin, so region names differ between financial years within a
+    single workbook. ``All PPS`` is comparable throughout.
+
+.. code-block:: python
+
+    from bolster.data_sources.justice import pps_statistical_bulletin as pps
+
+    decisions = pps.get_prosecutorial_decisions()
+    reasons = pps.get_no_prosecution_reasons()
+
+    crown = pps.get_court_outcomes(court="crown")
+    rates = pps.get_conviction_rates(court="magistrates")
+
+    # NI-wide prosecution / diversion / no-prosecution shares
+    summary = pps.get_prosecution_rate_summary()
+
+.. code-block:: console
+
+    $ bolster justice pps-bulletin --table summary
+    $ bolster justice pps-bulletin --table no-prosecution
+    $ bolster justice pps-bulletin --table court-outcomes --court magistrates
+
 ----
 
 Translink
