@@ -48,6 +48,7 @@ from .data_sources.nisra import index_of_services as nisra_ios
 from .data_sources.nisra import labour_market as nisra_labour_market
 from .data_sources.nisra import marriages as nisra_marriages
 from .data_sources.nisra import migration as nisra_migration
+from .data_sources.nisra import neet as nisra_neet
 from .data_sources.nisra import planning_statistics as nisra_planning
 from .data_sources.nisra import population as nisra_population
 from .data_sources.nisra import population_projections as nisra_projections
@@ -6394,6 +6395,111 @@ def nisra_work_quality_cmd(indicator, year, output_format, force_refresh, save):
                 return
 
         console.print("[green]Work quality data retrieved successfully[/green]")
+        console.print(f"[cyan]Rows: {len(data)}[/cyan]")
+        if not data.empty and "year" in data.columns:
+            console.print(f"[dim]Years: {data['year'].min()}–{data['year'].max()}[/dim]")
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@nisra.command(name="neet")
+@click.option(
+    "--table",
+    type=click.Choice(["quarterly", "status", "uk", "composition", "gender-gap"], case_sensitive=False),
+    default="quarterly",
+    help="Table to retrieve (default: quarterly)",
+)
+@click.option("--year", type=int, default=None, help="Filter the quarterly series to a specific year")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_neet_cmd(table, year, output_format, force_refresh, save):
+    r"""NISRA Young People Not in Education, Employment or Training (NEET).
+
+    \b
+    Quarterly Labour Force Survey estimates of 16-24 year olds who are NEET,
+    from January-March 2013 to present. NEET is broader than youth
+    unemployment: it counts both unemployed and economically inactive young
+    people who are not in any education or training.
+
+    \b
+    Tables:
+        quarterly   - Full time series with counts, rates and 95% confidence intervals
+        status      - Labour market status of all 16-24 year olds (latest quarter)
+        uk          - NI versus UK NEET rate (latest quarter)
+        composition - NEET split into unemployed and economically inactive
+        gender-gap  - Male minus female NEET rate, in percentage points
+
+    Examples:
+        Full quarterly series::
+
+            bolster nisra neet
+
+        NI versus UK comparison::
+
+            bolster nisra neet --table uk
+
+        2025 quarters saved as JSON::
+
+            bolster nisra neet --year 2025 --format json --save neet2025.json
+
+    Source:
+        https://www.nisra.gov.uk/statistics/labour-market-and-social-welfare
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading NISRA NEET data..."):
+            if table == "gender-gap":
+                data = nisra_neet.get_gender_gap(force_refresh=force_refresh)
+            else:
+                data = nisra_neet.get_latest_data(table=table, force_refresh=force_refresh)
+
+        if year is not None:
+            if "year" not in data.columns:
+                console.print(
+                    f"[yellow]Table '{table}' is a latest-quarter snapshot and cannot be filtered by year[/yellow]"
+                )
+                return
+            data = data[data["year"] == year]
+            if data.empty:
+                console.print(f"[yellow]No data found for year {year}[/yellow]")
+                return
+
+        console.print("[green]NEET data retrieved successfully[/green]")
         console.print(f"[cyan]Rows: {len(data)}[/cyan]")
         if not data.empty and "year" in data.columns:
             console.print(f"[dim]Years: {data['year'].min()}–{data['year'].max()}[/dim]")
