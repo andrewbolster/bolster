@@ -19,8 +19,7 @@ Data Source:
     The OpenDataNI dataset was last updated 27 January 2022 and only contains
     data through December 2021. PSNI stopped pushing updates to OpenDataNI after
     that date. The PSNI official statistics page publishes quarterly Excel files
-    with current data, but psni.police.uk is protected by Cloudflare which
-    blocks automated downloads.
+    with current data; a scraper for those has not been built yet.
 
     Calling ``get_latest_crime_statistics()`` will raise ``PSNIDataStaleError``
     to make this limitation explicit. The historical data (Apr 2001–Dec 2021)
@@ -62,7 +61,7 @@ from ._base import (
 
 logger = logging.getLogger(__name__)
 
-# OpenDataNI CSV URL (direct download, no Cloudflare protection)
+# OpenDataNI CSV URL (direct download)
 CRIME_STATISTICS_URL = "https://admin.opendatani.gov.uk/dataset/80dc9542-7b2a-48f5-bbf4-ccc7040d36af/resource/6fd51851-df78-4469-98c5-4f06953621a0/download/police-recorded-crime-monthly-data.csv"
 
 # Data guide for reference
@@ -236,18 +235,18 @@ def get_latest_crime_statistics(
 ) -> pd.DataFrame:
     """Raises PSNIDataStaleError — use get_historical_crime_statistics() instead.
 
-    The OpenDataNI source was last updated January 2022. PSNI's official site
-    publishes current data but is Cloudflare-protected and inaccessible to
-    automated downloads. Use ``get_historical_crime_statistics()`` to access
-    the data available (Apr 2001–Dec 2021).
+    The OpenDataNI source was last updated January 2022. PSNI publishes current
+    data on its own site, but a scraper for that has not been built. Use
+    ``get_historical_crime_statistics()`` to access the data available
+    (Apr 2001–Dec 2021).
 
     Raises:
-        PSNIDataStaleError: Always — this data source has no accessible update.
+        PSNIDataStaleError: Always — this module has no route to 2022+ data.
     """
     raise PSNIDataStaleError(
         "PSNI crime statistics are stale since January 2022 (last data: December 2021). "
-        "The OpenDataNI mirror has not been updated and the official PSNI website "
-        "(psni.police.uk) is Cloudflare-protected, blocking automated access to 2022+ data. "
+        "The OpenDataNI mirror has not been updated, and this module does not yet "
+        "scrape the quarterly Excel files PSNI publishes on its own site. "
         "To access the available historical data (Apr 2001–Dec 2021), use "
         "get_historical_crime_statistics() instead. "
         "For current data, visit: https://www.psni.police.uk/about-us/our-publications-and-reports/official-statistics/police-recorded-crime-statistics "
