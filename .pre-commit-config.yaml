@@ -14,13 +14,11 @@ repos:
           - id: ruff
             types_or: [python, pyi]
             args: [--fix]
-            # Limit to src/ directory to match CI scope
-            files: ^src/.*\.py$
+            files: ^(src|tests)/.*\.py$
           # Run the formatter.
           - id: ruff-format
             types_or: [python, pyi]
-            # Limit to src/ directory to match CI scope
-            files: ^src/.*\.py$
+            files: ^(src|tests)/.*\.py$
     - repo: local
       hooks:
           - id: actionlint

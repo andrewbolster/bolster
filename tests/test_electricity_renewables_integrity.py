@@ -38,9 +38,7 @@ class TestDataIntegrity:
     # ── renewable_pct ─────────────────────────────────────────────────────────
 
     def test_renewable_pct_required_columns(self, renewable_pct):
-        assert {"date", "renewable_pct_rolling_12m", "renewable_pct_monthly"}.issubset(
-            renewable_pct.columns
-        )
+        assert {"date", "renewable_pct_rolling_12m", "renewable_pct_monthly"}.issubset(renewable_pct.columns)
 
     def test_renewable_pct_date_type(self, renewable_pct):
         assert pd.api.types.is_datetime64_any_dtype(renewable_pct["date"])
@@ -104,9 +102,7 @@ class TestDataIntegrity:
     # ── generation_by_technology ──────────────────────────────────────────────
 
     def test_technology_required_columns(self, generation_by_technology):
-        assert {"date", "wind_gwh", "solar_pv_gwh"}.issubset(
-            generation_by_technology.columns
-        )
+        assert {"date", "wind_gwh", "solar_pv_gwh"}.issubset(generation_by_technology.columns)
 
     def test_technology_all_non_negative(self, generation_by_technology):
         tech_cols = ["wind_gwh", "hydro_gwh", "bioenergy_gwh", "landfill_gas_gwh", "solar_pv_gwh"]
@@ -162,9 +158,7 @@ class TestValidation:
 
     def test_validate_missing_required_columns(self):
         df = pd.DataFrame({"date": pd.date_range("2020-01", periods=15, freq="ME")})
-        with pytest.raises(
-            electricity_renewables.ElectricityValidationError, match="missing required"
-        ):
+        with pytest.raises(electricity_renewables.ElectricityValidationError, match="missing required"):
             electricity_renewables.validate_data(df, "renewable_pct")
 
     def test_validate_too_few_rows(self):
@@ -175,9 +169,7 @@ class TestValidation:
                 "renewable_pct_monthly": [38.0] * 5,
             }
         )
-        with pytest.raises(
-            electricity_renewables.ElectricityValidationError, match="rows"
-        ):
+        with pytest.raises(electricity_renewables.ElectricityValidationError, match="rows"):
             electricity_renewables.validate_data(df, "renewable_pct")
 
     def test_validate_pct_out_of_range(self):
@@ -188,9 +180,7 @@ class TestValidation:
                 "renewable_pct_monthly": [38.0] * 12,
             }
         )
-        with pytest.raises(
-            electricity_renewables.ElectricityValidationError, match="outside"
-        ):
+        with pytest.raises(electricity_renewables.ElectricityValidationError, match="outside"):
             electricity_renewables.validate_data(df, "renewable_pct")
 
     def test_validate_pct_implausibly_low(self):
@@ -201,9 +191,7 @@ class TestValidation:
                 "renewable_pct_monthly": [5.0] * 12,
             }
         )
-        with pytest.raises(
-            electricity_renewables.ElectricityValidationError, match="implausibly low"
-        ):
+        with pytest.raises(electricity_renewables.ElectricityValidationError, match="implausibly low"):
             electricity_renewables.validate_data(df, "renewable_pct")
 
     def test_validate_negative_consumption(self):
@@ -216,9 +204,7 @@ class TestValidation:
                 "net_imports_gwh": [800.0] * 12,
             }
         )
-        with pytest.raises(
-            electricity_renewables.ElectricityValidationError, match="negative"
-        ):
+        with pytest.raises(electricity_renewables.ElectricityValidationError, match="negative"):
             electricity_renewables.validate_data(df, "consumption")
 
     def test_validate_implausibly_low_consumption(self):
@@ -231,9 +217,7 @@ class TestValidation:
                 "net_imports_gwh": [0.0] * 12,
             }
         )
-        with pytest.raises(
-            electricity_renewables.ElectricityValidationError, match="implausibly low"
-        ):
+        with pytest.raises(electricity_renewables.ElectricityValidationError, match="implausibly low"):
             electricity_renewables.validate_data(df, "consumption")
 
     def test_validate_valid_data_returns_true(self):

@@ -36,12 +36,12 @@ class TestSaveXls:
             pd.testing.assert_frame_equal(
                 loaded_data["Sheet1"].iloc[:, 1:],  # Skip index column
                 df1,
-                check_index_type=False
+                check_index_type=False,
             )
             pd.testing.assert_frame_equal(
                 loaded_data["Sheet2"].iloc[:, 1:],  # Skip index column
                 df2,
-                check_index_type=False
+                check_index_type=False,
             )
         finally:
             # Clean up
@@ -73,7 +73,7 @@ class TestSaveXls:
             pd.testing.assert_frame_equal(
                 loaded_data["TestSheet"].iloc[:, 1:],  # Skip index column
                 df1,
-                check_index_type=False
+                check_index_type=False,
             )
 
     def test_save_xls_empty_dict(self):
