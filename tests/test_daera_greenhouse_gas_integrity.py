@@ -7,6 +7,8 @@ with ``scope="class"`` fixtures to minimise network calls.
 
 from __future__ import annotations
 
+from urllib.parse import urlparse
+
 import pandas as pd
 import pytest
 
@@ -68,7 +70,9 @@ class TestSourceDiscovery:
 
     def test_workbook_url_is_spreadsheet(self):
         url = get_workbook_url()
-        assert "daera-ni.gov.uk" in url
+        host = urlparse(url).hostname
+        assert host is not None
+        assert host == "daera-ni.gov.uk" or host.endswith(".daera-ni.gov.uk")
         assert url.lower().endswith(".xlsx")
 
     def test_unknown_edition_raises(self):
