@@ -31,9 +31,16 @@ class TestDiagnosticWaitingTimesIntegrity:
     def test_required_columns_present(self, latest_data):
         """Test that all required columns are present."""
         required = {
-            "date", "quarter", "year", "trust", "category",
-            "total_waiting", "within_9_weeks", "over_9_weeks",
-            "over_26_weeks", "performance_rate",
+            "date",
+            "quarter",
+            "year",
+            "trust",
+            "category",
+            "total_waiting",
+            "within_9_weeks",
+            "over_9_weeks",
+            "over_26_weeks",
+            "performance_rate",
         }
         assert required.issubset(set(latest_data.columns))
 
@@ -45,9 +52,7 @@ class TestDiagnosticWaitingTimesIntegrity:
 
     def test_performance_rate_between_0_and_1(self, latest_data):
         """Test that performance rates are between 0 and 1."""
-        valid_rates = latest_data["performance_rate"].replace(
-            [float("inf"), float("-inf")], float("nan")
-        ).dropna()
+        valid_rates = latest_data["performance_rate"].replace([float("inf"), float("-inf")], float("nan")).dropna()
         assert (valid_rates >= 0).all(), "Performance rates contain values < 0"
         assert (valid_rates <= 1).all(), "Performance rates contain values > 1"
 
@@ -150,19 +155,21 @@ class TestValidateFunction:
         """Build a minimal valid DataFrame for testing."""
         rows = []
         for trust in ("Belfast", "Northern", "South Eastern", "Southern", "Western"):
-            for i in range(2):
-                rows.append({
-                    "date": pd.Timestamp("2023-06-01"),
-                    "quarter": "2022/23Q1",
-                    "year": 2023,
-                    "trust": trust,
-                    "category": "All categories of test",
-                    "total_waiting": 1000.0,
-                    "within_9_weeks": 700.0,
-                    "over_9_weeks": 300.0,
-                    "over_26_weeks": 50.0,
-                    "performance_rate": 0.70,
-                })
+            for _ in range(2):
+                rows.append(
+                    {
+                        "date": pd.Timestamp("2023-06-01"),
+                        "quarter": "2022/23Q1",
+                        "year": 2023,
+                        "trust": trust,
+                        "category": "All categories of test",
+                        "total_waiting": 1000.0,
+                        "within_9_weeks": 700.0,
+                        "over_9_weeks": 300.0,
+                        "over_26_weeks": 50.0,
+                        "performance_rate": 0.70,
+                    }
+                )
         return pd.DataFrame(rows)
 
     def test_validate_valid_dataframe(self):
@@ -172,11 +179,20 @@ class TestValidateFunction:
 
     def test_validate_empty_dataframe(self):
         """Test that an empty DataFrame raises ValueError."""
-        df = pd.DataFrame(columns=[
-            "date", "quarter", "year", "trust", "category",
-            "total_waiting", "within_9_weeks", "over_9_weeks",
-            "over_26_weeks", "performance_rate",
-        ])
+        df = pd.DataFrame(
+            columns=[
+                "date",
+                "quarter",
+                "year",
+                "trust",
+                "category",
+                "total_waiting",
+                "within_9_weeks",
+                "over_9_weeks",
+                "over_26_weeks",
+                "performance_rate",
+            ]
+        )
         with pytest.raises(ValueError, match="empty"):
             dwt.validate_diagnostic_waiting_times(df)
 
