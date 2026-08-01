@@ -536,8 +536,9 @@ class TestLGDEmploymentIntegrity:
             total = row["in_employment"]
             lgd = row["lgd"]
 
-            # Allow for rounding differences
-            assert abs((ft + pt) - total) <= 1, (
+            # NISRA rounds each figure to thousands independently, so three
+            # values each carrying ±0.5 can disagree by up to 2 as integers.
+            assert abs((ft + pt) - total) <= 2, (
                 f"{lgd}: Full-time ({ft}) + Part-time ({pt}) = {ft + pt} != Total employment ({total})"
             )
 
@@ -549,8 +550,8 @@ class TestLGDEmploymentIntegrity:
             pop = row["population_16plus"]
             lgd = row["lgd"]
 
-            # Allow for rounding differences
-            assert abs((active + inactive) - pop) <= 1, (
+            # Same independent-rounding bound as test_employment_components_sum.
+            assert abs((active + inactive) - pop) <= 2, (
                 f"{lgd}: Active ({active}) + Inactive ({inactive}) = {active + inactive} != Population 16+ ({pop})"
             )
 
