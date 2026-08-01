@@ -809,6 +809,44 @@ registered victims.
 
 ----
 
+Communities — Child Maintenance Service
+---------------------------------------
+
+Quarterly Child Maintenance Service statistics for Northern Ireland, published
+by the Department for Communities: applications and their clearance, the
+composition of arrangements, children covered, paying parent numbers and
+demographics, maintenance due and paid, and enforcement collections. All eight
+workbook tables are flattened into one tidy long frame with a ``table``
+discriminator column.
+
+A single release does not carry the full back series — most tables show only the
+last few years, and paying parent characteristics only a single quarter — so
+``get_historical_data()`` stitches successive releases together.
+
+.. code-block:: python
+
+    from bolster.data_sources.dfc import child_maintenance
+
+    # Every table from the most recent release
+    df = child_maintenance.get_latest_data()
+
+    # Stitch releases together for the full published run
+    history = child_maintenance.get_historical_data(max_publications=8)
+
+    # A single table
+    enforcement = child_maintenance.get_enforcement()
+
+    # What tables are available?
+    child_maintenance.list_tables()
+
+.. code-block:: console
+
+    $ bolster dfc child-maintenance --list-tables
+    $ bolster dfc child-maintenance --table enforcement
+    $ bolster dfc child-maintenance --historical --summary
+
+----
+
 Translink
 ---------
 
