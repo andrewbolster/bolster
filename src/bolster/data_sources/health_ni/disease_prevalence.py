@@ -44,7 +44,7 @@ import pandas as pd
 
 from bolster.data_sources.nisra.pxstat import read_dataset
 
-from ._base import NISRADataNotFoundError, NISRAValidationError, download_file, search_publications_xlsx
+from ._base import HEALTH_NI_BASE_URL, NISRADataNotFoundError, NISRAValidationError, download_file, find_latest_xlsx
 
 logger = logging.getLogger(__name__)
 
@@ -331,7 +331,10 @@ def get_latest_publication_url() -> str:
         >>> url.endswith(".xlsx")
         True
     """
-    return search_publications_xlsx("disease prevalence")
+    return find_latest_xlsx(
+        f"{HEALTH_NI_BASE_URL}/articles/prevalence-statistics",
+        keyword="raw-disease-prevalence-trend-data",
+    )
 
 
 def _normalise_gp_register(name: str) -> str:
