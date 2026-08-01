@@ -32,37 +32,37 @@ def _probe(url: str) -> str:
     return f"HTTP {r.status_code} server={r.headers.get('server', '?')} len={len(r.content)} cloudflare_block={blocked}"
 
 
-def test_probe_egress_identity():
-    """Report CI's public egress IP so the ASN can be compared against local."""
+def test_probe_report():
+    """Fail deliberately so pytest surfaces the report in CI output."""
+    import pytest
+
+    lines = ["", "=== EGRESS ==="]
     for svc in ("https://api.ipify.org", "https://ifconfig.me/ip"):
         try:
-            print(f"\nEGRESS {svc} -> {session.get(svc, timeout=15).text.strip()}")
+            lines.append(f"{svc} -> {session.get(svc, timeout=15).text.strip()}")
         except Exception as exc:  # noqa: BLE001
-            print(f"\nEGRESS {svc} -> failed: {exc}")
+            lines.append(f"{svc} -> failed: {exc}")
 
-
-def test_probe_target_reachability():
-    """Report reachability of every PSNI/PONI page the README calls blocked."""
-    print("\n--- PSNI / PONI reachability from CI ---")
+    lines.append("")
+    lines.append("=== REACHABILITY ===")
     for name, url in TARGETS.items():
-        print(f"{name:32s} {_probe(url)}")
+        lines.append(f"{name:32s} {_probe(url)}")
 
-
-def test_probe_enumerate_official_statistics_links():
-    """List every official-statistics publication link, to map the five unbuilt sources."""
+    lines.append("")
+    lines.append("=== OFFICIAL-STATISTICS INDEX LINKS ===")
     from bs4 import BeautifulSoup
 
     try:
         r = session.get(INDEX, timeout=30)
+        lines.append(f"index HTTP {r.status_code}")
+        if r.status_code == 200:
+            seen = set()
+            for a in BeautifulSoup(r.content, "html.parser").find_all("a", href=True):
+                href = a["href"]
+                if "official-statistics/" in href and href not in seen:
+                    seen.add(href)
+                    lines.append(f"  {a.get_text(strip=True)[:55]:55s} {href}")
     except Exception as exc:  # noqa: BLE001
-        print(f"\nINDEX fetch failed: {exc}")
-        return
-    print(f"\n--- official-statistics index: HTTP {r.status_code} ---")
-    if r.status_code != 200:
-        return
-    seen = set()
-    for a in BeautifulSoup(r.content, "html.parser").find_all("a", href=True):
-        href = a["href"]
-        if "official-statistics/" in href and href not in seen:
-            seen.add(href)
-            print(f"  {a.get_text(strip=True)[:60]:60s} {href}")
+        lines.append(f"index fetch failed: {exc}")
+
+    pytest.fail("\n".join(lines), pytrace=False)
