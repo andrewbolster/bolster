@@ -618,22 +618,6 @@ arrests by gender and category, back to 2013/14.
 
     $ bolster psni pace
 
-Police Ombudsman
-~~~~~~~~~~~~~~~~
-
-Annual and quarterly Police Ombudsman complaint statistics — complaints by
-district, allegation type, and outcome back to 2000/01.
-
-.. code-block:: python
-
-    from bolster.data_sources.psni import police_ombudsman
-
-    df = police_ombudsman.get_latest_complaints()
-
-.. code-block:: console
-
-    $ bolster psni police-ombudsman
-
 ----
 
 DVA — Driver and Vehicle Agency
