@@ -403,6 +403,23 @@ grant-aided schools, by Local Government District and school type.
 
     $ bolster nisra teacher-workforce --summary
 
+School Leavers Survey
+~~~~~~~~~~~~~~~~~~~~~~
+
+Qualifications achieved and destinations of school leavers, by geography,
+free school meal entitlement, and equality group.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import school_leavers
+
+    attainment = school_leavers.get_latest_school_leavers("attainment", "lgd")
+    equality = school_leavers.get_attainment_by_equality_group()
+
+.. code-block:: console
+
+    $ bolster nisra school-leavers --dimension destination --geography lgd
+
 Tourism — Occupancy
 ~~~~~~~~~~~~~~~~~~~~
 

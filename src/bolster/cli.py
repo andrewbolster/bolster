@@ -53,6 +53,7 @@ from .data_sources.nisra import population as nisra_population
 from .data_sources.nisra import population_projections as nisra_projections
 from .data_sources.nisra import public_confidence as nisra_public_confidence
 from .data_sources.nisra import registrar_general as nisra_registrar_general
+from .data_sources.nisra import school_leavers as nisra_school_leavers
 from .data_sources.nisra import wellbeing as nisra_wellbeing
 from .data_sources.nisra import work_quality as nisra_work_quality
 from .data_sources.nisra.tourism import occupancy as nisra_occupancy
@@ -1933,6 +1934,142 @@ def nisra_drug_related_deaths_cmd(dimension, output_format, force_refresh, save)
                 console.print("\n[yellow]💡 Tip: For 'all' dimensions, use --save to export to files[/yellow]")
                 console.print("[yellow]   Displaying summary dimension only:[/yellow]\n")
                 click.echo(data["summary"].to_csv(index=False))
+            else:
+                click.echo(data.to_csv(index=False))
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
+        console.print("   • Visit NISRA website to verify data availability")
+        raise click.Abort() from e
+
+
+@nisra.command(name="school-leavers")
+@click.option(
+    "--dimension",
+    type=click.Choice(["attainment", "destination", "equality", "all"], case_sensitive=False),
+    default="attainment",
+    help="Which dimension to retrieve (default: attainment)",
+)
+@click.option(
+    "--geography",
+    type=click.Choice(["settlement", "lgd", "hsct", "aa", "dea"], case_sensitive=False),
+    default="settlement",
+    help="Geographic breakdown (default: settlement). Ignored for the equality dimension.",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_school_leavers_cmd(dimension, geography, output_format, force_refresh, save):
+    """NISRA School Leavers Survey — attainment and destinations.
+
+    Annual survey of every pupil leaving a grant-aided post-primary school in
+    Northern Ireland, covering qualifications achieved and what leavers went on
+    to do. Broken down by free school meal entitlement and five geographies.
+
+    Examples:
+    ---------
+    Attainment by urban/rural settlement::
+
+        bolster nisra school-leavers --dimension attainment
+
+    Destinations by local government district::
+
+        bolster nisra school-leavers --dimension destination --geography lgd
+
+    Attainment by sex, religion, and ethnic group::
+
+        bolster nisra school-leavers --dimension equality
+
+    All dimensions saved to files::
+
+        bolster nisra school-leavers --dimension all --save leavers.csv
+
+    Dimensions
+    ----------
+    attainment
+        Qualifications achieved (GCSEs, A-levels) by geography and FSM entitlement
+    destination
+        Where leavers went (higher/further education, employment, training, unknown)
+    equality
+        Attainment by sex, religion, and ethnic group (Northern Ireland level)
+    all
+        All dimensions (returns separate tables)
+
+    Geographies
+    -----------
+    settlement (urban/rural), lgd (11 councils), hsct (5 trusts),
+    aa (18 assembly areas), dea (80 district electoral areas)
+
+    Source
+    ------
+    https://data.nisra.gov.uk/ (School Leavers Survey matrices)
+    """
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading latest NISRA school leavers data..."):
+            data = nisra_school_leavers.get_latest_data(
+                dimension=dimension, geography=geography, force_refresh=force_refresh
+            )
+
+        if dimension == "all":
+            console.print("[green]✅ Retrieved all dimensions successfully[/green]")
+            total_records = sum(len(df) for df in data.values())
+            console.print(f"[cyan]📊 Total records: {total_records}[/cyan]")
+            for dim_name, df in data.items():
+                console.print(f"   • {dim_name}: {len(df)} records")
+        else:
+            console.print(f"[green]✅ Retrieved {dimension} dimension successfully[/green]")
+            console.print(f"[cyan]📊 Total records: {len(data)}[/cyan]")
+
+        if save:
+            try:
+                if dimension == "all":
+                    for dim_name, df in data.items():
+                        filename = (
+                            f"{save.rsplit('.', 1)[0]}_{dim_name}.{save.rsplit('.', 1)[-1] if '.' in save else 'csv'}"
+                        )
+                        if output_format == "json" or filename.endswith(".json"):
+                            df.to_json(filename, orient="records", indent=2)
+                        else:
+                            df.to_csv(filename, index=False)
+                        console.print(f"[green]💾 Saved {dim_name} to: {filename}[/green]")
+                else:
+                    if output_format == "json" or save.endswith(".json"):
+                        data.to_json(save, orient="records", indent=2)
+                    else:
+                        data.to_csv(save, index=False)
+                    console.print(f"[green]💾 Data saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]❌ Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]❌ Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            import json
+
+            if dimension == "all":
+                output = {dim_name: df.to_dict(orient="records") for dim_name, df in data.items()}
+                click.echo(json.dumps(output, indent=2, default=str))
+            else:
+                click.echo(data.to_json(orient="records", indent=2))
+        else:  # csv
+            if dimension == "all":
+                console.print("\n[yellow]💡 Tip: For 'all' dimensions, use --save to export to files[/yellow]")
+                console.print("[yellow]   Displaying attainment dimension only:[/yellow]\n")
+                click.echo(data["attainment"].to_csv(index=False))
             else:
                 click.echo(data.to_csv(index=False))
 
