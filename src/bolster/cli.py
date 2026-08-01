@@ -17,6 +17,7 @@ from .data_sources.boe_base_rate import get_rate_changes as get_boe_rate_changes
 from .data_sources.cineworld import get_cinema_listings
 from .data_sources.companies_house import get_companies_house_records_that_might_be_in_farset, query_basic_company_data
 from .data_sources.daera_waste import get_latest_waste_statistics, validate_waste_data
+from .data_sources.dfc import child_maintenance as dfc_child_maintenance
 from .data_sources.electricity_renewables import get_latest_data as get_electricity_data
 from .data_sources.eoni import get_results as get_ni_election_results
 from .data_sources.health_ni import cancer_waiting_times as nisra_cancer
@@ -7330,6 +7331,171 @@ def psni_crime_cmd(output_format, save):
         raise click.Abort() from e
 
 
+@cli.group(name="dfc")
+def dfc():
+    """NI Department for Communities statistics.
+
+    Access official statistics published by the Department for Communities,
+    including Child Maintenance Service caseload and enforcement figures.
+    """
+    pass
+
+
+@dfc.command(name="child-maintenance")
+@click.option(
+    "--table",
+    default="all",
+    help="Table key, or 'all' (default). Use --list-tables to see the options.",
+)
+@click.option("--list-tables", is_flag=True, help="List available table keys and exit")
+@click.option(
+    "--historical",
+    is_flag=True,
+    help="Stitch several releases together for the full back series",
+)
+@click.option(
+    "--max-publications",
+    type=int,
+    default=8,
+    show_default=True,
+    help="How many releases to merge (with --historical)",
+)
+@click.option("--year", type=int, help="Filter to a single calendar year")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics instead of full data")
+def dfc_child_maintenance_cmd(
+    table,
+    list_tables,
+    historical,
+    max_publications,
+    year,
+    output_format,
+    force_refresh,
+    save,
+    summary,
+):
+    r"""Child Maintenance Service statistics for Northern Ireland.
+
+    \b
+    Quarterly figures on the NI Child Maintenance Service: applications and
+    their clearance, the composition of arrangements, children covered, paying
+    parent numbers and demographics, maintenance due and paid, and enforcement
+    collections. Data runs from December 2019, with applications back to
+    December 2015.
+
+    \b
+    A single release carries only a few years of history, and paying parent
+    characteristics only a single quarter, so --historical is what gets you the
+    full published run.
+
+    Examples:
+        Every table from the latest release::
+
+            bolster dfc child-maintenance
+
+        Enforcement collections only::
+
+            bolster dfc child-maintenance --table enforcement
+
+        Full demographic back series::
+
+            bolster dfc child-maintenance --table paying_parent_characteristics --historical
+
+        Save as CSV::
+
+            bolster dfc child-maintenance --historical --save cms.csv
+
+    Source:
+        https://www.communities-ni.gov.uk/topics/child-maintenance-service-statistics
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    if list_tables:
+        console.print("[bold]Available tables:[/bold]")
+        for key in dfc_child_maintenance.list_tables():
+            console.print(f"   {key}")
+        return
+
+    try:
+        label = "historical" if historical else "latest"
+        with console.status(f"[bold green]Downloading Child Maintenance Service data ({label})..."):
+            if historical:
+                df = dfc_child_maintenance.get_historical_data(
+                    max_publications=max_publications, force_refresh=force_refresh
+                )
+            else:
+                df = dfc_child_maintenance.get_latest_data(force_refresh=force_refresh)
+
+        if table != "all":
+            available = dfc_child_maintenance.list_tables()
+            if table not in available:
+                console.print(f"[red]Unknown table: {table}[/red]")
+                console.print(f"[yellow]Available: {', '.join(available)}[/yellow]")
+                raise click.Abort()
+            df = df[df["table"] == table]
+
+        if year:
+            df = df[df["year"] == year]
+
+        if df.empty:
+            console.print("[yellow]No data matched those filters[/yellow]")
+            return
+
+        console.print("[green]Child Maintenance Service data retrieved successfully[/green]")
+        console.print(f"[cyan]Table: {table} | Rows: {len(df)}[/cyan]")
+
+        if summary:
+            console.print("\n[bold]Summary:[/bold]")
+            console.print(f"   Coverage: {df['date'].min():%Y-%m-%d} to {df['date'].max():%Y-%m-%d}")
+            console.print(f"   Quarters: {df['date'].nunique()}")
+            for key, group in df.groupby("table"):
+                span = f"{group['date'].min():%Y-%m} to {group['date'].max():%Y-%m}"
+                console.print(f"   {key:32} {len(group):5,} rows  {span}")
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    df.astype(str).to_json(save, orient="records", indent=2)
+                else:
+                    df.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(df.astype(str).to_json(orient="records", indent=2))
+        else:
+            # Not console.print: rich wraps at the terminal width, which corrupts
+            # the CSV when the output is piped.
+            click.echo(df.to_csv(index=False), nl=False)
+
+    except click.Abort:
+        raise
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
 @cli.group(name="education")
 def education():
     """Education statistics for Northern Ireland.
@@ -8537,6 +8703,7 @@ def list_sources():
     click.echo("  ons-cpi                    ONS UK inflation indices (CPI, CPIH, RPI)")
     click.echo("  boe-base-rate              Bank of England official Bank Rate (base rate)")
     click.echo("  dfe electricity            NI electricity consumption & renewable generation (%)")
+    click.echo("  dfc child-maintenance      Child Maintenance Service caseload and enforcement (DfC)")
 
     click.echo("\nUSAGE EXAMPLES")
     click.echo("  bolster water-quality BT1 5GS              # Water quality by postcode")

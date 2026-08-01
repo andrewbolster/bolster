@@ -29,9 +29,7 @@ class TestNISummaryIntegrity:
         assert len(latest_data) > 0, "DataFrame should not be empty"
 
     def test_multiple_diseases_present(self, latest_data: pd.DataFrame) -> None:
-        assert latest_data["disease"].nunique() >= 14, (
-            f"Expected ≥ 14 diseases, got {latest_data['disease'].nunique()}"
-        )
+        assert latest_data["disease"].nunique() >= 14, f"Expected ≥ 14 diseases, got {latest_data['disease'].nunique()}"
 
     def test_historical_coverage_back_to_2017(self, latest_data: pd.DataFrame) -> None:
         """PxStat API coverage begins at 2017/18."""
@@ -48,8 +46,7 @@ class TestNISummaryIntegrity:
 
     def test_year_is_integer(self, latest_data: pd.DataFrame) -> None:
         assert pd.api.types.is_integer_dtype(latest_data["year"]) or all(
-            isinstance(v, (int, float)) and not pd.isna(v) and v == int(v)
-            for v in latest_data["year"].dropna()
+            isinstance(v, int | float) and not pd.isna(v) and v == int(v) for v in latest_data["year"].dropna()
         ), "year column should contain integer values"
 
     def test_year_matches_financial_year_prefix(self, latest_data: pd.DataFrame) -> None:
@@ -67,9 +64,7 @@ class TestNISummaryIntegrity:
 
     def test_prevalence_values_below_1000(self, latest_data: pd.DataFrame) -> None:
         prev = latest_data["prevalence_per_1000"].dropna()
-        assert (prev < 1000).all(), (
-            f"Some prevalence_per_1000 values exceed 1000: {prev[prev >= 1000].head().tolist()}"
-        )
+        assert (prev < 1000).all(), f"Some prevalence_per_1000 values exceed 1000: {prev[prev >= 1000].head().tolist()}"
 
     def test_registered_patients_positive(self, latest_data: pd.DataFrame) -> None:
         patients = latest_data["registered_patients"].dropna()
@@ -92,7 +87,7 @@ class TestDiseaseRegisters:
         [
             "hypertension",
             "diabetes",
-            "pulmonary",   # COPD: Chronic Obstructive Pulmonary Disease
+            "pulmonary",  # COPD: Chronic Obstructive Pulmonary Disease
             "coronary heart disease",
             "cancer",
         ],
@@ -189,22 +184,31 @@ class TestValidation:
     def _make_valid_df(self) -> pd.DataFrame:
         """Return a minimal valid DataFrame."""
         diseases = [
-            "Hypertension", "Diabetes Mellitus", "Chronic Obstructive Pulmonary Disease",
-            "Cancer", "Asthma", "Coronary Heart Disease", "Stroke & TIA", "Dementia",
-            "Atrial Fibrillation", "Depression",
+            "Hypertension",
+            "Diabetes Mellitus",
+            "Chronic Obstructive Pulmonary Disease",
+            "Cancer",
+            "Asthma",
+            "Coronary Heart Disease",
+            "Stroke & TIA",
+            "Dementia",
+            "Atrial Fibrillation",
+            "Depression",
         ]
         years = list(range(2017, 2023))  # 6 years
         records = []
         for dis in diseases:
             for yr in years:
                 fy = f"{yr}/{str(yr + 1)[-2:]}"
-                records.append({
-                    "year": yr,
-                    "financial_year": fy,
-                    "disease": dis,
-                    "registered_patients": 50000.0,
-                    "prevalence_per_1000": 100.0,
-                })
+                records.append(
+                    {
+                        "year": yr,
+                        "financial_year": fy,
+                        "disease": dis,
+                        "registered_patients": 50000.0,
+                        "prevalence_per_1000": 100.0,
+                    }
+                )
         return pd.DataFrame(records)
 
     def test_validate_valid_dataframe(self) -> None:
@@ -212,9 +216,7 @@ class TestValidation:
         assert dp.validate_disease_prevalence(df) is True
 
     def test_validate_empty_dataframe(self) -> None:
-        df = pd.DataFrame(
-            columns=["year", "financial_year", "disease", "registered_patients", "prevalence_per_1000"]
-        )
+        df = pd.DataFrame(columns=["year", "financial_year", "disease", "registered_patients", "prevalence_per_1000"])
         with pytest.raises(NISRAValidationError, match="empty"):
             dp.validate_disease_prevalence(df)
 
