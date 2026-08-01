@@ -6101,6 +6101,149 @@ def psni_pace_cmd(breakdown, output_format, save, force_refresh):
         raise click.Abort() from e
 
 
+@psni.command(name="road-safety")
+@click.option(
+    "--dimension",
+    type=click.Choice(
+        ["annual", "district", "camera-type", "speed", "demographics", "hourly", "detections"],
+        case_sensitive=False,
+    ),
+    default="annual",
+    help="Which view to retrieve (default: annual).",
+)
+@click.option("--year", type=int, help="Restrict to a single calendar year")
+@click.option("--camera-type", help="Filter detections by camera type (detections dimension only)")
+@click.option("--district", help="Filter detections by Local Government District")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+def psni_road_safety_cmd(dimension, year, camera_type, district, output_format, save, force_refresh):
+    """NI Road Safety Partnership safety camera detections.
+
+    Record-level detections from fixed, mobile, average-speed and red light
+    running cameras operated by the Northern Ireland Road Safety Partnership,
+    published on OpenDataNI from 2011 onwards.
+
+    Dimensions:
+        annual - Detections and outcomes per year, with prosecution rate
+        district - Detections by Local Government District (with LGD/NUTS3 codes)
+        camera-type - Detections by camera type and year
+        speed - Detected speed band cross-tabulated against posted limit
+        demographics - Offender age band by gender
+        hourly - Detections by hour of day
+        detections - Raw record-level detections (use --year to limit volume)
+
+    Examples:
+        Annual detection totals and prosecution rates::
+
+            bolster psni road-safety
+
+        Detections by district for 2024::
+
+            bolster psni road-safety --dimension district --year 2024
+
+        Mobile camera detections in Belfast as CSV::
+
+            bolster psni road-safety --dimension detections --camera-type "Mobile Speed Camera" --district "Belfast City" --format csv
+
+        Save the hourly profile::
+
+            bolster psni road-safety --dimension hourly --save hourly.csv
+
+    Data Notes:
+        - Published in two batches (2011-2019, 2020-2024) with differing headers;
+          the module normalises both onto a common schema
+        - Reference numbers restart at 1 in each batch and are not globally unique
+        - Red light running camera detections record no speed
+        - Speed and age are published as bands, not exact values
+    """
+    from rich.table import Table
+
+    from bolster.data_sources.psni import road_safety_partnership as rsp
+
+    console = Console()
+
+    try:
+        console.print("\n[bold blue]🔍 NI Road Safety Partnership[/bold blue]\n")
+
+        if dimension == "annual":
+            df = rsp.get_annual_summary(force_refresh=force_refresh)
+            title = "Detections by year"
+        elif dimension == "district":
+            df = rsp.get_detections_by_district(year=year, force_refresh=force_refresh)
+            title = "Detections by district"
+        elif dimension == "camera-type":
+            df = rsp.get_detections_by_camera_type(year=year, force_refresh=force_refresh)
+            title = "Detections by camera type"
+        elif dimension == "speed":
+            df = rsp.get_speed_distribution(year=year, force_refresh=force_refresh)
+            title = "Detected speed band by posted limit"
+        elif dimension == "demographics":
+            df = rsp.get_offender_demographics(year=year, force_refresh=force_refresh)
+            title = "Offender age band by gender"
+        elif dimension == "hourly":
+            df = rsp.get_hourly_profile(year=year, force_refresh=force_refresh)
+            title = "Detections by hour of day"
+        else:
+            df = rsp.get_detections(
+                year=year,
+                camera_type=camera_type,
+                district=district,
+                force_refresh=force_refresh,
+            )
+            title = "Detection records"
+
+        if year and dimension != "annual":
+            title = f"{title} — {year}"
+
+        console.print(f"[bold]{title}[/bold]\n")
+
+        if output_format == "table":
+            table = Table(show_header=True, header_style="bold cyan")
+            for col in df.columns:
+                table.add_column(str(col))
+            for _, row in df.head(50).iterrows():
+                table.add_row(*[str(v) for v in row.values])
+            console.print(table)
+            if len(df) > 50:
+                console.print(f"[dim]… {len(df) - 50:,} more rows (use --format csv for all)[/dim]")
+
+        elif output_format == "csv":
+            console.print(df.to_csv(index=False))
+
+        elif output_format == "json":
+            console.print(df.to_json(orient="records", indent=2))
+
+        if save:
+            if save.endswith(".json"):
+                df.to_json(save, orient="records", indent=2)
+            else:
+                df.to_csv(save, index=False)
+            console.print(f"\n[green]✅ Saved to {save}[/green]")
+
+        if dimension == "annual":
+            latest = df.iloc[-1]
+            console.print(
+                f"\n[dim]{len(df)} years | {int(latest['year'])}: "
+                f"{int(latest['detections']):,} detections, "
+                f"{latest['prosecution_rate_pct']}% referred for prosecution[/dim]"
+            )
+        elif "detections" in df.columns:
+            console.print(f"\n[dim]{len(df):,} rows | {int(df['detections'].sum()):,} detections[/dim]")
+        else:
+            console.print(f"\n[dim]{len(df):,} detection records[/dim]")
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        raise click.Abort() from e
+
+
 @nisra.command(name="planning-statistics")
 @click.option(
     "--dimension",
@@ -8551,6 +8694,7 @@ def list_sources():
     click.echo("\nPSNI DATA MODULES (bolster psni <command>)")
     click.echo("  psni rtc                   Road traffic collisions, casualties, vehicles")
     click.echo("  psni crime                 Historical crime statistics (Apr 2001–Dec 2021, stale)")
+    click.echo("  psni road-safety           Safety camera detections (RSP, 2011–2024)")
 
     click.echo("\nOTHER DATA MODULES")
     click.echo("  dva                        DVA monthly test statistics (vehicle, driver, theory)")
