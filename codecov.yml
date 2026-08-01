@@ -1,15 +1,21 @@
-comment: false
+# Codecov configuration. Spec: https://docs.codecov.com/docs/codecov-yaml
+#
+# This must be the repository's only Codecov config file. Codecov picks the
+# first match from the repo-root file listing, which GitHub returns ASCII-sorted
+# with dotfiles first - so a `.codecov.yaml` would silently shadow this one.
 
 ignore:
-  - "**/cli.py"
+  - "**/cli.py" # excluded from coverage by design (see pyproject omit)
 
 coverage:
   status:
     project:
       default:
+        # coverage may fall by <1% and still be considered "passing"
         target: auto
-        threshold: 5%
+        threshold: 1%
+    # pull-requests only
     patch:
       default:
-        target: 55%
-        threshold: 0%
+        target: auto
+        threshold: 1%
