@@ -1,8 +1,6 @@
 """Tests for bolster.utils.dt datetime rounding utilities."""
 
-from datetime import date, datetime, timezone
-
-import pytest
+from datetime import UTC, date, datetime
 
 from bolster.utils.dt import round_to_month, round_to_week, utc_midnight_on
 
@@ -38,7 +36,7 @@ class TestRoundToMonth:
 class TestUtcMidnightOn:
     def test_naive_datetime(self):
         result = utc_midnight_on(datetime(2018, 9, 1, 12, 12))
-        assert result == datetime(2018, 9, 1, 0, 0, tzinfo=timezone.utc)
+        assert result == datetime(2018, 9, 1, 0, 0, tzinfo=UTC)
 
     def test_strips_time_component(self):
         result = utc_midnight_on(datetime(2024, 6, 15, 23, 59, 59))
@@ -48,7 +46,7 @@ class TestUtcMidnightOn:
 
     def test_result_is_utc_aware(self):
         result = utc_midnight_on(datetime(2024, 1, 1))
-        assert result.tzinfo == timezone.utc
+        assert result.tzinfo == UTC
 
     def test_preserves_date(self):
         result = utc_midnight_on(datetime(2024, 6, 15, 23, 59))
