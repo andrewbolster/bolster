@@ -236,6 +236,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | NI LAC Municipal Waste Statistics (DAERA) | `daera_waste` | ✅ |
 | NI Electricity Consumption & Renewable Generation (DfE) | `electricity_renewables` | ✅ |
 | NI Claimant Count (UC + JSA, DfC/ONS) | `nisra.claimant_count` | ✅ |
+| PSNI Police Ombudsman Complaints | `psni.police_ombudsman` | ✅ |
 | Public Confidence in Official Statistics (NISRA PCOS) | `nisra.public_confidence` | ✅ |
 | Disease Prevalence Registers (PHA/DoH) | `health_ni.disease_prevalence` | ✅ |
 | Drug-Related & Drug Misuse Deaths | `nisra.drug_related_deaths` | ✅ |
@@ -256,7 +257,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Hate Incidents & Crimes | - | ❌ Cloudflare-blocked |
 | Road Traffic Collisions | `psni.road_traffic_collisions` | ✅ |
 | PSNI Crime Statistics | `psni.crime_statistics` | ⚠️ historical only (Apr 2001–Dec 2021); `get_latest` raises `PSNIDataStaleError` |
-| Police Ombudsman Complaints | - | ❌ Cloudflare-blocked |
+| Police Ombudsman Complaints | `psni.police_ombudsman` | ✅ |
 | Stop & Search | `psni.stop_and_search` | ✅ |
 | PACE Stop & Search / Arrests | `psni.pace` | ✅ |
 
