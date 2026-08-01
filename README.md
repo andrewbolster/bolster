@@ -229,11 +229,13 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Tourism - Visitor Statistics | `nisra.tourism.visitor_statistics` | ✅ |
 | Baby Names NI (annual, 1997–present) | `nisra.baby_names` | ✅ |
 | NI School Suspensions (DE) | `education_suspensions` | ✅ |
+| NI School Leavers Survey (DE) | `nisra.school_leavers` | ✅ |
 | NICTS Mortgages Action for Possession (DoJ) | `justice.mortgages` | ✅ |
 | NICTS Quarterly Court Business Figures (DoJ) | `justice.nicts_quarterly` | ✅ |
 | PBNI Caseload Statistics (annual + quarterly) | `justice.pbni_caseload` | ✅ |
 | Work Quality NI (NISRA) | `nisra.work_quality` | ✅ |
 | NI LAC Municipal Waste Statistics (DAERA) | `daera_waste` | ✅ |
+| NI Greenhouse Gas Inventory (DAERA) | `daera_greenhouse_gas` | ✅ |
 | NI Electricity Consumption & Renewable Generation (DfE) | `electricity_renewables` | ✅ |
 | NI Claimant Count (UC + JSA, DfC/ONS) | `nisra.claimant_count` | ✅ |
 | PSNI Police Ombudsman Complaints | `psni.police_ombudsman` | ✅ |
@@ -242,6 +244,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Drug-Related & Drug Misuse Deaths | `nisra.drug_related_deaths` | ✅ |
 | PSNI Stop & Search (OpenDataNI) | `psni.stop_and_search` | ✅ |
 | PSNI PACE Stop & Search / Arrests | `psni.pace` | ✅ |
+| NI Road Safety Partnership Safety Camera Detections | `psni.road_safety_partnership` | ✅ |
 | ONS UK Inflation (CPI / CPIH / RPI) | `ons_cpi` | ✅ |
 | Bank of England Base Rate | `boe_base_rate` | ✅ |
 | NI Assembly — MLAs, Parties, Constituencies | `niassembly.members` | ✅ |
@@ -250,11 +253,12 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | NI Business Register (IDBR, annual) | `nisra.business_register` | ✅ |
 | NI Multiple Deprivation Measure 2017 (NIMDM, SOA-level) | `nisra.deprivation` | ✅ |
 | Translink Live Departures & Vehicle Positions | `translink` | ✅ |
-| Security Situation Statistics | - | ❌ Cloudflare-blocked |
-| Anti-social Behaviour | - | ❌ Cloudflare-blocked |
-| Domestic Abuse Incidents/Crimes | - | ❌ Cloudflare-blocked |
-| Drug Seizures & Arrests | - | ❌ Cloudflare-blocked |
-| Hate Incidents & Crimes | - | ❌ Cloudflare-blocked |
+| Child Maintenance Service Statistics (DfC) | `dfc.child_maintenance` | ✅ |
+| Security Situation Statistics | - | 🔍 not built; source reachable |
+| Anti-social Behaviour | - | 🔍 not built; source reachable |
+| Domestic Abuse Incidents/Crimes | - | 🔍 not built; source reachable |
+| Drug Seizures & Arrests | - | 🔍 not built; source reachable |
+| Hate Motivation Statistics | - | 🔍 not built; source reachable |
 | Road Traffic Collisions | `psni.road_traffic_collisions` | ✅ |
 | PSNI Crime Statistics | `psni.crime_statistics` | ⚠️ historical only (Apr 2001–Dec 2021); `get_latest` raises `PSNIDataStaleError` |
 | Police Ombudsman Complaints | `psni.police_ombudsman` | ✅ |

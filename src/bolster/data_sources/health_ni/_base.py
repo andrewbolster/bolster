@@ -23,7 +23,6 @@ __all__ = [
     "download_file",
     "make_absolute_url",
     "find_latest_xlsx",
-    "search_publications_xlsx",
 ]
 
 HEALTH_NI_BASE_URL = "https://www.health-ni.gov.uk"
@@ -67,64 +66,6 @@ def find_latest_xlsx(article_url: str, keyword: str | None = None) -> str:
     if pub_url is None:
         detail = f" containing '{keyword}'" if keyword else ""
         raise NISRADataNotFoundError(f"No publications link{detail} found on {article_url}")
-
-    try:
-        pub_resp = session.get(pub_url, timeout=30)
-        pub_resp.raise_for_status()
-    except Exception as exc:
-        raise NISRADataNotFoundError(f"Failed to fetch {pub_url}: {exc}") from exc
-
-    pub_soup = BeautifulSoup(pub_resp.content, "html.parser")
-    for a in pub_soup.find_all("a", href=True):
-        href = a["href"]
-        if href.lower().endswith(".xlsx"):
-            return make_absolute_url(href, HEALTH_NI_BASE_URL)
-
-    raise NISRADataNotFoundError(f"No .xlsx link found on {pub_url}")
-
-
-def search_publications_xlsx(keywords: str) -> str:
-    """Return the .xlsx URL from the first health-ni publication matching *keywords*.
-
-    Searches ``/publications?keywords=<keywords>``, follows the first result
-    link that contains the keywords in its path, then returns the first
-    ``.xlsx`` href on that page.
-
-    More robust than :func:`find_latest_xlsx` when the article landing page
-    URL is liable to change year-on-year.
-
-    Args:
-        keywords: Search terms (URL-encoded automatically), e.g.
-            ``"disease prevalence"``.
-
-    Returns:
-        Absolute URL of the Excel workbook.
-
-    Raises:
-        NISRADataNotFoundError: If no matching publication or xlsx is found.
-    """
-    from urllib.parse import quote_plus
-
-    from bs4 import BeautifulSoup
-
-    search_url = f"{HEALTH_NI_BASE_URL}/publications?keywords={quote_plus(keywords)}"
-    try:
-        resp = session.get(search_url, timeout=30)
-        resp.raise_for_status()
-    except Exception as exc:
-        raise NISRADataNotFoundError(f"Failed to fetch {search_url}: {exc}") from exc
-
-    soup = BeautifulSoup(resp.content, "html.parser")
-    pub_url: str | None = None
-    slug = keywords.replace(" ", "-").lower()
-    for a in soup.find_all("a", href=True):
-        href: str = a["href"]
-        if "/publications/" in href and any(w in href for w in slug.split("-")):
-            pub_url = make_absolute_url(href, HEALTH_NI_BASE_URL)
-            break
-
-    if pub_url is None:
-        raise NISRADataNotFoundError(f"No publication matching '{keywords}' found on {search_url}")
 
     try:
         pub_resp = session.get(pub_url, timeout=30)
