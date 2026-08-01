@@ -23,9 +23,16 @@ class TestQESIntegrity:
 
     def test_required_columns(self, latest_qes):
         required = {
-            "date", "year", "quarter", "quarter_label",
-            "manufacturing_jobs", "construction_jobs",
-            "services_jobs", "other_jobs", "total_jobs", "adjusted",
+            "date",
+            "year",
+            "quarter",
+            "quarter_label",
+            "manufacturing_jobs",
+            "construction_jobs",
+            "services_jobs",
+            "other_jobs",
+            "total_jobs",
+            "adjusted",
         }
         assert required.issubset(set(latest_qes.columns))
 
@@ -52,8 +59,7 @@ class TestQESIntegrity:
         assert latest_qes["date"].is_monotonic_increasing
 
     def test_no_negative_jobs(self, latest_qes):
-        for col in ("manufacturing_jobs", "construction_jobs", "services_jobs",
-                    "other_jobs", "total_jobs"):
+        for col in ("manufacturing_jobs", "construction_jobs", "services_jobs", "other_jobs", "total_jobs"):
             assert (latest_qes[col] >= 0).all(), f"Negative values in {col}"
 
     def test_total_jobs_plausible_range(self, latest_qes):
@@ -121,9 +127,7 @@ class TestQESIntegrity:
         if len(q2) > 0:
             q2_services = q2["services_jobs"].values[0]
             # Services normally >600k; Q2 2020 should be noticeably lower
-            assert q2_services < 660_000, (
-                f"Q2 2020 services ({q2_services:,}) should show COVID dip"
-            )
+            assert q2_services < 660_000, f"Q2 2020 services ({q2_services:,}) should show COVID dip"
 
 
 class TestQESUnadjusted:
@@ -163,9 +167,10 @@ class TestQESValidation:
         import pandas as pd
 
         # Construct a minimal valid-looking df with too few rows
-        data = {col: [700_000] * 5 for col in
-                ("total_jobs", "manufacturing_jobs", "construction_jobs",
-                 "services_jobs", "other_jobs")}
+        data = {
+            col: [700_000] * 5
+            for col in ("total_jobs", "manufacturing_jobs", "construction_jobs", "services_jobs", "other_jobs")
+        }
         data["date"] = pd.date_range("2024-01-01", periods=5, freq="QS")
         data["year"] = 2024
         data["quarter"] = 1

@@ -259,7 +259,7 @@ class TestEmploymentDataIntegrity:
 
         if duplicates.any():
             dup_records = non_empty[duplicates][["age_group", "sex", "percentage", "number"]]
-            assert False, f"Found {duplicates.sum()} duplicate age/sex combinations:\n{dup_records}"
+            raise AssertionError(f"Found {duplicates.sum()} duplicate age/sex combinations:\n{dup_records}")
 
 
 class TestEconomicInactivityDataIntegrity:
@@ -364,7 +364,7 @@ class TestEconomicInactivityDataIntegrity:
 
         if duplicates.any():
             dup_records = latest_inactivity[duplicates]
-            assert False, f"Found {duplicates.sum()} duplicate time_period/sex combinations:\n{dup_records}"
+            raise AssertionError(f"Found {duplicates.sum()} duplicate time_period/sex combinations:\n{dup_records}")
 
     def test_historical_data_completeness(self, latest_inactivity):
         """Test that historical data includes multiple years.
@@ -633,9 +633,7 @@ class TestMonthlyLMRIntegrity:
         import re
 
         for label in overview["rolling_quarter"]:
-            assert re.match(r"[A-Z][a-z]+-[A-Z][a-z]+ \d{4}", label), (
-                f"Unexpected rolling quarter format: {label!r}"
-            )
+            assert re.match(r"[A-Z][a-z]+-[A-Z][a-z]+ \d{4}", label), f"Unexpected rolling quarter format: {label!r}"
 
     def test_at_least_one_year_of_data(self, overview):
         """Must cover at least 6 rolling monthly quarters (roughly half a year)."""
@@ -644,9 +642,7 @@ class TestMonthlyLMRIntegrity:
     def test_population_plausible(self, overview):
         """NI population 16+ should be roughly 1.4–1.7M."""
         for val in overview["population_16plus"].dropna():
-            assert 1_400_000 <= val <= 1_700_000, (
-                f"Population 16+ value {val:,} outside plausible range [1.4M, 1.7M]"
-            )
+            assert 1_400_000 <= val <= 1_700_000, f"Population 16+ value {val:,} outside plausible range [1.4M, 1.7M]"
 
     def test_employment_within_population(self, overview):
         """In-employment must be less than total population 16+."""
@@ -682,8 +678,11 @@ class TestMonthlyLMRIntegrity:
     def test_no_negative_values(self, overview):
         """All numeric columns must be non-negative."""
         numeric_cols = [
-            "population_16plus", "economically_active", "in_employment",
-            "unemployed", "economically_inactive",
+            "population_16plus",
+            "economically_active",
+            "in_employment",
+            "unemployed",
+            "economically_inactive",
         ]
         for col in numeric_cols:
             negatives = overview[overview[col] < 0]
@@ -699,9 +698,9 @@ class TestMonthlyLMRValidation:
         ws.title = sheet_name
         for row in rows:
             ws.append(row)
-        tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
-        wb.save(tmp.name)
-        return Path(tmp.name)
+        path = Path(tempfile.mkdtemp()) / "lmr.xlsx"
+        wb.save(path)
+        return path
 
     def test_missing_sheet_raises(self):
         """parse_monthly_lmr_structure raises if sheet '2.1' is absent."""

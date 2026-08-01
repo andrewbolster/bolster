@@ -97,32 +97,44 @@ class TestCrossValidationUnit:
     def test_no_overlapping_years_returns_empty(self):
         """Non-overlapping year ranges should return empty DataFrame."""
         official = self._make_df([2010, 2011], [1000, 2000])
-        derived = pd.DataFrame({
-            "year": [2020, 2021],
-            "net_migration": [500, 600],
-            "population_start": [0, 0], "population_end": [0, 0],
-            "births": [0, 0], "deaths": [0, 0],
-            "natural_change": [0, 0], "population_change": [0, 0],
-            "migration_rate": [0.0, 0.0],
-        })
+        derived = pd.DataFrame(
+            {
+                "year": [2020, 2021],
+                "net_migration": [500, 600],
+                "population_start": [0, 0],
+                "population_end": [0, 0],
+                "births": [0, 0],
+                "deaths": [0, 0],
+                "natural_change": [0, 0],
+                "population_change": [0, 0],
+                "migration_rate": [0.0, 0.0],
+            }
+        )
         result = migration.compare_official_vs_derived(official, derived)
         assert result.empty
 
     def test_custom_threshold(self):
         """Custom threshold should be respected."""
-        official = pd.DataFrame({
-            "year": [2010, 2011],
-            "net_migration": [1000, 2000],
-            "date": pd.Timestamp("2020-06-30"),
-        })
-        derived = pd.DataFrame({
-            "year": [2010, 2011],
-            "net_migration": [1200, 2100],  # diffs: 200, 100
-            "population_start": [0, 0], "population_end": [0, 0],
-            "births": [0, 0], "deaths": [0, 0],
-            "natural_change": [0, 0], "population_change": [0, 0],
-            "migration_rate": [0.0, 0.0],
-        })
+        official = pd.DataFrame(
+            {
+                "year": [2010, 2011],
+                "net_migration": [1000, 2000],
+                "date": pd.Timestamp("2020-06-30"),
+            }
+        )
+        derived = pd.DataFrame(
+            {
+                "year": [2010, 2011],
+                "net_migration": [1200, 2100],  # diffs: 200, 100
+                "population_start": [0, 0],
+                "population_end": [0, 0],
+                "births": [0, 0],
+                "deaths": [0, 0],
+                "natural_change": [0, 0],
+                "population_change": [0, 0],
+                "migration_rate": [0.0, 0.0],
+            }
+        )
         result = migration.compare_official_vs_derived(official, derived, threshold=150)
         # diff of 200 exceeds 150; diff of 100 does not
         assert result.loc[result["year"] == 2010, "exceeds_threshold"].values[0]
