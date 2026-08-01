@@ -234,6 +234,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | PBNI Caseload Statistics (annual + quarterly) | `justice.pbni_caseload` | ✅ |
 | Work Quality NI (NISRA) | `nisra.work_quality` | ✅ |
 | NI LAC Municipal Waste Statistics (DAERA) | `daera_waste` | ✅ |
+| NI Greenhouse Gas Inventory (DAERA) | `daera_greenhouse_gas` | ✅ |
 | NI Electricity Consumption & Renewable Generation (DfE) | `electricity_renewables` | ✅ |
 | NI Claimant Count (UC + JSA, DfC/ONS) | `nisra.claimant_count` | ✅ |
 | PSNI Police Ombudsman Complaints | `psni.police_ombudsman` | ✅ |
