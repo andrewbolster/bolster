@@ -634,6 +634,36 @@ district, allegation type, and outcome back to 2000/01.
 
     $ bolster psni police-ombudsman
 
+Road Safety Partnership
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Record-level safety camera detections from the Northern Ireland Road Safety
+Partnership — 719,200 detections from 2011 to 2024 covering fixed, mobile,
+average-speed and red light running cameras, with outcome, district, speed
+band and offender demographics. Published on OpenDataNI in two batches with
+differing column headers; the module normalises both onto a common schema and
+attaches LGD and NUTS3 codes.
+
+.. code-block:: python
+
+    from bolster.data_sources.psni import road_safety_partnership as rsp
+
+    df      = rsp.get_detections(year=2024)
+    annual  = rsp.get_annual_summary()
+    by_lgd  = rsp.get_detections_by_district(year=2024)
+    speeds  = rsp.get_speed_distribution(year=2024)
+
+.. code-block:: console
+
+    $ bolster psni road-safety
+    $ bolster psni road-safety --dimension district --year 2024
+
+.. note::
+
+   Reference numbers restart at 1 in each published batch and are not globally
+   unique. Red light running camera detections record no speed. Speed and
+   offender age are published as bands rather than exact values.
+
 ----
 
 DVA — Driver and Vehicle Agency
