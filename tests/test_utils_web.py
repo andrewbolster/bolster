@@ -1,6 +1,5 @@
 """Tests for bolster.utils.web HTTP session and retry configuration."""
 
-import pytest
 from urllib3.util.retry import RequestHistory
 
 from bolster.utils.web import RateLimitAwareRetry, _retry_strategy, session
