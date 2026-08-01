@@ -116,9 +116,7 @@ class TestGenderPayGapData:
             mask = uk_data[male_col].notna() & uk_data[female_col].notna()
             if mask.any():
                 bad_count = ((totals[mask] - 100).abs() > 1.5).sum()
-                assert bad_count == 0, (
-                    f"{male_col}+{female_col} don't sum to 100 for {bad_count} rows"
-                )
+                assert bad_count == 0, f"{male_col}+{female_col} don't sum to 100 for {bad_count} rows"
 
     def test_employer_size_valid_values(self, uk_data):
         """Employer size bands must be recognised values.
@@ -149,9 +147,7 @@ class TestGenderPayGapData:
 
     def test_date_submitted_is_datetime(self, uk_data):
         """date_submitted must be parsed as datetime."""
-        assert pd.api.types.is_datetime64_any_dtype(uk_data["date_submitted"]), (
-            "date_submitted is not datetime"
-        )
+        assert pd.api.types.is_datetime64_any_dtype(uk_data["date_submitted"]), "date_submitted is not datetime"
 
     def test_employer_names_not_empty(self, uk_data):
         """employer_name must not be empty or null for any row."""
@@ -194,6 +190,7 @@ class TestGenderPayGapMultiYear:
     def multi_year_data(self):
         """Fetch last 3 years combined — keeps test runtime reasonable."""
         import pandas as pd
+
         years = sorted(gender_pay_gap.get_available_years())[-3:]
         frames = [gender_pay_gap.get_data(year=y) for y in years]
         return pd.concat(frames, ignore_index=True), years

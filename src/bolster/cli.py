@@ -18,6 +18,7 @@ from .data_sources.boe_base_rate import get_rate_changes as get_boe_rate_changes
 from .data_sources.cineworld import get_cinema_listings
 from .data_sources.companies_house import get_companies_house_records_that_might_be_in_farset, query_basic_company_data
 from .data_sources.daera_waste import get_latest_waste_statistics, validate_waste_data
+from .data_sources.dfc import child_maintenance as dfc_child_maintenance
 from .data_sources.electricity_renewables import get_latest_data as get_electricity_data
 from .data_sources.eoni import get_results as get_ni_election_results
 from .data_sources.health_ni import cancer_waiting_times as nisra_cancer
@@ -54,6 +55,7 @@ from .data_sources.nisra import population as nisra_population
 from .data_sources.nisra import population_projections as nisra_projections
 from .data_sources.nisra import public_confidence as nisra_public_confidence
 from .data_sources.nisra import registrar_general as nisra_registrar_general
+from .data_sources.nisra import school_leavers as nisra_school_leavers
 from .data_sources.nisra import wellbeing as nisra_wellbeing
 from .data_sources.nisra import work_quality as nisra_work_quality
 from .data_sources.nisra.tourism import occupancy as nisra_occupancy
@@ -2058,6 +2060,142 @@ def nisra_drug_related_deaths_cmd(dimension, output_format, force_refresh, save)
                 console.print("\n[yellow]💡 Tip: For 'all' dimensions, use --save to export to files[/yellow]")
                 console.print("[yellow]   Displaying summary dimension only:[/yellow]\n")
                 click.echo(data["summary"].to_csv(index=False))
+            else:
+                click.echo(data.to_csv(index=False))
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
+        console.print("   • Visit NISRA website to verify data availability")
+        raise click.Abort() from e
+
+
+@nisra.command(name="school-leavers")
+@click.option(
+    "--dimension",
+    type=click.Choice(["attainment", "destination", "equality", "all"], case_sensitive=False),
+    default="attainment",
+    help="Which dimension to retrieve (default: attainment)",
+)
+@click.option(
+    "--geography",
+    type=click.Choice(["settlement", "lgd", "hsct", "aa", "dea"], case_sensitive=False),
+    default="settlement",
+    help="Geographic breakdown (default: settlement). Ignored for the equality dimension.",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_school_leavers_cmd(dimension, geography, output_format, force_refresh, save):
+    """NISRA School Leavers Survey — attainment and destinations.
+
+    Annual survey of every pupil leaving a grant-aided post-primary school in
+    Northern Ireland, covering qualifications achieved and what leavers went on
+    to do. Broken down by free school meal entitlement and five geographies.
+
+    Examples:
+    ---------
+    Attainment by urban/rural settlement::
+
+        bolster nisra school-leavers --dimension attainment
+
+    Destinations by local government district::
+
+        bolster nisra school-leavers --dimension destination --geography lgd
+
+    Attainment by sex, religion, and ethnic group::
+
+        bolster nisra school-leavers --dimension equality
+
+    All dimensions saved to files::
+
+        bolster nisra school-leavers --dimension all --save leavers.csv
+
+    Dimensions
+    ----------
+    attainment
+        Qualifications achieved (GCSEs, A-levels) by geography and FSM entitlement
+    destination
+        Where leavers went (higher/further education, employment, training, unknown)
+    equality
+        Attainment by sex, religion, and ethnic group (Northern Ireland level)
+    all
+        All dimensions (returns separate tables)
+
+    Geographies
+    -----------
+    settlement (urban/rural), lgd (11 councils), hsct (5 trusts),
+    aa (18 assembly areas), dea (80 district electoral areas)
+
+    Source
+    ------
+    https://data.nisra.gov.uk/ (School Leavers Survey matrices)
+    """
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading latest NISRA school leavers data..."):
+            data = nisra_school_leavers.get_latest_data(
+                dimension=dimension, geography=geography, force_refresh=force_refresh
+            )
+
+        if dimension == "all":
+            console.print("[green]✅ Retrieved all dimensions successfully[/green]")
+            total_records = sum(len(df) for df in data.values())
+            console.print(f"[cyan]📊 Total records: {total_records}[/cyan]")
+            for dim_name, df in data.items():
+                console.print(f"   • {dim_name}: {len(df)} records")
+        else:
+            console.print(f"[green]✅ Retrieved {dimension} dimension successfully[/green]")
+            console.print(f"[cyan]📊 Total records: {len(data)}[/cyan]")
+
+        if save:
+            try:
+                if dimension == "all":
+                    for dim_name, df in data.items():
+                        filename = (
+                            f"{save.rsplit('.', 1)[0]}_{dim_name}.{save.rsplit('.', 1)[-1] if '.' in save else 'csv'}"
+                        )
+                        if output_format == "json" or filename.endswith(".json"):
+                            df.to_json(filename, orient="records", indent=2)
+                        else:
+                            df.to_csv(filename, index=False)
+                        console.print(f"[green]💾 Saved {dim_name} to: {filename}[/green]")
+                else:
+                    if output_format == "json" or save.endswith(".json"):
+                        data.to_json(save, orient="records", indent=2)
+                    else:
+                        data.to_csv(save, index=False)
+                    console.print(f"[green]💾 Data saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]❌ Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]❌ Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            import json
+
+            if dimension == "all":
+                output = {dim_name: df.to_dict(orient="records") for dim_name, df in data.items()}
+                click.echo(json.dumps(output, indent=2, default=str))
+            else:
+                click.echo(data.to_json(orient="records", indent=2))
+        else:  # csv
+            if dimension == "all":
+                console.print("\n[yellow]💡 Tip: For 'all' dimensions, use --save to export to files[/yellow]")
+                console.print("[yellow]   Displaying attainment dimension only:[/yellow]\n")
+                click.echo(data["attainment"].to_csv(index=False))
             else:
                 click.echo(data.to_csv(index=False))
 
@@ -6088,6 +6226,149 @@ def psni_pace_cmd(breakdown, output_format, save, force_refresh):
         raise click.Abort() from e
 
 
+@psni.command(name="road-safety")
+@click.option(
+    "--dimension",
+    type=click.Choice(
+        ["annual", "district", "camera-type", "speed", "demographics", "hourly", "detections"],
+        case_sensitive=False,
+    ),
+    default="annual",
+    help="Which view to retrieve (default: annual).",
+)
+@click.option("--year", type=int, help="Restrict to a single calendar year")
+@click.option("--camera-type", help="Filter detections by camera type (detections dimension only)")
+@click.option("--district", help="Filter detections by Local Government District")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+def psni_road_safety_cmd(dimension, year, camera_type, district, output_format, save, force_refresh):
+    """NI Road Safety Partnership safety camera detections.
+
+    Record-level detections from fixed, mobile, average-speed and red light
+    running cameras operated by the Northern Ireland Road Safety Partnership,
+    published on OpenDataNI from 2011 onwards.
+
+    Dimensions:
+        annual - Detections and outcomes per year, with prosecution rate
+        district - Detections by Local Government District (with LGD/NUTS3 codes)
+        camera-type - Detections by camera type and year
+        speed - Detected speed band cross-tabulated against posted limit
+        demographics - Offender age band by gender
+        hourly - Detections by hour of day
+        detections - Raw record-level detections (use --year to limit volume)
+
+    Examples:
+        Annual detection totals and prosecution rates::
+
+            bolster psni road-safety
+
+        Detections by district for 2024::
+
+            bolster psni road-safety --dimension district --year 2024
+
+        Mobile camera detections in Belfast as CSV::
+
+            bolster psni road-safety --dimension detections --camera-type "Mobile Speed Camera" --district "Belfast City" --format csv
+
+        Save the hourly profile::
+
+            bolster psni road-safety --dimension hourly --save hourly.csv
+
+    Data Notes:
+        - Published in two batches (2011-2019, 2020-2024) with differing headers;
+          the module normalises both onto a common schema
+        - Reference numbers restart at 1 in each batch and are not globally unique
+        - Red light running camera detections record no speed
+        - Speed and age are published as bands, not exact values
+    """
+    from rich.table import Table
+
+    from bolster.data_sources.psni import road_safety_partnership as rsp
+
+    console = Console()
+
+    try:
+        console.print("\n[bold blue]🔍 NI Road Safety Partnership[/bold blue]\n")
+
+        if dimension == "annual":
+            df = rsp.get_annual_summary(force_refresh=force_refresh)
+            title = "Detections by year"
+        elif dimension == "district":
+            df = rsp.get_detections_by_district(year=year, force_refresh=force_refresh)
+            title = "Detections by district"
+        elif dimension == "camera-type":
+            df = rsp.get_detections_by_camera_type(year=year, force_refresh=force_refresh)
+            title = "Detections by camera type"
+        elif dimension == "speed":
+            df = rsp.get_speed_distribution(year=year, force_refresh=force_refresh)
+            title = "Detected speed band by posted limit"
+        elif dimension == "demographics":
+            df = rsp.get_offender_demographics(year=year, force_refresh=force_refresh)
+            title = "Offender age band by gender"
+        elif dimension == "hourly":
+            df = rsp.get_hourly_profile(year=year, force_refresh=force_refresh)
+            title = "Detections by hour of day"
+        else:
+            df = rsp.get_detections(
+                year=year,
+                camera_type=camera_type,
+                district=district,
+                force_refresh=force_refresh,
+            )
+            title = "Detection records"
+
+        if year and dimension != "annual":
+            title = f"{title} — {year}"
+
+        console.print(f"[bold]{title}[/bold]\n")
+
+        if output_format == "table":
+            table = Table(show_header=True, header_style="bold cyan")
+            for col in df.columns:
+                table.add_column(str(col))
+            for _, row in df.head(50).iterrows():
+                table.add_row(*[str(v) for v in row.values])
+            console.print(table)
+            if len(df) > 50:
+                console.print(f"[dim]… {len(df) - 50:,} more rows (use --format csv for all)[/dim]")
+
+        elif output_format == "csv":
+            console.print(df.to_csv(index=False))
+
+        elif output_format == "json":
+            console.print(df.to_json(orient="records", indent=2))
+
+        if save:
+            if save.endswith(".json"):
+                df.to_json(save, orient="records", indent=2)
+            else:
+                df.to_csv(save, index=False)
+            console.print(f"\n[green]✅ Saved to {save}[/green]")
+
+        if dimension == "annual":
+            latest = df.iloc[-1]
+            console.print(
+                f"\n[dim]{len(df)} years | {int(latest['year'])}: "
+                f"{int(latest['detections']):,} detections, "
+                f"{latest['prosecution_rate_pct']}% referred for prosecution[/dim]"
+            )
+        elif "detections" in df.columns:
+            console.print(f"\n[dim]{len(df):,} rows | {int(df['detections'].sum()):,} detections[/dim]")
+        else:
+            console.print(f"\n[dim]{len(df):,} detection records[/dim]")
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        raise click.Abort() from e
+
+
 @nisra.command(name="planning-statistics")
 @click.option(
     "--dimension",
@@ -7172,6 +7453,171 @@ def psni_crime_cmd(output_format, save):
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        raise click.Abort() from e
+
+
+@cli.group(name="dfc")
+def dfc():
+    """NI Department for Communities statistics.
+
+    Access official statistics published by the Department for Communities,
+    including Child Maintenance Service caseload and enforcement figures.
+    """
+    pass
+
+
+@dfc.command(name="child-maintenance")
+@click.option(
+    "--table",
+    default="all",
+    help="Table key, or 'all' (default). Use --list-tables to see the options.",
+)
+@click.option("--list-tables", is_flag=True, help="List available table keys and exit")
+@click.option(
+    "--historical",
+    is_flag=True,
+    help="Stitch several releases together for the full back series",
+)
+@click.option(
+    "--max-publications",
+    type=int,
+    default=8,
+    show_default=True,
+    help="How many releases to merge (with --historical)",
+)
+@click.option("--year", type=int, help="Filter to a single calendar year")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics instead of full data")
+def dfc_child_maintenance_cmd(
+    table,
+    list_tables,
+    historical,
+    max_publications,
+    year,
+    output_format,
+    force_refresh,
+    save,
+    summary,
+):
+    r"""Child Maintenance Service statistics for Northern Ireland.
+
+    \b
+    Quarterly figures on the NI Child Maintenance Service: applications and
+    their clearance, the composition of arrangements, children covered, paying
+    parent numbers and demographics, maintenance due and paid, and enforcement
+    collections. Data runs from December 2019, with applications back to
+    December 2015.
+
+    \b
+    A single release carries only a few years of history, and paying parent
+    characteristics only a single quarter, so --historical is what gets you the
+    full published run.
+
+    Examples:
+        Every table from the latest release::
+
+            bolster dfc child-maintenance
+
+        Enforcement collections only::
+
+            bolster dfc child-maintenance --table enforcement
+
+        Full demographic back series::
+
+            bolster dfc child-maintenance --table paying_parent_characteristics --historical
+
+        Save as CSV::
+
+            bolster dfc child-maintenance --historical --save cms.csv
+
+    Source:
+        https://www.communities-ni.gov.uk/topics/child-maintenance-service-statistics
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    if list_tables:
+        console.print("[bold]Available tables:[/bold]")
+        for key in dfc_child_maintenance.list_tables():
+            console.print(f"   {key}")
+        return
+
+    try:
+        label = "historical" if historical else "latest"
+        with console.status(f"[bold green]Downloading Child Maintenance Service data ({label})..."):
+            if historical:
+                df = dfc_child_maintenance.get_historical_data(
+                    max_publications=max_publications, force_refresh=force_refresh
+                )
+            else:
+                df = dfc_child_maintenance.get_latest_data(force_refresh=force_refresh)
+
+        if table != "all":
+            available = dfc_child_maintenance.list_tables()
+            if table not in available:
+                console.print(f"[red]Unknown table: {table}[/red]")
+                console.print(f"[yellow]Available: {', '.join(available)}[/yellow]")
+                raise click.Abort()
+            df = df[df["table"] == table]
+
+        if year:
+            df = df[df["year"] == year]
+
+        if df.empty:
+            console.print("[yellow]No data matched those filters[/yellow]")
+            return
+
+        console.print("[green]Child Maintenance Service data retrieved successfully[/green]")
+        console.print(f"[cyan]Table: {table} | Rows: {len(df)}[/cyan]")
+
+        if summary:
+            console.print("\n[bold]Summary:[/bold]")
+            console.print(f"   Coverage: {df['date'].min():%Y-%m-%d} to {df['date'].max():%Y-%m-%d}")
+            console.print(f"   Quarters: {df['date'].nunique()}")
+            for key, group in df.groupby("table"):
+                span = f"{group['date'].min():%Y-%m} to {group['date'].max():%Y-%m}"
+                console.print(f"   {key:32} {len(group):5,} rows  {span}")
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    df.astype(str).to_json(save, orient="records", indent=2)
+                else:
+                    df.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(df.astype(str).to_json(orient="records", indent=2))
+        else:
+            # Not console.print: rich wraps at the terminal width, which corrupts
+            # the CSV when the output is piped.
+            click.echo(df.to_csv(index=False), nl=False)
+
+    except click.Abort:
+        raise
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
         raise click.Abort() from e
 
 
@@ -8373,6 +8819,7 @@ def list_sources():
     click.echo("\nPSNI DATA MODULES (bolster psni <command>)")
     click.echo("  psni rtc                   Road traffic collisions, casualties, vehicles")
     click.echo("  psni crime                 Historical crime statistics (Apr 2001–Dec 2021, stale)")
+    click.echo("  psni road-safety           Safety camera detections (RSP, 2011–2024)")
 
     click.echo("\nOTHER DATA MODULES")
     click.echo("  dva                        DVA monthly test statistics (vehicle, driver, theory)")
@@ -8381,6 +8828,7 @@ def list_sources():
     click.echo("  ons-cpi                    ONS UK inflation indices (CPI, CPIH, RPI)")
     click.echo("  boe-base-rate              Bank of England official Bank Rate (base rate)")
     click.echo("  dfe electricity            NI electricity consumption & renewable generation (%)")
+    click.echo("  dfc child-maintenance      Child Maintenance Service caseload and enforcement (DfC)")
 
     click.echo("\nUSAGE EXAMPLES")
     click.echo("  bolster water-quality BT1 5GS              # Water quality by postcode")

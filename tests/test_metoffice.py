@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from io import BytesIO
 
 import pytest
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 from bolster.data_sources.metoffice import (
     BASE_URL,
@@ -418,14 +418,14 @@ class TestBusinessLogicEdgeCases:
         """Test image processing functions with invalid data."""
         invalid_data = b"not-an-image"
 
-        # Should raise exceptions when trying to process invalid image data
-        with pytest.raises(Exception):  # PIL will raise various exceptions
+        # PIL cannot identify the format and raises before any processing
+        with pytest.raises(UnidentifiedImageError):
             make_borders(invalid_data)
 
-        with pytest.raises(Exception):
+        with pytest.raises(UnidentifiedImageError):
             make_isolines(invalid_data)
 
-        with pytest.raises(Exception):
+        with pytest.raises(UnidentifiedImageError):
             make_precipitation(invalid_data)
 
 

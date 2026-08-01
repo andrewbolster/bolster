@@ -386,6 +386,23 @@ Quarterly births, deaths, marriages, and LGD breakdowns.
 
     $ bolster nisra registrar-general
 
+School Leavers Survey
+~~~~~~~~~~~~~~~~~~~~~~
+
+Qualifications achieved and destinations of school leavers, by geography,
+free school meal entitlement, and equality group.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import school_leavers
+
+    attainment = school_leavers.get_latest_school_leavers("attainment", "lgd")
+    equality = school_leavers.get_attainment_by_equality_group()
+
+.. code-block:: console
+
+    $ bolster nisra school-leavers --dimension destination --geography lgd
+
 Tourism — Occupancy
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -617,6 +634,36 @@ district, allegation type, and outcome back to 2000/01.
 
     $ bolster psni police-ombudsman
 
+Road Safety Partnership
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Record-level safety camera detections from the Northern Ireland Road Safety
+Partnership — 719,200 detections from 2011 to 2024 covering fixed, mobile,
+average-speed and red light running cameras, with outcome, district, speed
+band and offender demographics. Published on OpenDataNI in two batches with
+differing column headers; the module normalises both onto a common schema and
+attaches LGD and NUTS3 codes.
+
+.. code-block:: python
+
+    from bolster.data_sources.psni import road_safety_partnership as rsp
+
+    df      = rsp.get_detections(year=2024)
+    annual  = rsp.get_annual_summary()
+    by_lgd  = rsp.get_detections_by_district(year=2024)
+    speeds  = rsp.get_speed_distribution(year=2024)
+
+.. code-block:: console
+
+    $ bolster psni road-safety
+    $ bolster psni road-safety --dimension district --year 2024
+
+.. note::
+
+   Reference numbers restart at 1 in each published batch and are not globally
+   unique. Red light running camera detections record no speed. Speed and
+   offender age are published as bands rather than exact values.
+
 ----
 
 DVA — Driver and Vehicle Agency
@@ -789,6 +836,44 @@ registered victims.
 
     $ bolster justice pbni-caseload --summary
     $ bolster justice pbni-caseload --frequency quarterly --dimension order_type
+
+----
+
+Communities — Child Maintenance Service
+---------------------------------------
+
+Quarterly Child Maintenance Service statistics for Northern Ireland, published
+by the Department for Communities: applications and their clearance, the
+composition of arrangements, children covered, paying parent numbers and
+demographics, maintenance due and paid, and enforcement collections. All eight
+workbook tables are flattened into one tidy long frame with a ``table``
+discriminator column.
+
+A single release does not carry the full back series — most tables show only the
+last few years, and paying parent characteristics only a single quarter — so
+``get_historical_data()`` stitches successive releases together.
+
+.. code-block:: python
+
+    from bolster.data_sources.dfc import child_maintenance
+
+    # Every table from the most recent release
+    df = child_maintenance.get_latest_data()
+
+    # Stitch releases together for the full published run
+    history = child_maintenance.get_historical_data(max_publications=8)
+
+    # A single table
+    enforcement = child_maintenance.get_enforcement()
+
+    # What tables are available?
+    child_maintenance.list_tables()
+
+.. code-block:: console
+
+    $ bolster dfc child-maintenance --list-tables
+    $ bolster dfc child-maintenance --table enforcement
+    $ bolster dfc child-maintenance --historical --summary
 
 ----
 

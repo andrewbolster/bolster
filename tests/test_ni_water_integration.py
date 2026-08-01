@@ -250,7 +250,7 @@ class TestNIWaterIntegrationDataValidation:
             assert len(zones) > 0
 
             # Check for standard NI postcode format in keys
-            bt_postcodes = [k for k in zones.keys() if k.startswith("BT")]
+            bt_postcodes = [k for k in zones if k.startswith("BT")]
             assert len(bt_postcodes) > 0, "Should have Belfast (BT) postcodes"
 
         except RuntimeError as e:

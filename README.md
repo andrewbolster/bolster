@@ -228,6 +228,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Tourism - Visitor Statistics | `nisra.tourism.visitor_statistics` | ✅ |
 | Baby Names NI (annual, 1997–present) | `nisra.baby_names` | ✅ |
 | NI School Suspensions (DE) | `education_suspensions` | ✅ |
+| NI School Leavers Survey (DE) | `nisra.school_leavers` | ✅ |
 | NICTS Mortgages Action for Possession (DoJ) | `justice.mortgages` | ✅ |
 | NICTS Quarterly Court Business Figures (DoJ) | `justice.nicts_quarterly` | ✅ |
 | PBNI Caseload Statistics (annual + quarterly) | `justice.pbni_caseload` | ✅ |
@@ -242,6 +243,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Drug-Related & Drug Misuse Deaths | `nisra.drug_related_deaths` | ✅ |
 | PSNI Stop & Search (OpenDataNI) | `psni.stop_and_search` | ✅ |
 | PSNI PACE Stop & Search / Arrests | `psni.pace` | ✅ |
+| NI Road Safety Partnership Safety Camera Detections | `psni.road_safety_partnership` | ✅ |
 | ONS UK Inflation (CPI / CPIH / RPI) | `ons_cpi` | ✅ |
 | Bank of England Base Rate | `boe_base_rate` | ✅ |
 | NI Assembly — MLAs, Parties, Constituencies | `niassembly.members` | ✅ |
@@ -250,6 +252,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | NI Business Register (IDBR, annual) | `nisra.business_register` | ✅ |
 | NI Multiple Deprivation Measure 2017 (NIMDM, SOA-level) | `nisra.deprivation` | ✅ |
 | Translink Live Departures & Vehicle Positions | `translink` | ✅ |
+| Child Maintenance Service Statistics (DfC) | `dfc.child_maintenance` | ✅ |
 | Security Situation Statistics | - | ❌ Cloudflare-blocked |
 | Anti-social Behaviour | - | ❌ Cloudflare-blocked |
 | Domestic Abuse Incidents/Crimes | - | ❌ Cloudflare-blocked |

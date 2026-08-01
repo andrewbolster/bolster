@@ -39,9 +39,7 @@ class TestChildProtectionIntegrity:
 
     def test_year_dtype_is_integer(self, latest_data: pd.DataFrame) -> None:
         """Year column must be integer-compatible (Int64 nullable int)."""
-        assert pd.api.types.is_integer_dtype(latest_data["year"]), (
-            f"year column has dtype {latest_data['year'].dtype}"
-        )
+        assert pd.api.types.is_integer_dtype(latest_data["year"]), f"year column has dtype {latest_data['year'].dtype}"
 
     def test_value_dtype_is_integer(self, latest_data: pd.DataFrame) -> None:
         """Value column must be integer-compatible."""
