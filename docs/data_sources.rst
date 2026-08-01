@@ -975,6 +975,40 @@ UK Gender Pay Gap reporting data from 2017 to present (all employers with
 
 ----
 
+DAERA
+-----
+
+Greenhouse Gas Inventory
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Northern Ireland greenhouse gas emissions from 1990 onwards, broken down by
+sector, by gas, and under the National Communication and Territorial Emissions
+Statistics classifications, with UK totals for comparison.
+
+Full time series are reported in ktCO2e; summary and change tables are in
+MtCO2e.  LULUCF values can legitimately be negative where removals exceed
+emissions.
+
+.. code-block:: python
+
+    from bolster.data_sources.daera_greenhouse_gas import (
+        get_annual_totals,
+        get_emissions_by_sector,
+        get_gas_changes,
+    )
+
+    totals = get_annual_totals()
+    by_sector = get_emissions_by_sector()
+    by_gas = get_gas_changes()
+
+.. code-block:: console
+
+    $ bolster daera greenhouse-gas --summary
+    $ bolster daera greenhouse-gas --dataset totals
+    $ bolster daera greenhouse-gas --sector Agriculture --year 2024
+
+----
+
 Met Office
 ----------
 
