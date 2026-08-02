@@ -25,6 +25,7 @@ from .data_sources.health_ni import cancer_waiting_times as nisra_cancer
 from .data_sources.health_ni import diagnostic_waiting_times as nisra_diagnostic
 from .data_sources.health_ni import disease_prevalence as nisra_disease_prevalence
 from .data_sources.health_ni import emergency_care_waiting_times as nisra_emergency
+from .data_sources.justice import first_time_entrants as justice_first_time_entrants
 from .data_sources.justice import mortgages as justice_mortgages
 from .data_sources.justice import nicts_quarterly as justice_nicts_quarterly
 from .data_sources.justice import pbni_caseload as justice_pbni
@@ -7734,10 +7735,129 @@ def justice():
 
     Access official justice statistics from the Department of Justice, its
     sponsored bodies, and the Northern Ireland Courts and Tribunals Service
-    (NICTS) - mortgage actions for possession, quarterly court business figures
-    and PBNI probation caseload.
+    (NICTS) - mortgage actions for possession, quarterly court business figures,
+    PBNI probation caseload, and first time entrants to the criminal justice
+    system.
     """
     pass
+
+
+@justice.command(name="first-time-entrants")
+@click.option(
+    "--breakdown",
+    type=click.Choice(["all", "age_band", "gender", "offence", "disposal", "summary"], case_sensitive=False),
+    default="all",
+    help="Breakdown to show (default: all)",
+)
+@click.option("--table", help="Filter to a single table id, e.g. 1a")
+@click.option("--year", help="Filter to a single financial year, e.g. 2024-25")
+@click.option("--measure", help="Filter to a single measure, e.g. first_count")
+@click.option("--headline", is_flag=True, help="Show the headline first time offender percentage series")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics instead of full data")
+def justice_first_time_entrants_cmd(
+    breakdown, table, year, measure, headline, output_format, force_refresh, save, summary
+):
+    r"""DoJ first time entrants to the criminal justice system.
+
+    \b
+    People receiving their first conviction or diversionary disposal in NI,
+    broken down by age band, gender, offence classification and disposal type,
+    alongside the headline percentage of all offenders who are first time
+    entrants. Financial years, latest edition covering 2011-12 onwards.
+
+    Examples:
+        Everything::
+
+            bolster justice first-time-entrants
+
+        Headline first time offender percentage over time::
+
+            bolster justice first-time-entrants --headline
+
+        By age band::
+
+            bolster justice first-time-entrants --breakdown age_band
+
+        Offence counts for the latest year::
+
+            bolster justice first-time-entrants --breakdown offence --measure first_count
+
+        A single table as JSON::
+
+            bolster justice first-time-entrants --table 3e --format json
+
+    Source:
+        https://www.justice-ni.gov.uk/articles/first-time-entrant-statistics
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading first time entrants data..."):
+            if headline:
+                data = justice_first_time_entrants.get_headline_series(force_refresh=force_refresh)
+            else:
+                data = justice_first_time_entrants.get_latest_data(breakdown=breakdown, force_refresh=force_refresh)
+
+        if table:
+            data = data[data["table"].str.lower() == table.lower()]
+        if year:
+            data = data[data["year"] == year]
+        if measure:
+            data = data[data["measure"] == measure]
+
+        if data.empty:
+            console.print("[yellow]No data matches the requested filters[/yellow]")
+            return
+
+        console.print("[green]First time entrants data retrieved successfully[/green]")
+        console.print(f"[cyan]Breakdown: {'headline' if headline else breakdown} | Rows: {len(data)}[/cyan]")
+
+        if summary:
+            console.print("\n[bold]Summary:[/bold]")
+            console.print(f"   Coverage: {data['year'].min()} to {data['year'].max()}")
+            console.print(f"   Tables: {data['table'].nunique()}")
+            console.print(f"   Categories: {data['category'].nunique()}")
+            console.print(f"   Measures: {', '.join(sorted(data['measure'].unique()))}")
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.astype(str).to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.astype(str).to_json(orient="records", indent=2))
+        else:
+            click.echo(data.to_csv(index=False), nl=False)
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
 
 
 @justice.command(name="mortgages")
