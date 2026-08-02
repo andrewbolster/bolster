@@ -242,6 +242,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Public Confidence in Official Statistics (NISRA PCOS) | `nisra.public_confidence` | ✅ |
 | Disease Prevalence Registers (PHA/DoH) | `health_ni.disease_prevalence` | ✅ |
 | Drug-Related & Drug Misuse Deaths | `nisra.drug_related_deaths` | ✅ |
+| Teacher Workforce in Grant-Aided Schools (DE) | `nisra.teacher_workforce` | ✅ |
 | PSNI Stop & Search (OpenDataNI) | `psni.stop_and_search` | ✅ |
 | PSNI PACE Stop & Search / Arrests | `psni.pace` | ✅ |
 | NI Road Safety Partnership Safety Camera Detections | `psni.road_safety_partnership` | ✅ |
