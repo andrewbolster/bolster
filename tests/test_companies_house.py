@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 """Tests for companies_house module."""
 
+import contextlib
+
 import pytest
 
 from bolster.data_sources.companies_house import (
@@ -209,13 +211,9 @@ class TestModuleImports:
         """Test that URL function exists and can be called without network operations."""
         # This tests the function definition and import, but doesn't test network calls
         # The actual network call is marked with pragma: no cover
-        try:
-            # Just test that the function exists and can be called
-            # This will trigger the base_url assignment but fail on the network call
+        # Expected to fail due to network operation, but confirms function callable
+        with contextlib.suppress(Exception):
             get_basic_company_data_url()
-        except Exception:
-            # Expected to fail due to network operation, but confirms function callable
-            pass
 
         # Test that the function is properly defined
         import inspect
