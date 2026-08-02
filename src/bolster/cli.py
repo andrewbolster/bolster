@@ -58,6 +58,7 @@ from .data_sources.nisra import population_projections as nisra_projections
 from .data_sources.nisra import public_confidence as nisra_public_confidence
 from .data_sources.nisra import registrar_general as nisra_registrar_general
 from .data_sources.nisra import school_leavers as nisra_school_leavers
+from .data_sources.nisra import teacher_workforce as nisra_teacher_workforce
 from .data_sources.nisra import wellbeing as nisra_wellbeing
 from .data_sources.nisra import work_quality as nisra_work_quality
 from .data_sources.nisra.tourism import occupancy as nisra_occupancy
@@ -2198,6 +2199,137 @@ def nisra_school_leavers_cmd(dimension, geography, output_format, force_refresh,
                 console.print("\n[yellow]💡 Tip: For 'all' dimensions, use --save to export to files[/yellow]")
                 console.print("[yellow]   Displaying attainment dimension only:[/yellow]\n")
                 click.echo(data["attainment"].to_csv(index=False))
+            else:
+                click.echo(data.to_csv(index=False))
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
+        console.print("   • Visit NISRA website to verify data availability")
+        raise click.Abort() from e
+
+
+@nisra.command(name="teacher-workforce")
+@click.option(
+    "--dimension",
+    type=click.Choice(["headcount", "fte", "ptr", "all"], case_sensitive=False),
+    default="headcount",
+    help="Which view to retrieve (default: headcount)",
+)
+@click.option("--summary", is_flag=True, help="Show the Northern Ireland headline series across all three views")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_teacher_workforce_cmd(dimension, summary, output_format, force_refresh, save):
+    """Teacher Workforce Statistics in Grant-Aided Schools (NI).
+
+    Department of Education teacher statistics by Local Government District,
+    covering headcount, full-time equivalent staffing and pupil:teacher ratios.
+
+    Examples:
+    ---------
+    Teachers by age band, sex and working pattern::
+
+        bolster nisra teacher-workforce
+
+    Full-time equivalent teachers by school type::
+
+        bolster nisra teacher-workforce --dimension fte
+
+    Pupil:teacher ratios by school type::
+
+        bolster nisra teacher-workforce --dimension ptr
+
+    Northern Ireland headline series across all three views::
+
+        bolster nisra teacher-workforce --summary
+
+    All dimensions saved to files::
+
+        bolster nisra teacher-workforce --dimension all --save teachers.csv
+
+    Dimensions
+    ----------
+    headcount
+        Teachers by age band, sex and full-time/part-time working pattern
+    fte
+        Full-time equivalent teachers by school type
+    ptr
+        Pupils per FTE teacher by school type
+    all
+        All three views (returns separate tables)
+
+    Source
+    ------
+    https://www.education-ni.gov.uk/articles/education-workforce
+    """
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading latest teacher workforce data..."):
+            if summary:
+                data = nisra_teacher_workforce.get_ni_summary()
+                dimension = "summary"
+            else:
+                data = nisra_teacher_workforce.get_latest_data(dimension=dimension, force_refresh=force_refresh)
+
+        if dimension == "all":
+            console.print("[green]✅ Retrieved all dimensions successfully[/green]")
+            total_records = sum(len(df) for df in data.values())
+            console.print(f"[cyan]📊 Total records: {total_records}[/cyan]")
+            for dim_name, df in data.items():
+                console.print(f"   • {dim_name}: {len(df)} records")
+        else:
+            console.print(f"[green]✅ Retrieved {dimension} dimension successfully[/green]")
+            console.print(f"[cyan]📊 Total records: {len(data)}[/cyan]")
+
+        if save:
+            try:
+                if dimension == "all":
+                    for dim_name, df in data.items():
+                        filename = (
+                            f"{save.rsplit('.', 1)[0]}_{dim_name}.{save.rsplit('.', 1)[-1] if '.' in save else 'csv'}"
+                        )
+                        if output_format == "json" or filename.endswith(".json"):
+                            df.to_json(filename, orient="records", indent=2)
+                        else:
+                            df.to_csv(filename, index=False)
+                        console.print(f"[green]💾 Saved {dim_name} to: {filename}[/green]")
+                else:
+                    if output_format == "json" or save.endswith(".json"):
+                        data.to_json(save, orient="records", indent=2)
+                    else:
+                        data.to_csv(save, index=False)
+                    console.print(f"[green]💾 Data saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]❌ Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]❌ Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            import json
+
+            if dimension == "all":
+                output = {dim_name: df.to_dict(orient="records") for dim_name, df in data.items()}
+                click.echo(json.dumps(output, indent=2, default=str))
+            else:
+                click.echo(data.to_json(orient="records", indent=2))
+        else:  # csv
+            if dimension == "all":
+                console.print("\n[yellow]💡 Tip: For 'all' dimensions, use --save to export to files[/yellow]")
+                console.print("[yellow]   Displaying headcount dimension only:[/yellow]\n")
+                click.echo(data["headcount"].to_csv(index=False))
             else:
                 click.echo(data.to_csv(index=False))
 

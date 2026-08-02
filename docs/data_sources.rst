@@ -368,6 +368,25 @@ Annual drug-related and drug misuse deaths by year, age, gender, and substance.
 
     $ bolster nisra drug-related-deaths
 
+Teacher Workforce
+~~~~~~~~~~~~~~~~~
+
+Teachers in grant-aided schools — headcount by age, sex and working pattern,
+full-time equivalents by school type, and pupil:teacher ratios, all broken
+down by Local Government District.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import teacher_workforce
+
+    df = teacher_workforce.get_headcount()
+
+.. code-block:: console
+
+    $ bolster nisra teacher-workforce
+    $ bolster nisra teacher-workforce --dimension ptr
+    $ bolster nisra teacher-workforce --summary
+
 Wellbeing
 ~~~~~~~~~
 
