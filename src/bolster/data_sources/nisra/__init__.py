@@ -30,6 +30,7 @@ Available modules:
     - wellbeing: Individual wellbeing statistics (life satisfaction, happiness, anxiety, loneliness)
     - work_quality: Work Quality NI — seventeen indicators of job quality for employees
     - homelessness: NI Homelessness Bulletin — biannual presentations/acceptances by LGD (DfC/NIHE)
+    - housing_bulletin: NI Housing Bulletin — quarterly social housing supply, stock, waiting list, sales (DfC)
     - housing_stock: NI Housing Stock annual statistics by property type (DoF/LPS)
     - public_confidence: Public Awareness of and Trust in Official Statistics (PCOS)
 
@@ -139,6 +140,7 @@ from . import (
     deprivation,
     drug_related_deaths,
     homelessness,
+    housing_bulletin,
     housing_stock,
     index_of_production,
     index_of_services,
@@ -171,6 +173,7 @@ __all__ = [
     "deprivation",
     "drug_related_deaths",
     "homelessness",
+    "housing_bulletin",
     "housing_stock",
     "index_of_production",
     "index_of_services",
