@@ -844,6 +844,40 @@ most recent years, returned as a single tidy long frame.
     $ bolster justice nicts-quarterly --court crown_court
     $ bolster justice nicts-quarterly --annual --format json
 
+First Time Entrants
+~~~~~~~~~~~~~~~~~~~
+
+People receiving their first conviction or diversionary disposal in Northern
+Ireland, broken down by age band, gender, offence classification and disposal
+type, alongside the headline percentage of all offenders who are first time
+entrants. Financial years from 2011-12, with thirteen editions available.
+
+Tables are keyed by their title text rather than sheet name or worksheet
+number, since both drift between editions.
+
+.. code-block:: python
+
+    from bolster.data_sources.justice import first_time_entrants as fte
+
+    # Every table, every breakdown
+    df = fte.get_latest_data()
+
+    # A single breakdown
+    by_age = fte.get_by_age()
+    by_offence = fte.get_by_offence()
+
+    # Headline first time offender percentage over time
+    headline = fte.get_headline_series()
+
+    # Older editions
+    older = fte.parse_data(fte.download_file(fte.find_data_file(fte.list_publications()[5]["url"])))
+
+.. code-block:: console
+
+    $ bolster justice first-time-entrants --headline
+    $ bolster justice first-time-entrants --breakdown age_band
+    $ bolster justice first-time-entrants --table 3e --format json
+
 PBNI Caseload
 ~~~~~~~~~~~~~
 
