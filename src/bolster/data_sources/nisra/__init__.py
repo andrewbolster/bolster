@@ -23,6 +23,7 @@ Available modules:
     - planning_statistics: NI Planning Activity Statistics - quarterly applications, by council
     - population_projections: Population projections by age, sex, and geography (2022-2072)
     - registrar_general: Registrar General Quarterly Tables (quarterly births, deaths, marriages, LGD breakdowns)
+    - school_leavers: School Leavers Survey - attainment and destinations by geography and equality group
     - teacher_workforce: Teachers in grant-aided schools — headcount, FTE and pupil:teacher ratios by LGD
     - baby_names: Annual baby name registrations (1997–present) by sex and rank
     - tourism: Tourism statistics including occupancy surveys, visitor stats (subpackage)
@@ -150,6 +151,7 @@ from . import (
     public_confidence,
     quarterly_employment_survey,
     registrar_general,
+    school_leavers,
     stillbirths,
     teacher_workforce,
     tourism,
@@ -181,6 +183,7 @@ __all__ = [
     "population_projections",
     "public_confidence",
     "registrar_general",
+    "school_leavers",
     "stillbirths",
     "teacher_workforce",
     "tourism",
