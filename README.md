@@ -222,6 +222,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | NI Planning Activity Statistics (DfI) | `nisra.planning_statistics` | ✅ |
 | NI Housing Stock Statistics (DoF/LPS) | `nisra.housing_stock` | ✅ |
 | NI Homelessness Bulletin (DfC/NIHE) | `nisra.homelessness` | ✅ |
+| NI Housing Bulletin (DfC, quarterly) | `nisra.housing_bulletin` | ✅ |
 | Registrar General Quarterly Tables | `nisra.registrar_general` | ✅ |
 | Tourism - Hotel Occupancy | `nisra.tourism.occupancy` | ✅ |
 | Tourism - SSA Occupancy | `nisra.tourism.occupancy` | ✅ |
@@ -232,7 +233,9 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | NICTS Mortgages Action for Possession (DoJ) | `justice.mortgages` | ✅ |
 | NICTS Quarterly Court Business Figures (DoJ) | `justice.nicts_quarterly` | ✅ |
 | Court Prosecutions, Convictions & Out of Court Disposals (DoJ) | `justice.prosecutions_convictions` | ✅ |
+| First Time Entrants to the Criminal Justice System (DoJ) | `justice.first_time_entrants` | ✅ |
 | PBNI Caseload Statistics (annual + quarterly) | `justice.pbni_caseload` | ✅ |
+| PPS Statistical Bulletin (PPS NI) | `justice.pps_statistical_bulletin` | ✅ |
 | Work Quality NI (NISRA) | `nisra.work_quality` | ✅ |
 | NI LAC Municipal Waste Statistics (DAERA) | `daera_waste` | ✅ |
 | NI Greenhouse Gas Inventory (DAERA) | `daera_greenhouse_gas` | ✅ |
@@ -242,6 +245,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Public Confidence in Official Statistics (NISRA PCOS) | `nisra.public_confidence` | ✅ |
 | Disease Prevalence Registers (PHA/DoH) | `health_ni.disease_prevalence` | ✅ |
 | Drug-Related & Drug Misuse Deaths | `nisra.drug_related_deaths` | ✅ |
+| Teacher Workforce in Grant-Aided Schools (DE) | `nisra.teacher_workforce` | ✅ |
 | PSNI Stop & Search (OpenDataNI) | `psni.stop_and_search` | ✅ |
 | PSNI PACE Stop & Search / Arrests | `psni.pace` | ✅ |
 | NI Road Safety Partnership Safety Camera Detections | `psni.road_safety_partnership` | ✅ |
@@ -254,6 +258,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | NI Multiple Deprivation Measure 2017 (NIMDM, SOA-level) | `nisra.deprivation` | ✅ |
 | Translink Live Departures & Vehicle Positions | `translink` | ✅ |
 | Child Maintenance Service Statistics (DfC) | `dfc.child_maintenance` | ✅ |
+| YPBAS Travel to/from School (DfI) | `dfi.school_travel` | ✅ |
 | Security Situation Statistics | - | 🔍 not built; source reachable |
 | Anti-social Behaviour | - | 🔍 not built; source reachable |
 | Domestic Abuse Incidents/Crimes | - | 🔍 not built; source reachable |

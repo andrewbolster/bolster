@@ -323,6 +323,36 @@ by type (detached, semi-detached, terraced, flat) and Local Government District.
 
     $ bolster nisra housing-stock
 
+Housing Bulletin
+~~~~~~~~~~~~~~~~
+
+NI Housing Bulletin (DfC) — quarterly housing statistics compiled from NIHE,
+LPS and NHBC administrative sources. Nine tables: social housing starts and
+completions by tenure, dwelling stock by tenure and district, the social
+housing waiting list and allocations, new dwelling sales and average prices,
+and the Affordable Warmth Scheme.
+
+Homelessness tables from the same workbook are not parsed here — the richer
+LGD-level series lives in :mod:`bolster.data_sources.nisra.homelessness`.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import housing_bulletin
+
+    stock = housing_bulletin.get_dwelling_stock_by_tenure()
+    starts = housing_bulletin.get_social_housing_starts()
+    sales = housing_bulletin.get_new_dwelling_sales()
+
+    # Or fetch any table by name
+    housing_bulletin.list_tables()
+    df = housing_bulletin.get_latest_data('waiting-list')
+
+.. code-block:: console
+
+    $ bolster nisra housing-bulletin --list-tables
+    $ bolster nisra housing-bulletin --table starts
+    $ bolster nisra housing-bulletin --table sales --summary
+
 Drug-Related Deaths
 ~~~~~~~~~~~~~~~~~~~
 
@@ -337,6 +367,25 @@ Annual drug-related and drug misuse deaths by year, age, gender, and substance.
 .. code-block:: console
 
     $ bolster nisra drug-related-deaths
+
+Teacher Workforce
+~~~~~~~~~~~~~~~~~
+
+Teachers in grant-aided schools — headcount by age, sex and working pattern,
+full-time equivalents by school type, and pupil:teacher ratios, all broken
+down by Local Government District.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import teacher_workforce
+
+    df = teacher_workforce.get_headcount()
+
+.. code-block:: console
+
+    $ bolster nisra teacher-workforce
+    $ bolster nisra teacher-workforce --dimension ptr
+    $ bolster nisra teacher-workforce --summary
 
 Wellbeing
 ~~~~~~~~~
@@ -762,6 +811,45 @@ Standardised house price index for Northern Ireland.
 
 ----
 
+Infrastructure NI (DfI)
+-----------------------
+
+Statistics from the Department for Infrastructure.
+
+Travel to and from School (YPBAS)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The Young Persons' Behaviour and Attitudes Survey travel module: how pupils
+travel to and from school, how they would like to travel, perceived road
+safety, and walking/cycling participation. Detail tables carry 95% confidence
+intervals and break down by sex and school year group; the trend tables cover
+2016, 2019, 2022 and 2025.
+
+.. code-block:: python
+
+    from bolster.data_sources.dfi import school_travel
+
+    # Latest detail tables (686 estimates across 12 questions)
+    df = school_travel.get_latest_data()
+
+    # Year-group breakdown only
+    by_year = df[df["breakdown_type"] == "year_group"]
+
+    # Multi-year trend
+    trend = school_travel.get_trend_data()
+
+    # What questions are available?
+    school_travel.list_questions()
+
+.. code-block:: console
+
+    $ bolster dfi school-travel
+    $ bolster dfi school-travel --table trend
+    $ bolster dfi school-travel --breakdown year_group --summary
+    $ bolster dfi school-travel --list-questions
+
+----
+
 Justice
 -------
 
@@ -843,6 +931,39 @@ by gender and age band. Publications run from 2008 to the present.
     $ bolster justice prosecutions-convictions --summary
     $ bolster justice prosecutions-convictions --dataset out-of-court
     $ bolster justice prosecutions-convictions --dataset diversionary --by age
+First Time Entrants
+~~~~~~~~~~~~~~~~~~~
+
+People receiving their first conviction or diversionary disposal in Northern
+Ireland, broken down by age band, gender, offence classification and disposal
+type, alongside the headline percentage of all offenders who are first time
+entrants. Financial years from 2011-12, with thirteen editions available.
+
+Tables are keyed by their title text rather than sheet name or worksheet
+number, since both drift between editions.
+
+.. code-block:: python
+
+    from bolster.data_sources.justice import first_time_entrants as fte
+
+    # Every table, every breakdown
+    df = fte.get_latest_data()
+
+    # A single breakdown
+    by_age = fte.get_by_age()
+    by_offence = fte.get_by_offence()
+
+    # Headline first time offender percentage over time
+    headline = fte.get_headline_series()
+
+    # Older editions
+    older = fte.parse_data(fte.download_file(fte.find_data_file(fte.list_publications()[5]["url"])))
+
+.. code-block:: console
+
+    $ bolster justice first-time-entrants --headline
+    $ bolster justice first-time-entrants --breakdown age_band
+    $ bolster justice first-time-entrants --table 3e --format json
 
 PBNI Caseload
 ~~~~~~~~~~~~~
@@ -904,6 +1025,46 @@ last few years, and paying parent characteristics only a single quarter — so
     $ bolster dfc child-maintenance --list-tables
     $ bolster dfc child-maintenance --table enforcement
     $ bolster dfc child-maintenance --historical --summary
+
+----
+
+Justice — PPS Statistical Bulletin
+----------------------------------
+
+Public Prosecution Service casework statistics: files and defendants received
+from police, prosecution and diversion decisions by offence group, the number
+of days taken to issue a decision, and the outcomes of contested Crown and
+Magistrates' court cases. Each annual bulletin restates the prior financial
+year alongside the current one, so a single download covers two years.
+
+Suppressed cells (small-count disclosure control) come back as ``NaN`` in
+``value`` with the original symbol preserved in ``marker``.
+
+.. code-block:: python
+
+    from bolster.data_sources.justice import pps_statistical_bulletin as pps
+
+    # Every table in the latest bulletin
+    df = pps.get_latest_data()
+
+    # Typed accessors for the headline tables
+    received = pps.get_files_received()
+    decisions = pps.get_decisions()
+    timeliness = pps.get_timeliness()
+    outcomes = pps.get_court_outcomes()
+
+    # Several bulletins stitched into one series
+    history = pps.get_historical_data(max_publications=5)
+
+    # What table keys are available?
+    pps.list_tables()
+
+.. code-block:: console
+
+    $ bolster justice pps-statistical-bulletin --list-tables
+    $ bolster justice pps-statistical-bulletin --table 1a
+    $ bolster justice pps-statistical-bulletin --table 3a --year 2024/25
+    $ bolster justice pps-statistical-bulletin --historical --format json
 
 ----
 
