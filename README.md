@@ -248,6 +248,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Teacher Workforce in Grant-Aided Schools (DE) | `nisra.teacher_workforce` | ✅ |
 | PSNI Stop & Search (OpenDataNI) | `psni.stop_and_search` | ✅ |
 | PSNI PACE Stop & Search / Arrests | `psni.pace` | ✅ |
+| PSNI Motoring Offences (enforcement outcomes) | `psni.motoring_offences` | ✅ |
 | NI Road Safety Partnership Safety Camera Detections | `psni.road_safety_partnership` | ✅ |
 | ONS UK Inflation (CPI / CPIH / RPI) | `ons_cpi` | ✅ |
 | Bank of England Base Rate | `boe_base_rate` | ✅ |
@@ -274,6 +275,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | Police Ombudsman Complaints | `psni.police_ombudsman` | ✅ |
 | Stop & Search | `psni.stop_and_search` | ✅ |
 | PACE Stop & Search / Arrests | `psni.pace` | ✅ |
+| Motoring Offences (enforcement outcomes) | `psni.motoring_offences` | ✅ |
 
 #### Infrastructure NI Publication Discovery
 
