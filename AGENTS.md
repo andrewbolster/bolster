@@ -37,13 +37,13 @@ Keep flat modules when the data source is standalone.
 
 ```bash
 uv run pytest tests/ -q --no-cov                     # Quick local run (no coverage)
-uv run pytest tests/ -q --cov=src/bolster --cov-report=xml:cov.xml  # Full run with coverage (required before push)
+uv run pytest tests/ -q --cov=src/bolster --cov-report=xml:cov.xml  # Full run with coverage
 make test                                            # Same as above via Makefile
 uv run pre-commit run --all-files                    # Lint/format
 uv run bolster --help                                # CLI
 ```
 
-**Coverage gate**: always run the full coverage suite before pushing. The `pre-push` hook in `.pre-commit-config.yaml` enforces this automatically when using `git push`. `cli.py` is omitted from coverage by design — confirm it's absent from `cov.xml` with `grep cli cov.xml` (should return nothing).
+**Coverage gate**: CI enforces coverage; there is no local pre-push hook. Run the full coverage suite yourself when a change warrants it. `cli.py` is omitted from coverage by design — confirm it's absent from `cov.xml` with `grep cli cov.xml` (should return nothing).
 
 ## Tool Preferences
 

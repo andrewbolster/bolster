@@ -69,9 +69,7 @@ class TestHSCTIntegrity:
             (hsct_data["geography"] == "Northern Ireland") & (hsct_data["statistic"] == "drug_related")
         ]
         # NI totals should be consistently higher than any individual trust
-        belfast = hsct_data[
-            (hsct_data["geography"] == "Belfast") & (hsct_data["statistic"] == "drug_related")
-        ]
+        belfast = hsct_data[(hsct_data["geography"] == "Belfast") & (hsct_data["statistic"] == "drug_related")]
         if len(belfast) > 0 and len(ni_by_year) > 0:
             merged = ni_by_year[["year", "value"]].merge(
                 belfast[["year", "value"]], on="year", suffixes=("_ni", "_belfast")
