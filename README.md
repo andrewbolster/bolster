@@ -260,6 +260,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | HSC Workforce Statistics (DoH) | `health_ni.hsc_workforce` | ✅ |
 | HSC Active Recruitment / Vacancies (DoH) | `health_ni.hsc_recruitment` | ✅ |
 | Child Maintenance Service Statistics (DfC) | `dfc.child_maintenance` | ✅ |
+| Family Resources Survey Report NI (DfC) | `dfc.family_resources_survey` | ✅ |
 | YPBAS Travel to/from School (DfI) | `dfi.school_travel` | ✅ |
 | Security Situation Statistics | - | 🔍 not built; source reachable |
 | Anti-social Behaviour | - | 🔍 not built; source reachable |
