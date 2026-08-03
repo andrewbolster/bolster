@@ -37,16 +37,12 @@ class TestEmergencyCareIntegrity:
             "total",
             "pct_within_4hrs",
         }
-        assert required.issubset(set(latest_data.columns)), (
-            f"Missing columns: {required - set(latest_data.columns)}"
-        )
+        assert required.issubset(set(latest_data.columns)), f"Missing columns: {required - set(latest_data.columns)}"
 
     def test_all_five_trusts_present(self, latest_data):
         """All 5 HSC Trusts must appear in the data."""
         actual = set(latest_data["trust"].unique())
-        assert ecwt.EXPECTED_TRUSTS == actual, (
-            f"Expected trusts {ecwt.EXPECTED_TRUSTS}, got {actual}"
-        )
+        assert actual == ecwt.EXPECTED_TRUSTS, f"Expected trusts {ecwt.EXPECTED_TRUSTS}, got {actual}"
 
     def test_pct_within_4hrs_range(self, latest_data):
         """pct_within_4hrs must always be in [0.0, 1.0] (proportion, not percentage)."""
@@ -68,16 +64,12 @@ class TestEmergencyCareIntegrity:
         """Data must include records from within the last 12 months."""
         max_date = latest_data["date"].max()
         cutoff = pd.Timestamp(datetime.datetime.now()) - pd.DateOffset(months=12)
-        assert max_date >= cutoff, (
-            f"Latest data ({max_date.date()}) is more than 12 months old"
-        )
+        assert max_date >= cutoff, f"Latest data ({max_date.date()}) is more than 12 months old"
 
     def test_attendance_types_present(self, latest_data):
         """All three standard attendance types must be present."""
         types = set(latest_data["attendance_type"].unique())
-        assert {"Type 1", "Type 2", "Type 3"}.issubset(types), (
-            f"Not all attendance types present; found {types}"
-        )
+        assert {"Type 1", "Type 2", "Type 3"}.issubset(types), f"Not all attendance types present; found {types}"
 
     def test_date_column_is_datetime(self, latest_data):
         """date column must be datetime dtype."""
@@ -101,9 +93,7 @@ class TestValidation:
         """validate_data raises NISRAValidationError on empty DataFrame."""
         from bolster.data_sources.health_ni._base import NISRAValidationError
 
-        empty = pd.DataFrame(
-            columns=["date", "year", "month", "trust", "attendance_type", "total", "pct_within_4hrs"]
-        )
+        empty = pd.DataFrame(columns=["date", "year", "month", "trust", "attendance_type", "total", "pct_within_4hrs"])
         with pytest.raises(NISRAValidationError, match="empty"):
             ecwt.validate_data(empty)
 

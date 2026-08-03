@@ -19,6 +19,7 @@ Various scrapers and API wrappers for NI government data:
 - niassembly: NI Assembly AIMS — MLAs, Questions, and Votes (OGL v3.0)
 - translink: Live and scheduled bus/rail departures + vehicle positions (Translink NI)
 - electricity_renewables: NI electricity consumption and renewable generation statistics (DfE/NISRA, quarterly)
+- daera_greenhouse_gas: NI Greenhouse Gas Inventory 1990–present (DAERA, annual)
 
 Most have corresponding CLI commands.
 """
