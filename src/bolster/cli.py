@@ -57,6 +57,7 @@ from .data_sources.nisra import index_of_services as nisra_ios
 from .data_sources.nisra import labour_market as nisra_labour_market
 from .data_sources.nisra import marriages as nisra_marriages
 from .data_sources.nisra import migration as nisra_migration
+from .data_sources.nisra import neet as nisra_neet
 from .data_sources.nisra import planning_statistics as nisra_planning
 from .data_sources.nisra import population as nisra_population
 from .data_sources.nisra import population_projections as nisra_projections
@@ -6500,6 +6501,121 @@ def psni_pace_cmd(breakdown, output_format, save, force_refresh):
         raise click.Abort() from e
 
 
+@psni.command(name="motoring-offences")
+@click.option(
+    "--table",
+    default="trends",
+    help="Which table to retrieve (default: trends). Use --list-tables to see all options.",
+)
+@click.option("--list-tables", is_flag=True, help="List available tables and exit")
+@click.option("--year", type=int, help="Filter to a single year (tables with a 'year' column only)")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--summary", is_flag=True, help="Show summary statistics instead of full data")
+def psni_motoring_offences_cmd(table, list_tables, year, output_format, save, force_refresh, summary):
+    """PSNI Motoring Offences Statistics.
+
+    Enforcement outcomes for motoring offences in Northern Ireland: fixed
+    penalty notices, referrals for prosecution, and driver retraining courses.
+    Complements the collisions data, which covers injury events rather than
+    enforcement actions.
+
+    Args:
+        table: Which table to retrieve (see --list-tables)
+        list_tables: List available tables and exit
+        year: Filter to a single year
+        output_format: Output format (table, csv, or json)
+        save: Save data to file (specify filename)
+        force_refresh: Force re-download even if cached
+        summary: Show summary statistics instead of full data
+
+    Examples:
+        Annual disposal-type trends back to 1998::
+
+            bolster psni motoring-offences
+
+        District breakdown with population-adjusted rates::
+
+            bolster psni motoring-offences --table district
+
+        Speeding series for a single year as CSV::
+
+            bolster psni motoring-offences --table speeding --year 2025 --format csv
+
+        Highest speeds detected in each speed limit::
+
+            bolster psni motoring-offences --table top-speeds
+
+    Data Notes:
+        - Annual publication (March); ANNUAL_URLS updated each March
+        - Trends series runs from 1998; per-offence series from 2011
+        - District rates are per 10,000 residents aged 16+
+    """
+    from rich.table import Table
+
+    from bolster.data_sources.psni import motoring_offences
+
+    console = Console()
+
+    if list_tables:
+        console.print("\n[bold blue]Available tables[/bold blue]\n")
+        for name in motoring_offences.list_tables():
+            console.print(f"  {name}")
+        return
+
+    try:
+        console.print("\n[bold blue]🚗 PSNI Motoring Offences[/bold blue]\n")
+
+        df = motoring_offences.get_latest_data(table, force_refresh=force_refresh)
+
+        if year is not None:
+            if "year" not in df.columns:
+                raise click.ClickException(f"Table '{table}' has no 'year' column to filter on")
+            df = df[df["year"] == year]
+            if df.empty:
+                raise click.ClickException(f"No rows for year {year} in table '{table}'")
+
+        if summary:
+            df = df.describe(include="all").reset_index()
+
+        if output_format == "table":
+            rich_table = Table(show_header=True, header_style="bold cyan")
+            for col in df.columns:
+                rich_table.add_column(str(col))
+            for _, row in df.iterrows():
+                rich_table.add_row(*[str(v) for v in row.values])
+            console.print(rich_table)
+
+        elif output_format == "csv":
+            console.print(df.to_csv(index=False))
+
+        elif output_format == "json":
+            console.print(df.to_json(orient="records", indent=2))
+
+        if save:
+            if save.endswith(".json"):
+                df.to_json(save, orient="records", indent=2)
+            else:
+                df.to_csv(save, index=False)
+            console.print(f"\n[green]✅ Saved to {save}[/green]")
+
+        if not summary and "offences" in df.columns:
+            console.print(f"\n[dim]{table} | {len(df):,} rows | {int(df['offences'].sum()):,} offences[/dim]")
+
+    except click.ClickException:
+        raise
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        raise click.Abort() from e
+
+
 @psni.command(name="road-safety")
 @click.option(
     "--dimension",
@@ -7187,6 +7303,111 @@ def nisra_work_quality_cmd(indicator, year, output_format, force_refresh, save):
                 return
 
         console.print("[green]Work quality data retrieved successfully[/green]")
+        console.print(f"[cyan]Rows: {len(data)}[/cyan]")
+        if not data.empty and "year" in data.columns:
+            console.print(f"[dim]Years: {data['year'].min()}–{data['year'].max()}[/dim]")
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@nisra.command(name="neet")
+@click.option(
+    "--table",
+    type=click.Choice(["quarterly", "status", "uk", "composition", "gender-gap"], case_sensitive=False),
+    default="quarterly",
+    help="Table to retrieve (default: quarterly)",
+)
+@click.option("--year", type=int, default=None, help="Filter the quarterly series to a specific year")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_neet_cmd(table, year, output_format, force_refresh, save):
+    r"""NISRA Young People Not in Education, Employment or Training (NEET).
+
+    \b
+    Quarterly Labour Force Survey estimates of 16-24 year olds who are NEET,
+    from January-March 2013 to present. NEET is broader than youth
+    unemployment: it counts both unemployed and economically inactive young
+    people who are not in any education or training.
+
+    \b
+    Tables:
+        quarterly   - Full time series with counts, rates and 95% confidence intervals
+        status      - Labour market status of all 16-24 year olds (latest quarter)
+        uk          - NI versus UK NEET rate (latest quarter)
+        composition - NEET split into unemployed and economically inactive
+        gender-gap  - Male minus female NEET rate, in percentage points
+
+    Examples:
+        Full quarterly series::
+
+            bolster nisra neet
+
+        NI versus UK comparison::
+
+            bolster nisra neet --table uk
+
+        2025 quarters saved as JSON::
+
+            bolster nisra neet --year 2025 --format json --save neet2025.json
+
+    Source:
+        https://www.nisra.gov.uk/statistics/labour-market-and-social-welfare
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading NISRA NEET data..."):
+            if table == "gender-gap":
+                data = nisra_neet.get_gender_gap(force_refresh=force_refresh)
+            else:
+                data = nisra_neet.get_latest_data(table=table, force_refresh=force_refresh)
+
+        if year is not None:
+            if "year" not in data.columns:
+                console.print(
+                    f"[yellow]Table '{table}' is a latest-quarter snapshot and cannot be filtered by year[/yellow]"
+                )
+                return
+            data = data[data["year"] == year]
+            if data.empty:
+                console.print(f"[yellow]No data found for year {year}[/yellow]")
+                return
+
+        console.print("[green]NEET data retrieved successfully[/green]")
         console.print(f"[cyan]Rows: {len(data)}[/cyan]")
         if not data.empty and "year" in data.columns:
             console.print(f"[dim]Years: {data['year'].min()}–{data['year'].max()}[/dim]")
