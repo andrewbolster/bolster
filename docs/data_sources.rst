@@ -323,6 +323,36 @@ by type (detached, semi-detached, terraced, flat) and Local Government District.
 
     $ bolster nisra housing-stock
 
+Housing Bulletin
+~~~~~~~~~~~~~~~~
+
+NI Housing Bulletin (DfC) — quarterly housing statistics compiled from NIHE,
+LPS and NHBC administrative sources. Nine tables: social housing starts and
+completions by tenure, dwelling stock by tenure and district, the social
+housing waiting list and allocations, new dwelling sales and average prices,
+and the Affordable Warmth Scheme.
+
+Homelessness tables from the same workbook are not parsed here — the richer
+LGD-level series lives in :mod:`bolster.data_sources.nisra.homelessness`.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import housing_bulletin
+
+    stock = housing_bulletin.get_dwelling_stock_by_tenure()
+    starts = housing_bulletin.get_social_housing_starts()
+    sales = housing_bulletin.get_new_dwelling_sales()
+
+    # Or fetch any table by name
+    housing_bulletin.list_tables()
+    df = housing_bulletin.get_latest_data('waiting-list')
+
+.. code-block:: console
+
+    $ bolster nisra housing-bulletin --list-tables
+    $ bolster nisra housing-bulletin --table starts
+    $ bolster nisra housing-bulletin --table sales --summary
+
 Drug-Related Deaths
 ~~~~~~~~~~~~~~~~~~~
 
@@ -337,6 +367,25 @@ Annual drug-related and drug misuse deaths by year, age, gender, and substance.
 .. code-block:: console
 
     $ bolster nisra drug-related-deaths
+
+Teacher Workforce
+~~~~~~~~~~~~~~~~~
+
+Teachers in grant-aided schools — headcount by age, sex and working pattern,
+full-time equivalents by school type, and pupil:teacher ratios, all broken
+down by Local Government District.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import teacher_workforce
+
+    df = teacher_workforce.get_headcount()
+
+.. code-block:: console
+
+    $ bolster nisra teacher-workforce
+    $ bolster nisra teacher-workforce --dimension ptr
+    $ bolster nisra teacher-workforce --summary
 
 Wellbeing
 ~~~~~~~~~
@@ -385,6 +434,23 @@ Quarterly births, deaths, marriages, and LGD breakdowns.
 .. code-block:: console
 
     $ bolster nisra registrar-general
+
+School Leavers Survey
+~~~~~~~~~~~~~~~~~~~~~~
+
+Qualifications achieved and destinations of school leavers, by geography,
+free school meal entitlement, and equality group.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import school_leavers
+
+    attainment = school_leavers.get_latest_school_leavers("attainment", "lgd")
+    equality = school_leavers.get_attainment_by_equality_group()
+
+.. code-block:: console
+
+    $ bolster nisra school-leavers --dimension destination --geography lgd
 
 Tourism — Occupancy
 ~~~~~~~~~~~~~~~~~~~~
@@ -617,6 +683,36 @@ district, allegation type, and outcome back to 2000/01.
 
     $ bolster psni police-ombudsman
 
+Road Safety Partnership
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Record-level safety camera detections from the Northern Ireland Road Safety
+Partnership — 719,200 detections from 2011 to 2024 covering fixed, mobile,
+average-speed and red light running cameras, with outcome, district, speed
+band and offender demographics. Published on OpenDataNI in two batches with
+differing column headers; the module normalises both onto a common schema and
+attaches LGD and NUTS3 codes.
+
+.. code-block:: python
+
+    from bolster.data_sources.psni import road_safety_partnership as rsp
+
+    df      = rsp.get_detections(year=2024)
+    annual  = rsp.get_annual_summary()
+    by_lgd  = rsp.get_detections_by_district(year=2024)
+    speeds  = rsp.get_speed_distribution(year=2024)
+
+.. code-block:: console
+
+    $ bolster psni road-safety
+    $ bolster psni road-safety --dimension district --year 2024
+
+.. note::
+
+   Reference numbers restart at 1 in each published batch and are not globally
+   unique. Red light running camera detections record no speed. Speed and
+   offender age are published as bands rather than exact values.
+
 ----
 
 DVA — Driver and Vehicle Agency
@@ -715,10 +811,11 @@ Standardised house price index for Northern Ireland.
 
 ----
 
-Justice — NICTS
----------------
+Justice
+-------
 
-NI Courts and Tribunals Service (NICTS) statistics.
+Department of Justice, its sponsored bodies, and the NI Courts and Tribunals
+Service (NICTS).
 
 Mortgage Possession Actions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -765,6 +862,101 @@ most recent years, returned as a single tidy long frame.
     $ bolster justice nicts-quarterly --list-courts
     $ bolster justice nicts-quarterly --court crown_court
     $ bolster justice nicts-quarterly --annual --format json
+
+First Time Entrants
+~~~~~~~~~~~~~~~~~~~
+
+People receiving their first conviction or diversionary disposal in Northern
+Ireland, broken down by age band, gender, offence classification and disposal
+type, alongside the headline percentage of all offenders who are first time
+entrants. Financial years from 2011-12, with thirteen editions available.
+
+Tables are keyed by their title text rather than sheet name or worksheet
+number, since both drift between editions.
+
+.. code-block:: python
+
+    from bolster.data_sources.justice import first_time_entrants as fte
+
+    # Every table, every breakdown
+    df = fte.get_latest_data()
+
+    # A single breakdown
+    by_age = fte.get_by_age()
+    by_offence = fte.get_by_offence()
+
+    # Headline first time offender percentage over time
+    headline = fte.get_headline_series()
+
+    # Older editions
+    older = fte.parse_data(fte.download_file(fte.find_data_file(fte.list_publications()[5]["url"])))
+
+.. code-block:: console
+
+    $ bolster justice first-time-entrants --headline
+    $ bolster justice first-time-entrants --breakdown age_band
+    $ bolster justice first-time-entrants --table 3e --format json
+
+PBNI Caseload
+~~~~~~~~~~~~~
+
+Probation Board for Northern Ireland caseload statistics — annual (31 March
+snapshot, five years of history) and quarterly bulletins covering the people
+under probation supervision, their orders, demographics, risk assessments, and
+registered victims.
+
+.. code-block:: python
+
+    from bolster.data_sources.justice import pbni_caseload
+
+    df = pbni_caseload.get_annual_caseload()
+
+    # Any published breakdown
+    orders = pbni_caseload.get_latest_data("order_type", frequency="quarterly")
+    pbni_caseload.list_dimensions("quarterly")
+
+.. code-block:: console
+
+    $ bolster justice pbni-caseload --summary
+    $ bolster justice pbni-caseload --frequency quarterly --dimension order_type
+
+----
+
+Communities — Child Maintenance Service
+---------------------------------------
+
+Quarterly Child Maintenance Service statistics for Northern Ireland, published
+by the Department for Communities: applications and their clearance, the
+composition of arrangements, children covered, paying parent numbers and
+demographics, maintenance due and paid, and enforcement collections. All eight
+workbook tables are flattened into one tidy long frame with a ``table``
+discriminator column.
+
+A single release does not carry the full back series — most tables show only the
+last few years, and paying parent characteristics only a single quarter — so
+``get_historical_data()`` stitches successive releases together.
+
+.. code-block:: python
+
+    from bolster.data_sources.dfc import child_maintenance
+
+    # Every table from the most recent release
+    df = child_maintenance.get_latest_data()
+
+    # Stitch releases together for the full published run
+    history = child_maintenance.get_historical_data(max_publications=8)
+
+    # A single table
+    enforcement = child_maintenance.get_enforcement()
+
+    # What tables are available?
+    child_maintenance.list_tables()
+
+.. code-block:: console
+
+    $ bolster dfc child-maintenance --list-tables
+    $ bolster dfc child-maintenance --table enforcement
+    $ bolster dfc child-maintenance --historical --summary
 
 ----
 
@@ -903,6 +1095,40 @@ UK Gender Pay Gap reporting data from 2017 to present (all employers with
 .. code-block:: console
 
     $ bolster gender-pay-gap
+
+----
+
+DAERA
+-----
+
+Greenhouse Gas Inventory
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Northern Ireland greenhouse gas emissions from 1990 onwards, broken down by
+sector, by gas, and under the National Communication and Territorial Emissions
+Statistics classifications, with UK totals for comparison.
+
+Full time series are reported in ktCO2e; summary and change tables are in
+MtCO2e.  LULUCF values can legitimately be negative where removals exceed
+emissions.
+
+.. code-block:: python
+
+    from bolster.data_sources.daera_greenhouse_gas import (
+        get_annual_totals,
+        get_emissions_by_sector,
+        get_gas_changes,
+    )
+
+    totals = get_annual_totals()
+    by_sector = get_emissions_by_sector()
+    by_gas = get_gas_changes()
+
+.. code-block:: console
+
+    $ bolster daera greenhouse-gas --summary
+    $ bolster daera greenhouse-gas --dataset totals
+    $ bolster daera greenhouse-gas --sector Agriculture --year 2024
 
 ----
 
