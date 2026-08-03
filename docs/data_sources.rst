@@ -161,6 +161,26 @@ unemployment rates for Northern Ireland.
 
     $ bolster nisra labour-market
 
+Young People NEET
+~~~~~~~~~~~~~~~~~
+
+Quarterly estimates of 16-24 year olds not in education, employment or training
+(NEET), from the Labour Force Survey.  Counts and rates by sex back to Jan-Mar
+2013, with confidence intervals, plus latest-quarter labour market status, NEET
+composition, and a UK comparison.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import neet
+
+    df = neet.get_quarterly_series()
+    gap = neet.get_gender_gap()
+
+.. code-block:: console
+
+    $ bolster nisra neet --table quarterly
+    $ bolster nisra neet --table gender-gap --year 2026
+
 Working and Workless Households
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
