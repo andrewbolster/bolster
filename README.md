@@ -232,6 +232,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | NI School Leavers Survey (DE) | `nisra.school_leavers` | ✅ |
 | NICTS Mortgages Action for Possession (DoJ) | `justice.mortgages` | ✅ |
 | NICTS Quarterly Court Business Figures (DoJ) | `justice.nicts_quarterly` | ✅ |
+| Court Prosecutions, Convictions & Out of Court Disposals (DoJ) | `justice.prosecutions_convictions` | ✅ |
 | First Time Entrants to the Criminal Justice System (DoJ) | `justice.first_time_entrants` | ✅ |
 | PBNI Caseload Statistics (annual + quarterly) | `justice.pbni_caseload` | ✅ |
 | PPS Statistical Bulletin (PPS NI) | `justice.pps_statistical_bulletin` | ✅ |

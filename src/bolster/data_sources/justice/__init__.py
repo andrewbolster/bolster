@@ -14,10 +14,18 @@ and the Public Prosecution Service (PPS):
   (annual and quarterly snapshots of people under probation supervision).
 - pps_statistical_bulletin: PPS casework statistics covering files received,
   prosecution and diversion decisions, timeliness, and court outcomes.
+- prosecutions_convictions: Annual court prosecutions, convictions and out of
+  court disposals, including conviction rates by court tier and diversionary
+  disposals by gender and age.
 
 Most have corresponding CLI commands under ``bolster justice ...``.
 """
 
-from . import mortgages, nicts_quarterly, pbni_caseload
+from . import mortgages, nicts_quarterly, pbni_caseload, prosecutions_convictions
 
-__all__ = ["mortgages", "nicts_quarterly", "pbni_caseload"]
+__all__ = [
+    "mortgages",
+    "nicts_quarterly",
+    "pbni_caseload",
+    "prosecutions_convictions",
+]
