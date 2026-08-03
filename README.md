@@ -257,6 +257,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | NI Multiple Deprivation Measure 2017 (NIMDM, SOA-level) | `nisra.deprivation` | ✅ |
 | Translink Live Departures & Vehicle Positions | `translink` | ✅ |
 | Child Maintenance Service Statistics (DfC) | `dfc.child_maintenance` | ✅ |
+| YPBAS Travel to/from School (DfI) | `dfi.school_travel` | ✅ |
 | Security Situation Statistics | - | 🔍 not built; source reachable |
 | Anti-social Behaviour | - | 🔍 not built; source reachable |
 | Domestic Abuse Incidents/Crimes | - | 🔍 not built; source reachable |

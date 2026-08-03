@@ -811,6 +811,45 @@ Standardised house price index for Northern Ireland.
 
 ----
 
+Infrastructure NI (DfI)
+-----------------------
+
+Statistics from the Department for Infrastructure.
+
+Travel to and from School (YPBAS)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The Young Persons' Behaviour and Attitudes Survey travel module: how pupils
+travel to and from school, how they would like to travel, perceived road
+safety, and walking/cycling participation. Detail tables carry 95% confidence
+intervals and break down by sex and school year group; the trend tables cover
+2016, 2019, 2022 and 2025.
+
+.. code-block:: python
+
+    from bolster.data_sources.dfi import school_travel
+
+    # Latest detail tables (686 estimates across 12 questions)
+    df = school_travel.get_latest_data()
+
+    # Year-group breakdown only
+    by_year = df[df["breakdown_type"] == "year_group"]
+
+    # Multi-year trend
+    trend = school_travel.get_trend_data()
+
+    # What questions are available?
+    school_travel.list_questions()
+
+.. code-block:: console
+
+    $ bolster dfi school-travel
+    $ bolster dfi school-travel --table trend
+    $ bolster dfi school-travel --breakdown year_group --summary
+    $ bolster dfi school-travel --list-questions
+
+----
+
 Justice
 -------
 
