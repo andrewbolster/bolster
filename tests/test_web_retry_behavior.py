@@ -5,11 +5,11 @@ from unittest.mock import Mock, patch
 
 import pytest
 import requests
-from requests.adapters import HTTPAdapter
 from requests import exceptions as requests_exceptions
+from requests.adapters import HTTPAdapter
 from waybackpy import exceptions as wayback_exceptions
 
-from bolster.utils.web import _retry_strategy, session, RateLimitAwareRetry, resilient_get, get_last_valid
+from bolster.utils.web import RateLimitAwareRetry, _retry_strategy, resilient_get, session
 
 
 class TestRetryConfiguration:
@@ -153,13 +153,9 @@ class TestRateLimitAwareRetry:
         mock_response.status = 429
 
         # This should trigger the warning log and set _last_status
-        with patch('bolster.utils.web.logger.warning') as mock_logger:
+        with patch("bolster.utils.web.logger.warning") as mock_logger:
             # Call increment - this covers lines 51-53
-            new_retry = retry.increment(
-                method='GET',
-                url='https://example.com/test',
-                response=mock_response
-            )
+            retry.increment(method="GET", url="https://example.com/test", response=mock_response)
 
             # Should have logged the 429 warning
             mock_logger.assert_called_once()
@@ -174,12 +170,8 @@ class TestRateLimitAwareRetry:
         mock_response.status = 500
         mock_response.reason = "Internal Server Error"
 
-        with patch('bolster.utils.web.logger.warning') as mock_logger:
-            retry.increment(
-                method='GET',
-                url='https://example.com/test',
-                response=mock_response
-            )
+        with patch("bolster.utils.web.logger.warning") as mock_logger:
+            retry.increment(method="GET", url="https://example.com/test", response=mock_response)
 
             mock_logger.assert_called_once()
             assert "500" in mock_logger.call_args[0][0]
@@ -193,11 +185,11 @@ class TestResilientGet:
         test_url = "https://example.com/nonexistent"
 
         # Mock session.get to fail on direct request
-        with patch.object(session, 'get') as mock_get:
+        with patch.object(session, "get") as mock_get:
             mock_get.side_effect = requests_exceptions.HTTPError("Direct request failed")
 
             # Mock get_last_valid to raise NoCDXRecordFound
-            with patch('bolster.utils.web.get_last_valid') as mock_wayback:
+            with patch("bolster.utils.web.get_last_valid") as mock_wayback:
                 mock_wayback.side_effect = wayback_exceptions.NoCDXRecordFound("No wayback record")
 
                 # Should raise the original HTTP error with wayback error as cause
@@ -216,17 +208,14 @@ class TestResilientGet:
         mock_wayback_response = Mock()
         mock_wayback_response.raise_for_status.return_value = None
 
-        with patch.object(session, 'get') as mock_get:
+        with patch.object(session, "get") as mock_get:
             # First call (direct) fails, second call (wayback) succeeds
-            mock_get.side_effect = [
-                requests_exceptions.HTTPError("Direct failed"),
-                mock_wayback_response
-            ]
+            mock_get.side_effect = [requests_exceptions.HTTPError("Direct failed"), mock_wayback_response]
 
-            with patch('bolster.utils.web.get_last_valid') as mock_wayback:
+            with patch("bolster.utils.web.get_last_valid") as mock_wayback:
                 mock_wayback.return_value = wayback_url
 
-                with patch('bolster.utils.web.logger.warning') as mock_logger:
+                with patch("bolster.utils.web.logger.warning") as mock_logger:
                     result = resilient_get(test_url)
 
                     # Should return the wayback response
