@@ -8,6 +8,7 @@ This module provides access to PSNI open data including:
   Criminal Evidence (PACE) Order
 - Motoring Offences: Annual enforcement statistics (fixed penalty notices,
   prosecutions, driver retraining courses) by offence, disposal and district
+- Road Safety Partnership: Record-level safety camera detections from 2011
 
 Data is sourced from OpenDataNI and the Police Ombudsman's Office under the
 Open Government Licence v3.0.
@@ -30,7 +31,7 @@ Example:
 See individual module docstrings for detailed documentation.
 """
 
-from . import motoring_offences, pace, stop_and_search
+from . import motoring_offences, pace, road_safety_partnership, stop_and_search
 from ._base import (
     PSNIDataError,
     PSNIDataNotFoundError,
@@ -89,6 +90,8 @@ __all__ = [
     "motoring_offences",
     # Stop and Search module
     "stop_and_search",
+    # Road Safety Partnership module
+    "road_safety_partnership",
     # Crime Statistics - Main functions
     "get_historical_crime_statistics",
     "get_latest_crime_statistics",

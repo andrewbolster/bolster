@@ -39,9 +39,7 @@ class TestDeprivationIntegrity:
         assert len(latest_data) > 0
 
     def test_soa_count(self, latest_data: pd.DataFrame) -> None:
-        assert latest_data["soa_code"].nunique() >= 880, (
-            f"Expected ~890 SOAs, got {latest_data['soa_code'].nunique()}"
-        )
+        assert latest_data["soa_code"].nunique() >= 880, f"Expected ~890 SOAs, got {latest_data['soa_code'].nunique()}"
 
     def test_soa_codes_unique(self, latest_data: pd.DataFrame) -> None:
         assert not latest_data["soa_code"].duplicated().any()
