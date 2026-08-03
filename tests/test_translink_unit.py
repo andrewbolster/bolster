@@ -36,7 +36,6 @@ from bolster.data_sources.translink.vehicles import (
     validate_vehicles,
 )
 
-
 # ---------------------------------------------------------------------------
 # _base: net_ticks_to_timestamp
 # ---------------------------------------------------------------------------
@@ -310,10 +309,7 @@ class TestParseDepartures:
 
     def test_sorted_by_actual_departure(self):
         base = 638_529_990_000_000_000
-        deps = [
-            _make_departure(SysActualDepartureDate=base + i * 600_000_000, UniqueId=f"dep-{i}")
-            for i in [3, 1, 2]
-        ]
+        deps = [_make_departure(SysActualDepartureDate=base + i * 600_000_000, UniqueId=f"dep-{i}") for i in [3, 1, 2]]
         df = _parse_departures(deps)
         times = df["actual_departure"].tolist()
         assert times == sorted(times)
@@ -542,8 +538,10 @@ class TestParseCifTrips:
         cif = (
             "QDNMET 11B OCity Centre - Springmartin\n"
             "QSNMET 0545  20260413999999991111100 X11B       DD              O\n"
-            "QO700000001436" "0545CHCT1  \n"
-            "QT700000001425" "0559   T1  \n"
+            "QO700000001436"
+            "0545CHCT1  \n"
+            "QT700000001425"
+            "0559   T1  \n"
         )
         trips = _parse_cif_trips(_make_trip_zip(cif))
         assert len(trips) == 1

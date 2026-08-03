@@ -343,9 +343,7 @@ class TestDeprecatedDimensionAliases:
         with patch("bolster.data_sources.nisra.wellbeing.get_latest_personal_wellbeing") as mock:
             import pandas as pd
 
-            mock.return_value = pd.DataFrame(
-                {"year": ["2024/25"], "measure": ["Life satisfaction"], "mean": [7.5]}
-            )
+            mock.return_value = pd.DataFrame({"year": ["2024/25"], "measure": ["Life satisfaction"], "mean": [7.5]})
             result = runner.invoke(cli, ["nisra", "wellbeing", "--metric", "personal"])
         assert "deprecated" in result.output.lower()
         assert "--dimension" in result.output

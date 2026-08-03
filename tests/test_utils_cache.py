@@ -1,20 +1,20 @@
 """Tests for bolster.utils.cache module."""
 
+import shutil
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
-import shutil
+from unittest.mock import Mock, patch
 
 import pytest
 import requests
 
 from bolster.utils.cache import (
-    CachedDownloader,
-    DownloadError,
-    CacheError,
-    hash_url,
     CACHE_BASE,
+    CachedDownloader,
+    CacheError,
+    DownloadError,
+    hash_url,
 )
 
 
@@ -74,7 +74,7 @@ class TestCachedDownloader:
         self.original_cache_base = CACHE_BASE
 
         # Patch CACHE_BASE to use our test directory
-        self.cache_patcher = patch('bolster.utils.cache.CACHE_BASE', self.test_cache_dir)
+        self.cache_patcher = patch("bolster.utils.cache.CACHE_BASE", self.test_cache_dir)
         self.cache_patcher.start()
 
     def teardown_method(self):
@@ -127,6 +127,7 @@ class TestCachedDownloader:
         # Set the file's modification time to 2 days ago
         old_time = (datetime.now() - timedelta(days=2)).timestamp()
         import os
+
         os.utime(cache_path, (old_time, old_time))
 
         # Should return None since file is stale (>24 hours old)
@@ -155,7 +156,7 @@ class TestCachedDownloader:
         result = downloader.get_cached_file(url, cache_ttl_hours=24)
         assert result == cache_path
 
-    @patch('bolster.utils.cache.web_session')
+    @patch("bolster.utils.cache.web_session")
     def test_download_success_caches_file(self, mock_session):
         """Test successful download creates cached file - covers lines 135-151."""
         # Mock successful response
@@ -182,7 +183,7 @@ class TestCachedDownloader:
         mock_session.get.assert_called_once_with(url, timeout=60, headers=None)
         mock_response.raise_for_status.assert_called_once()
 
-    @patch('bolster.utils.cache.web_session')
+    @patch("bolster.utils.cache.web_session")
     def test_download_uses_custom_timeout(self, mock_session):
         """Test download uses custom timeout."""
         mock_response = Mock()
@@ -195,7 +196,7 @@ class TestCachedDownloader:
 
         mock_session.get.assert_called_once_with("https://example.com/data.csv", timeout=30, headers=None)
 
-    @patch('bolster.utils.cache.web_session')
+    @patch("bolster.utils.cache.web_session")
     def test_download_network_error_raises_download_error(self, mock_session):
         """Test download raises DownloadError on network failure - covers lines 150-151."""
         mock_session.get.side_effect = requests.exceptions.RequestException("Network error")
@@ -205,7 +206,7 @@ class TestCachedDownloader:
         with pytest.raises(DownloadError, match="Failed to download.*Network error"):
             downloader.download("https://example.com/data.csv")
 
-    @patch('bolster.utils.cache.web_session')
+    @patch("bolster.utils.cache.web_session")
     def test_download_http_error_raises_download_error(self, mock_session):
         """Test download raises DownloadError on HTTP error."""
         mock_response = Mock()
@@ -217,7 +218,7 @@ class TestCachedDownloader:
         with pytest.raises(DownloadError, match="Failed to download.*404 Not Found"):
             downloader.download("https://example.com/data.csv")
 
-    @patch('bolster.utils.cache.web_session')
+    @patch("bolster.utils.cache.web_session")
     def test_download_returns_cached_when_available(self, mock_session):
         """Test download returns cached file when available instead of downloading."""
         downloader = CachedDownloader("test")
@@ -234,7 +235,7 @@ class TestCachedDownloader:
         assert result == cache_path
         mock_session.get.assert_not_called()
 
-    @patch('bolster.utils.cache.web_session')
+    @patch("bolster.utils.cache.web_session")
     def test_download_force_refresh_bypasses_cache(self, mock_session):
         """Test download with force_refresh=True bypasses cache."""
         # Mock successful response
@@ -325,7 +326,7 @@ class TestCachedDownloader:
         assert result == 0
         assert test_file.exists()
 
-    @patch('bolster.utils.cache.logger')
+    @patch("bolster.utils.cache.logger")
     def test_logging_behavior(self, mock_logger):
         """Test that appropriate log messages are generated."""
         downloader = CachedDownloader("test")

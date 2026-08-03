@@ -72,8 +72,7 @@ class PSNIDataStaleError(PSNIDataError):
     """Raised when a PSNI data source is known to be stale with no accessible update.
 
     This exception is raised when the underlying data source has not been updated
-    and no machine-readable replacement is accessible (e.g. due to Cloudflare
-    protection on the official PSNI website blocking automated downloads).
+    and this package has no route to a machine-readable replacement.
     """
 
     pass
