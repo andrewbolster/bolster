@@ -19,6 +19,7 @@ Available modules:
     - labour_market: Quarterly Labour Force Survey statistics (employment, economic inactivity)
     - marriages: Monthly marriage registrations
     - migration: Official and derived migration estimates (demographic components)
+    - neet: Young people (16-24) not in education, employment or training (NEET)
     - population: Annual mid-year population estimates by age, sex, and geography
     - planning_statistics: NI Planning Activity Statistics - quarterly applications, by council
     - population_projections: Population projections by age, sex, and geography (2022-2072)
@@ -148,6 +149,7 @@ from . import (
     labour_market,
     marriages,
     migration,
+    neet,
     planning_statistics,
     population,
     population_projections,
@@ -183,6 +185,7 @@ __all__ = [
     "quarterly_employment_survey",
     "marriages",
     "migration",
+    "neet",
     "planning_statistics",
     "population",
     "population_projections",

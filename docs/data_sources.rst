@@ -161,6 +161,26 @@ unemployment rates for Northern Ireland.
 
     $ bolster nisra labour-market
 
+Young People NEET
+~~~~~~~~~~~~~~~~~
+
+Quarterly estimates of 16-24 year olds not in education, employment or training
+(NEET), from the Labour Force Survey.  Counts and rates by sex back to Jan-Mar
+2013, with confidence intervals, plus latest-quarter labour market status, NEET
+composition, and a UK comparison.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import neet
+
+    df = neet.get_quarterly_series()
+    gap = neet.get_gender_gap()
+
+.. code-block:: console
+
+    $ bolster nisra neet --table quarterly
+    $ bolster nisra neet --table gender-gap --year 2026
+
 Working and Workless Households
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -739,6 +759,30 @@ arrests by gender and category, back to 2013/14.
 .. code-block:: console
 
     $ bolster psni pace
+
+Motoring Offences
+~~~~~~~~~~~~~~~~~
+
+Annual motoring offence enforcement outcomes — fixed penalty notices,
+referrals for prosecution and driver retraining courses. Disposal-type
+totals run from 1998; offence-group breakdowns by month, age, gender,
+district and disposal cover the latest year, with per-offence series for
+speeding, mobile phone, careless driving and drink/drug driving from 2011.
+
+Complements :mod:`~bolster.data_sources.psni.road_traffic_collisions`, which
+covers injury events rather than enforcement actions.
+
+.. code-block:: python
+
+    from bolster.data_sources.psni import motoring_offences
+
+    trends = motoring_offences.get_annual_trends()
+    districts = motoring_offences.get_offences_by_district()
+
+.. code-block:: console
+
+    $ bolster psni motoring-offences --list-tables
+    $ bolster psni motoring-offences --table district
 
 Police Ombudsman
 ~~~~~~~~~~~~~~~~
