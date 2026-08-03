@@ -234,6 +234,7 @@ The [GOV.UK NISRA statistics RSS feed](https://www.gov.uk/search/research-and-st
 | NICTS Quarterly Court Business Figures (DoJ) | `justice.nicts_quarterly` | ✅ |
 | First Time Entrants to the Criminal Justice System (DoJ) | `justice.first_time_entrants` | ✅ |
 | PBNI Caseload Statistics (annual + quarterly) | `justice.pbni_caseload` | ✅ |
+| PPS Statistical Bulletin (PPS NI) | `justice.pps_statistical_bulletin` | ✅ |
 | Work Quality NI (NISRA) | `nisra.work_quality` | ✅ |
 | NI LAC Municipal Waste Statistics (DAERA) | `daera_waste` | ✅ |
 | NI Greenhouse Gas Inventory (DAERA) | `daera_greenhouse_gas` | ✅ |

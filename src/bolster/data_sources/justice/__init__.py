@@ -1,8 +1,8 @@
-"""Northern Ireland Department of Justice data sources.
+"""Northern Ireland justice system data sources.
 
 Modules wrapping statistical publications from the Department of Justice (DoJ),
-its sponsored bodies, and the Northern Ireland Courts and Tribunals Service
-(NICTS):
+its sponsored bodies, the Northern Ireland Courts and Tribunals Service (NICTS)
+and the Public Prosecution Service (PPS):
 
 - first_time_entrants: First time entrants to the criminal justice system,
   broken down by age band, gender, offence classification and disposal type.
@@ -12,6 +12,8 @@ its sponsored bodies, and the Northern Ireland Courts and Tribunals Service
   NICTS court datasets, from the Court of Appeal to the Magistrates' Courts.
 - pbni_caseload: Probation Board for Northern Ireland caseload statistics
   (annual and quarterly snapshots of people under probation supervision).
+- pps_statistical_bulletin: PPS casework statistics covering files received,
+  prosecution and diversion decisions, timeliness, and court outcomes.
 
 Most have corresponding CLI commands under ``bolster justice ...``.
 """

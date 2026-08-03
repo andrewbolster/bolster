@@ -960,6 +960,46 @@ last few years, and paying parent characteristics only a single quarter — so
 
 ----
 
+Justice — PPS Statistical Bulletin
+----------------------------------
+
+Public Prosecution Service casework statistics: files and defendants received
+from police, prosecution and diversion decisions by offence group, the number
+of days taken to issue a decision, and the outcomes of contested Crown and
+Magistrates' court cases. Each annual bulletin restates the prior financial
+year alongside the current one, so a single download covers two years.
+
+Suppressed cells (small-count disclosure control) come back as ``NaN`` in
+``value`` with the original symbol preserved in ``marker``.
+
+.. code-block:: python
+
+    from bolster.data_sources.justice import pps_statistical_bulletin as pps
+
+    # Every table in the latest bulletin
+    df = pps.get_latest_data()
+
+    # Typed accessors for the headline tables
+    received = pps.get_files_received()
+    decisions = pps.get_decisions()
+    timeliness = pps.get_timeliness()
+    outcomes = pps.get_court_outcomes()
+
+    # Several bulletins stitched into one series
+    history = pps.get_historical_data(max_publications=5)
+
+    # What table keys are available?
+    pps.list_tables()
+
+.. code-block:: console
+
+    $ bolster justice pps-statistical-bulletin --list-tables
+    $ bolster justice pps-statistical-bulletin --table 1a
+    $ bolster justice pps-statistical-bulletin --table 3a --year 2024/25
+    $ bolster justice pps-statistical-bulletin --historical --format json
+
+----
+
 Translink
 ---------
 
