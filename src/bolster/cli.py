@@ -66,6 +66,7 @@ from .data_sources.nisra import school_leavers as nisra_school_leavers
 from .data_sources.nisra import teacher_workforce as nisra_teacher_workforce
 from .data_sources.nisra import wellbeing as nisra_wellbeing
 from .data_sources.nisra import work_quality as nisra_work_quality
+from .data_sources.nisra import workless_households as nisra_workless_households
 from .data_sources.nisra.tourism import occupancy as nisra_occupancy
 from .data_sources.nisra.tourism import visitor_statistics as nisra_visitors
 from .data_sources.ons_cpi import SERIES as ONS_CPI_SERIES
@@ -1880,6 +1881,8 @@ def nisra_feed(limit: int, title_filter: str, days: int, check_coverage: bool):
         "registrar general": "registrar-general",
         "baby names": "baby-names",
         "work quality": "work-quality",
+        "workless households": "workless-households",
+        "working and workless households": "workless-households",
     }
 
     with console.status("Fetching NISRA RSS feed..."):
@@ -7216,6 +7219,130 @@ def nisra_work_quality_cmd(indicator, year, output_format, force_refresh, save):
         raise click.Abort() from e
 
 
+@nisra.command(name="workless-households")
+@click.option(
+    "--table",
+    default="northern-ireland",
+    help="Which table to retrieve (default: northern-ireland). Use --list-tables to see all.",
+)
+@click.option("--list-tables", is_flag=True, help="List available tables and exit")
+@click.option("--year", type=int, default=None, help="Filter by year (time series tables only)")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show a summary instead of the full table")
+def nisra_workless_households_cmd(table, list_tables, year, output_format, force_refresh, save, summary):
+    r"""Working and workless households in Northern Ireland (LFS).
+
+    \b
+    Household-level economic activity from the Labour Force Survey. A household
+    is "work rich" if every working-age adult is in work, "mixed" if some are,
+    and "workless" if none are. This differs from the individual employment
+    rate because it captures how employment is distributed across households.
+
+    \b
+    Tables:
+        northern-ireland          NI quarterly series, 1996-present (default)
+        regional                  All UK regions and nations, 1996-present
+        status                    Latest NI work rich / mixed / workless split
+        household-types           Latest NI households by composition
+        female-activity-children  Female activity rate by number of children
+        female-activity-age       Female activity rate by age and children
+        female-activity-youngest  Female activity rate by age of youngest child
+
+    Examples:
+        NI quarterly series::
+
+            bolster nisra workless-households
+
+        Latest economic status split::
+
+            bolster nisra workless-households --table status
+
+        All UK regions for 2025, saved as JSON::
+
+            bolster nisra workless-households --table regional --year 2025 \
+                --format json --save regions2025.json
+
+    Source:
+        ONS Table C (regional series) and the NISRA quarterly LFS Households
+        workbook: https://www.nisra.gov.uk/statistics/work-pay-and-benefits/labour-force-survey
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    if list_tables:
+        console.print("[bold]Available tables:[/bold]")
+        for name in nisra_workless_households.list_tables():
+            console.print(f"  {name}")
+        return
+
+    try:
+        with console.status("[bold green]Downloading working and workless household data..."):
+            data = nisra_workless_households.get_latest_data(table, force_refresh=force_refresh)
+
+        if year is not None:
+            if "year" not in data.columns:
+                console.print(f"[yellow]Table '{table}' has no year column[/yellow]")
+                return
+            data = data[data["year"] == year]
+            if data.empty:
+                console.print(f"[yellow]No data found for year {year}[/yellow]")
+                return
+
+        console.print("[green]Working and workless household data retrieved successfully[/green]")
+        console.print(f"[cyan]Table: {table} | Rows: {len(data)}[/cyan]")
+        if "year" in data.columns and not data.empty:
+            console.print(f"[dim]Years: {data['year'].min()}–{data['year'].max()}[/dim]")
+
+        if summary:
+            if "workless_rate" in data.columns:
+                latest = data.dropna(subset=["workless_rate"]).iloc[-1]
+                console.print(f"\n[bold]{latest['period']}[/bold]")
+                console.print(f"  Work rich: {latest['working_rate']:.1f}%")
+                console.print(f"  Mixed:     {latest['mixed_rate']:.1f}%")
+                console.print(f"  Workless:  {latest['workless_rate']:.1f}%")
+            else:
+                console.print(f"\n{data.head(10).to_string(index=False)}")
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Run with --list-tables to see valid table names")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
 @nisra.command(name="public-confidence")
 @click.option(
     "--breakdown",
@@ -9957,6 +10084,7 @@ def list_sources():
     click.echo("  nisra elective-waiting-times  Elective/outpatient waiting times")
     click.echo("  nisra wellbeing            Individual wellbeing statistics")
     click.echo("  nisra work-quality         Work quality indicators (17 dimensions)")
+    click.echo("  nisra workless-households  Working/mixed/workless households (LFS)")
     click.echo("  nisra planning-statistics  NI planning applications by council")
     click.echo("  nisra registrar-general    Registrar General quarterly vital statistics")
     click.echo("  nisra baby-names           Baby name registrations (1997–present)")

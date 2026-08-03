@@ -161,6 +161,26 @@ unemployment rates for Northern Ireland.
 
     $ bolster nisra labour-market
 
+Working and Workless Households
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Household-level economic activity from the LFS.  A household is *work rich* if
+every working-age adult is in work, *mixed* if some are, and *workless* if none
+are.  Combines the ONS Table C regional series (1996–present) with NISRA's
+quarterly LFS Households workbook for NI-only breakdowns.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import workless_households
+
+    ni = workless_households.get_northern_ireland_series()
+    status = workless_households.get_economic_status_summary()
+
+.. code-block:: console
+
+    $ bolster nisra workless-households
+    $ bolster nisra workless-households --table status
+
 Claimant Count
 ~~~~~~~~~~~~~~
 
