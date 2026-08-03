@@ -592,6 +592,59 @@ statistics from the Department of Health.
 
     $ bolster nisra child-protection
 
+HSC Workforce
+~~~~~~~~~~~~~
+
+Size, composition and turnover of the Health and Social Care workforce,
+from March 2021 to the latest census point.  Figures are whole-time
+equivalents (WTE) unless stated otherwise.
+
+.. code-block:: python
+
+    from bolster.data_sources.health_ni import hsc_workforce
+
+    # Headline WTE, headcount and active posts by census point
+    df = hsc_workforce.get_workforce_summary()
+
+    # WTE by staff group, or the profession-level cut
+    groups = hsc_workforce.get_workforce_by_staff_group()
+    professions = hsc_workforce.get_workforce_by_staff_group(sub=True)
+
+    # Joiners, leavers and stability by financial year
+    turnover = hsc_workforce.get_turnover(measure="leavers")
+
+.. code-block:: console
+
+    $ bolster nisra hsc-workforce
+    $ bolster nisra hsc-workforce --view staff-group --sub
+    $ bolster nisra hsc-workforce --view turnover --measure joiners
+
+HSC Active Recruitment
+~~~~~~~~~~~~~~~~~~~~~~
+
+Vacancy counts and vacancy rates across the HSC workforce, from March 2017
+to the latest census point.  Consultant and SAS doctor vacancies begin in
+March 2020.
+
+.. code-block:: python
+
+    from bolster.data_sources.health_ni import hsc_recruitment
+
+    # Vacancies by staff group and census point
+    df = hsc_recruitment.get_vacancies_by_staff_group()
+
+    # Vacancy rates as a proportion of funded posts
+    rates = hsc_recruitment.get_vacancy_rates()
+
+    # Consultant vacancies by clinical specialty
+    doctors = hsc_recruitment.get_doctor_vacancies(grade="consultant")
+
+.. code-block:: console
+
+    $ bolster nisra hsc-recruitment
+    $ bolster nisra hsc-recruitment --view rates
+    $ bolster nisra hsc-recruitment --view doctors --grade consultant
+
 ----
 
 PSNI
