@@ -9,6 +9,8 @@ Modules:
     - disease_prevalence: Annual GP disease register sizes and prevalence per 1,000 patients
     - elective_waiting_times: Elective and outpatient waiting times
     - emergency_care_waiting_times: Emergency care (A&E) waiting times against the 4-hour target
+    - hsc_recruitment: Active recruitment (vacancy) statistics for the HSC workforce
+    - hsc_workforce: Quarterly HSC workforce size, composition and turnover
 """
 
 from bolster.data_sources.health_ni import (
@@ -18,6 +20,8 @@ from bolster.data_sources.health_ni import (
     disease_prevalence,
     elective_waiting_times,
     emergency_care_waiting_times,
+    hsc_recruitment,
+    hsc_workforce,
 )
 
 __all__ = [
@@ -27,4 +31,6 @@ __all__ = [
     "disease_prevalence",
     "elective_waiting_times",
     "emergency_care_waiting_times",
+    "hsc_recruitment",
+    "hsc_workforce",
 ]

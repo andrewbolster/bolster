@@ -11,21 +11,29 @@ from rich.panel import Panel
 from rich.text import Text
 
 from . import __version__
+from .data_sources import daera_greenhouse_gas as ghg
 from .data_sources import dva, education_suspensions, gender_pay_gap
 from .data_sources.boe_base_rate import get_latest_data as get_boe_base_rate
 from .data_sources.boe_base_rate import get_rate_changes as get_boe_rate_changes
 from .data_sources.cineworld import get_cinema_listings
 from .data_sources.companies_house import get_companies_house_records_that_might_be_in_farset, query_basic_company_data
 from .data_sources.daera_waste import get_latest_waste_statistics, validate_waste_data
+from .data_sources.dfc import child_maintenance as dfc_child_maintenance
+from .data_sources.dfi import school_travel as dfi_school_travel
 from .data_sources.electricity_renewables import get_latest_data as get_electricity_data
 from .data_sources.eoni import get_results as get_ni_election_results
 from .data_sources.health_ni import cancer_waiting_times as nisra_cancer
 from .data_sources.health_ni import diagnostic_waiting_times as nisra_diagnostic
 from .data_sources.health_ni import disease_prevalence as nisra_disease_prevalence
 from .data_sources.health_ni import emergency_care_waiting_times as nisra_emergency
+from .data_sources.health_ni import hsc_recruitment as nisra_hsc_recruitment
+from .data_sources.health_ni import hsc_workforce as nisra_hsc_workforce
+from .data_sources.justice import first_time_entrants as justice_first_time_entrants
 from .data_sources.justice import mortgages as justice_mortgages
 from .data_sources.justice import nicts_quarterly as justice_nicts_quarterly
 from .data_sources.justice import pbni_caseload as justice_pbni
+from .data_sources.justice import pps_statistical_bulletin as justice_pps_statistical_bulletin
+from .data_sources.justice import prosecutions_convictions as justice_prosecutions
 from .data_sources.metoffice import get_uk_precipitation
 from .data_sources.ni_house_price_index import build as get_ni_house_prices
 from .data_sources.ni_water import get_postcode_to_water_supply_zone, get_water_quality_by_zone
@@ -42,20 +50,24 @@ from .data_sources.nisra import deaths as nisra_deaths
 from .data_sources.nisra import deprivation as nisra_deprivation
 from .data_sources.nisra import drug_related_deaths as nisra_drug_related_deaths
 from .data_sources.nisra import homelessness as nisra_homelessness
+from .data_sources.nisra import housing_bulletin as nisra_housing_bulletin
 from .data_sources.nisra import housing_stock as nisra_housing_stock
 from .data_sources.nisra import index_of_production as nisra_iop
 from .data_sources.nisra import index_of_services as nisra_ios
 from .data_sources.nisra import labour_market as nisra_labour_market
 from .data_sources.nisra import marriages as nisra_marriages
 from .data_sources.nisra import migration as nisra_migration
+from .data_sources.nisra import neet as nisra_neet
 from .data_sources.nisra import planning_statistics as nisra_planning
 from .data_sources.nisra import population as nisra_population
 from .data_sources.nisra import population_projections as nisra_projections
 from .data_sources.nisra import public_confidence as nisra_public_confidence
 from .data_sources.nisra import registrar_general as nisra_registrar_general
 from .data_sources.nisra import school_leavers as nisra_school_leavers
+from .data_sources.nisra import teacher_workforce as nisra_teacher_workforce
 from .data_sources.nisra import wellbeing as nisra_wellbeing
 from .data_sources.nisra import work_quality as nisra_work_quality
+from .data_sources.nisra import workless_households as nisra_workless_households
 from .data_sources.nisra.tourism import occupancy as nisra_occupancy
 from .data_sources.nisra.tourism import visitor_statistics as nisra_visitors
 from .data_sources.ons_cpi import SERIES as ONS_CPI_SERIES
@@ -85,7 +97,7 @@ def cli(verbose, args=None):
         * ni-elections         NI Assembly election results (2016-2022)
         * nisra                NISRA statistics (deaths, births, population, economic indicators)
         * psni                 PSNI statistics (road traffic collisions)
-        * daera                DAERA statistics (municipal waste)
+        * daera                DAERA statistics (municipal waste, greenhouse gas inventory)
         * dfe                  DfE statistics (electricity and renewables)
 
     Business & Property:
@@ -1129,6 +1141,262 @@ def daera_waste_cmd(force_refresh, council, financial_year, summary, save, outpu
         raise SystemExit(1) from e
 
 
+@daera.command(name="greenhouse-gas")
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option(
+    "--dataset",
+    type=click.Choice(
+        [
+            "by-sector",
+            "totals",
+            "sector-changes",
+            "gas-changes",
+            "by-gas-and-sector",
+            "revisions",
+            "pfg",
+            "uk-by-sector",
+            "uk-by-gas-and-sector",
+            "national-communication",
+            "tes",
+        ]
+    ),
+    default="by-sector",
+    help="Which table to display (default: by-sector)",
+)
+@click.option("--inventory-year", type=int, help="Inventory edition to read (default: latest)")
+@click.option("--year", type=int, help="Filter to a single reporting year")
+@click.option("--sector", help="Filter by sector name (partial match)")
+@click.option("--summary", is_flag=True, help="Show summary statistics only")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"]),
+    default="table",
+    help="Output format",
+)
+def daera_greenhouse_gas_cmd(force_refresh, dataset, inventory_year, year, sector, summary, save, output_format):
+    """NI Greenhouse Gas Inventory statistics.
+
+    Downloads the latest DAERA greenhouse gas inventory workbook, covering NI
+    emissions from 1990 onwards by sector, by gas, and under two alternative
+    sector classifications, with UK figures for comparison.
+
+    Examples:
+        bolster daera greenhouse-gas                          # Emissions by sector
+        bolster daera greenhouse-gas --dataset totals         # Headline time series
+        bolster daera greenhouse-gas --sector Agriculture     # Filter by sector
+        bolster daera greenhouse-gas --year 2024              # Single year
+        bolster daera greenhouse-gas --summary                # Summary only
+        bolster daera greenhouse-gas --save ghg.csv           # Save to CSV
+    """
+    console = Console()
+
+    accessors = {
+        "by-sector": ghg.get_emissions_by_sector,
+        "totals": ghg.get_annual_totals,
+        "sector-changes": ghg.get_sector_changes,
+        "gas-changes": ghg.get_gas_changes,
+        "by-gas-and-sector": ghg.get_emissions_by_gas_and_sector,
+        "revisions": ghg.get_inventory_revisions,
+        "pfg": ghg.get_pfg_progress,
+        "uk-by-sector": ghg.get_uk_emissions_by_sector,
+        "uk-by-gas-and-sector": ghg.get_uk_emissions_by_gas_and_sector,
+        "national-communication": ghg.get_national_communication_sectors,
+        "tes": ghg.get_tes_categories,
+    }
+
+    try:
+        with console.status("[bold green]Downloading DAERA greenhouse gas inventory..."):
+            df = accessors[dataset](year=inventory_year, force_refresh=force_refresh)
+
+        if sector and "sector" in df.columns:
+            df = df[df["sector"].str.contains(sector, case=False, na=False)]
+            if df.empty:
+                console.print(f"[yellow]No data found for sector matching '{sector}'[/yellow]")
+                return
+
+        if year is not None and "year" in df.columns:
+            df = df[df["year"] == year]
+            if df.empty:
+                console.print(f"[yellow]No data found for year {year}[/yellow]")
+                return
+
+        if save:
+            if save.endswith(".json"):
+                df.to_json(save, orient="records", indent=2)
+            else:
+                df.to_csv(save, index=False)
+            console.print(f"[green]Saved {len(df)} rows to {save}[/green]")
+            return
+
+        if summary:
+            totals = ghg.get_annual_totals(year=inventory_year)
+            latest = totals.iloc[-1]
+            baseline = totals.iloc[0]
+            change = (latest["emissions_ktco2e"] - baseline["emissions_ktco2e"]) / baseline["emissions_ktco2e"]
+            console.print(
+                Panel(
+                    f"[bold cyan]NI Greenhouse Gas Inventory[/bold cyan]\n"
+                    f"[green]Rows in '{dataset}':[/green] {len(df):,}\n"
+                    f"[green]Reporting years:[/green] {int(baseline['year'])} – {int(latest['year'])}\n"
+                    f"[green]{int(latest['year'])} total:[/green] "
+                    f"{latest['emissions_ktco2e'] / 1000:,.2f} MtCO2e\n"
+                    f"[green]Change since {int(baseline['year'])}:[/green] {change:+.1%}",
+                    title="Summary",
+                    border_style="cyan",
+                )
+            )
+            return
+
+        if output_format == "json":
+            click.echo(df.to_json(orient="records", indent=2))
+        elif output_format == "csv":
+            click.echo(df.to_csv(index=False))
+        else:
+            out = df
+            if len(out) > 50:
+                console.print(f"[dim]Showing first 50 of {len(out):,} rows[/dim]")
+                out = out.head(50)
+            click.echo(out.to_string(index=False))
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise SystemExit(1) from e
+
+
+@cli.group()
+def dfc():
+    """NI Department for Communities statistics.
+
+    Access official statistics published by the Department for Communities,
+    including Child Maintenance Service caseload and enforcement figures and
+    the Family Resources Survey.
+    """
+    pass
+
+
+_FRS_DATASETS = {
+    "food-security-region": ("get_food_security_by_region", "Food security by UK country and English region"),
+    "food-security-composition": ("get_food_security_by_composition", "Food security by household composition"),
+    "food-security-disability": ("get_food_security_by_disability", "Food security by household disability status"),
+    "food-security-state-support": ("get_food_security_by_state_support", "Food security by state support receipt"),
+    "food-security-tenure": ("get_food_security_by_tenure", "Food security by housing tenure"),
+    "income-sources": ("get_income_sources", "Household income by source, NI vs UK"),
+    "state-support-country": ("get_state_support_by_country", "State support receipt by UK country"),
+    "state-support-trend": ("get_state_support_trend", "State support receipt over time"),
+    "tenure-trend": ("get_tenure_trend", "Housing tenure over time"),
+    "tenure-district": ("get_tenure_by_district", "Housing tenure by local government district"),
+    "housing-cost-burden": ("get_housing_cost_burden", "Households spending 30%+ of income on housing"),
+    "carers": ("get_carer_prevalence", "Informal carer prevalence by age group"),
+    "disability": ("get_disability_prevalence", "Disability prevalence by age group"),
+    "disability-district": ("get_disability_by_district", "Disability prevalence by local government district"),
+}
+
+
+@dfc.command(name="frs")
+@click.option(
+    "--dataset",
+    type=click.Choice(sorted(_FRS_DATASETS), case_sensitive=False),
+    default="food-security-region",
+    help="Which table to retrieve (default: food-security-region)",
+)
+@click.option("--list-datasets", is_flag=True, help="List available datasets and exit")
+@click.option("--summary", is_flag=True, help="Show summary statistics only")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+def dfc_frs_cmd(dataset, list_datasets, summary, save, force_refresh, output_format):
+    """Family Resources Survey Report for Northern Ireland.
+
+    Annual DfC survey of household income, state support, tenure, caring
+    responsibilities, disability, and household food security. Northern
+    Ireland figures are published alongside UK comparators.
+
+    Examples:
+        List every available table::
+
+            bolster dfc frs --list-datasets
+
+        Food security by UK country and English region::
+
+            bolster dfc frs --dataset food-security-region
+
+        Housing tenure by local government district::
+
+            bolster dfc frs --dataset tenure-district --summary
+
+        Export the income breakdown::
+
+            bolster dfc frs --dataset income-sources --format csv --save income.csv
+
+    Data Notes:
+        - Machine-readable tables are published from the 2024/25 edition onwards
+        - ".." marks values suppressed for small sample sizes (returned as NaN)
+        - "-" marks negligible values (returned as 0.0)
+    """
+    from bolster.data_sources.dfc import family_resources_survey as frs
+
+    console = Console()
+
+    if list_datasets:
+        from rich.table import Table
+
+        table = Table(title="Family Resources Survey datasets")
+        table.add_column("Dataset", style="cyan")
+        table.add_column("Description")
+        for name, (_, description) in sorted(_FRS_DATASETS.items()):
+            table.add_row(name, description)
+        console.print(table)
+        return
+
+    accessor, description = _FRS_DATASETS[dataset.lower()]
+
+    try:
+        with console.status(f"[bold green]Downloading FRS {dataset}..."):
+            edition, _ = frs.find_latest_edition()
+            df = getattr(frs, accessor)(force_refresh=force_refresh)
+
+        if save:
+            if save.endswith(".json"):
+                df.to_json(save, orient="records", indent=2)
+            else:
+                df.to_csv(save, index=False)
+            console.print(f"[green]Saved {len(df)} rows to {save}[/green]")
+            return
+
+        if summary:
+            console.print(
+                Panel(
+                    f"[bold cyan]{description}[/bold cyan]\n"
+                    f"[green]Edition:[/green] {edition}\n"
+                    f"[green]Rows:[/green] {len(df):,}\n"
+                    f"[green]Columns:[/green] {', '.join(df.columns)}",
+                    title="Summary",
+                    border_style="cyan",
+                )
+            )
+            return
+
+        if output_format == "json":
+            click.echo(df.to_json(orient="records", indent=2))
+        elif output_format == "csv":
+            click.echo(df.to_csv(index=False))
+        else:
+            console.print(f"[bold blue]{description}[/bold blue] [dim](FRS {edition})[/dim]\n")
+            click.echo(df.to_string(index=False))
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise SystemExit(1) from e
+
+
 @cli.group()
 def dfe():
     """DfE (Department for the Economy) statistics.
@@ -1614,6 +1882,8 @@ def nisra_feed(limit: int, title_filter: str, days: int, check_coverage: bool):
         "registrar general": "registrar-general",
         "baby names": "baby-names",
         "work quality": "work-quality",
+        "workless households": "workless-households",
+        "working and workless households": "workless-households",
     }
 
     with console.status("Fetching NISRA RSS feed..."):
@@ -2070,6 +2340,137 @@ def nisra_school_leavers_cmd(dimension, geography, output_format, force_refresh,
                 console.print("\n[yellow]💡 Tip: For 'all' dimensions, use --save to export to files[/yellow]")
                 console.print("[yellow]   Displaying attainment dimension only:[/yellow]\n")
                 click.echo(data["attainment"].to_csv(index=False))
+            else:
+                click.echo(data.to_csv(index=False))
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]💡 Troubleshooting:[/yellow]")
+        console.print("   • Check your internet connection")
+        console.print("   • Try again with --force-refresh to bypass cache")
+        console.print("   • Visit NISRA website to verify data availability")
+        raise click.Abort() from e
+
+
+@nisra.command(name="teacher-workforce")
+@click.option(
+    "--dimension",
+    type=click.Choice(["headcount", "fte", "ptr", "all"], case_sensitive=False),
+    default="headcount",
+    help="Which view to retrieve (default: headcount)",
+)
+@click.option("--summary", is_flag=True, help="Show the Northern Ireland headline series across all three views")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_teacher_workforce_cmd(dimension, summary, output_format, force_refresh, save):
+    """Teacher Workforce Statistics in Grant-Aided Schools (NI).
+
+    Department of Education teacher statistics by Local Government District,
+    covering headcount, full-time equivalent staffing and pupil:teacher ratios.
+
+    Examples:
+    ---------
+    Teachers by age band, sex and working pattern::
+
+        bolster nisra teacher-workforce
+
+    Full-time equivalent teachers by school type::
+
+        bolster nisra teacher-workforce --dimension fte
+
+    Pupil:teacher ratios by school type::
+
+        bolster nisra teacher-workforce --dimension ptr
+
+    Northern Ireland headline series across all three views::
+
+        bolster nisra teacher-workforce --summary
+
+    All dimensions saved to files::
+
+        bolster nisra teacher-workforce --dimension all --save teachers.csv
+
+    Dimensions
+    ----------
+    headcount
+        Teachers by age band, sex and full-time/part-time working pattern
+    fte
+        Full-time equivalent teachers by school type
+    ptr
+        Pupils per FTE teacher by school type
+    all
+        All three views (returns separate tables)
+
+    Source
+    ------
+    https://www.education-ni.gov.uk/articles/education-workforce
+    """
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading latest teacher workforce data..."):
+            if summary:
+                data = nisra_teacher_workforce.get_ni_summary()
+                dimension = "summary"
+            else:
+                data = nisra_teacher_workforce.get_latest_data(dimension=dimension, force_refresh=force_refresh)
+
+        if dimension == "all":
+            console.print("[green]✅ Retrieved all dimensions successfully[/green]")
+            total_records = sum(len(df) for df in data.values())
+            console.print(f"[cyan]📊 Total records: {total_records}[/cyan]")
+            for dim_name, df in data.items():
+                console.print(f"   • {dim_name}: {len(df)} records")
+        else:
+            console.print(f"[green]✅ Retrieved {dimension} dimension successfully[/green]")
+            console.print(f"[cyan]📊 Total records: {len(data)}[/cyan]")
+
+        if save:
+            try:
+                if dimension == "all":
+                    for dim_name, df in data.items():
+                        filename = (
+                            f"{save.rsplit('.', 1)[0]}_{dim_name}.{save.rsplit('.', 1)[-1] if '.' in save else 'csv'}"
+                        )
+                        if output_format == "json" or filename.endswith(".json"):
+                            df.to_json(filename, orient="records", indent=2)
+                        else:
+                            df.to_csv(filename, index=False)
+                        console.print(f"[green]💾 Saved {dim_name} to: {filename}[/green]")
+                else:
+                    if output_format == "json" or save.endswith(".json"):
+                        data.to_json(save, orient="records", indent=2)
+                    else:
+                        data.to_csv(save, index=False)
+                    console.print(f"[green]💾 Data saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]❌ Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]❌ Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            import json
+
+            if dimension == "all":
+                output = {dim_name: df.to_dict(orient="records") for dim_name, df in data.items()}
+                click.echo(json.dumps(output, indent=2, default=str))
+            else:
+                click.echo(data.to_json(orient="records", indent=2))
+        else:  # csv
+            if dimension == "all":
+                console.print("\n[yellow]💡 Tip: For 'all' dimensions, use --save to export to files[/yellow]")
+                console.print("[yellow]   Displaying headcount dimension only:[/yellow]\n")
+                click.echo(data["headcount"].to_csv(index=False))
             else:
                 click.echo(data.to_csv(index=False))
 
@@ -6100,6 +6501,264 @@ def psni_pace_cmd(breakdown, output_format, save, force_refresh):
         raise click.Abort() from e
 
 
+@psni.command(name="motoring-offences")
+@click.option(
+    "--table",
+    default="trends",
+    help="Which table to retrieve (default: trends). Use --list-tables to see all options.",
+)
+@click.option("--list-tables", is_flag=True, help="List available tables and exit")
+@click.option("--year", type=int, help="Filter to a single year (tables with a 'year' column only)")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--summary", is_flag=True, help="Show summary statistics instead of full data")
+def psni_motoring_offences_cmd(table, list_tables, year, output_format, save, force_refresh, summary):
+    """PSNI Motoring Offences Statistics.
+
+    Enforcement outcomes for motoring offences in Northern Ireland: fixed
+    penalty notices, referrals for prosecution, and driver retraining courses.
+    Complements the collisions data, which covers injury events rather than
+    enforcement actions.
+
+    Args:
+        table: Which table to retrieve (see --list-tables)
+        list_tables: List available tables and exit
+        year: Filter to a single year
+        output_format: Output format (table, csv, or json)
+        save: Save data to file (specify filename)
+        force_refresh: Force re-download even if cached
+        summary: Show summary statistics instead of full data
+
+    Examples:
+        Annual disposal-type trends back to 1998::
+
+            bolster psni motoring-offences
+
+        District breakdown with population-adjusted rates::
+
+            bolster psni motoring-offences --table district
+
+        Speeding series for a single year as CSV::
+
+            bolster psni motoring-offences --table speeding --year 2025 --format csv
+
+        Highest speeds detected in each speed limit::
+
+            bolster psni motoring-offences --table top-speeds
+
+    Data Notes:
+        - Annual publication (March); ANNUAL_URLS updated each March
+        - Trends series runs from 1998; per-offence series from 2011
+        - District rates are per 10,000 residents aged 16+
+    """
+    from rich.table import Table
+
+    from bolster.data_sources.psni import motoring_offences
+
+    console = Console()
+
+    if list_tables:
+        console.print("\n[bold blue]Available tables[/bold blue]\n")
+        for name in motoring_offences.list_tables():
+            console.print(f"  {name}")
+        return
+
+    try:
+        console.print("\n[bold blue]🚗 PSNI Motoring Offences[/bold blue]\n")
+
+        df = motoring_offences.get_latest_data(table, force_refresh=force_refresh)
+
+        if year is not None:
+            if "year" not in df.columns:
+                raise click.ClickException(f"Table '{table}' has no 'year' column to filter on")
+            df = df[df["year"] == year]
+            if df.empty:
+                raise click.ClickException(f"No rows for year {year} in table '{table}'")
+
+        if summary:
+            df = df.describe(include="all").reset_index()
+
+        if output_format == "table":
+            rich_table = Table(show_header=True, header_style="bold cyan")
+            for col in df.columns:
+                rich_table.add_column(str(col))
+            for _, row in df.iterrows():
+                rich_table.add_row(*[str(v) for v in row.values])
+            console.print(rich_table)
+
+        elif output_format == "csv":
+            console.print(df.to_csv(index=False))
+
+        elif output_format == "json":
+            console.print(df.to_json(orient="records", indent=2))
+
+        if save:
+            if save.endswith(".json"):
+                df.to_json(save, orient="records", indent=2)
+            else:
+                df.to_csv(save, index=False)
+            console.print(f"\n[green]✅ Saved to {save}[/green]")
+
+        if not summary and "offences" in df.columns:
+            console.print(f"\n[dim]{table} | {len(df):,} rows | {int(df['offences'].sum()):,} offences[/dim]")
+
+    except click.ClickException:
+        raise
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        raise click.Abort() from e
+
+
+@psni.command(name="road-safety")
+@click.option(
+    "--dimension",
+    type=click.Choice(
+        ["annual", "district", "camera-type", "speed", "demographics", "hourly", "detections"],
+        case_sensitive=False,
+    ),
+    default="annual",
+    help="Which view to retrieve (default: annual).",
+)
+@click.option("--year", type=int, help="Restrict to a single calendar year")
+@click.option("--camera-type", help="Filter detections by camera type (detections dimension only)")
+@click.option("--district", help="Filter detections by Local Government District")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+def psni_road_safety_cmd(dimension, year, camera_type, district, output_format, save, force_refresh):
+    """NI Road Safety Partnership safety camera detections.
+
+    Record-level detections from fixed, mobile, average-speed and red light
+    running cameras operated by the Northern Ireland Road Safety Partnership,
+    published on OpenDataNI from 2011 onwards.
+
+    Dimensions:
+        annual - Detections and outcomes per year, with prosecution rate
+        district - Detections by Local Government District (with LGD/NUTS3 codes)
+        camera-type - Detections by camera type and year
+        speed - Detected speed band cross-tabulated against posted limit
+        demographics - Offender age band by gender
+        hourly - Detections by hour of day
+        detections - Raw record-level detections (use --year to limit volume)
+
+    Examples:
+        Annual detection totals and prosecution rates::
+
+            bolster psni road-safety
+
+        Detections by district for 2024::
+
+            bolster psni road-safety --dimension district --year 2024
+
+        Mobile camera detections in Belfast as CSV::
+
+            bolster psni road-safety --dimension detections --camera-type "Mobile Speed Camera" --district "Belfast City" --format csv
+
+        Save the hourly profile::
+
+            bolster psni road-safety --dimension hourly --save hourly.csv
+
+    Data Notes:
+        - Published in two batches (2011-2019, 2020-2024) with differing headers;
+          the module normalises both onto a common schema
+        - Reference numbers restart at 1 in each batch and are not globally unique
+        - Red light running camera detections record no speed
+        - Speed and age are published as bands, not exact values
+    """
+    from rich.table import Table
+
+    from bolster.data_sources.psni import road_safety_partnership as rsp
+
+    console = Console()
+
+    try:
+        console.print("\n[bold blue]🔍 NI Road Safety Partnership[/bold blue]\n")
+
+        if dimension == "annual":
+            df = rsp.get_annual_summary(force_refresh=force_refresh)
+            title = "Detections by year"
+        elif dimension == "district":
+            df = rsp.get_detections_by_district(year=year, force_refresh=force_refresh)
+            title = "Detections by district"
+        elif dimension == "camera-type":
+            df = rsp.get_detections_by_camera_type(year=year, force_refresh=force_refresh)
+            title = "Detections by camera type"
+        elif dimension == "speed":
+            df = rsp.get_speed_distribution(year=year, force_refresh=force_refresh)
+            title = "Detected speed band by posted limit"
+        elif dimension == "demographics":
+            df = rsp.get_offender_demographics(year=year, force_refresh=force_refresh)
+            title = "Offender age band by gender"
+        elif dimension == "hourly":
+            df = rsp.get_hourly_profile(year=year, force_refresh=force_refresh)
+            title = "Detections by hour of day"
+        else:
+            df = rsp.get_detections(
+                year=year,
+                camera_type=camera_type,
+                district=district,
+                force_refresh=force_refresh,
+            )
+            title = "Detection records"
+
+        if year and dimension != "annual":
+            title = f"{title} — {year}"
+
+        console.print(f"[bold]{title}[/bold]\n")
+
+        if output_format == "table":
+            table = Table(show_header=True, header_style="bold cyan")
+            for col in df.columns:
+                table.add_column(str(col))
+            for _, row in df.head(50).iterrows():
+                table.add_row(*[str(v) for v in row.values])
+            console.print(table)
+            if len(df) > 50:
+                console.print(f"[dim]… {len(df) - 50:,} more rows (use --format csv for all)[/dim]")
+
+        elif output_format == "csv":
+            console.print(df.to_csv(index=False))
+
+        elif output_format == "json":
+            console.print(df.to_json(orient="records", indent=2))
+
+        if save:
+            if save.endswith(".json"):
+                df.to_json(save, orient="records", indent=2)
+            else:
+                df.to_csv(save, index=False)
+            console.print(f"\n[green]✅ Saved to {save}[/green]")
+
+        if dimension == "annual":
+            latest = df.iloc[-1]
+            console.print(
+                f"\n[dim]{len(df)} years | {int(latest['year'])}: "
+                f"{int(latest['detections']):,} detections, "
+                f"{latest['prosecution_rate_pct']}% referred for prosecution[/dim]"
+            )
+        elif "detections" in df.columns:
+            console.print(f"\n[dim]{len(df):,} rows | {int(df['detections'].sum()):,} detections[/dim]")
+        else:
+            console.print(f"\n[dim]{len(df):,} detection records[/dim]")
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        raise click.Abort() from e
+
+
 @nisra.command(name="planning-statistics")
 @click.option(
     "--dimension",
@@ -6369,6 +7028,119 @@ def nisra_homelessness_cmd(section, output_format, force_refresh, save):  # prag
         raise click.Abort() from e
 
 
+@nisra.command(name="housing-bulletin")
+@click.option(
+    "--table",
+    default="stock",
+    help="Table to show. Use --list-tables to see the options.",
+)
+@click.option("--list-tables", is_flag=True, help="List available tables and exit")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics instead of full data")
+def nisra_housing_bulletin_cmd(table, list_tables, output_format, force_refresh, save, summary):
+    r"""NI Housing Bulletin (DfC, quarterly).
+
+    \b
+    Quarterly housing statistics from the Department for Communities - social
+    housing starts and completions by tenure, the dwelling stock by tenure and
+    district, the social housing waiting list and allocations, new dwelling
+    sales and prices, and the Affordable Warmth Scheme.
+
+    \b
+    Homelessness tables are not included here; the richer LGD-level series is
+    available via `bolster nisra homelessness`.
+
+    Examples:
+        Dwelling stock by tenure and district (default)::
+
+            bolster nisra housing-bulletin
+
+        See what tables are published::
+
+            bolster nisra housing-bulletin --list-tables
+
+        Social housing starts by tenure::
+
+            bolster nisra housing-bulletin --table starts
+
+        New dwelling sales and average prices::
+
+            bolster nisra housing-bulletin --table sales --summary
+
+        Save as JSON::
+
+            bolster nisra housing-bulletin --table waiting-list --format json --save wl.json
+
+    Source:
+        https://www.communities-ni.gov.uk/articles/northern-ireland-housing-bulletin
+    """
+    console = Console()
+
+    try:
+        if list_tables:
+            console.print("[bold]Available tables:[/bold]")
+            for name in nisra_housing_bulletin.list_tables():
+                console.print(f"   {name}")
+            return
+
+        with console.status(f"[bold green]Downloading housing bulletin table '{table}'..."):
+            data = nisra_housing_bulletin.get_latest_data(table=table, force_refresh=force_refresh)
+
+        console.print("[green]Housing bulletin data retrieved successfully[/green]")
+        console.print(f"[cyan]Table: {table} | Rows: {len(data)}[/cyan]")
+
+        if summary:
+            console.print("\n[bold]Summary:[/bold]")
+            if "financial_year" in data.columns:
+                console.print(f"   Coverage: {data['financial_year'].min()} to {data['financial_year'].max()}")
+            if "lgd" in data.columns:
+                console.print(f"   Districts: {data['lgd'].nunique()}")
+            numeric = data.select_dtypes(include="number")
+            for column in numeric.columns:
+                if "price" in column:
+                    console.print(f"   {column}: mean {numeric[column].mean():,.0f}")
+                else:
+                    console.print(f"   {column}: total {numeric[column].sum():,.0f}")
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        console.print("   - Use --list-tables to check the table name")
+        raise click.Abort() from e
+
+
 @nisra.command(name="baby-names")
 @click.option("--year", type=int, default=None, help="Filter by registration year")
 @click.option(
@@ -6559,6 +7331,235 @@ def nisra_work_quality_cmd(indicator, year, output_format, force_refresh, save):
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
         console.print("\n[yellow]Troubleshooting:[/yellow]")
         console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@nisra.command(name="neet")
+@click.option(
+    "--table",
+    type=click.Choice(["quarterly", "status", "uk", "composition", "gender-gap"], case_sensitive=False),
+    default="quarterly",
+    help="Table to retrieve (default: quarterly)",
+)
+@click.option("--year", type=int, default=None, help="Filter the quarterly series to a specific year")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_neet_cmd(table, year, output_format, force_refresh, save):
+    r"""NISRA Young People Not in Education, Employment or Training (NEET).
+
+    \b
+    Quarterly Labour Force Survey estimates of 16-24 year olds who are NEET,
+    from January-March 2013 to present. NEET is broader than youth
+    unemployment: it counts both unemployed and economically inactive young
+    people who are not in any education or training.
+
+    \b
+    Tables:
+        quarterly   - Full time series with counts, rates and 95% confidence intervals
+        status      - Labour market status of all 16-24 year olds (latest quarter)
+        uk          - NI versus UK NEET rate (latest quarter)
+        composition - NEET split into unemployed and economically inactive
+        gender-gap  - Male minus female NEET rate, in percentage points
+
+    Examples:
+        Full quarterly series::
+
+            bolster nisra neet
+
+        NI versus UK comparison::
+
+            bolster nisra neet --table uk
+
+        2025 quarters saved as JSON::
+
+            bolster nisra neet --year 2025 --format json --save neet2025.json
+
+    Source:
+        https://www.nisra.gov.uk/statistics/labour-market-and-social-welfare
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading NISRA NEET data..."):
+            if table == "gender-gap":
+                data = nisra_neet.get_gender_gap(force_refresh=force_refresh)
+            else:
+                data = nisra_neet.get_latest_data(table=table, force_refresh=force_refresh)
+
+        if year is not None:
+            if "year" not in data.columns:
+                console.print(
+                    f"[yellow]Table '{table}' is a latest-quarter snapshot and cannot be filtered by year[/yellow]"
+                )
+                return
+            data = data[data["year"] == year]
+            if data.empty:
+                console.print(f"[yellow]No data found for year {year}[/yellow]")
+                return
+
+        console.print("[green]NEET data retrieved successfully[/green]")
+        console.print(f"[cyan]Rows: {len(data)}[/cyan]")
+        if not data.empty and "year" in data.columns:
+            console.print(f"[dim]Years: {data['year'].min()}–{data['year'].max()}[/dim]")
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@nisra.command(name="workless-households")
+@click.option(
+    "--table",
+    default="northern-ireland",
+    help="Which table to retrieve (default: northern-ireland). Use --list-tables to see all.",
+)
+@click.option("--list-tables", is_flag=True, help="List available tables and exit")
+@click.option("--year", type=int, default=None, help="Filter by year (time series tables only)")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show a summary instead of the full table")
+def nisra_workless_households_cmd(table, list_tables, year, output_format, force_refresh, save, summary):
+    r"""Working and workless households in Northern Ireland (LFS).
+
+    \b
+    Household-level economic activity from the Labour Force Survey. A household
+    is "work rich" if every working-age adult is in work, "mixed" if some are,
+    and "workless" if none are. This differs from the individual employment
+    rate because it captures how employment is distributed across households.
+
+    \b
+    Tables:
+        northern-ireland          NI quarterly series, 1996-present (default)
+        regional                  All UK regions and nations, 1996-present
+        status                    Latest NI work rich / mixed / workless split
+        household-types           Latest NI households by composition
+        female-activity-children  Female activity rate by number of children
+        female-activity-age       Female activity rate by age and children
+        female-activity-youngest  Female activity rate by age of youngest child
+
+    Examples:
+        NI quarterly series::
+
+            bolster nisra workless-households
+
+        Latest economic status split::
+
+            bolster nisra workless-households --table status
+
+        All UK regions for 2025, saved as JSON::
+
+            bolster nisra workless-households --table regional --year 2025 \
+                --format json --save regions2025.json
+
+    Source:
+        ONS Table C (regional series) and the NISRA quarterly LFS Households
+        workbook: https://www.nisra.gov.uk/statistics/work-pay-and-benefits/labour-force-survey
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    if list_tables:
+        console.print("[bold]Available tables:[/bold]")
+        for name in nisra_workless_households.list_tables():
+            console.print(f"  {name}")
+        return
+
+    try:
+        with console.status("[bold green]Downloading working and workless household data..."):
+            data = nisra_workless_households.get_latest_data(table, force_refresh=force_refresh)
+
+        if year is not None:
+            if "year" not in data.columns:
+                console.print(f"[yellow]Table '{table}' has no year column[/yellow]")
+                return
+            data = data[data["year"] == year]
+            if data.empty:
+                console.print(f"[yellow]No data found for year {year}[/yellow]")
+                return
+
+        console.print("[green]Working and workless household data retrieved successfully[/green]")
+        console.print(f"[cyan]Table: {table} | Rows: {len(data)}[/cyan]")
+        if "year" in data.columns and not data.empty:
+            console.print(f"[dim]Years: {data['year'].min()}–{data['year'].max()}[/dim]")
+
+        if summary:
+            if "workless_rate" in data.columns:
+                latest = data.dropna(subset=["workless_rate"]).iloc[-1]
+                console.print(f"\n[bold]{latest['period']}[/bold]")
+                console.print(f"  Work rich: {latest['working_rate']:.1f}%")
+                console.print(f"  Mixed:     {latest['mixed_rate']:.1f}%")
+                console.print(f"  Workless:  {latest['workless_rate']:.1f}%")
+            else:
+                console.print(f"\n{data.head(10).to_string(index=False)}")
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Run with --list-tables to see valid table names")
         console.print("   - Try again with --force-refresh to bypass cache")
         raise click.Abort() from e
 
@@ -6950,6 +7951,262 @@ def nisra_disease_prevalence_cmd(register, output_format, force_refresh, save, l
         raise click.Abort() from e
 
 
+def _emit_hsc_frame(console, data, output_format, save, title):
+    """Save or render an HSC frame, formatting dates and numerics generically."""
+    from rich.table import Table as RichTable
+
+    if save:
+        try:
+            if output_format == "json" or save.endswith(".json"):
+                data.to_json(save, orient="records", indent=2)
+            else:
+                data.to_csv(save, index=False)
+            console.print(f"[green]Saved to: {save}[/green]")
+            return
+        except PermissionError:
+            console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+            return
+        except Exception as e:
+            console.print(f"[red]Error saving file: {e}[/red]")
+            return
+
+    if output_format == "json":
+        click.echo(data.to_json(orient="records", indent=2))
+        return
+    if output_format == "csv":
+        console.print(data.to_csv(index=False), end="")
+        return
+
+    rich_table = RichTable(title=title)
+    numeric = [column for column in data.columns if pd.api.types.is_numeric_dtype(data[column])]
+    for column in data.columns:
+        rich_table.add_column(
+            column.replace("_", " ").title(),
+            justify="right" if column in numeric else "left",
+            style="green" if column in numeric else "cyan",
+        )
+
+    for _, row in data.head(200).iterrows():
+        cells = []
+        for column in data.columns:
+            value = row[column]
+            if pd.isna(value):
+                cells.append("-")
+            elif isinstance(value, pd.Timestamp):
+                cells.append(value.date().isoformat())
+            elif column in numeric:
+                # Rates and shares would collapse to 0.1 at one decimal place; the
+                # pay-band view mixes them with absolute WTE in a single column
+                cells.append(f"{value:,.3f}" if 0 < abs(value) < 1 else f"{value:,.1f}")
+            else:
+                cells.append(str(value))
+        rich_table.add_row(*cells)
+
+    console.print(rich_table)
+    if len(data) > 200:
+        console.print(f"[dim](showing first 200 of {len(data):,} rows — use --save to export all)[/dim]")
+
+
+@nisra.command(name="hsc-workforce")
+@click.option(
+    "--view",
+    type=click.Choice(
+        ["summary", "staff-group", "organisation", "cross-tab", "pay-band", "turnover"], case_sensitive=False
+    ),
+    default="summary",
+    show_default=True,
+    help="Which breakdown to return",
+)
+@click.option("--period", default=None, help="Bulletin to read, e.g. 'March 2026' (default: latest)")
+@click.option("--sub", is_flag=True, help="Use the profession-level cut (--view staff-group only)")
+@click.option(
+    "--measure",
+    type=click.Choice(["leavers", "joiners", "stability"], case_sensitive=False),
+    default="leavers",
+    show_default=True,
+    help="Turnover series (--view turnover only)",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_hsc_workforce_cmd(view, period, sub, measure, output_format, force_refresh, save):
+    r"""NI HSC Workforce Statistics (Department of Health).
+
+    \b
+    Quarterly size, composition and turnover of the Health and Social Care
+    workforce in Northern Ireland, from March 2021 to the latest census point.
+    Figures are whole-time equivalents (WTE) unless stated otherwise.
+
+    Examples:
+        Headline WTE and headcount time series::
+
+            bolster nisra hsc-workforce
+
+        WTE by staff group::
+
+            bolster nisra hsc-workforce --view staff-group
+
+        Profession-level cut::
+
+            bolster nisra hsc-workforce --view staff-group --sub
+
+        Staff group by employing organisation::
+
+            bolster nisra hsc-workforce --view cross-tab
+
+        Joiners for each financial year::
+
+            bolster nisra hsc-workforce --view turnover --measure joiners
+
+        Read an older bulletin::
+
+            bolster nisra hsc-workforce --period "September 2025"
+
+    Source:
+        https://www.health-ni.gov.uk/articles/staff-numbers
+    """
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading HSC workforce bulletin..."):
+            if view == "summary":
+                data = nisra_hsc_workforce.get_workforce_summary(period=period, force_refresh=force_refresh)
+            elif view == "staff-group":
+                data = nisra_hsc_workforce.get_workforce_by_staff_group(
+                    period=period, sub=sub, force_refresh=force_refresh
+                )
+            elif view == "organisation":
+                data = nisra_hsc_workforce.get_workforce_by_organisation(period=period, force_refresh=force_refresh)
+            elif view == "cross-tab":
+                data = nisra_hsc_workforce.get_staff_group_by_organisation(period=period, force_refresh=force_refresh)
+            elif view == "pay-band":
+                data = nisra_hsc_workforce.get_pay_band_distribution(period=period, force_refresh=force_refresh)
+            else:
+                data = nisra_hsc_workforce.get_turnover(period=period, measure=measure, force_refresh=force_refresh)
+
+        if data.empty:
+            console.print("[yellow]No data found for the specified options[/yellow]")
+            return
+
+        console.print("[green]HSC workforce data retrieved successfully[/green]")
+        console.print(f"[cyan]Rows: {len(data):,}[/cyan]")
+
+        _emit_hsc_frame(console, data, output_format, save, f"HSC Workforce ({view})")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@nisra.command(name="hsc-recruitment")
+@click.option(
+    "--view",
+    type=click.Choice(
+        ["pay-band", "staff-group", "organisation", "rates", "profession", "doctors"], case_sensitive=False
+    ),
+    default="staff-group",
+    show_default=True,
+    help="Which breakdown to return",
+)
+@click.option("--period", default=None, help="Bulletin to read, e.g. 'March 2026' (default: latest)")
+@click.option("--sub", is_flag=True, help="Use the profession-level cut where available")
+@click.option(
+    "--grade",
+    type=click.Choice(["consultant", "locum", "sas"], case_sensitive=False),
+    default="consultant",
+    show_default=True,
+    help="Doctor grade (--view doctors only)",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_hsc_recruitment_cmd(view, period, sub, grade, output_format, force_refresh, save):
+    r"""NI HSC Active Recruitment Statistics (Department of Health).
+
+    \b
+    Quarterly vacancy counts and vacancy rates across the Health and Social
+    Care workforce in Northern Ireland, from March 2017 to the latest census
+    point. Consultant and SAS doctor vacancies begin in March 2020.
+
+    Examples:
+        Vacancies by staff group::
+
+            bolster nisra hsc-recruitment
+
+        Vacancy rates as a proportion of funded posts::
+
+            bolster nisra hsc-recruitment --view rates
+
+        Vacancies by employing organisation::
+
+            bolster nisra hsc-recruitment --view organisation
+
+        Consultant vacancies by specialty::
+
+            bolster nisra hsc-recruitment --view doctors --grade consultant
+
+        Export the profession breakdown::
+
+            bolster nisra hsc-recruitment --view profession --format csv --save vacancies.csv
+
+    Source:
+        https://www.health-ni.gov.uk/articles/staff-vacancies
+    """
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading HSC vacancies bulletin..."):
+            if view == "pay-band":
+                data = nisra_hsc_recruitment.get_vacancies_by_pay_band(
+                    period=period, sub=sub, force_refresh=force_refresh
+                )
+            elif view == "staff-group":
+                data = nisra_hsc_recruitment.get_vacancies_by_staff_group(
+                    period=period, sub=sub, force_refresh=force_refresh
+                )
+            elif view == "organisation":
+                data = nisra_hsc_recruitment.get_vacancies_by_organisation(period=period, force_refresh=force_refresh)
+            elif view == "rates":
+                data = nisra_hsc_recruitment.get_vacancy_rates(period=period, sub=sub, force_refresh=force_refresh)
+            elif view == "profession":
+                data = nisra_hsc_recruitment.get_vacancies_by_profession(period=period, force_refresh=force_refresh)
+            else:
+                data = nisra_hsc_recruitment.get_doctor_vacancies(
+                    period=period, grade=grade, force_refresh=force_refresh
+                )
+
+        if data.empty:
+            console.print("[yellow]No data found for the specified options[/yellow]")
+            return
+
+        console.print("[green]HSC vacancy data retrieved successfully[/green]")
+        console.print(f"[cyan]Rows: {len(data):,}[/cyan]")
+
+        _emit_hsc_frame(console, data, output_format, save, f"HSC Vacancies ({view})")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
 @nisra.command(name="quarterly-employment-survey")
 @click.option(
     "--format",
@@ -7187,6 +8444,161 @@ def psni_crime_cmd(output_format, save):
         raise click.Abort() from e
 
 
+@dfc.command(name="child-maintenance")
+@click.option(
+    "--table",
+    default="all",
+    help="Table key, or 'all' (default). Use --list-tables to see the options.",
+)
+@click.option("--list-tables", is_flag=True, help="List available table keys and exit")
+@click.option(
+    "--historical",
+    is_flag=True,
+    help="Stitch several releases together for the full back series",
+)
+@click.option(
+    "--max-publications",
+    type=int,
+    default=8,
+    show_default=True,
+    help="How many releases to merge (with --historical)",
+)
+@click.option("--year", type=int, help="Filter to a single calendar year")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics instead of full data")
+def dfc_child_maintenance_cmd(
+    table,
+    list_tables,
+    historical,
+    max_publications,
+    year,
+    output_format,
+    force_refresh,
+    save,
+    summary,
+):
+    r"""Child Maintenance Service statistics for Northern Ireland.
+
+    \b
+    Quarterly figures on the NI Child Maintenance Service: applications and
+    their clearance, the composition of arrangements, children covered, paying
+    parent numbers and demographics, maintenance due and paid, and enforcement
+    collections. Data runs from December 2019, with applications back to
+    December 2015.
+
+    \b
+    A single release carries only a few years of history, and paying parent
+    characteristics only a single quarter, so --historical is what gets you the
+    full published run.
+
+    Examples:
+        Every table from the latest release::
+
+            bolster dfc child-maintenance
+
+        Enforcement collections only::
+
+            bolster dfc child-maintenance --table enforcement
+
+        Full demographic back series::
+
+            bolster dfc child-maintenance --table paying_parent_characteristics --historical
+
+        Save as CSV::
+
+            bolster dfc child-maintenance --historical --save cms.csv
+
+    Source:
+        https://www.communities-ni.gov.uk/topics/child-maintenance-service-statistics
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    if list_tables:
+        console.print("[bold]Available tables:[/bold]")
+        for key in dfc_child_maintenance.list_tables():
+            console.print(f"   {key}")
+        return
+
+    try:
+        label = "historical" if historical else "latest"
+        with console.status(f"[bold green]Downloading Child Maintenance Service data ({label})..."):
+            if historical:
+                df = dfc_child_maintenance.get_historical_data(
+                    max_publications=max_publications, force_refresh=force_refresh
+                )
+            else:
+                df = dfc_child_maintenance.get_latest_data(force_refresh=force_refresh)
+
+        if table != "all":
+            available = dfc_child_maintenance.list_tables()
+            if table not in available:
+                console.print(f"[red]Unknown table: {table}[/red]")
+                console.print(f"[yellow]Available: {', '.join(available)}[/yellow]")
+                raise click.Abort()
+            df = df[df["table"] == table]
+
+        if year:
+            df = df[df["year"] == year]
+
+        if df.empty:
+            console.print("[yellow]No data matched those filters[/yellow]")
+            return
+
+        console.print("[green]Child Maintenance Service data retrieved successfully[/green]")
+        console.print(f"[cyan]Table: {table} | Rows: {len(df)}[/cyan]")
+
+        if summary:
+            console.print("\n[bold]Summary:[/bold]")
+            console.print(f"   Coverage: {df['date'].min():%Y-%m-%d} to {df['date'].max():%Y-%m-%d}")
+            console.print(f"   Quarters: {df['date'].nunique()}")
+            for key, group in df.groupby("table"):
+                span = f"{group['date'].min():%Y-%m} to {group['date'].max():%Y-%m}"
+                console.print(f"   {key:32} {len(group):5,} rows  {span}")
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    df.astype(str).to_json(save, orient="records", indent=2)
+                else:
+                    df.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(df.astype(str).to_json(orient="records", indent=2))
+        else:
+            # Not console.print: rich wraps at the terminal width, which corrupts
+            # the CSV when the output is piped.
+            click.echo(df.to_csv(index=False), nl=False)
+
+    except click.Abort:
+        raise
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
 @cli.group(name="education")
 def education():
     """Education statistics for Northern Ireland.
@@ -7294,16 +8706,271 @@ def education_suspensions_cmd(year, output_format, force_refresh, save, summary)
         raise click.Abort() from e
 
 
+@cli.group(name="dfi")
+def dfi():
+    """NI Department for Infrastructure statistics.
+
+    Access official statistics from the Department for Infrastructure,
+    including the Young Persons' Behaviour and Attitudes Survey module on
+    travel to and from school.
+    """
+    pass
+
+
+@dfi.command(name="school-travel")
+@click.option(
+    "--table",
+    type=click.Choice(["detail", "trend"], case_sensitive=False),
+    default="detail",
+    help="Detail tables with confidence intervals, or the multi-year trend (default: detail)",
+)
+@click.option(
+    "--breakdown",
+    type=click.Choice(["all", "sex", "year_group"], case_sensitive=False),
+    help="Filter detail tables to one breakdown type",
+)
+@click.option("--question", help="Filter to questions containing this text (case-insensitive)")
+@click.option("--list-questions", is_flag=True, help="List available questions and exit")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics instead of full data")
+def dfi_school_travel_cmd(table, breakdown, question, list_questions, output_format, force_refresh, save, summary):
+    r"""YPBAS: travel to and from school.
+
+    \b
+    How young people travel to and from school, how they would like to
+    travel, perceived road safety, and walking/cycling participation. Detail
+    tables carry 95% confidence intervals and break down by sex and school
+    year group; trend tables cover 2016, 2019, 2022 and 2025.
+
+    Examples:
+        Latest detail tables::
+
+            bolster dfi school-travel
+
+        Multi-year trend::
+
+            bolster dfi school-travel --table trend
+
+        Year-group breakdown for one question::
+
+            bolster dfi school-travel --breakdown year_group --question "travel most of the way TO school"
+
+        List the available questions::
+
+            bolster dfi school-travel --list-questions
+
+    Source:
+        https://www.infrastructure-ni.gov.uk/articles/young-persons-behaviour-and-attitude-survey
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        if list_questions:
+            with console.status("[bold green]Downloading YPBAS school travel data..."):
+                questions = dfi_school_travel.list_questions(force_refresh=force_refresh)
+            for text in questions:
+                click.echo(text)
+            return
+
+        with console.status("[bold green]Downloading YPBAS school travel data..."):
+            if table == "trend":
+                data = dfi_school_travel.get_trend_data(force_refresh=force_refresh)
+            else:
+                data = dfi_school_travel.get_latest_data(force_refresh=force_refresh)
+
+        if breakdown and table == "detail":
+            data = data[data["breakdown_type"] == breakdown.lower()]
+
+        if question:
+            data = data[data["question"].str.contains(question, case=False, na=False)]
+
+        if data.empty:
+            console.print("[yellow]No rows match those filters[/yellow]")
+            return
+
+        console.print("[green]School travel data retrieved successfully[/green]")
+        console.print(f"[cyan]Table: {table} | Rows: {len(data)}[/cyan]")
+
+        if summary:
+            console.print("\n[bold]Summary:[/bold]")
+            console.print(f"   Questions: {data['question'].nunique()}")
+            if table == "trend":
+                years = sorted(data["survey_year"].unique().tolist())
+                console.print(f"   Survey years: {', '.join(str(y) for y in years)}")
+            else:
+                console.print(f"   Survey year: {int(data['survey_year'].iloc[0])}")
+                console.print(f"   Breakdowns: {', '.join(sorted(data['breakdown'].unique()))}")
+                console.print(f"   Suppressed cells: {int(data['suppressed'].sum())}")
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.astype(str).to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.astype(str).to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
 @cli.group(name="justice")
 def justice():
     """NI Department of Justice / NICTS statistics.
 
     Access official justice statistics from the Department of Justice, its
     sponsored bodies, and the Northern Ireland Courts and Tribunals Service
-    (NICTS) - mortgage actions for possession, quarterly court business figures
-    and PBNI probation caseload.
+    (NICTS) - mortgage actions for possession, quarterly court business figures,
+    PBNI probation caseload, and first time entrants to the criminal justice
+    system.
     """
     pass
+
+
+@justice.command(name="first-time-entrants")
+@click.option(
+    "--breakdown",
+    type=click.Choice(["all", "age_band", "gender", "offence", "disposal", "summary"], case_sensitive=False),
+    default="all",
+    help="Breakdown to show (default: all)",
+)
+@click.option("--table", help="Filter to a single table id, e.g. 1a")
+@click.option("--year", help="Filter to a single financial year, e.g. 2024-25")
+@click.option("--measure", help="Filter to a single measure, e.g. first_count")
+@click.option("--headline", is_flag=True, help="Show the headline first time offender percentage series")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics instead of full data")
+def justice_first_time_entrants_cmd(
+    breakdown, table, year, measure, headline, output_format, force_refresh, save, summary
+):
+    r"""DoJ first time entrants to the criminal justice system.
+
+    \b
+    People receiving their first conviction or diversionary disposal in NI,
+    broken down by age band, gender, offence classification and disposal type,
+    alongside the headline percentage of all offenders who are first time
+    entrants. Financial years, latest edition covering 2011-12 onwards.
+
+    Examples:
+        Everything::
+
+            bolster justice first-time-entrants
+
+        Headline first time offender percentage over time::
+
+            bolster justice first-time-entrants --headline
+
+        By age band::
+
+            bolster justice first-time-entrants --breakdown age_band
+
+        Offence counts for the latest year::
+
+            bolster justice first-time-entrants --breakdown offence --measure first_count
+
+        A single table as JSON::
+
+            bolster justice first-time-entrants --table 3e --format json
+
+    Source:
+        https://www.justice-ni.gov.uk/articles/first-time-entrant-statistics
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading first time entrants data..."):
+            if headline:
+                data = justice_first_time_entrants.get_headline_series(force_refresh=force_refresh)
+            else:
+                data = justice_first_time_entrants.get_latest_data(breakdown=breakdown, force_refresh=force_refresh)
+
+        if table:
+            data = data[data["table"].str.lower() == table.lower()]
+        if year:
+            data = data[data["year"] == year]
+        if measure:
+            data = data[data["measure"] == measure]
+
+        if data.empty:
+            console.print("[yellow]No data matches the requested filters[/yellow]")
+            return
+
+        console.print("[green]First time entrants data retrieved successfully[/green]")
+        console.print(f"[cyan]Breakdown: {'headline' if headline else breakdown} | Rows: {len(data)}[/cyan]")
+
+        if summary:
+            console.print("\n[bold]Summary:[/bold]")
+            console.print(f"   Coverage: {data['year'].min()} to {data['year'].max()}")
+            console.print(f"   Tables: {data['table'].nunique()}")
+            console.print(f"   Categories: {data['category'].nunique()}")
+            console.print(f"   Measures: {', '.join(sorted(data['measure'].unique()))}")
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.astype(str).to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.astype(str).to_json(orient="records", indent=2))
+        else:
+            click.echo(data.to_csv(index=False), nl=False)
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
 
 
 @justice.command(name="mortgages")
@@ -7648,6 +9315,269 @@ def justice_pbni_caseload_cmd(frequency, dimension, list_dimensions, output_form
         console.print("   - Check your internet connection")
         console.print("   - Try again with --force-refresh to bypass cache")
         console.print("   - Use --list-dimensions to check the dimension name")
+        raise click.Abort() from e
+
+
+@justice.command(name="pps-statistical-bulletin")
+@click.option(
+    "--table",
+    default="all",
+    help="Table key such as '1a' or '3a', or 'all' (default). Use --list-tables to see the options.",
+)
+@click.option("--list-tables", is_flag=True, help="List available table keys and exit")
+@click.option("--year", help="Filter to a financial year, e.g. '2024/25'")
+@click.option("--historical", is_flag=True, help="Stitch several annual bulletins into one series")
+@click.option(
+    "--max-publications",
+    type=int,
+    default=5,
+    help="Number of annual bulletins to combine when --historical is set (default: 5)",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics instead of full data")
+def justice_pps_statistical_bulletin_cmd(
+    table, list_tables, year, historical, max_publications, output_format, force_refresh, save, summary
+):
+    r"""Public Prosecution Service statistical bulletin.
+
+    \b
+    PPS casework statistics: files and defendants received from police,
+    prosecution and diversion decisions by offence group, the time taken to
+    reach a decision, and the outcomes of contested Crown and Magistrates'
+    court cases. Each annual bulletin restates the prior financial year, so a
+    single download covers two years.
+
+    Examples:
+        Every table in the latest bulletin::
+
+            bolster justice pps-statistical-bulletin
+
+        See which table keys are available::
+
+            bolster justice pps-statistical-bulletin --list-tables
+
+        Files received from police (table 1a)::
+
+            bolster justice pps-statistical-bulletin --table 1a
+
+        Prosecution decisions for one financial year::
+
+            bolster justice pps-statistical-bulletin --table 3a --year 2024/25
+
+        Five bulletins stitched into one series::
+
+            bolster justice pps-statistical-bulletin --historical --format json
+
+    Source:
+        https://www.ppsni.gov.uk/pps-statistical-bulletin
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        if list_tables:
+            with console.status("[bold green]Downloading PPS statistical bulletin..."):
+                tables = justice_pps_statistical_bulletin.list_tables(force_refresh=force_refresh)
+            console.print("[bold]Available tables:[/bold]")
+            for name in tables:
+                console.print(f"   {name}")
+            return
+
+        with console.status("[bold green]Downloading PPS statistical bulletin..."):
+            if historical:
+                data = justice_pps_statistical_bulletin.get_historical_data(
+                    max_publications=max_publications, force_refresh=force_refresh
+                )
+                if table != "all":
+                    data = data[data["table"] == table.lower()]
+            else:
+                data = justice_pps_statistical_bulletin.get_latest_data(table=table, force_refresh=force_refresh)
+
+        if year:
+            data = data[data["financial_year"] == year]
+
+        if data.empty:
+            console.print("[yellow]No data matches the requested filters[/yellow]")
+            return
+
+        console.print("[green]PPS statistical bulletin retrieved successfully[/green]")
+        console.print(f"[cyan]Table: {table} | Rows: {len(data)}[/cyan]")
+
+        if summary:
+            console.print("\n[bold]Summary:[/bold]")
+            console.print(f"   Coverage: {data['financial_year'].min()}-{data['financial_year'].max()}")
+            console.print(f"   Tables: {data['table'].nunique()}")
+            console.print(f"   Categories: {data['category'].nunique()}")
+            console.print(f"   Suppressed cells: {int(data['value'].isna().sum())}")
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.astype(str).to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.astype(str).to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@justice.command(name="prosecutions-convictions")
+@click.option(
+    "--dataset",
+    type=click.Choice(["cases", "prosecutions", "out-of-court", "diversionary", "all"], case_sensitive=False),
+    default="prosecutions",
+    help="Which table to extract (default: prosecutions). 'all' returns the full long frame.",
+)
+@click.option(
+    "--by",
+    type=click.Choice(["gender", "age"], case_sensitive=False),
+    default="gender",
+    help="Breakdown for --dataset diversionary (default: gender)",
+)
+@click.option("--year", type=int, help="Publication year (default: most recent)")
+@click.option("--list-tables", is_flag=True, help="List the tables in the workbook and exit")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics instead of full data")
+def justice_prosecutions_convictions_cmd(dataset, by, year, list_tables, output_format, force_refresh, save, summary):
+    r"""Court prosecutions, convictions and out of court disposals in NI.
+
+    \b
+    Annual Department of Justice figures covering how criminal cases are
+    resolved: convictions and conviction rates by court tier, the mix of out
+    of court disposals (cautions, informed warnings, penalty notices, youth
+    conference plans), and diversionary disposals broken down by gender and
+    age band.
+
+    Examples:
+        Conviction rates by court tier::
+
+            bolster justice prosecutions-convictions
+
+        Cases dealt with, court versus out of court::
+
+            bolster justice prosecutions-convictions --dataset cases
+
+        Out of court disposals by type::
+
+            bolster justice prosecutions-convictions --dataset out-of-court
+
+        Diversionary disposals by age band::
+
+            bolster justice prosecutions-convictions --dataset diversionary --by age
+
+        An earlier publication as JSON::
+
+            bolster justice prosecutions-convictions --year 2022 --format json
+
+    Source:
+        https://www.justice-ni.gov.uk/articles/court-prosecution-conviction-and-out-court-disposal-statistics
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        if list_tables:
+            with console.status("[bold green]Downloading prosecutions and convictions data..."):
+                tables = justice_prosecutions.list_tables(year=year)
+            console.print("[bold]Available tables:[/bold]")
+            for row in tables.itertuples():
+                console.print(f"   {row.table_id:>4}  {row.table_title} ({row.records} records)")
+            return
+
+        with console.status("[bold green]Downloading prosecutions and convictions data..."):
+            if dataset == "cases":
+                data = justice_prosecutions.get_cases_dealt_with(year=year)
+            elif dataset == "out-of-court":
+                data = justice_prosecutions.get_out_of_court_disposals(year=year)
+            elif dataset == "diversionary":
+                data = justice_prosecutions.get_diversionary_disposals(year=year, by=by)
+            elif dataset == "all":
+                data = justice_prosecutions.get_latest_data(year=year, force_refresh=force_refresh)
+            else:
+                data = justice_prosecutions.get_prosecutions_convictions(year=year)
+
+        if data.empty:
+            console.print("[yellow]No data returned[/yellow]")
+            return
+
+        console.print("[green]Prosecutions and convictions data retrieved successfully[/green]")
+        console.print(f"[cyan]Dataset: {dataset} | Rows: {len(data)}[/cyan]")
+
+        if summary:
+            console.print("\n[bold]Summary:[/bold]")
+            if "year" in data.columns:
+                console.print(f"   Coverage: {int(data['year'].min())}-{int(data['year'].max())}")
+            if "conviction_rate" in data.columns:
+                latest = data[data["year"] == data["year"].max()]
+                for row in latest.itertuples():
+                    console.print(f"   {row.court}: {row.conviction_rate:.1%} of {int(row.total_findings):,} findings")
+            elif "table_id" in data.columns:
+                console.print(f"   Tables: {data['table_id'].nunique()}")
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.astype(str).to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.astype(str).to_json(orient="records", indent=2))
+        else:
+            console.print(data.to_csv(index=False), end="")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
         raise click.Abort() from e
 
 
@@ -8375,16 +10305,19 @@ def list_sources():
     click.echo("  nisra elective-waiting-times  Elective/outpatient waiting times")
     click.echo("  nisra wellbeing            Individual wellbeing statistics")
     click.echo("  nisra work-quality         Work quality indicators (17 dimensions)")
+    click.echo("  nisra workless-households  Working/mixed/workless households (LFS)")
     click.echo("  nisra planning-statistics  NI planning applications by council")
     click.echo("  nisra registrar-general    Registrar General quarterly vital statistics")
     click.echo("  nisra baby-names           Baby name registrations (1997–present)")
     click.echo("  nisra occupancy            Tourism hotel/SSA occupancy surveys")
     click.echo("  nisra visitors             Tourism visitor statistics")
     click.echo("  nisra homelessness         NI Homelessness Bulletin (DfC/NIHE, biannual)")
+    click.echo("  nisra housing-bulletin     NI Housing Bulletin (DfC, quarterly)")
 
     click.echo("\nPSNI DATA MODULES (bolster psni <command>)")
     click.echo("  psni rtc                   Road traffic collisions, casualties, vehicles")
     click.echo("  psni crime                 Historical crime statistics (Apr 2001–Dec 2021, stale)")
+    click.echo("  psni road-safety           Safety camera detections (RSP, 2011–2024)")
 
     click.echo("\nOTHER DATA MODULES")
     click.echo("  dva                        DVA monthly test statistics (vehicle, driver, theory)")
@@ -8393,6 +10326,7 @@ def list_sources():
     click.echo("  ons-cpi                    ONS UK inflation indices (CPI, CPIH, RPI)")
     click.echo("  boe-base-rate              Bank of England official Bank Rate (base rate)")
     click.echo("  dfe electricity            NI electricity consumption & renewable generation (%)")
+    click.echo("  dfc child-maintenance      Child Maintenance Service caseload and enforcement (DfC)")
 
     click.echo("\nUSAGE EXAMPLES")
     click.echo("  bolster water-quality BT1 5GS              # Water quality by postcode")

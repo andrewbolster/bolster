@@ -44,7 +44,13 @@ import pandas as pd
 
 from bolster.data_sources.nisra.pxstat import read_dataset
 
-from ._base import HEALTH_NI_BASE_URL, NISRADataNotFoundError, NISRAValidationError, download_file, find_latest_xlsx
+from ._base import (
+    HEALTH_NI_BASE_URL,
+    NISRADataNotFoundError,
+    NISRAValidationError,
+    download_file,
+    find_latest_xlsx,
+)
 
 logger = logging.getLogger(__name__)
 

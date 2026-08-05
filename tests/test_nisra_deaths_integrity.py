@@ -56,9 +56,7 @@ class TestDeathsDataIntegrity:
     def test_place_categories_present(self, all_dims):
         places = {str(p).lower() for p in all_dims["place"]["place_of_death"].unique()}
         for keyword in ("hospital", "home", "hospice"):
-            assert any(keyword in p for p in places), (
-                f"Missing place containing '{keyword}'. Found: {places}"
-            )
+            assert any(keyword in p for p in places), f"Missing place containing '{keyword}'. Found: {places}"
 
     def test_all_lgds_present_each_week(self, all_dims):
         geo = all_dims["geography"]
@@ -97,9 +95,7 @@ class TestDeathsDataIntegrity:
             row = totals[totals["week_ending"] == week]
             if not row.empty:
                 obs = row["observed_deaths"].iloc[0]
-                assert geo_total == obs, (
-                    f"Week {week}: LGD sum ({geo_total}) != observed total ({obs})"
-                )
+                assert geo_total == obs, f"Week {week}: LGD sum ({geo_total}) != observed total ({obs})"
 
     def test_place_sums_to_total(self, all_dims, totals):
         place = all_dims["place"]
@@ -108,9 +104,7 @@ class TestDeathsDataIntegrity:
             row = totals[totals["week_ending"] == week]
             if not row.empty:
                 obs = row["observed_deaths"].iloc[0]
-                assert place_total == obs, (
-                    f"Week {week}: Place sum ({place_total}) != observed total ({obs})"
-                )
+                assert place_total == obs, f"Week {week}: Place sum ({place_total}) != observed total ({obs})"
 
     def test_no_negative_deaths(self, all_dims, totals):
         assert (totals["observed_deaths"] >= 0).all()
@@ -154,9 +148,7 @@ class TestDeathsDataIntegrity:
         """Demographics 'All persons'/'All ages' should match observed_deaths in totals."""
         demo = all_dims["demographics"]
         demo_totals = demo[(demo["sex"] == "All persons") & (demo["age_range"] == "All ages")]
-        merged = demo_totals.merge(
-            totals[["week_ending", "observed_deaths"]], on="week_ending", how="inner"
-        )
+        merged = demo_totals.merge(totals[["week_ending", "observed_deaths"]], on="week_ending", how="inner")
         for _, row in merged.iterrows():
             assert row["deaths"] == row["observed_deaths"], (
                 f"Week {row['week_ending'].date()}: "

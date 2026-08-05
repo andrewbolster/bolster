@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """Tests for ni_water module."""
 
+import contextlib
 import logging
 from unittest.mock import patch
 
@@ -55,7 +56,7 @@ class TestPostcodeToWaterSupplyZone:
         assert len(zones) > 40000  # Should have tens of thousands of postcodes
 
         # Test some known patterns
-        bt_postcodes = [k for k in zones.keys() if k.startswith("BT")]
+        bt_postcodes = [k for k in zones if k.startswith("BT")]
         assert len(bt_postcodes) > 1000, "Should have many Belfast postcodes"
 
         # Test that we have valid zone codes and invalid zone identifiers
@@ -178,10 +179,9 @@ class TestWaterQuality:
                     # Try to convert to float - should work for most values
                     numeric_values = []
                     for val in hardness_values:
-                        try:
+                        # Some might be non-numeric, that's ok
+                        with contextlib.suppress(ValueError, TypeError):
                             numeric_values.append(float(val))
-                        except (ValueError, TypeError):
-                            pass  # Some might be non-numeric, that's ok
 
                     if numeric_values:
                         assert len(numeric_values) > 0, f"No valid numeric values found in {col}"
@@ -225,7 +225,7 @@ class TestDataSourceIntegration:
         assert len(available_sites) > 0, "CSV data should have site codes"
 
         # Basic consistency check - both should represent NI water infrastructure
-        zone_codes = set(v for v in zones.values() if v and v != "")
+        zone_codes = {v for v in zones.values() if v and v != ""}
 
         # We expect many more postcode entries than water quality sites
         assert len(zones) > len(wq_df), "Should be more postcodes than water quality sites"

@@ -14,7 +14,10 @@ ______________________________________________________________________
 ### Access Status
 
 - **Website:** https://www.psni.police.uk/about-us/our-publications-and-reports/official-statistics
-- **Status:** Website uses Cloudflare protection that blocks automated access
+- **Status:** Reachable. Sits behind Cloudflare, which blocks some hosting-provider
+  egress IPs — verified HTTP 200 for the index and all topic pages from GitHub Actions
+  (2026-08-01). Earlier "blocked" findings in this document were recorded from a
+  datacentre IP and do not generalise.
 - **Alternative Access:** Data is mirrored on OpenDataNI (https://www.opendatani.gov.uk) and data.gov.uk
 
 ### Key Publications
@@ -22,6 +25,25 @@ ______________________________________________________________________
 - **Police Recorded Crime in Northern Ireland Annual Trends** - Main publication with detailed crime type breakdowns
 - **User Guide to Police Recorded Crime Statistics** - Methodology and process changes documentation
 - **Monthly Updates** - Quarterly data releases within financial years
+
+### Official Statistics Index — Topic Pages
+
+Scraped from the index on 2026-08-01 (all HTTP 200). Paths are relative to
+`https://www.psni.police.uk`. Note the two topics that sit at a shorter path.
+
+| Topic | Path |
+| --- | --- |
+| Police Recorded Crime Statistics | `/about-us/our-publications-and-reports/official-statistics/police-recorded-crime-statistics` |
+| Anti-Social Behaviour Statistics | `/about-us/our-publications-and-reports/official-statistics/anti-social-behaviour-statistics` |
+| Domestic Abuse Statistics | `/about-us/our-publications-and-reports/official-statistics/domestic-abuse-statistics` |
+| Hate Motivation Statistics | `/about-us/our-publications-and-reports/official-statistics/hate-motivation-statistics` |
+| Drug Seizure Statistics | `/official-statistics/drug-seizure-statistics` |
+| Road Traffic Collision Statistics | `/about-us/our-publications-and-reports/official-statistics/road-traffic-collision-statistics` |
+| Security Situation Statistics | `/official-statistics/security-situation-statistics` |
+| Stop and Search Statistics | `/about-us/our-publications-and-reports/official-statistics/stop-and-search-statistics` |
+| Statistics on Police Use of Force | `/about-us/our-publications-and-reports/official-statistics/statistics-police-use-force` |
+| Motoring Offence Statistics | `/about-us/our-publications-and-reports/official-statistics/motoring-offence-statistics` |
+| Police and Criminal Evidence (PACE) Order Statistics | `/about-us/our-publications-and-reports/official-statistics/police-and-criminal-evidence-pace-order` |
 
 ______________________________________________________________________
 
@@ -449,8 +471,8 @@ ______________________________________________________________________
 
    - **URL:** https://www.psni.police.uk/about-us/our-publications-and-reports/official-statistics/police-recorded-crime-statistics
    - **Format:** PDF reports with embedded Excel tables (likely)
-   - **Status:** Protected by Cloudflare (blocks automated access)
-   - **Access Method:** Manual download via web browser
+   - **Status:** Reachable (HTTP 200 from GitHub Actions, 2026-08-01)
+   - **Access Method:** Scrapeable; no scraper built yet
 
 1. **PSNI Statistics Branch** - Direct Contact
 
@@ -489,11 +511,12 @@ ______________________________________________________________________
    - **Pros:** Official channel, may provide clean data
    - **Cons:** Requires manual intervention, unknown response time
 
-1. **RSS Feed Monitoring** (Blocked by Cloudflare)
+1. **RSS Feed Monitoring**
 
    - PSNI website has RSS feeds for new publications
-   - **Status:** RSS feeds are also protected by Cloudflare (HTTP 403)
-   - **Conclusion:** Not viable for automated monitoring
+   - **Status:** The earlier HTTP 403 was recorded from a datacentre egress IP; retest
+     before treating it as a limitation
+   - **Conclusion:** Worth re-evaluating for automated monitoring
 
 #### Long-Term Solutions
 
