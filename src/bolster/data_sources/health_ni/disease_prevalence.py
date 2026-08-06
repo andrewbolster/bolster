@@ -337,7 +337,10 @@ def get_latest_publication_url() -> str:
         >>> url.endswith(".xlsx")
         True
     """
-    return find_latest_xlsx(f"{HEALTH_NI_BASE_URL}/articles/prevalence-statistics", keyword="disease-prevalence")
+    return find_latest_xlsx(
+        f"{HEALTH_NI_BASE_URL}/articles/prevalence-statistics",
+        keyword="raw-disease-prevalence-trend-data",
+    )
 
 
 def _normalise_gp_register(name: str) -> str:
