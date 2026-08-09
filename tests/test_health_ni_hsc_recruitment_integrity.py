@@ -52,9 +52,7 @@ class TestRecruitmentIntegrity:
 
     def test_all_expected_tables_present(self, latest_data: pd.DataFrame) -> None:
         expected = {"1A", "1B", "2", "3", "4A", "4B", "5A", "5B", "6", "7", "8A", "8B", "8C"}
-        assert expected <= set(latest_data.table_id), (
-            f"Missing tables: {sorted(expected - set(latest_data.table_id))}"
-        )
+        assert expected <= set(latest_data.table_id), f"Missing tables: {sorted(expected - set(latest_data.table_id))}"
 
     def test_list_tables_matches_data(self, latest_data: pd.DataFrame) -> None:
         tables = hsc_recruitment.list_tables()
