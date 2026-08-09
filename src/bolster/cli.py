@@ -10231,113 +10231,73 @@ def translink_route_cmd(origin, destination, n, output_format, save):
         console.print(f"[green]Saved to {save}[/green]")
 
 
+_UNCATEGORISED = "OTHER"
+
+_SOURCE_CATEGORIES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("WEATHER & ENVIRONMENT", ("get-precipitation",)),
+    ("WATER & UTILITIES", ("water-quality",)),
+    ("GOVERNMENT & POLITICS", ("ni-executive", "ni-elections", "niassembly")),
+    ("BUSINESS & PROPERTY", ("companies-house", "ni-house-prices", "gender-pay-gap")),
+    ("ECONOMY & FINANCE", ("ons-cpi", "boe-base-rate")),
+    ("TRANSPORT", ("translink", "dva")),
+    ("ENTERTAINMENT & LIFESTYLE", ("cinema-listings",)),
+    ("RSS & FEEDS", ("rss",)),
+    ("NISRA", ("nisra",)),
+    ("PSNI", ("psni",)),
+    ("GOVERNMENT DEPARTMENTS", ("daera", "dfc", "dfe", "dfi", "education", "justice")),
+)
+"""Display order for :func:`list_sources`.
+
+Commands missing from this map fall through to ``OTHER`` rather than being dropped,
+so an uncategorised command is a cosmetic gap rather than an invisible one.
+"""
+
+
+def _describe_commands(name: str, command: click.Command) -> list[tuple[str, str]]:
+    """Flatten a command and any subcommands into ``(invocation, summary)`` rows."""
+    rows = [(name, command.get_short_help_str(88))]
+    if isinstance(command, click.Group):
+        for sub_name, sub_command in sorted(command.commands.items()):
+            rows.extend(_describe_commands(f"{name} {sub_name}", sub_command))
+    return rows
+
+
 @cli.command()
 def list_sources():
     """List all available data sources and their descriptions.
 
-    Shows a comprehensive overview of all data sources available in the Bolster library,
-    organized by category with brief descriptions of what data each source provides.
+    The catalogue is introspected from the Click command tree, so every registered
+    command is listed with the summary line from its own docstring.
     """
+    category_of = {name: label for label, names in _SOURCE_CATEGORIES for name in names}
+    buckets: dict[str, list[tuple[str, str]]] = {label: [] for label, _ in _SOURCE_CATEGORIES}
+    buckets[_UNCATEGORISED] = []
+
+    for name, command in sorted(cli.commands.items()):
+        if name == "list-sources":
+            continue
+        buckets[category_of.get(name, _UNCATEGORISED)].extend(_describe_commands(name, command))
+
+    width = max(len(invocation) for rows in buckets.values() for invocation, _ in rows) + 2
+
     click.echo("\nBolster - Available Data Sources")
     click.echo("=" * 50)
 
-    click.echo("\nWEATHER & ENVIRONMENT")
-    click.echo("  get-precipitation    UK precipitation maps from Met Office API")
-    click.echo("                       Requires MET_OFFICE_API_KEY environment variable")
-
-    click.echo("\nWATER & UTILITIES")
-    click.echo("  water-quality        NI water quality data by postcode or zone")
-    click.echo("                       Chemical parameters, hardness, compliance info")
-
-    click.echo("\nGOVERNMENT & POLITICS")
-    click.echo("  ni-executive         NI Executive composition and dissolution history")
-    click.echo("                       Establishment dates, duration, interregnum periods")
-    click.echo("  ni-elections         NI Assembly election results (2016-2022)")
-    click.echo("                       Candidates, parties, constituencies, vote counts")
-    click.echo("  nisra deaths         NISRA weekly death registrations")
-    click.echo("                       Demographics (age/sex), geography (LGDs), place of death")
-    click.echo("  niassembly members   Current MLAs — name, party, constituency")
-    click.echo("  niassembly questions Assembly Q&As by department or MLA (since 2007)")
-    click.echo("  niassembly votes     Assembly division records with per-member votes")
-
-    click.echo("\nBUSINESS & PROPERTY")
-    click.echo("  companies-house      UK Companies House company data queries")
-    click.echo("                       Company search, Farset Labs related companies")
-    click.echo("  ni-house-prices      NI house price index data from official sources")
-    click.echo("                       Price trends by property type, region, time period")
-
-    click.echo("\nTRANSPORT")
-    click.echo("  dva                  DVA monthly test statistics (vehicle, driver, theory)")
-    click.echo("                       April 2014 - present, includes --summary dashboard")
-    click.echo("  translink departures Next N departures from a Translink stop")
-    click.echo("                       Live departure boards with optional vehicle enrichment")
-    click.echo("  translink vehicles   Live Translink vehicle positions from VMI feed")
-    click.echo("                       Filter by line or operator; ~66s refresh interval")
-
-    click.echo("\nENTERTAINMENT & LIFESTYLE")
-    click.echo("  cinema-listings      Cineworld movie listings and showtimes")
-    click.echo("                       Default: Belfast (site 117), supports other locations")
-
-    click.echo("\nRSS & FEEDS")
-    click.echo("  rss read             Generic RSS/Atom feed reader with filtering")
-    click.echo("                       Beautiful terminal output, JSON/CSV export")
-    click.echo("  rss nisra-statistics Browse NISRA publications feed")
-    click.echo("                       Research and statistics from NISRA via GOV.UK")
-
-    click.echo("\nNISRA DATA MODULES (bolster nisra <command>)")
-    click.echo("  nisra feed                 Browse NISRA RSS publications feed")
-    click.echo("  nisra deaths               Weekly death registrations (demographics, LGDs)")
-    click.echo("  nisra births               Monthly birth registrations")
-    click.echo("  nisra marriages            Monthly marriage registrations")
-    click.echo("  nisra stillbirths          Monthly stillbirth registrations")
-    click.echo("  nisra population           Annual mid-year population estimates")
-    click.echo("  nisra population-projections  Population projections to 2072 (NI + LGD)")
-    click.echo("  nisra migration            Migration estimates (derived + official LTI)")
-    click.echo("  nisra labour-market        LFS: quarterly employment/inactivity + monthly overview")
-    click.echo("  nisra quarterly-employment-survey  Employee jobs by sector (QES)")
-    click.echo("  nisra ashe                 Annual earnings survey (10 dimensions)")
-    click.echo("  nisra composite-index      NI Composite Economic Index (NICEI)")
-    click.echo("  nisra index-of-services    Quarterly Index of Services")
-    click.echo("  nisra index-of-production  Quarterly Index of Production")
-    click.echo("  nisra construction-output  Quarterly construction output")
-    click.echo("  nisra cancer-waiting-times Cancer treatment waiting times")
-    click.echo("  nisra emergency-care       Emergency care (A&E) 4-hour waiting times")
-    click.echo("  nisra elective-waiting-times  Elective/outpatient waiting times")
-    click.echo("  nisra wellbeing            Individual wellbeing statistics")
-    click.echo("  nisra work-quality         Work quality indicators (17 dimensions)")
-    click.echo("  nisra workless-households  Working/mixed/workless households (LFS)")
-    click.echo("  nisra planning-statistics  NI planning applications by council")
-    click.echo("  nisra registrar-general    Registrar General quarterly vital statistics")
-    click.echo("  nisra baby-names           Baby name registrations (1997–present)")
-    click.echo("  nisra occupancy            Tourism hotel/SSA occupancy surveys")
-    click.echo("  nisra visitors             Tourism visitor statistics")
-    click.echo("  nisra homelessness         NI Homelessness Bulletin (DfC/NIHE, biannual)")
-    click.echo("  nisra housing-bulletin     NI Housing Bulletin (DfC, quarterly)")
-
-    click.echo("\nPSNI DATA MODULES (bolster psni <command>)")
-    click.echo("  psni rtc                   Road traffic collisions, casualties, vehicles")
-    click.echo("  psni crime                 Historical crime statistics (Apr 2001–Dec 2021, stale)")
-    click.echo("  psni road-safety           Safety camera detections (RSP, 2011–2024)")
-
-    click.echo("\nOTHER DATA MODULES")
-    click.echo("  dva                        DVA monthly test statistics (vehicle, driver, theory)")
-    click.echo("  education suspensions      NI school suspensions and expulsions (DE)")
-    click.echo("  gender-pay-gap             UK Gender Pay Gap Reporting service")
-    click.echo("  ons-cpi                    ONS UK inflation indices (CPI, CPIH, RPI)")
-    click.echo("  boe-base-rate              Bank of England official Bank Rate (base rate)")
-    click.echo("  dfe electricity            NI electricity consumption & renewable generation (%)")
-    click.echo("  dfc child-maintenance      Child Maintenance Service caseload and enforcement (DfC)")
+    for label, rows in buckets.items():
+        if not rows:
+            continue
+        click.echo(f"\n{label}")
+        for invocation, summary in rows:
+            click.echo(f"  {invocation.ljust(width)}{summary}")
 
     click.echo("\nUSAGE EXAMPLES")
     click.echo("  bolster water-quality BT1 5GS              # Water quality by postcode")
-    click.echo("  bolster nisra deaths --latest              # Latest NISRA deaths data")
+    click.echo("  bolster nisra deaths --dimension totals    # Weekly death registrations")
     click.echo("  bolster dva --latest --summary             # DVA test statistics summary")
     click.echo("  bolster rss nisra-statistics               # Browse NISRA publications")
     click.echo("  bolster ni-executive --format json         # Executive data as JSON")
     click.echo("  bolster companies-house farset             # Search for Farset companies")
     click.echo("  bolster ni-elections --election-year 2022  # 2022 election results")
-    click.echo("  bolster cinema-listings --date 2024-03-20  # Movie listings for date")
-    click.echo("  bolster --help                             # General help")
     click.echo("  bolster <command> --help                   # Command-specific help")
 
     click.echo(f"\nBolster v{__version__} - Northern Ireland & UK Data Sources")
