@@ -30,7 +30,7 @@ Update Frequency:
     Annual, approximately May of the following calendar year.
 
 Example:
-    >>> from bolster.data_sources.nisra import disease_prevalence as dp
+    >>> from bolster.data_sources.health_ni import disease_prevalence as dp
     >>> df = dp.get_latest_disease_prevalence()
     >>> 'registered_patients' in df.columns
     True

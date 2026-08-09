@@ -35,7 +35,7 @@ Data is fetched from the NISRA PxStat API using the following matrices:
     - CWT62TUMOUR: 62-day waiting times by tumour site
 
 Example:
-    >>> from bolster.data_sources.nisra import cancer_waiting_times as cwt
+    >>> from bolster.data_sources.health_ni import cancer_waiting_times as cwt
     >>> df = cwt.get_latest_31_day_by_trust()
     >>> sorted(df.columns.tolist())
     ['date', 'month', 'over_target', 'performance_rate', 'total', 'trust', 'within_target', 'year']

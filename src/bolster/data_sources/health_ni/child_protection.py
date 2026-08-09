@@ -27,7 +27,7 @@ Update Frequency:
     Annual, typically published in October for the year ending 31 March.
 
 Example:
-    >>> from bolster.data_sources.nisra import child_protection as cp
+    >>> from bolster.data_sources.health_ni import child_protection as cp
     >>> df = cp.get_latest_child_protection()
     >>> sorted(df.columns.tolist())
     ['category', 'measure', 'notes', 'subcategory', 'value', 'year']
