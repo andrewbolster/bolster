@@ -81,7 +81,7 @@ from bolster.data_sources.nisra._base import (
     safe_float,
     safe_int,
 )
-from bolster.utils.web import session
+from bolster.utils.web import fetch_soup, make_absolute_url, scrape_file_links
 
 logger = logging.getLogger(__name__)
 
@@ -579,14 +579,10 @@ def get_latest_monthly_lmr_url(force_refresh: bool = False) -> tuple[str, int, i
         >>> url.startswith('https://')
         True
     """
-    from bs4 import BeautifulSoup
-
     mother_page = "https://www.nisra.gov.uk/statistics/labour-market-and-social-welfare"
 
     try:
-        response = session.get(mother_page, timeout=30, force_refresh=force_refresh)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.content, "html.parser")
+        soup = fetch_soup(mother_page, force_refresh=force_refresh)
 
         # Step 1: Find the most recent yearly collection page ("Labour Market Reports - YYYY")
         collection_url = None
@@ -594,7 +590,7 @@ def get_latest_monthly_lmr_url(force_refresh: bool = False) -> tuple[str, int, i
             text = link.get_text(strip=True)
             href = link["href"]
             if re.match(r"Labour Market Reports\s*-\s*\d{4}", text) and "/publications/labour-market-reports-" in href:
-                collection_url = f"{LFS_BASE_URL}{href}" if href.startswith("/") else href
+                collection_url = make_absolute_url(href, LFS_BASE_URL)
                 logger.info(f"Found LMR collection page: {text} → {collection_url}")
                 break
 
@@ -603,9 +599,7 @@ def get_latest_monthly_lmr_url(force_refresh: bool = False) -> tuple[str, int, i
 
         # Step 2: Find the latest individual monthly report that has a /publications/ page
         # (earlier months may link to datavis only and have no downloadable Excel)
-        coll_response = session.get(collection_url, timeout=30, force_refresh=force_refresh)
-        coll_response.raise_for_status()
-        coll_soup = BeautifulSoup(coll_response.content, "html.parser")
+        coll_soup = fetch_soup(collection_url, force_refresh=force_refresh)
 
         monthly_links = []
         for link in coll_soup.find_all("a", href=True):
@@ -615,29 +609,27 @@ def get_latest_monthly_lmr_url(force_refresh: bool = False) -> tuple[str, int, i
                 re.match(r"Labour Market Report\s*-\s*\w+ \d{4}", text)
                 and "/publications/labour-market-report-" in href
             ):
-                full_href = f"{LFS_BASE_URL}{href}" if href.startswith("/") else href
-                monthly_links.append({"text": text, "url": full_href})
+                monthly_links.append({"text": text, "url": make_absolute_url(href, LFS_BASE_URL)})
 
         if not monthly_links:  # pragma: no cover
             raise NISRADataNotFoundError(f"No individual monthly LMR publication links found on {collection_url}")
 
         # Try each month newest-first (collection page lists oldest-first) until we find Excel
         for pub in reversed(monthly_links):
-            pub_response = session.get(pub["url"], timeout=30, force_refresh=force_refresh)
-            if not pub_response.ok:  # pragma: no cover
+            try:
+                links = scrape_file_links(pub["url"], ".xlsx", base_url=LFS_BASE_URL, force_refresh=force_refresh)
+            except Exception:  # pragma: no cover
                 continue
-            pub_soup = BeautifulSoup(pub_response.content, "html.parser")
 
-            excel_url = None
-            for link in pub_soup.find_all("a", href=True):
-                href = link["href"]
-                if (
-                    "lmr-labour-force-survey-tables-" in href.lower()
-                    and "historical" not in href.lower()
-                    and href.endswith(".xlsx")
-                ):
-                    excel_url = f"{LFS_BASE_URL}{href}" if href.startswith("/") else href
-                    break
+            excel_url = next(
+                (
+                    link["url"]
+                    for link in links
+                    if "lmr-labour-force-survey-tables-" in link["url"].lower()
+                    and "historical" not in link["url"].lower()
+                ),
+                None,
+            )
 
             if not excel_url:  # pragma: no cover
                 logger.debug(f"No Excel file on {pub['url']}, trying next month")
@@ -919,23 +911,10 @@ def get_latest_lgd_employment_url() -> tuple[str, int]:
         pub_url = f"{LFS_BASE_URL}/publications/labour-force-survey-tables-local-government-districts-2009-{year}"
 
         try:
-            response = session.get(pub_url, timeout=30)
-            if response.status_code == 200:
-                # Found the publication page, now find the Excel file
-                from bs4 import BeautifulSoup
-
-                soup = BeautifulSoup(response.content, "html.parser")
-
-                # Find Excel file link
-                for link in soup.find_all("a", href=True):
-                    href = link["href"]
-                    if ".xlsx" in href.lower() and "labour" in href.lower():
-                        excel_url = href
-                        if not excel_url.startswith("http"):
-                            excel_url = f"{LFS_BASE_URL}{excel_url}"
-
-                        logger.info(f"Found latest LFS LGD tables: {year} at {excel_url}")
-                        return excel_url, year
+            for link in scrape_file_links(pub_url, ".xlsx", base_url=LFS_BASE_URL):
+                if "labour" in link["url"].lower():
+                    logger.info(f"Found latest LFS LGD tables: {year} at {link['url']}")
+                    return link["url"], year
 
         except Exception:
             continue

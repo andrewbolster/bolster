@@ -51,10 +51,9 @@ import re
 from functools import lru_cache
 
 import pandas as pd
-from bs4 import BeautifulSoup
 
 from bolster.utils.cache import CachedDownloader, DownloadError
-from bolster.utils.web import session
+from bolster.utils.web import fetch_soup, scrape_file_links
 
 logger = logging.getLogger(__name__)
 
@@ -112,9 +111,7 @@ def get_bulletin_pages() -> dict[int, str]:
     Raises:
         DAERADataNotFoundError: If the article page lists no bulletin pages.
     """
-    response = session.get(DAERA_ARTICLE_PAGE, timeout=30)
-    response.raise_for_status()
-    soup = BeautifulSoup(response.content, "html.parser")
+    soup = fetch_soup(DAERA_ARTICLE_PAGE)
 
     pages: dict[int, str] = {}
     for anchor in soup.find_all("a", href=True):
@@ -148,17 +145,12 @@ def get_workbook_url(year: int | None = None) -> str:
     if year not in pages:
         raise DAERADataNotFoundError(f"No greenhouse gas bulletin published for 1990-{year}; have {sorted(pages)}")
 
-    response = session.get(pages[year], timeout=30)
-    response.raise_for_status()
-    soup = BeautifulSoup(response.content, "html.parser")
+    # Suffix casing varies between editions (".XLSX" in 2024, ".xlsx" earlier).
+    links = scrape_file_links(pages[year], ".xlsx", base_url=DAERA_BASE_URL)
+    if not links:
+        raise DAERADataNotFoundError(f"No .xlsx workbook linked from {pages[year]}")
 
-    for anchor in soup.find_all("a", href=True):
-        href = anchor["href"]
-        # Suffix casing varies between editions (".XLSX" in 2024, ".xlsx" earlier).
-        if href.lower().endswith(".xlsx"):
-            return _absolute(href)
-
-    raise DAERADataNotFoundError(f"No .xlsx workbook linked from {pages[year]}")
+    return links[0]["url"]
 
 
 @lru_cache(maxsize=4)

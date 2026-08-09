@@ -60,13 +60,12 @@ Example:
 import logging
 import re
 from pathlib import Path
-from urllib.parse import unquote, urljoin
+from urllib.parse import urljoin
 
-import bs4
 import pandas as pd
 
 from bolster.utils.cache import CachedDownloader, DownloadError
-from bolster.utils.web import session
+from bolster.utils.web import fetch_soup, scrape_file_links
 
 logger = logging.getLogger(__name__)
 
@@ -470,12 +469,9 @@ def list_publications(base_url: str = PUBLICATION_URL) -> list[dict]:
         True
     """
     try:
-        response = session.get(base_url, timeout=30)
-        response.raise_for_status()
+        soup = fetch_soup(base_url)
     except Exception as e:
         raise PPSDataNotFoundError(f"Failed to fetch publication page {base_url}: {e}") from e
-
-    soup = bs4.BeautifulSoup(response.content, features="html.parser")
 
     publications: dict[str, dict] = {}
     for anchor in soup.find_all("a", href=True):
@@ -525,18 +521,16 @@ def find_publication_xlsx(publication_url: str) -> str:
         True
     """
     try:
-        response = session.get(publication_url, timeout=30)
-        response.raise_for_status()
+        links = scrape_file_links(publication_url, ".xlsx")
     except Exception as e:
         raise PPSDataNotFoundError(f"Failed to fetch bulletin page {publication_url}: {e}") from e
 
-    soup = bs4.BeautifulSoup(response.content, features="html.parser")
-    for anchor in soup.find_all("a", href=True):
-        href = anchor["href"]
-        if unquote(href).lower().split("?")[0].endswith(".xlsx"):
-            return urljoin(publication_url, href)
+    if not links:
+        raise PPSDataNotFoundError(
+            f"No tables workbook found on {publication_url} (bulletins before 2017-18 are PDF-only)"
+        )
 
-    raise PPSDataNotFoundError(f"No tables workbook found on {publication_url} (bulletins before 2017-18 are PDF-only)")
+    return links[0]["url"]
 
 
 def download_file(url: str, cache_ttl_hours: int = _CACHE_TTL_HOURS, force_refresh: bool = False) -> Path:

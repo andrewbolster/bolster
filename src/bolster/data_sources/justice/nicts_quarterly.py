@@ -52,15 +52,14 @@ Example:
 import logging
 import re
 from pathlib import Path
-from urllib.parse import unquote, urljoin
+from urllib.parse import unquote
 
-import bs4
 import pandas as pd
 from odf.opendocument import load as load_ods
 from odf.table import Table
 
 from bolster.utils.cache import CachedDownloader, DownloadError
-from bolster.utils.web import session
+from bolster.utils.web import scrape_file_links
 
 from ._base import _parse_value, _sheet_rows, _strip_note_refs
 
@@ -229,19 +228,13 @@ def list_publications(base_url: str = PUBLICATION_URL) -> list[dict]:
         True
     """
     try:
-        response = session.get(base_url, timeout=30)
-        response.raise_for_status()
+        links = scrape_file_links(base_url, file_extension=".ods")
     except Exception as e:
         raise NICTSDataNotFoundError(f"Failed to fetch publication page {base_url}: {e}") from e
 
-    soup = bs4.BeautifulSoup(response.content, features="html.parser")
-
     publications: dict[str, dict] = {}
-    for anchor in soup.find_all("a", href=True):
-        href = anchor["href"]
-        if not href.lower().endswith(".ods"):
-            continue
-        url = urljoin(base_url, href)
+    for link in links:
+        url = link["url"]
         slug = re.sub(r"[^a-z0-9]+", " ", unquote(url).lower())
         match = _FILENAME_PERIOD_RE.search(slug)
         if not match:

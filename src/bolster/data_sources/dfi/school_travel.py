@@ -47,11 +47,10 @@ import re
 from pathlib import Path
 from urllib.parse import urljoin
 
-import bs4
 import pandas as pd
 
 from bolster.utils.cache import CachedDownloader, DownloadError
-from bolster.utils.web import session
+from bolster.utils.web import fetch_soup, scrape_file_links
 
 logger = logging.getLogger(__name__)
 
@@ -152,12 +151,9 @@ def list_publications(index_url: str = INDEX_URL) -> list[dict]:
         True
     """
     try:
-        response = session.get(index_url, timeout=60)
-        response.raise_for_status()
+        soup = fetch_soup(index_url)
     except Exception as e:
         raise SchoolTravelDataNotFoundError(f"Failed to fetch YPBAS index page {index_url}: {e}") from e
-
-    soup = bs4.BeautifulSoup(response.content, features="html.parser")
 
     publications: dict[int, str] = {}
     for anchor in soup.find_all("a", href=True):
@@ -197,19 +193,15 @@ def find_publication_xlsx(page_url: str) -> str:
         True
     """
     try:
-        response = session.get(page_url, timeout=60)
-        response.raise_for_status()
+        # ".xls" is a substring of ".xlsx", so this matches both formats
+        links = scrape_file_links(page_url, ".xls", base_url=BASE_URL)
     except Exception as e:
         raise SchoolTravelDataNotFoundError(f"Failed to fetch publication page {page_url}: {e}") from e
 
-    soup = bs4.BeautifulSoup(response.content, features="html.parser")
+    if not links:
+        raise SchoolTravelDataNotFoundError(f"No spreadsheet linked from {page_url}")
 
-    for anchor in soup.find_all("a", href=True):
-        href = anchor["href"]
-        if href.lower().split("?")[0].endswith((".xlsx", ".xls")):
-            return urljoin(BASE_URL, href)
-
-    raise SchoolTravelDataNotFoundError(f"No spreadsheet linked from {page_url}")
+    return links[0]["url"]
 
 
 def get_latest_publication_url(index_url: str = INDEX_URL) -> tuple[str, int]:

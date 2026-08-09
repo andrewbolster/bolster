@@ -38,13 +38,11 @@ Example:
 import logging
 import re
 from pathlib import Path
-from urllib.parse import urlparse
 
-import bs4
 import pandas as pd
 
 from bolster.utils.cache import CachedDownloader, DownloadError
-from bolster.utils.web import session
+from bolster.utils.web import scrape_file_links
 
 logger = logging.getLogger(__name__)
 
@@ -104,22 +102,16 @@ def get_latest_publication_url(base_url: str = PUBLICATION_URL) -> str:
         True
     """
     try:
-        response = session.get(base_url, timeout=30)
-        response.raise_for_status()
+        links = scrape_file_links(base_url, file_extension=".ods")
     except Exception as e:
         raise MortgagesDataNotFoundError(f"Failed to fetch publication page {base_url}: {e}") from e
 
-    soup = bs4.BeautifulSoup(response.content, features="html.parser")
+    if not links:
+        raise MortgagesDataNotFoundError(f"Could not find an ODS file on {base_url}")
 
-    for a in soup.find_all("a", href=True):
-        href = a["href"]
-        if href.lower().endswith(".ods"):
-            if href.startswith("/"):
-                href = urlparse(base_url)._replace(path=href, query="", fragment="").geturl()
-            logger.info(f"Found latest mortgages bulletin: {href}")
-            return href
-
-    raise MortgagesDataNotFoundError(f"Could not find an ODS file on {base_url}")
+    url = links[0]["url"]
+    logger.info(f"Found latest mortgages bulletin: {url}")
+    return url
 
 
 def download_file(url: str, cache_ttl_hours: int = 24 * 7, force_refresh: bool = False) -> Path:

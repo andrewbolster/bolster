@@ -5,10 +5,11 @@ import re
 from pathlib import Path
 
 import pandas as pd
-from bs4 import BeautifulSoup
 
 from bolster.utils.cache import CachedDownloader, DownloadError
-from bolster.utils.web import session
+from bolster.utils.web import LinkNotFoundError, scrape_file_links
+from bolster.utils.web import find_publication_link as _find_publication_link
+from bolster.utils.web import make_absolute_url as make_absolute_url
 
 logger = logging.getLogger(__name__)
 
@@ -71,22 +72,14 @@ def scrape_download_links(
 
     Returns:
         List of dicts with 'url' and 'text' keys
+
+    Raises:
+        NISRADataError: If the page cannot be fetched.
     """
     try:
-        response = session.get(page_url)
-        response.raise_for_status()
+        return scrape_file_links(page_url, file_extension=file_extension, base_url=base_url)
     except Exception as e:
         raise NISRADataError(f"Failed to fetch page {page_url}: {e}") from e
-
-    soup = BeautifulSoup(response.content, "html.parser")
-
-    links = []
-    for a_tag in soup.find_all("a", href=True):
-        href = a_tag["href"]
-        if file_extension in href.lower():
-            links.append({"url": make_absolute_url(href, base_url), "text": a_tag.get_text(strip=True)})
-
-    return links
 
 
 def find_publication_link(
@@ -130,49 +123,19 @@ def find_publication_link(
         True
     """
     try:
-        response = session.get(hub_url, force_refresh=force_refresh)
-        response.raise_for_status()
+        return _find_publication_link(
+            hub_url,
+            pub_text_contains=pub_text_contains,
+            pub_href_contains=pub_href_contains,
+            file_extension=file_extension,
+            file_href_contains=file_href_contains,
+            base_url=base_url,
+            force_refresh=force_refresh,
+        )
+    except LinkNotFoundError as e:
+        raise NISRADataNotFoundError(str(e)) from e
     except Exception as e:
         raise NISRADataNotFoundError(f"Failed to fetch hub page {hub_url}: {e}") from e
-
-    soup = BeautifulSoup(response.content, "html.parser")
-    pub_link = None
-    for a_tag in soup.find_all("a", href=True):
-        href = a_tag["href"]
-        text = a_tag.get_text(strip=True)
-        if pub_text_contains and pub_text_contains not in text:
-            continue
-        if pub_href_contains and pub_href_contains.lower() not in href.lower():
-            continue
-        pub_link = make_absolute_url(href, base_url)
-        logger.debug("Found publication link: %s", pub_link)
-        break
-
-    if not pub_link:
-        raise NISRADataNotFoundError(
-            f"No publication link found on {hub_url} "
-            f"(text_contains={pub_text_contains!r}, href_contains={pub_href_contains!r})"
-        )
-
-    try:
-        pub_response = session.get(pub_link, force_refresh=force_refresh)
-        pub_response.raise_for_status()
-    except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch publication page {pub_link}: {e}") from e
-
-    pub_soup = BeautifulSoup(pub_response.content, "html.parser")
-    for a_tag in pub_soup.find_all("a", href=True):
-        href = a_tag["href"]
-        if file_extension not in href.lower():
-            continue
-        if file_href_contains and file_href_contains not in href:
-            continue
-        return make_absolute_url(href, base_url)
-
-    raise NISRADataNotFoundError(
-        f"No {file_extension} file found on publication page {pub_link}"
-        + (f" (href_contains={file_href_contains!r})" if file_href_contains else "")
-    )
 
 
 def clear_cache(pattern: str | None = None) -> int:
@@ -301,29 +264,6 @@ def extract_column_mapping(sheet, header_row: int, column_names: list[str]) -> d
         logger.warning(f"Could not find columns: {missing}")
 
     return mapping
-
-
-def make_absolute_url(url: str, base_url: str) -> str:
-    """Convert a relative URL to absolute.
-
-    Args:
-        url: URL that may be relative (starting with /) or absolute
-        base_url: Base URL to prepend for relative URLs (e.g., "https://www.nisra.gov.uk")
-
-    Returns:
-        Absolute URL
-
-    Example:
-        >>> make_absolute_url("/publications/file.xlsx", "https://www.nisra.gov.uk")
-        'https://www.nisra.gov.uk/publications/file.xlsx'
-        >>> make_absolute_url("https://example.com/file.xlsx", "https://www.nisra.gov.uk")
-        'https://example.com/file.xlsx'
-    """
-    if url.startswith("/"):
-        return f"{base_url}{url}"
-    if not url.startswith("http"):
-        return f"{base_url}/{url}"
-    return url
 
 
 def parse_month_year(month_str: str, format: str = "%B %Y") -> pd.Timestamp | None:

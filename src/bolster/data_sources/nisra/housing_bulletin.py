@@ -38,9 +38,8 @@ import re
 from typing import TYPE_CHECKING
 
 import pandas as pd
-from bs4 import BeautifulSoup
 
-from bolster.utils.web import session
+from bolster.utils.web import find_publication_link
 
 from ._base import NISRADataNotFoundError, NISRAValidationError, download_file
 
@@ -102,27 +101,19 @@ def get_latest_publication_url() -> str:
         >>> 'communities-ni.gov.uk' in url
         True
     """
-    try:
-        response = session.get(_HUB_URL)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.content, "html.parser")
-
-        for a_tag in soup.find_all("a", href=True):
-            href = str(a_tag["href"])
-            if "/publications/northern-ireland-housing-bulletin" not in href.lower():
-                continue
-            pub_url = f"{_SITE_ROOT}{href}" if href.startswith("/") else href
-            pub_resp = session.get(pub_url)
-            pub_resp.raise_for_status()
-            pub_soup = BeautifulSoup(pub_resp.content, "html.parser")
-            for a2 in pub_soup.find_all("a", href=True):
-                h2 = str(a2["href"])
-                if h2.lower().endswith((".ods", ".xlsx")):
-                    file_url = f"{_SITE_ROOT}{h2}" if h2.startswith("/") else h2
-                    logger.info("Discovered housing bulletin URL: %s", file_url)
-                    return file_url
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("Could not scrape %s for housing bulletin URL: %s", _HUB_URL, exc)
+    for extension in (".ods", ".xlsx"):
+        try:
+            file_url = find_publication_link(
+                _HUB_URL,
+                pub_href_contains="/publications/northern-ireland-housing-bulletin",
+                file_extension=extension,
+                base_url=_SITE_ROOT,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Could not scrape %s for a %s bulletin: %s", _HUB_URL, extension, exc)
+            continue
+        logger.info("Discovered housing bulletin URL: %s", file_url)
+        return file_url
 
     logger.info("Using fallback housing bulletin URL")
     return _FALLBACK_URL
