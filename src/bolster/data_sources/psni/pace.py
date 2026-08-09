@@ -360,14 +360,6 @@ def get_latest_pace(breakdown: str = "stop_search", force_refresh: bool = False)
         ValueError: If ``breakdown`` is not ``"stop_search"`` or ``"arrests"``.
         PSNIDataNotFoundError: If the download fails.
         PSNIValidationError: If the workbook structure is not as expected.
-
-    Example:
-        >>> df = get_latest_pace(breakdown="stop_search")  # doctest: +SKIP
-        >>> "reason" in df.columns
-        True
-        >>> df = get_latest_pace(breakdown="arrests")  # doctest: +SKIP
-        >>> "category" in df.columns
-        True
     """
     if breakdown not in ("stop_search", "arrests"):
         raise ValueError(f"breakdown must be 'stop_search' or 'arrests', got {breakdown!r}")

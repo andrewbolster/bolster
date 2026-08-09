@@ -30,7 +30,7 @@ Example:
     >>> df = daera_waste.get_latest_waste_statistics()
     >>> 'council_area' in df.columns
     True
-    >>> 'tonnes' in df.columns
+    >>> 'lac_waste_arisings_tonnes' in df.columns
     True
 
 """
@@ -339,7 +339,7 @@ def get_latest_waste_statistics(force_refresh: bool = False) -> pd.DataFrame:
         >>> df = get_latest_waste_statistics()
         >>> 'council_area' in df.columns
         True
-        >>> (df['lac_waste_arisings_tonnes'] >= 0).all()
+        >>> bool((df['lac_waste_arisings_tonnes'] >= 0).all())
         True
     """
     csv_url = get_waste_publication_url(prefer="csv")

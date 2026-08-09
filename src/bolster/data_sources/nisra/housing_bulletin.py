@@ -488,7 +488,7 @@ def get_waiting_list_by_district(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_waiting_list_by_district()
-        >>> df.set_index('lgd').loc['Belfast', 'total_applicants'] > 0
+        >>> bool(df.set_index('lgd').loc['Belfast', 'total_applicants'] > 0)
         True
     """
     raw = _load_sheet(_download(force_refresh), _SHEET_WAITING_LIST_LGD)
@@ -639,7 +639,7 @@ def get_affordable_warmth(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_affordable_warmth()
-        >>> df['approvals'].sum() > 0
+        >>> bool(df['approvals'].sum() > 0)
         True
     """
     raw = _load_sheet(_download(force_refresh), _SHEET_AFFORDABLE_WARMTH)

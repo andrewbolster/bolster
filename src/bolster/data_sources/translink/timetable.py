@@ -17,9 +17,13 @@ while QL/QB stop records use 12-digit codes starting with ``7``
 (e.g. ``700000009264``).  The relation is ``stop_atco = '7' + trip_atco[0:11]``.
 
 Example:
-    >>> trips = get_trip_index()
-    >>> trips["700000001661"]  # stops serving Victoria Square
-    [TripStop(...), ...]
+    >>> index = get_trip_index()
+    >>> calls = index["700000001661"]  # trips serving Victoria Square
+    >>> len(calls) > 0
+    True
+    >>> trip, stop = calls[0]
+    >>> stop.atco
+    '700000001661'
 """
 
 import io
