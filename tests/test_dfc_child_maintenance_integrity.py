@@ -70,7 +70,9 @@ class TestPublicationDiscovery:
 
     def test_missing_publication_raises(self):
         with pytest.raises(cm.CMSDataNotFoundError):
-            cm.find_publication_xlsx("https://www.communities-ni.gov.uk/publications/no-such-publication-data-june-2020")
+            cm.find_publication_xlsx(
+                "https://www.communities-ni.gov.uk/publications/no-such-publication-data-june-2020"
+            )
 
 
 @pytest.mark.integration
@@ -115,7 +117,9 @@ class TestLatestPublication:
     def test_maintenance_paid_below_due(self, df):
         maintenance = df[df["table"] == "maintenance"]
         pivot = maintenance.pivot_table(index="date", columns="subcategory", values="value")
-        assert (pivot["Maintenance paid through Collect & Pay"] <= pivot["Maintenance due to be paid through Collect & Pay"]).all()
+        assert (
+            pivot["Maintenance paid through Collect & Pay"] <= pivot["Maintenance due to be paid through Collect & Pay"]
+        ).all()
 
     def test_characteristics_proportions_sum_per_group(self, df):
         characteristics = df[(df["table"] == "paying_parent_characteristics") & (df["measure"] == "proportion")]
@@ -289,9 +293,7 @@ class TestQuarterParsing:
     def test_parses(self, raw, expected):
         assert cm._parse_quarter(raw).date() == expected
 
-    @pytest.mark.parametrize(
-        "raw", ["", None, "Total", "Source: DfC", "December 2020", 42]
-    )
+    @pytest.mark.parametrize("raw", ["", None, "Total", "Source: DfC", "December 2020", 42])
     def test_rejects(self, raw):
         assert cm._parse_quarter(raw) is None
 
@@ -305,7 +307,11 @@ class TestMeasureResolution:
             ("clearances", "Proportion Currently Cleared", ("Proportion Currently Cleared", "proportion")),
             ("clearances", "Cleared within 6 weeks", ("Cleared within 6 weeks", "proportion")),
             ("enforcement", "Sanctions", ("Sanctions", "amount_gbp")),
-            ("maintenance", "Maintenance paid through Collect & Pay", ("Maintenance paid through Collect & Pay", "amount_gbp")),
+            (
+                "maintenance",
+                "Maintenance paid through Collect & Pay",
+                ("Maintenance paid through Collect & Pay", "amount_gbp"),
+            ),
             ("applications", "Applications Received", ("Applications Received", "count")),
         ],
     )

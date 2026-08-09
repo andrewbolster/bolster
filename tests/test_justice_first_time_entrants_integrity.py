@@ -160,10 +160,7 @@ class TestHeadlineFigures:
     @staticmethod
     def _value(df, table, category, measure, year="2024-25"):
         match = df[
-            (df["table"] == table)
-            & (df["category"] == category)
-            & (df["year"] == year)
-            & (df["measure"] == measure)
+            (df["table"] == table) & (df["category"] == category) & (df["year"] == year) & (df["measure"] == measure)
         ]
         assert len(match) == 1, f"expected one row for {table}/{category}/{year}/{measure}"
         return match["value"].iloc[0]

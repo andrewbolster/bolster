@@ -454,9 +454,7 @@ class TestCrossValidation:
         """PfG progress is the headline series expressed in MtCO2e."""
         pfg = get_pfg_progress()
         row = pfg[pfg["year"] == latest]
-        assert float(row["emissions_mtco2e"].iloc[0]) == pytest.approx(
-            headline_ktco2e / 1000, rel=1e-6
-        )
+        assert float(row["emissions_mtco2e"].iloc[0]) == pytest.approx(headline_ktco2e / 1000, rel=1e-6)
 
     def test_gas_changes_total_matches_headline(self, headline_ktco2e):
         changes = get_gas_changes().set_index("gas")["latest_year_mtco2e"]
@@ -481,9 +479,9 @@ class TestCrossValidation:
         sectors = get_emissions_by_sector()
         current = sectors[sectors["year"] == latest].set_index("sector")["emissions_ktco2e"]
         for sector in NI_SECTORS:
-            assert float(changes[sector]) == pytest.approx(
-                float(current[sector]) / 1000, abs=0.01
-            ), f"{sector} disagrees between the change table and the time series"
+            assert float(changes[sector]) == pytest.approx(float(current[sector]) / 1000, abs=0.01), (
+                f"{sector} disagrees between the change table and the time series"
+            )
 
     def test_revisions_current_edition_matches_series(self):
         """Revision table's 'current edition' column is this year's inventory."""

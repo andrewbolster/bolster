@@ -270,9 +270,7 @@ class TestSocialHousingSupply:
             .groupby(["financial_year", "tenure"])["completions"]
             .sum()
         )
-        subtotals = annual[annual["housing_type"] == "Sub-total"].set_index(["financial_year", "tenure"])[
-            "completions"
-        ]
+        subtotals = annual[annual["housing_type"] == "Sub-total"].set_index(["financial_year", "tenure"])["completions"]
         common = components.index.intersection(subtotals.dropna().index)
         assert len(common) >= 20
         pd.testing.assert_series_equal(

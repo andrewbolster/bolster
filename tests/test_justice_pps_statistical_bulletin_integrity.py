@@ -274,7 +274,9 @@ class TestHistoricalSeries:
     def test_files_received_trend_plausible(self, historical):
         """Annual file receipts should stay within a stable band."""
         totals = historical[
-            (historical["table"] == "1a") & (historical["category"] == "All Files") & (historical["breakdown"] == "All PPS")
+            (historical["table"] == "1a")
+            & (historical["category"] == "All Files")
+            & (historical["breakdown"] == "All PPS")
         ]
         assert totals["value"].between(20000, 80000).all()
 
