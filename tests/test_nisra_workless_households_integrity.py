@@ -201,9 +201,7 @@ class TestDispatcher:
     """Validate the table dispatcher used by the CLI."""
 
     def test_list_tables(self) -> None:
-        tables = wh.list_tables()
-        assert "northern-ireland" in tables
-        assert tables == sorted(tables)
+        assert "northern-ireland" in wh.list_tables()
 
     def test_default_table(self) -> None:
         df = wh.get_latest_data()

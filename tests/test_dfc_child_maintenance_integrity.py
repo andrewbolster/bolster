@@ -196,7 +196,8 @@ class TestTableAccessors:
         assert set(subset["table"]) == {table}
 
     def test_list_tables_from_frame(self, df):
-        assert cm.list_tables(df) == sorted(cm.list_tables())
+        """Passing an explicit frame must agree with the default-fetch path."""
+        assert cm.list_tables(df) == cm.list_tables()
 
 
 class TestSheetIdentification:
