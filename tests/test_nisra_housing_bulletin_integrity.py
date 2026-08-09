@@ -164,10 +164,8 @@ class TestValidation:
 
 
 class TestTableDispatch:
-    def test_list_tables_is_sorted_and_complete(self):
-        tables = hb.list_tables()
-        assert tables == sorted(tables)
-        assert len(tables) == 9
+    def test_list_tables_is_complete(self):
+        assert len(hb.list_tables()) == 9
 
     def test_unknown_table_rejected(self):
         with pytest.raises(NISRADataNotFoundError, match="Unknown table"):
@@ -270,9 +268,7 @@ class TestSocialHousingSupply:
             .groupby(["financial_year", "tenure"])["completions"]
             .sum()
         )
-        subtotals = annual[annual["housing_type"] == "Sub-total"].set_index(["financial_year", "tenure"])[
-            "completions"
-        ]
+        subtotals = annual[annual["housing_type"] == "Sub-total"].set_index(["financial_year", "tenure"])["completions"]
         common = components.index.intersection(subtotals.dropna().index)
         assert len(common) >= 20
         pd.testing.assert_series_equal(

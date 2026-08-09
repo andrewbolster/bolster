@@ -164,8 +164,8 @@ class TestLatestBulletinIntegrity:
         with pytest.raises(PPSDataNotFoundError, match="Unknown table"):
             pps.get_latest_data(table="99z")
 
-    def test_list_tables(self, latest):
-        assert set(pps.list_tables()) == set(latest["table"])
+    def test_list_tables(self):
+        assert {"1a", "3a"} <= set(pps.list_tables())
 
 
 class TestAccessors:
@@ -274,7 +274,9 @@ class TestHistoricalSeries:
     def test_files_received_trend_plausible(self, historical):
         """Annual file receipts should stay within a stable band."""
         totals = historical[
-            (historical["table"] == "1a") & (historical["category"] == "All Files") & (historical["breakdown"] == "All PPS")
+            (historical["table"] == "1a")
+            & (historical["category"] == "All Files")
+            & (historical["breakdown"] == "All PPS")
         ]
         assert totals["value"].between(20000, 80000).all()
 

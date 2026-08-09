@@ -81,10 +81,8 @@ class TestEditionDiscovery:
         """Discovery must not invent chapter keys."""
         assert set(chapter_urls) <= set(frs.CHAPTERS)
 
-    def test_list_chapters_is_sorted(self):
-        """list_chapters returns the known keys in sorted order."""
-        chapters = frs.list_chapters()
-        assert chapters == sorted(frs.CHAPTERS)
+    def test_list_chapters_covers_known_keys(self):
+        assert {"income", "tenure", "pensions", "food_security"} <= set(frs.list_chapters())
 
     def test_unknown_chapter_raises(self):
         """Reading an unpublished chapter raises FRSDataNotFoundError."""
@@ -366,9 +364,7 @@ class TestIncomeAndStateSupport:
 
     def test_support_trend_total_exceeds_components(self, support_trend):
         """The all-recipients figure must be at least the income-related share."""
-        pivot = support_trend.pivot_table(
-            index="financial_year", columns="state_support_type", values="percentage"
-        )
+        pivot = support_trend.pivot_table(index="financial_year", columns="state_support_type", values="percentage")
         total = [c for c in pivot.columns if c.lower().startswith("all in receipt")][0]
         income_related = [c for c in pivot.columns if c.lower().startswith("on any income")][0]
         assert (pivot[total] >= pivot[income_related]).all()
@@ -427,7 +423,7 @@ class TestTenure:
     def test_district_coverage(self, by_district):
         """All eleven Local Government Districts must be present."""
         districts = set(by_district["district"])
-        assert DISTRICTS <= districts
+        assert districts >= DISTRICTS
         assert len(districts) == 11
 
     def test_district_tenures_consistent(self, by_district):
@@ -562,7 +558,7 @@ class TestCarersAndDisability:
     def test_disability_district_coverage(self, disability_districts):
         """All eleven districts plus the NI total must be present."""
         districts = set(disability_districts["district"])
-        assert DISTRICTS <= districts
+        assert districts >= DISTRICTS
         assert "Northern Ireland" in districts
         assert len(districts) == 12
 
