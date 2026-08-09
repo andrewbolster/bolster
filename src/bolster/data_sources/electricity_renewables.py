@@ -35,7 +35,7 @@ Example:
     True
     >>> 'renewable_pct_rolling_12m' in data['renewable_pct'].columns
     True
-    >>> (data['renewable_pct']['renewable_pct_rolling_12m'] > 0).all()
+    >>> bool((data['renewable_pct']['renewable_pct_rolling_12m'] > 0).all())
     True
 
 """

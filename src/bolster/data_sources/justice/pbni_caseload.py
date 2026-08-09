@@ -267,7 +267,7 @@ def get_annual_caseload(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_annual_caseload()
-        >>> (df["caseload"] >= df["service_users"]).all()
+        >>> bool((df["caseload"] >= df["service_users"]).all())
         True
     """
     return get_latest_data("caseload", frequency="annual", force_refresh=force_refresh)

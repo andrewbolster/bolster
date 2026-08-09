@@ -266,7 +266,8 @@ def parse_presentations(file_path: str | Path) -> pd.DataFrame:
         presentations, rate_per_1000.
 
     Example:
-        >>> df = parse_presentations('/tmp/homelessness.xlsx')
+        >>> path = download_file(get_latest_publication_url(), cache_ttl_hours=24)
+        >>> df = parse_presentations(path)
         >>> set(df.columns) >= {'year', 'period', 'lgd', 'presentations'}
         True
     """
@@ -286,7 +287,8 @@ def parse_acceptances(file_path: str | Path) -> pd.DataFrame:
         acceptances, rate_per_1000.
 
     Example:
-        >>> df = parse_acceptances('/tmp/homelessness.xlsx')
+        >>> path = download_file(get_latest_publication_url(), cache_ttl_hours=24)
+        >>> df = parse_acceptances(path)
         >>> set(df.columns) >= {'year', 'period', 'lgd', 'acceptances'}
         True
     """

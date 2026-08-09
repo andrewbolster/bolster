@@ -21,7 +21,7 @@ Update Frequency:
     Quarterly, approximately 3 months after the end of each quarter.
 
 Example:
-    >>> from bolster.data_sources.nisra import emergency_care_waiting_times as ecwt
+    >>> from bolster.data_sources.health_ni import emergency_care_waiting_times as ecwt
     >>> df = ecwt.get_latest_data()
     >>> 'pct_within_4hrs' in df.columns
     True

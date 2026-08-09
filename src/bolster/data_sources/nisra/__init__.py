@@ -44,8 +44,8 @@ Note:
 
 Examples:
     >>> from bolster.data_sources.nisra import claimant_count
-    >>> cc_df = claimant_count.get_latest_claimant_count("headline")
-    >>> "claimants_000s" in cc_df.columns
+    >>> cc_df = claimant_count.get_latest_claimant_count("lgd")
+    >>> "claimants_total" in cc_df.columns
     True
 
     >>> from bolster.data_sources.nisra import ashe

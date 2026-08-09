@@ -18,8 +18,14 @@ def _check_ssl_available():
             # Try to connect to a known HTTPS site
             urllib.request.urlopen("https://www.google.com", timeout=5)
             _SSL_AVAILABLE = True
-        except (ssl.SSLError, urllib.error.URLError):
+        except ssl.SSLError:
             _SSL_AVAILABLE = False
+        except urllib.error.URLError as exc:
+            # URLError covers both cert failures and plain slow/absent network.
+            # Only a genuine SSL error means the local trust store is broken; a
+            # timeout under CI load must not silently skip the whole network
+            # suite, which reads as a pass while tanking coverage.
+            _SSL_AVAILABLE = not isinstance(exc.reason, ssl.SSLError)
         except Exception:
             # Other errors (network unavailable, etc.) - assume SSL would work
             _SSL_AVAILABLE = True

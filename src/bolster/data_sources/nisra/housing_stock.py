@@ -281,8 +281,8 @@ def parse_lgd_file(file_path: str | object) -> pd.DataFrame:
         semi_detached, terrace, total.
 
     Example:
-        >>> import pathlib
-        >>> df = parse_lgd_file("/tmp/housing_stock_lgd.xlsx")
+        >>> path = download_file(get_latest_publication_url("lgd"), cache_ttl_hours=24)
+        >>> df = parse_lgd_file(path)
         >>> 'total' in df.columns
         True
     """

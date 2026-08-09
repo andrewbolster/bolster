@@ -26,7 +26,7 @@ Original data source:
 Data is fetched from the NISRA PxStat API using matrix ``DWT``.
 
 Example:
-    >>> from bolster.data_sources.nisra import diagnostic_waiting_times as dwt
+    >>> from bolster.data_sources.health_ni import diagnostic_waiting_times as dwt
     >>> df = dwt.get_latest_diagnostic_waiting_times()
     >>> sorted(df.columns.tolist())
     ['category', 'date', 'over_26_weeks', 'over_9_weeks', 'performance_rate', 'quarter', 'total_waiting', 'trust', 'within_9_weeks', 'year']
