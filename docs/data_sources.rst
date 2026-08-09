@@ -148,18 +148,44 @@ change including natural change, net migration, and cross-border flows.
 Labour Market
 ~~~~~~~~~~~~~
 
-Quarterly Labour Force Survey statistics: employment, economic inactivity, and
-unemployment rates for Northern Ireland.
+Labour Force Survey statistics for Northern Ireland, drawn from two separate
+NISRA publications:
+
+* The **quarterly LFS Tables** workbook supplies employment by age and sex
+  (Table 2.15) and economic inactivity by sex (Table 2.21). An annual LGD
+  tables publication carries the same measures for all 11 Local Government
+  Districts.
+* The **monthly Labour Market Report** supplies the rolling three-month
+  headline structure — population 16+, economically active, in employment,
+  unemployed, economically inactive — and is typically two to three months
+  more current than the quarterly tables.
+
+Both publication URLs are discovered by scraping the NISRA publication index,
+so no release date needs to be hardcoded.
 
 .. code-block:: python
 
     from bolster.data_sources.nisra import labour_market
 
-    df = labour_market.get_latest_employment()
+    # Rolling 3-month headline structure (monthly LMR — most current)
+    overview = labour_market.get_latest_labour_market_overview()
+
+    # Quarterly LFS tables
+    employment = labour_market.get_latest_employment()
+    inactivity = labour_market.get_latest_economic_inactivity()
+
+    # A specific quarter
+    tables = labour_market.get_quarterly_data(2025, "Jul-Sep")
+
+    # Annual employment by Local Government District
+    by_lgd = labour_market.get_latest_employment_by_lgd()
 
 .. code-block:: console
 
     $ bolster nisra labour-market
+    $ bolster nisra labour-market --dimension overview
+    $ bolster nisra labour-market --dimension employment
+    $ bolster nisra labour-market --dimension lgd --format json
 
 Young People NEET
 ~~~~~~~~~~~~~~~~~
@@ -218,7 +244,7 @@ April 1997, with LGD and SOA breakdowns.
     $ bolster nisra claimant-count
 
 Annual Survey of Hours and Earnings (ASHE)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Employee earnings statistics for Northern Ireland, covering median weekly and
 hourly earnings, real earnings growth, occupation/industry breakdowns, and gender
@@ -251,7 +277,7 @@ unadjusted.
     $ bolster nisra quarterly-employment-survey
 
 Composite Economic Index (NICEI)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The headline experimental quarterly economic indicator for Northern Ireland.
 
@@ -266,7 +292,7 @@ The headline experimental quarterly economic indicator for Northern Ireland.
     $ bolster nisra composite-index
 
 Index of Production / Services
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Quarterly Index of Production (IOP) and Index of Services (IOS) for NI.
 
@@ -299,7 +325,7 @@ maintenance.
     $ bolster nisra construction-output
 
 Business Register (IDBR)
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 NI Business Register (IDBR) — annual VAT/PAYE business counts by industry,
 legal status, and Local Government District.
@@ -331,7 +357,7 @@ refusals by council.
     $ bolster nisra planning-statistics
 
 Deprivation (NIMDM 2017)
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 NI Multiple Deprivation Measure 2017 — SOA-level overall and domain deprivation
 ranks for 890 Super Output Areas.
@@ -393,6 +419,36 @@ LGD-level series lives in :mod:`bolster.data_sources.nisra.homelessness`.
     $ bolster nisra housing-bulletin --table starts
     $ bolster nisra housing-bulletin --table sales --summary
 
+Homelessness
+~~~~~~~~~~~~
+
+NI Homelessness Bulletin (DfC/NIHE) — biannual homeless presentations and
+acceptances by Local Government District, sourced from Northern Ireland
+Housing Executive casework records. Each six-month period (Apr–Sep, Oct–Mar)
+is published roughly three months after it ends, covering 2018/19 to present.
+
+Rows carry both the absolute count and a ``rate_per_1000`` population rate, for
+the 11 LGDs plus a ``'Northern Ireland'`` total. This data is not available via
+the NISRA PxStat API — DfC publish it directly as Excel workbooks.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import homelessness
+
+    presentations = homelessness.get_latest_data(section="presentations")
+    acceptances = homelessness.get_latest_data(section="acceptances")
+
+    # Both sections stacked, with a 'section' discriminator column
+    combined = homelessness.get_latest_data(section="all")
+
+    latest = presentations[presentations["lgd"] == "Belfast"]
+
+.. code-block:: console
+
+    $ bolster nisra homelessness
+    $ bolster nisra homelessness --section acceptances
+    $ bolster nisra homelessness --section all --format json --save homelessness.json
+
 Drug-Related Deaths
 ~~~~~~~~~~~~~~~~~~~
 
@@ -444,7 +500,7 @@ satisfaction, happiness, anxiety, and loneliness.
     $ bolster nisra wellbeing
 
 Public Confidence in Official Statistics
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Public Awareness of and Trust in Official Statistics (PCOS) — awareness and
 trust indicators back to 2009.
@@ -460,7 +516,7 @@ trust indicators back to 2009.
     $ bolster nisra public-confidence
 
 Registrar General Quarterly Tables
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Quarterly births, deaths, marriages, and LGD breakdowns.
 
@@ -476,7 +532,7 @@ Quarterly births, deaths, marriages, and LGD breakdowns.
     $ bolster nisra registrar-general
 
 School Leavers Survey
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 Qualifications achieved and destinations of school leavers, by geography,
 free school meal entitlement, and equality group.
@@ -493,7 +549,7 @@ free school meal entitlement, and equality group.
     $ bolster nisra school-leavers --dimension destination --geography lgd
 
 Tourism — Occupancy
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 
 Monthly hotel and guest accommodation occupancy rates.
 
@@ -508,7 +564,7 @@ Monthly hotel and guest accommodation occupancy rates.
     $ bolster nisra occupancy
 
 Tourism — Visitor Statistics
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Quarterly visitor numbers and spend.
 
@@ -525,14 +581,14 @@ Quarterly visitor numbers and spend.
 ----
 
 Department of Health NI (health_ni)
--------------------------------------
+-----------------------------------
 
 The `Department of Health <https://www.health-ni.gov.uk/>`_ publishes health
 and social care statistics for Northern Ireland.  All health_ni modules live
 under :mod:`bolster.data_sources.health_ni`.
 
 Cancer Waiting Times
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 14-day, 31-day, and 62-day cancer referral-to-treatment waiting times by tumour
 type and HSC Trust.  Data via PxStat.
@@ -548,7 +604,7 @@ type and HSC Trust.  Data via PxStat.
     $ bolster nisra cancer-waiting-times
 
 Diagnostic Waiting Times
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 Diagnostic waiting times by test type and HSC Trust.  Data via PxStat DWT matrix.
 
@@ -563,7 +619,7 @@ Diagnostic waiting times by test type and HSC Trust.  Data via PxStat DWT matrix
     $ bolster nisra diagnostic-waiting-times
 
 Elective Waiting Times
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
 
 Inpatient/day-case and outpatient referrals waiting by weeks-waited band,
 specialty, and HSC Trust.  Covers pre-encompass (legacy PAS) and encompass
@@ -580,7 +636,7 @@ specialty, and HSC Trust.  Covers pre-encompass (legacy PAS) and encompass
     $ bolster nisra elective-waiting-times
 
 Emergency Care Waiting Times
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Monthly A&E attendance and 4-hour target performance by HSC Trust and hospital
 department.
@@ -617,7 +673,7 @@ Covers 17 disease categories including hypertension, diabetes, and COPD.
     $ bolster nisra disease-prevalence --level gp
 
 Child Protection
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 
 NI child protection registrations, de-registrations, and case conference
 statistics from the Department of Health.
@@ -833,7 +889,7 @@ attaches LGD and NUTS3 codes.
 ----
 
 DVA — Driver and Vehicle Agency
---------------------------------
+-------------------------------
 
 Monthly test statistics from the NI Driver and Vehicle Agency.
 
@@ -872,7 +928,7 @@ Drinking water quality data for all NI supply zones.
 ----
 
 NI Assembly (AIMS)
--------------------
+------------------
 
 NI Assembly AIMS data — Members of the Legislative Assembly, oral/written
 questions, and assembly votes.
@@ -925,6 +981,54 @@ Standardised house price index for Northern Ireland.
 .. code-block:: console
 
     $ bolster ni-house-prices
+
+----
+
+Department for the Economy (DfE)
+--------------------------------
+
+Statistics from the Department for the Economy, published in partnership with
+NISRA.
+
+Electricity Consumption and Renewable Generation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Quarterly progress against Northern Ireland's renewable electricity targets —
+80% of consumption from renewable sources by 2030, under the Climate Change
+Act (Northern Ireland) 2022.
+
+The source is an interactive NISRA datavis report which embeds its figures as
+base64-encoded CSV data-URIs rather than offering a downloadable workbook. Four
+headline series are extracted:
+
+* ``renewable_pct`` — rolling 12-month renewable generation as a proportion of
+  gross final electricity consumption, plus the monthly percentage.
+* ``consumption`` — total consumption, renewable and non-renewable generation,
+  and net imports (rolling 12-month GWh).
+* ``generation_by_technology`` — rolling 12-month generation by technology:
+  wind, hydro, bioenergy, landfill gas, solar PV.
+* ``generation_monthly`` — monthly renewable and non-renewable generation
+  (GWh), from February 2018.
+
+Rolling 12-month figures run from January 2019 to present.
+
+.. code-block:: python
+
+    from bolster.data_sources import electricity_renewables
+
+    data = electricity_renewables.get_latest_data()
+
+    pct = data["renewable_pct"]
+    latest = pct["renewable_pct_rolling_12m"].iloc[-1]
+
+    by_tech = data["generation_by_technology"]
+
+.. code-block:: console
+
+    $ bolster dfe electricity
+    $ bolster dfe electricity --dataset consumption
+    $ bolster dfe electricity --dataset renewable-pct --year 2024
+    $ bolster dfe electricity --dataset all --format csv --save electricity.csv
 
 ----
 
@@ -1020,7 +1124,7 @@ most recent years, returned as a single tidy long frame.
     $ bolster justice nicts-quarterly --annual --format json
 
 Prosecutions, Convictions and Out of Court Disposals
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Annual figures on how criminal cases are resolved: convictions and conviction
 rates by court tier, the mix of out of court disposals (cautions, informed
@@ -1048,6 +1152,7 @@ by gender and age band. Publications run from 2008 to the present.
     $ bolster justice prosecutions-convictions --summary
     $ bolster justice prosecutions-convictions --dataset out-of-court
     $ bolster justice prosecutions-convictions --dataset diversionary --by age
+
 First Time Entrants
 ~~~~~~~~~~~~~~~~~~~
 
@@ -1209,12 +1314,12 @@ Translink NI public transport network.
 ----
 
 ONS — Office for National Statistics
---------------------------------------
+------------------------------------
 
 ONS UK-wide statistical releases relevant to Northern Ireland.
 
 CPI / CPIH / RPI Inflation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Annual rates and price indices for CPI, CPIH, and RPI from ONS.
 
@@ -1383,7 +1488,7 @@ Suppressed values (``".."``) are returned as ``NaN`` and negligible values
 ----
 
 Discovering New Publications
------------------------------
+----------------------------
 
 NISRA publishes new datasets regularly.  Use the RSS feed integration to
 discover publications before they are implemented as modules:
