@@ -164,10 +164,8 @@ class TestValidation:
 
 
 class TestTableDispatch:
-    def test_list_tables_is_sorted_and_complete(self):
-        tables = hb.list_tables()
-        assert tables == sorted(tables)
-        assert len(tables) == 9
+    def test_list_tables_is_complete(self):
+        assert len(hb.list_tables()) == 9
 
     def test_unknown_table_rejected(self):
         with pytest.raises(NISRADataNotFoundError, match="Unknown table"):

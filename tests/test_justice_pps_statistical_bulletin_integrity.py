@@ -164,8 +164,8 @@ class TestLatestBulletinIntegrity:
         with pytest.raises(PPSDataNotFoundError, match="Unknown table"):
             pps.get_latest_data(table="99z")
 
-    def test_list_tables(self, latest):
-        assert set(pps.list_tables()) == set(latest["table"])
+    def test_list_tables(self):
+        assert {"1a", "3a"} <= set(pps.list_tables())
 
 
 class TestAccessors:

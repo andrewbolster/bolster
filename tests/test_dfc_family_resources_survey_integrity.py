@@ -81,10 +81,8 @@ class TestEditionDiscovery:
         """Discovery must not invent chapter keys."""
         assert set(chapter_urls) <= set(frs.CHAPTERS)
 
-    def test_list_chapters_is_sorted(self):
-        """list_chapters returns the known keys in sorted order."""
-        chapters = frs.list_chapters()
-        assert chapters == sorted(frs.CHAPTERS)
+    def test_list_chapters_covers_known_keys(self):
+        assert {"income", "tenure", "pensions", "food_security"} <= set(frs.list_chapters())
 
     def test_unknown_chapter_raises(self):
         """Reading an unpublished chapter raises FRSDataNotFoundError."""

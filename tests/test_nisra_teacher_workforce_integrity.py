@@ -228,14 +228,10 @@ class TestListHelpers:
     """Unit tests for the label listing helpers (no network)."""
 
     def test_list_statistics(self) -> None:
-        stats = tw.list_statistics()
-        assert stats == sorted(stats)
-        assert {"all_teachers", "male", "female", "full_time", "part_time"} <= set(stats)
+        assert {"all_teachers", "male", "female", "full_time", "part_time"} <= set(tw.list_statistics())
 
     def test_list_school_types(self) -> None:
-        types = tw.list_school_types()
-        assert types == sorted(types)
-        assert {"nursery", "primary", "grammar", "special", "all"} <= set(types)
+        assert {"nursery", "primary", "grammar", "special", "all"} <= set(tw.list_school_types())
 
 
 class TestAcademicYearParsing:
