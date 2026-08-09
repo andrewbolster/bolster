@@ -311,7 +311,7 @@ def validate_crime_statistics(df: pd.DataFrame) -> bool:  # pragma: no cover
         PSNIValidationError: If validation fails
 
     Example:
-        >>> df = get_latest_crime_statistics()
+        >>> df = get_historical_crime_statistics()
         >>> validate_crime_statistics(df)
         True
     """
@@ -380,7 +380,7 @@ def filter_by_district(
         Filtered DataFrame
 
     Example:
-        >>> df = get_latest_crime_statistics()
+        >>> df = get_historical_crime_statistics()
         >>> belfast = filter_by_district(df, "Belfast City")
         >>> belfast['policing_district'].unique().tolist()
         ['Belfast City']
@@ -410,7 +410,7 @@ def filter_by_crime_type(
         Filtered DataFrame
 
     Example:
-        >>> df = get_latest_crime_statistics()
+        >>> df = get_historical_crime_statistics()
         >>> violence = filter_by_crime_type(df, "Violence with injury (including homicide & death/serious injury by unlawful driving)")
         >>> len(violence) > 0
         True
@@ -437,7 +437,7 @@ def filter_by_date_range(
         Filtered DataFrame
 
     Example:
-        >>> df = get_latest_crime_statistics()
+        >>> df = get_historical_crime_statistics()
         >>> # Get 2020 data
         >>> df_2020 = filter_by_date_range(df, "2020-01-01", "2020-12-31")
         >>> df_2020['calendar_year'].unique().tolist()
@@ -477,7 +477,7 @@ def get_total_crimes_by_district(
         DataFrame with columns: policing_district, lgd_code, nuts3_code, total_crimes
 
     Example:
-        >>> df = get_latest_crime_statistics()
+        >>> df = get_historical_crime_statistics()
         >>> totals_2021 = get_total_crimes_by_district(df, year=2021)
         >>> sorted(totals_2021.columns.tolist())
         ['lgd_code', 'nuts3_code', 'policing_district', 'total_crimes']
@@ -520,7 +520,7 @@ def get_crime_trends(
         DataFrame with columns: date, calendar_year, month, count
 
     Example:
-        >>> df = get_latest_crime_statistics()
+        >>> df = get_historical_crime_statistics()
         >>> trends = get_crime_trends(df, district="Belfast City")
         >>> sorted(trends.columns.tolist())
         ['calendar_year', 'count', 'date', 'month']
@@ -553,7 +553,7 @@ def get_outcome_rates_by_district(
         DataFrame with columns: policing_district, lgd_code, average_outcome_rate
 
     Example:
-        >>> df = get_latest_crime_statistics()
+        >>> df = get_historical_crime_statistics()
         >>> outcomes = get_outcome_rates_by_district(df, year=2021)
         >>> 'average_outcome_rate' in outcomes.columns
         True
@@ -591,7 +591,7 @@ def get_available_crime_types(df: pd.DataFrame) -> list[str]:
         Sorted list of crime type names
 
     Example:
-        >>> df = get_latest_crime_statistics()
+        >>> df = get_historical_crime_statistics()
         >>> crime_types = get_available_crime_types(df)
         >>> isinstance(crime_types, list)
         True
@@ -611,7 +611,7 @@ def get_available_districts(df: pd.DataFrame) -> list[str]:
         Sorted list of district names
 
     Example:
-        >>> df = get_latest_crime_statistics()
+        >>> df = get_historical_crime_statistics()
         >>> districts = get_available_districts(df)
         >>> isinstance(districts, list)
         True

@@ -96,7 +96,9 @@ markers = [
     "network: marks tests requiring network access (deselect with '-m \"not network\"')",
     "integration: marks optional integration tests requiring real network (run with '-m integration')"
 ]
-log_cli = true
+# Live logging swaps sys.stdout out from under doctest's capture, so any doctest
+# whose call emits a log record reports "Got nothing" instead of its real output.
+log_cli = false
 log_cli_level = "WARNING"
 log_cli_format = "%(asctime)s %(levelname)s %(name)s: %(message)s"
 log_cli_date_format = "%H:%M:%S"

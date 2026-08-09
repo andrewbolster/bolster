@@ -14,7 +14,7 @@ uniformly.
 Example:
     >>> from bolster.utils.web import session
     >>> type(session).__name__
-    'Session'
+    'CachingSession'
 """
 
 import hashlib

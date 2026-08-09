@@ -29,7 +29,7 @@ Example:
     ['count', 'name', 'rank', 'sex', 'year']
     >>> sorted(df['sex'].unique().tolist())
     ['Boys', 'Girls']
-    >>> df['year'].min() >= 1997
+    >>> bool(df['year'].min() >= 1997)
     True
 """
 
@@ -314,7 +314,7 @@ def get_baby_names(force_refresh: bool = False) -> pd.DataFrame:
         >>> df = get_baby_names()
         >>> sorted(df.columns.tolist())
         ['count', 'name', 'rank', 'sex', 'year']
-        >>> df['year'].min() >= 1997
+        >>> bool(df['year'].min() >= 1997)
         True
         >>> sorted(df['sex'].unique().tolist())
         ['Boys', 'Girls']
@@ -353,9 +353,13 @@ def validate_baby_names(df: pd.DataFrame) -> bool:
 
     Example:
         >>> import pandas as pd
+        >>> years = list(range(1997, 2021))
         >>> valid_df = pd.DataFrame({
-        ...     'year': [2020, 2020], 'name': ['Noah', 'Jack'],
-        ...     'sex': ['Boys', 'Boys'], 'rank': [1, 2], 'count': [100, 90]
+        ...     'year': years * 2,
+        ...     'name': ['Jack'] * len(years) + ['Grace'] * len(years),
+        ...     'sex': ['Boys'] * len(years) + ['Girls'] * len(years),
+        ...     'rank': [1] * len(years) * 2,
+        ...     'count': [100] * len(years) * 2,
         ... })
         >>> validate_baby_names(valid_df)
         True

@@ -24,7 +24,7 @@ Geographic Coverage: Northern Ireland
 
 Example:
     >>> from bolster.data_sources.nisra import drug_related_deaths as drd
-    >>> df = drd.get_latest_drug_related_deaths()
+    >>> df = drd.get_latest_drug_related_deaths("lgd")
     >>> {"year", "geography", "statistic", "value"}.issubset(df.columns)
     True
     >>> len(df) > 0

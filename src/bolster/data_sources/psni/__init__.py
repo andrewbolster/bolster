@@ -18,11 +18,7 @@ with other NISRA datasets.
 
 Example:
     >>> from bolster.data_sources.psni import crime_statistics, road_traffic_collisions
-    >>> df = crime_statistics.get_historical_crime_statistics()
-    >>> 'lgd_code' in df.columns
-    True
-    >>> lgd_code = crime_statistics.get_lgd_code("Belfast City")
-    >>> lgd_code
+    >>> crime_statistics.get_lgd_code("Belfast City")
     'N09000003'
     >>> casualties = road_traffic_collisions.get_casualties()
     >>> 'severity' in casualties.columns

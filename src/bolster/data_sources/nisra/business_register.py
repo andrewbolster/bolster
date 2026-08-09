@@ -243,9 +243,12 @@ def validate_data(df: pd.DataFrame, level: str = "industry") -> bool:
 
     Example:
         >>> import pandas as pd
+        >>> years = list(range(2010, 2022))
+        >>> groups = ["Retail", "Construction", "Agriculture", "Services"]
         >>> df = pd.DataFrame({
-        ...     "year": [2020, 2021], "industry_group": ["Retail", "Retail"],
-        ...     "businesses": [5890.0, 6040.0],
+        ...     "year": years * len(groups),
+        ...     "industry_group": sum([[g] * len(years) for g in groups], []),
+        ...     "businesses": [5890.0] * len(years) * len(groups),
         ... })
         >>> validate_data(df)
         True
