@@ -30,14 +30,9 @@ Time Coverage:
     - District / allegation / outcome breakdowns: 2011/12 to present
     - Quarterly: latest 5 financial years
 
-Example:
-    >>> from bolster.data_sources.psni import police_ombudsman
-    >>> df = police_ombudsman.get_latest_complaints()
-    >>> 'year' in df.columns
-    True
-    >>> url = police_ombudsman.get_annual_publication_url()
-    >>> url.startswith("https://")
-    True
+Note:
+    policeombudsman.org returns 403 to automated clients, so the fetch helpers
+    in this module cannot be exercised as doctests.
 """
 
 import logging
@@ -168,11 +163,6 @@ def get_quarterly_publication_url() -> str:
     Raises:
         PSNIDataNotFoundError: If the page cannot be retrieved or no .xlsx
             link is found.
-
-    Example:
-        >>> url = get_quarterly_publication_url()
-        >>> url.startswith("https://")
-        True
     """
     try:
         resp = session.get(_QUARTERLY_PAGE, headers=_SCRAPE_HEADERS, timeout=30)
@@ -201,11 +191,6 @@ def get_annual_publication_url() -> str:
     Raises:
         PSNIDataNotFoundError: If the page cannot be retrieved or no .xlsx
             link is found.
-
-    Example:
-        >>> url = get_annual_publication_url()
-        >>> url.startswith("https://")
-        True
     """
     try:
         resp = session.get(_ANNUAL_PAGE, headers=_SCRAPE_HEADERS, timeout=30)
@@ -376,12 +361,6 @@ def parse_annual(file_path: str) -> dict[str, pd.DataFrame]:
 
     Raises:
         PSNIDataNotFoundError: If required sheets cannot be found.
-
-    Example:
-        >>> from bolster.data_sources.psni import police_ombudsman
-        >>> result = parse_annual.__doc__  # placeholder
-        >>> 'totals' in result
-        False
     """
     xl = pd.ExcelFile(file_path)
     return {
@@ -416,11 +395,6 @@ def parse_quarterly(file_path: str) -> dict[str, pd.DataFrame]:
 
     Raises:
         PSNIDataNotFoundError: If required sheets cannot be found.
-
-    Example:
-        >>> from bolster.data_sources.psni import police_ombudsman
-        >>> True  # real call requires downloaded file
-        True
     """
     xl = pd.ExcelFile(file_path)
 
@@ -518,14 +492,6 @@ def get_latest_complaints(
     Raises:
         ValueError: If *breakdown* is not one of the recognised values.
         PSNIDataNotFoundError: If the source cannot be downloaded.
-
-    Example:
-        >>> df = get_latest_complaints()
-        >>> set(["year", "complaints"]).issubset(df.columns)
-        True
-        >>> df_d = get_latest_complaints("by_district")
-        >>> "district" in df_d.columns
-        True
     """
     _annual_keys = {"totals", "by_district", "by_allegation_type", "by_outcome"}
     _quarterly_keys = {"quarterly"}
