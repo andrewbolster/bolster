@@ -54,11 +54,10 @@ import re
 from pathlib import Path
 from urllib.parse import urljoin
 
-import bs4
 import pandas as pd
 
 from bolster.utils.cache import CachedDownloader, DownloadError
-from bolster.utils.web import session
+from bolster.utils.web import fetch_soup, scrape_file_links
 
 logger = logging.getLogger(__name__)
 
@@ -508,12 +507,9 @@ def list_publications(base_url: str = PUBLICATION_URL) -> list[dict]:
         True
     """
     try:
-        response = session.get(base_url, timeout=30)
-        response.raise_for_status()
+        soup = fetch_soup(base_url)
     except Exception as e:
         raise FirstTimeEntrantsNotFoundError(f"Failed to fetch index page {base_url}: {e}") from e
-
-    soup = bs4.BeautifulSoup(response.content, features="html.parser")
 
     publications: dict[str, dict] = {}
     for anchor in soup.find_all("a", href=True):
@@ -574,27 +570,16 @@ def find_data_file(publication_url: str) -> str:
         >>> url.lower().endswith((".ods", ".xlsx"))
         True
     """
-    try:
-        response = session.get(publication_url, timeout=30)
-        response.raise_for_status()
-    except Exception as e:
-        raise FirstTimeEntrantsNotFoundError(f"Failed to fetch publication page {publication_url}: {e}") from e
+    # ODS is the accessible format and is preferred where both are published
+    for extension in (".ods", ".xls"):
+        try:
+            links = scrape_file_links(publication_url, extension)
+        except Exception as e:
+            raise FirstTimeEntrantsNotFoundError(f"Failed to fetch publication page {publication_url}: {e}") from e
+        if links:
+            return links[0]["url"]
 
-    soup = bs4.BeautifulSoup(response.content, features="html.parser")
-
-    candidates = []
-    for anchor in soup.find_all("a", href=True):
-        url = urljoin(publication_url, anchor["href"])
-        lowered = url.lower().split("?")[0]
-        if lowered.endswith(".ods"):
-            candidates.append((0, url))
-        elif lowered.endswith(".xlsx") or lowered.endswith(".xls"):
-            candidates.append((1, url))
-
-    if not candidates:
-        raise FirstTimeEntrantsNotFoundError(f"No spreadsheet linked from {publication_url}")
-
-    return min(candidates)[1]
+    raise FirstTimeEntrantsNotFoundError(f"No spreadsheet linked from {publication_url}")
 
 
 def download_file(url: str, cache_ttl_hours: int = _CACHE_TTL_HOURS, force_refresh: bool = False) -> Path:

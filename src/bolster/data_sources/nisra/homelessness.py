@@ -34,9 +34,8 @@ import re
 from typing import TYPE_CHECKING
 
 import pandas as pd
-from bs4 import BeautifulSoup
 
-from bolster.utils.web import session
+from bolster.utils.web import fetch_soup, make_absolute_url, scrape_file_links
 
 from ._base import NISRADataNotFoundError, NISRAValidationError, download_file  # noqa: F401
 
@@ -45,7 +44,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_HUB_URL = "https://www.communities-ni.gov.uk/articles/northern-ireland-homelessness-bulletin"
+_SITE_ROOT = "https://www.communities-ni.gov.uk"
+
+_HUB_URL = f"{_SITE_ROOT}/articles/northern-ireland-homelessness-bulletin"
 
 _FALLBACK_URL = (
     "https://www.communities-ni.gov.uk/system/files/2026-06/ni-homelessness-bulletin-oct-mar-2026-tables.xlsx"
@@ -85,34 +86,23 @@ def get_latest_publication_url() -> str:
         True
     """
     try:
-        response = session.get(_HUB_URL)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.content, "html.parser")
-
-        candidates: list[str] = []
-        for a_tag in soup.find_all("a", href=True):
-            href: str = a_tag["href"]
-            if "homelessness-bulletin" in href.lower() and "tables" in href.lower() and ".xlsx" in href.lower():
-                if href.startswith("/"):
-                    href = f"https://www.communities-ni.gov.uk{href}"
-                candidates.append(href)
+        candidates = [
+            link["url"]
+            for link in scrape_file_links(_HUB_URL, ".xlsx", base_url=_SITE_ROOT)
+            if "homelessness-bulletin" in link["url"].lower() and "tables" in link["url"].lower()
+        ]
 
         if not candidates:
             # Try following the first publication link on the hub page
-            for a_tag in soup.find_all("a", href=True):
+            for a_tag in fetch_soup(_HUB_URL).find_all("a", href=True):
                 href = a_tag["href"]
                 if "homelessness-bulletin" in href.lower() and "publications" in href.lower():
-                    if href.startswith("/"):
-                        href = f"https://www.communities-ni.gov.uk{href}"
-                    pub_resp = session.get(href)
-                    pub_resp.raise_for_status()
-                    pub_soup = BeautifulSoup(pub_resp.content, "html.parser")
-                    for a2 in pub_soup.find_all("a", href=True):
-                        h2 = a2["href"]
-                        if ".xlsx" in h2.lower() and "table" in h2.lower():
-                            if h2.startswith("/"):
-                                h2 = f"https://www.communities-ni.gov.uk{h2}"
-                            candidates.append(h2)
+                    pub_url = make_absolute_url(href, _SITE_ROOT)
+                    candidates = [
+                        link["url"]
+                        for link in scrape_file_links(pub_url, ".xlsx", base_url=_SITE_ROOT)
+                        if "table" in link["url"].lower()
+                    ]
                     if candidates:
                         break
 

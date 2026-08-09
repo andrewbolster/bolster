@@ -51,13 +51,12 @@ import re
 from pathlib import Path
 from urllib.parse import urljoin
 
-import bs4
 import pandas as pd
 from odf.opendocument import load as load_ods
 from odf.table import Table
 
 from bolster.utils.cache import CachedDownloader, DownloadError
-from bolster.utils.web import session
+from bolster.utils.web import fetch_soup, scrape_file_links
 
 from ._base import _parse_value, _sheet_rows, _strip_note_refs
 
@@ -108,12 +107,9 @@ def list_publications() -> pd.DataFrame:
             contains no publications.
     """
     try:
-        response = session.get(SERIES_URL, timeout=30)
-        response.raise_for_status()
+        soup = fetch_soup(SERIES_URL)
     except Exception as e:
         raise ProsecutionsDataNotFoundError(f"Failed to fetch series page {SERIES_URL}: {e}") from e
-
-    soup = bs4.BeautifulSoup(response.content, features="html.parser")
 
     records: dict[str, dict[str, object]] = {}
     for link in soup.find_all("a", href=True):
@@ -168,15 +164,9 @@ def get_data_file_url(publication_url: str) -> str:
         ProsecutionsDataNotFoundError: If the page has no ODS attachment.
     """
     try:
-        response = session.get(publication_url, timeout=30)
-        response.raise_for_status()
+        candidates = [link["url"] for link in scrape_file_links(publication_url, ".ods", base_url=BASE_URL)]
     except Exception as e:
         raise ProsecutionsDataNotFoundError(f"Failed to fetch publication page {publication_url}: {e}") from e
-
-    soup = bs4.BeautifulSoup(response.content, features="html.parser")
-    candidates = [
-        urljoin(BASE_URL, a["href"]) for a in soup.find_all("a", href=True) if a["href"].lower().endswith(".ods")
-    ]
 
     if not candidates:
         raise ProsecutionsDataNotFoundError(f"No ODS workbook found on {publication_url}")

@@ -6,6 +6,8 @@ cached for the duration of the test session. Validation and classification
 edge cases are covered by network-free unit tests.
 """
 
+from unittest.mock import patch
+
 import pandas as pd
 import pytest
 
@@ -253,6 +255,38 @@ class TestWorkbookErrorPaths:
     def test_parse_trend_data_without_trend_sheet(self, empty_workbook):
         with pytest.raises(SchoolTravelValidationError, match="Trend tables"):
             school_travel.parse_trend_data(empty_workbook)
+
+
+class TestFindPublicationXlsxErrorPaths:
+    """Link parsing lives in utils.web; this wrapper only adds YPBAS error translation."""
+
+    PAGE = "https://www.infrastructure-ni.gov.uk/publications/ypbas-2024"
+
+    def test_no_spreadsheet_on_page(self):
+        with (
+            patch("bolster.data_sources.dfi.school_travel.scrape_file_links", return_value=[]),
+            pytest.raises(school_travel.SchoolTravelDataNotFoundError, match="No spreadsheet linked"),
+        ):
+            school_travel.find_publication_xlsx(self.PAGE)
+
+    def test_fetch_failure_is_translated(self):
+        with (
+            patch(
+                "bolster.data_sources.dfi.school_travel.scrape_file_links",
+                side_effect=Exception("Network error"),
+            ),
+            pytest.raises(school_travel.SchoolTravelDataNotFoundError, match="Failed to fetch publication page"),
+        ):
+            school_travel.find_publication_xlsx(self.PAGE)
+
+
+class TestListPublicationsErrorPaths:
+    def test_index_fetch_failure_is_translated(self):
+        with (
+            patch("bolster.data_sources.dfi.school_travel.fetch_soup", side_effect=Exception("Network error")),
+            pytest.raises(school_travel.SchoolTravelDataNotFoundError, match="Failed to fetch YPBAS index page"),
+        ):
+            school_travel.list_publications()
 
 
 class TestCacheManagement:
