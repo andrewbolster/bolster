@@ -6,6 +6,8 @@ are marked so they skip cleanly when SSL certs aren't configured.
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pandas as pd
 import pytest
 
@@ -193,6 +195,28 @@ class TestPublicationDiscovery:
         assert "housing-bulletin" in hb.get_latest_publication_url().lower()
 
 
+class TestPublicationDiscoveryFallback:
+    """Scraping lives in utils.web; this module only owns the .ods/.xlsx retry and fallback."""
+
+    def test_falls_back_when_both_extensions_fail(self):
+        with patch(
+            "bolster.data_sources.nisra.housing_bulletin.find_publication_link",
+            side_effect=Exception("Network error"),
+        ) as mock_find:
+            assert hb.get_latest_publication_url() == hb._FALLBACK_URL
+
+        assert [call.kwargs["file_extension"] for call in mock_find.call_args_list] == [".ods", ".xlsx"]
+
+    def test_xlsx_used_when_ods_unavailable(self):
+        xlsx_url = "https://www.communities-ni.gov.uk/system/files/ni-housing-bulletin.xlsx"
+
+        with patch(
+            "bolster.data_sources.nisra.housing_bulletin.find_publication_link",
+            side_effect=[Exception("No .ods link"), xlsx_url],
+        ):
+            assert hb.get_latest_publication_url() == xlsx_url
+
+
 @pytest.mark.network
 class TestSocialHousingSupply:
     @pytest.fixture(scope="class")
@@ -270,9 +294,7 @@ class TestSocialHousingSupply:
             .groupby(["financial_year", "tenure"])["completions"]
             .sum()
         )
-        subtotals = annual[annual["housing_type"] == "Sub-total"].set_index(["financial_year", "tenure"])[
-            "completions"
-        ]
+        subtotals = annual[annual["housing_type"] == "Sub-total"].set_index(["financial_year", "tenure"])["completions"]
         common = components.index.intersection(subtotals.dropna().index)
         assert len(common) >= 20
         pd.testing.assert_series_equal(

@@ -18,6 +18,7 @@ from bolster.data_sources.nisra._base import (
     download_file,
     extract_column_mapping,
     find_header_row,
+    find_publication_link,
     make_absolute_url,
     parse_age_breakdowns,
     parse_month_year,
@@ -26,6 +27,7 @@ from bolster.data_sources.nisra._base import (
     scrape_download_links,
 )
 from bolster.utils.cache import DownloadError
+from bolster.utils.web import LinkNotFoundError
 
 
 class TestMakeAbsoluteUrl:
@@ -323,6 +325,38 @@ class TestScrapeDownloadLinks:
 
         with pytest.raises(NISRADataError, match="Failed to fetch page.*Network error"):
             scrape_download_links("https://www.nisra.gov.uk/data")
+
+
+class TestFindPublicationLink:
+    """Test the NISRA wrapper around utils.web.find_publication_link.
+
+    Two-hop discovery itself is covered in tests/test_utils_web.py; all this
+    wrapper adds is NISRA defaults and translation into NISRADataNotFoundError.
+    """
+
+    @patch("bolster.data_sources.nisra._base._find_publication_link")
+    def test_passes_nisra_defaults_through(self, mock_find):
+        mock_find.return_value = "https://www.nisra.gov.uk/f.xlsx"
+
+        result = find_publication_link("https://www.nisra.gov.uk/hub", pub_text_contains="Monthly Births")
+
+        assert result == "https://www.nisra.gov.uk/f.xlsx"
+        assert mock_find.call_args.kwargs["base_url"] == "https://www.nisra.gov.uk"
+        assert mock_find.call_args.kwargs["file_extension"] == ".xlsx"
+
+    @patch("bolster.data_sources.nisra._base._find_publication_link")
+    def test_link_not_found_becomes_nisra_not_found(self, mock_find):
+        mock_find.side_effect = LinkNotFoundError("No publication link found on hub")
+
+        with pytest.raises(NISRADataNotFoundError, match="No publication link found on hub"):
+            find_publication_link("https://www.nisra.gov.uk/hub")
+
+    @patch("bolster.data_sources.nisra._base._find_publication_link")
+    def test_network_error_becomes_nisra_not_found(self, mock_find):
+        mock_find.side_effect = Exception("Network error")
+
+        with pytest.raises(NISRADataNotFoundError, match="Failed to fetch hub page.*Network error"):
+            find_publication_link("https://www.nisra.gov.uk/hub")
 
 
 class TestClearCache:
