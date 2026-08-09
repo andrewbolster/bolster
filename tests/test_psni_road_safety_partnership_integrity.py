@@ -32,7 +32,7 @@ class TestDatasetDiscovery:
 
     def test_batches_do_not_overlap(self, datasets):
         """Each year must be published by exactly one batch."""
-        for earlier, later in zip(datasets, datasets[1:]):
+        for earlier, later in zip(datasets, datasets[1:], strict=False):
             assert earlier["end_year"] < later["start_year"], f"{earlier['url']} overlaps {later['url']}"
 
     def test_available_years_are_contiguous(self):
@@ -477,8 +477,8 @@ class TestCrossValidation:
         assert set(rsp_districts["district"]) == set(rtc_districts["district"])
 
     def test_lgd_codes_match_road_traffic_collisions(self, rsp_districts, rtc_districts):
-        rsp_map = dict(zip(rsp_districts["district"], rsp_districts["lgd_code"]))
-        rtc_map = dict(zip(rtc_districts["district"], rtc_districts["lgd_code"]))
+        rsp_map = dict(zip(rsp_districts["district"], rsp_districts["lgd_code"], strict=False))
+        rtc_map = dict(zip(rtc_districts["district"], rtc_districts["lgd_code"], strict=False))
         assert rsp_map == rtc_map
 
     def test_detection_years_overlap_collision_years(self):
@@ -508,7 +508,7 @@ class TestCrossValidation:
         """Every district must map onto the project-wide LGD code table."""
         from bolster.data_sources.psni.crime_statistics import get_lgd_code
 
-        for district, code in zip(rsp_districts["district"], rsp_districts["lgd_code"]):
+        for district, code in zip(rsp_districts["district"], rsp_districts["lgd_code"], strict=False):
             assert get_lgd_code(district) == code
 
     def test_detections_per_capita_are_plausible(self, rsp_districts):
@@ -524,7 +524,7 @@ class TestCrossValidation:
         if by_lgd.empty:
             pytest.skip("LGD-level population estimates unavailable for 2023")
 
-        for code, detections in zip(rsp_districts["lgd_code"], rsp_districts["detections"]):
+        for code, detections in zip(rsp_districts["lgd_code"], rsp_districts["detections"], strict=False):
             if code not in by_lgd.index:
                 continue
             per_1000 = detections / by_lgd[code] * 1000

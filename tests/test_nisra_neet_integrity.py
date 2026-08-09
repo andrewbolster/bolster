@@ -118,12 +118,18 @@ class TestQuarterlySeriesIntegrity:
         """
         difference = (series["male_neet"] + series["female_neet"] - series["total_neet"]).abs()
         bad = series[difference > 1000]
-        assert bad.empty, f"Gender counts do not sum to total:\n{bad[['quarter', 'male_neet', 'female_neet', 'total_neet']]}"
+        assert bad.empty, (
+            f"Gender counts do not sum to total:\n{bad[['quarter', 'male_neet', 'female_neet', 'total_neet']]}"
+        )
 
     def test_confidence_interval_brackets_total(self, series: pd.DataFrame) -> None:
         """Test that the count confidence interval contains its point estimate."""
-        bad = series[(series["total_neet_lower"] > series["total_neet"]) | (series["total_neet_upper"] < series["total_neet"])]
-        assert bad.empty, f"Count CI does not bracket estimate:\n{bad[['quarter', 'total_neet_lower', 'total_neet', 'total_neet_upper']]}"
+        bad = series[
+            (series["total_neet_lower"] > series["total_neet"]) | (series["total_neet_upper"] < series["total_neet"])
+        ]
+        assert bad.empty, (
+            f"Count CI does not bracket estimate:\n{bad[['quarter', 'total_neet_lower', 'total_neet', 'total_neet_upper']]}"
+        )
 
     def test_rate_confidence_interval_brackets_rate(self, series: pd.DataFrame) -> None:
         """Test that the rate confidence interval contains its point estimate."""
@@ -136,7 +142,7 @@ class TestQuarterlySeriesIntegrity:
     def test_rates_are_plausible(self, series: pd.DataFrame) -> None:
         """Test that NEET rates stay within the historically observed band."""
         rates = series["total_neet_rate_pct"]
-        assert 5 <= rates.min() and rates.max() <= 30, f"Implausible NEET rates: min={rates.min()}, max={rates.max()}"
+        assert rates.min() >= 5 and rates.max() <= 30, f"Implausible NEET rates: min={rates.min()}, max={rates.max()}"
 
     def test_validate_function_passes(self, series: pd.DataFrame) -> None:
         """Test that the module validator accepts its own output."""
