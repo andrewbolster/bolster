@@ -145,6 +145,11 @@ def get_child_protection_publication_url() -> str:
     return excel_url
 
 
+def _is_ni_total(raw: str) -> bool:
+    """Return True if ``raw`` labels the Northern Ireland-wide total rather than a trust."""
+    return "northern ireland" in str(raw).lower()
+
+
 def _normalise_trust(raw: str) -> str:
     """Normalise an HSC Trust name to its short canonical form.
 
@@ -154,6 +159,10 @@ def _normalise_trust(raw: str) -> str:
     Returns:
         Short canonical form (e.g. "Belfast", "Northern")
     """
+    # "Northern Ireland" contains "Northern", so the NI-wide total would otherwise
+    # be normalised into the Northern HSC Trust and silently double its series.
+    if _is_ni_total(raw):
+        return "Northern Ireland"
     for trust in HSC_TRUSTS:
         if trust.lower() in str(raw).lower():
             return trust
@@ -238,7 +247,9 @@ def _parse_cpr_trend(file_path: str | Path, content: bytes | None = None) -> lis
             trust_raw = cells[0]
             if not trust_raw or trust_raw.lower() in ("hsc trust", ""):
                 continue
-            trust = _normalise_trust(trust_raw)
+
+            is_ni_total = _is_ni_total(trust_raw)
+            trust = "Northern Ireland" if is_ni_total else _normalise_trust(trust_raw)
 
             for i, year in enumerate(header_years):
                 if year is None or i + 1 >= len(cells):
@@ -248,8 +259,8 @@ def _parse_cpr_trend(file_path: str | Path, content: bytes | None = None) -> lis
                     records.append(
                         {
                             "year": year,
-                            "measure": "cpr_registrations_trust_snapshot",
-                            "category": "trust",
+                            "measure": MEASURE_CPR_TOTAL if is_ni_total else "cpr_registrations_trust_snapshot",
+                            "category": "ni_total" if is_ni_total else "trust",
                             "subcategory": trust,
                             "value": val,
                             "notes": "Count at 31 March",
@@ -572,6 +583,13 @@ def _parse_abuse_category_trend(file_path: str | Path, content: bytes | None = N
             if not category_raw:
                 continue
 
+            # Combined categories are split across two rows sharing a "Category of
+            # Abuse" label, distinguished only by "Main Category of Abuse". Without it
+            # the two rows collapse into one subcategory and one of them is lost.
+            main_category = cells[1].strip() if n_label_cols > 1 and len(cells) > 1 else ""
+            if main_category:
+                category_raw = f"{category_raw} (main: {main_category})"
+
             # Values start at n_label_cols
             for i, year in enumerate(header_years):
                 col_idx = n_label_cols + i
@@ -639,6 +657,10 @@ def parse_child_protection_file(file_path: str | Path) -> pd.DataFrame:
     df["category"] = df["category"].astype(str)
     df["subcategory"] = df["subcategory"].astype(str)
     df["notes"] = df["notes"].astype(str)
+
+    # Table 2.1 and table 2.2a both report the NI-wide CPR total for the publication
+    # year. Keeping both would double-count it under any groupby.
+    df = df.drop_duplicates(subset=["year", "measure", "category", "subcategory", "value"])
 
     return df[["year", "measure", "category", "subcategory", "value", "notes"]].copy()
 
