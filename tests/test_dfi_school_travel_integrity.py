@@ -285,6 +285,15 @@ class TestFindPublicationXlsxErrorPaths:
             school_travel.find_publication_xlsx(self.PAGE)
 
 
+class TestListPublicationsErrorPaths:
+    def test_index_fetch_failure_is_translated(self):
+        with (
+            patch("bolster.data_sources.dfi.school_travel.fetch_soup", side_effect=Exception("Network error")),
+            pytest.raises(school_travel.SchoolTravelDataNotFoundError, match="Failed to fetch YPBAS index page"),
+        ):
+            school_travel.list_publications()
+
+
 class TestCacheManagement:
     """Tests for the cache helper."""
 
