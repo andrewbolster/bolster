@@ -58,8 +58,16 @@ class TestWorkforceIntegrity:
         }
 
     def test_all_expected_tables_present(self, latest_data: pd.DataFrame) -> None:
-        expected = {"1", "2A", "2B", "3", "4", "5", "6", "7A", "7B", "7C"}
+        # Tables 1 to 6 are in every bulletin. 7A, 7B and 7C carry turnover,
+        # which closes the financial year and appears once a year, so they are
+        # absent from three bulletins in four and are not asserted here.
+        expected = {"1", "2A", "2B", "3", "4", "5", "6"}
         assert expected <= set(latest_data.table_id), f"Missing tables: {sorted(expected - set(latest_data.table_id))}"
+
+    def test_turnover_tables_are_annual(self) -> None:
+        """Turnover is published once a year, so it must be found by search."""
+        data = hsc_workforce.find_turnover_data()
+        assert {"7A", "7B", "7C"} <= set(data.table_id)
 
     def test_list_tables_matches_data(self, latest_data: pd.DataFrame) -> None:
         tables = hsc_workforce.list_tables()
@@ -189,3 +197,53 @@ class TestValidation:
         frame.loc[: len(frame) // 2, "value"] = None
         with pytest.raises(NISRAValidationError, match="unparsed"):
             hsc_workforce.validate_data(frame)
+
+
+class TestArchive:
+    """The series page advertises a rolling window; older bulletins persist.
+
+    These exercise the archive path and, more importantly, that the extractors
+    survive the format changes across it: table 2 became 2A/2B in March 2025,
+    "Regional HSC Trust" gained "/Organisation", and the "% Change" column
+    labels were reworded. Selection is by table title for exactly that reason.
+    """
+
+    @pytest.fixture(scope="class")
+    def archive(self) -> pd.DataFrame:
+        return hsc_workforce.list_archive()
+
+    def test_archive_reaches_past_the_advertised_window(self, archive: pd.DataFrame) -> None:
+        advertised = hsc_workforce.list_publications()
+        assert len(archive) > len(advertised)
+        assert archive.period.min() < advertised.period.min()
+
+    def test_archive_is_quarterly_and_newest_first(self, archive: pd.DataFrame) -> None:
+        assert archive.period.is_monotonic_decreasing
+        assert set(archive.period.dt.month) <= {3, 6, 9, 12}
+
+    def test_delisted_bulletin_is_reachable_by_period(self) -> None:
+        publication = hsc_workforce.find_publication("March 2024")
+        assert publication["period"] == pd.Timestamp("2024-03-01")
+
+    @pytest.mark.parametrize("period", ["March 2024", "March 2026"])
+    def test_accessors_survive_format_changes(self, period: str) -> None:
+        # March 2024 predates the 2A/2B split and the retitled trust table.
+        assert not hsc_workforce.get_workforce_summary(period=period).empty
+        assert not hsc_workforce.get_workforce_by_staff_group(period=period).empty
+        assert not hsc_workforce.get_workforce_by_organisation(period=period).empty
+        assert not hsc_workforce.get_staff_group_by_organisation(period=period).empty
+        assert not hsc_workforce.get_pay_band_distribution(period=period).empty
+
+    def test_sub_staff_group_refuses_rather_than_substituting(self) -> None:
+        # Table 2B arrived in March 2025. The headline groups are a different
+        # cut, so falling back to them would quietly change what was asked for.
+        with pytest.raises(NISRADataNotFoundError):
+            hsc_workforce.get_workforce_by_staff_group(period="March 2024", sub=True)
+
+    def test_census_columns_parse_across_generations(self) -> None:
+        # Headings are bare years throughout, but the "% Change" columns that
+        # sit beside them were reworded; they must stay excluded either way.
+        for period in ("March 2024", "March 2026"):
+            summary = hsc_workforce.get_workforce_summary(period=period)
+            assert summary.period.notna().all()
+            assert (summary.period.dt.month == 3).all()
