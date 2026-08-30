@@ -15,7 +15,9 @@ into one long frame so heterogeneous tables can be queried uniformly.
 
 import csv
 import io
+import logging
 import re
+from collections.abc import Iterable
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -31,6 +33,8 @@ from bolster.data_sources.nisra._base import (
 )
 from bolster.utils.web import session
 
+logger = logging.getLogger(__name__)
+
 __all__ = [
     "HEALTH_NI_BASE_URL",
     "NISRADataNotFoundError",
@@ -38,6 +42,7 @@ __all__ = [
     "clear_cache",
     "download_file",
     "make_absolute_url",
+    "probe_dated_publications",
     "find_latest_xlsx",
     "strip_note_refs",
     "parse_value",
@@ -333,6 +338,44 @@ def list_dated_publications(index_url: str, slug_pattern: str) -> pd.DataFrame:
         raise NISRADataNotFoundError(f"No publications matching {slug_pattern!r} found on {index_url}")
 
     return pd.DataFrame(list(records.values())).sort_values("period", ascending=False).reset_index(drop=True)
+
+
+def probe_dated_publications(url_template: str, periods: Iterable[pd.Timestamp], timeout: int = 15) -> pd.DataFrame:
+    """Find publications by constructing their URLs instead of reading an index.
+
+    Series index pages advertise a rolling window — health-ni links roughly the
+    last five bulletins — but delisted publications stay reachable at their
+    original addresses. Where a series names its URLs predictably, the archive
+    can be recovered by asking for each candidate.
+
+    Only publications that answer are returned, so a gap in the series or a
+    month the publisher skipped is simply absent rather than an error.
+
+    Args:
+        url_template: Publication URL with ``{month}`` and ``{year}`` fields,
+            where ``{month}`` is the lowercase month name.
+        periods: Candidate periods to ask for.
+        timeout: Per-request timeout in seconds.
+
+    Returns:
+        DataFrame with ``period``, ``title`` and ``url`` columns, most recent
+        first. Empty if none of the candidates exist.
+    """
+    found: list[dict[str, object]] = []
+    for period in periods:
+        url = url_template.format(month=period.strftime("%B").lower(), year=period.year)
+        try:
+            # HEAD is enough to know it is there and avoids pulling the page.
+            response = session.head(url, timeout=timeout, allow_redirects=True)
+        except Exception as e:
+            logger.debug("Archive probe failed for %s: %s", url, e)
+            continue
+        if response.status_code == 200:
+            found.append({"period": period, "title": f"{period:%B %Y}", "url": url})
+
+    if not found:
+        return pd.DataFrame(columns=["period", "title", "url"])
+    return pd.DataFrame(found).sort_values("period", ascending=False).reset_index(drop=True)
 
 
 def find_publication_csv(publication_url: str, keyword: str | None = None) -> str:
