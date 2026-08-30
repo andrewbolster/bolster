@@ -654,12 +654,12 @@ def dva_cmd(latest, test_type, year, output_format, force_refresh, save, summary
                 if output_format == "json":
                     click.echo(df.to_json(orient="records", date_format="iso", indent=2))
                 else:
-                    console.print(df.to_csv(index=False), end="")
+                    click.echo(df.to_csv(index=False), nl=False)
         else:
             if output_format == "json":
                 click.echo(data.to_json(orient="records", date_format="iso", indent=2))
             else:
-                console.print(data.to_csv(index=False), end="")
+                click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
@@ -780,7 +780,7 @@ def gender_pay_gap_cmd(year, all_years, postcode_prefix, output_format, save, su
         if output_format == "json":
             click.echo(df.to_json(orient="records", date_format="iso", indent=2))
         else:
-            console.print(df.to_csv(index=False), end="")
+            click.echo(df.to_csv(index=False), nl=False)
 
     except gender_pay_gap.GenderPayGapDataNotFoundError as e:
         console.print(f"[bold red]❌ Year not available:[/bold red] {e}")
@@ -2786,7 +2786,7 @@ def nisra_business_register_cmd(level, output_format, force_refresh, save):
         if output_format == "json":
             click.echo(data.to_json(orient="records", indent=2))
         elif output_format == "csv":
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
         else:
             from rich.table import Table
 
@@ -2972,9 +2972,9 @@ def nisra_births_cmd(event_type, output_format, force_refresh, save):
             if event_type == "both":
                 for event_name, df in data.items():
                     console.print(f"\n[bold]{event_name.upper()}:[/bold]")
-                    console.print(df.to_csv(index=False), end="")
+                    click.echo(df.to_csv(index=False), nl=False)
             else:
-                console.print(data.to_csv(index=False), end="")
+                click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
@@ -3128,7 +3128,7 @@ def nisra_population_cmd(area, year, output_format, force_refresh, save):
             click.echo(data.to_json(orient="records", date_format="iso", indent=2))
         else:
             # CSV output
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
@@ -3209,7 +3209,7 @@ def nisra_population_projections_cmd(lgd, lgd_name, start_year, end_year, output
         if output_format == "json":
             click.echo(data.to_json(orient="records", indent=2))
         else:
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
@@ -3342,7 +3342,7 @@ def nisra_marriages_cmd(year, output_format, force_refresh, save):
             click.echo(data.to_json(orient="records", date_format="iso", indent=2))
         else:
             # CSV output
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
@@ -3478,7 +3478,7 @@ def nisra_civil_partnerships_cmd(latest, year, output_format, force_refresh, sav
         if output_format == "json":
             click.echo(data.to_json(orient="records", date_format="iso", indent=2))
         else:
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
@@ -3764,7 +3764,7 @@ def nisra_occupancy_cmd(latest, year, accommodation, data_type, output_format, f
         if output_format == "json":
             click.echo(data.to_json(orient="records", date_format="iso", indent=2))
         else:
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
@@ -3986,7 +3986,7 @@ def nisra_visitors_cmd(latest, market, output_format, force_refresh, save, summa
         if output_format == "json":
             click.echo(data.to_json(orient="records", date_format="iso", indent=2))
         else:
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
@@ -4156,7 +4156,7 @@ def nisra_migration_cmd(year, start_year, end_year, output_format, force_refresh
             click.echo(data.to_json(orient="records", date_format="iso", indent=2))
         else:
             # CSV output
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
@@ -4311,7 +4311,7 @@ def nisra_index_of_services_cmd(
         if output_format == "json":
             click.echo(data.to_json(orient="records", date_format="iso", indent=2))
         else:
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
@@ -4464,7 +4464,7 @@ def nisra_index_of_production_cmd(
         if output_format == "json":
             click.echo(data.to_json(orient="records", date_format="iso", indent=2))
         else:
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
@@ -4621,7 +4621,7 @@ def nisra_construction_output_cmd(
         if output_format == "json":
             click.echo(data.to_json(orient="records", date_format="iso", indent=2))
         else:
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
@@ -4843,7 +4843,7 @@ def nisra_ashe_cmd(metric, dimension, basis, year, output_format, force_refresh,
         if output_format == "json":
             click.echo(data.to_json(orient="records", date_format="iso", indent=2))
         else:
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
@@ -5042,12 +5042,12 @@ def nisra_composite_index_cmd(dimension, table_deprecated, year, quarter, output
                 if output_format == "json":
                     click.echo(df.to_json(orient="records", date_format="iso", indent=2))
                 else:
-                    console.print(df.to_csv(index=False), end="")
+                    click.echo(df.to_csv(index=False), nl=False)
         else:
             if output_format == "json":
                 click.echo(data.to_json(orient="records", date_format="iso", indent=2))
             else:
-                console.print(data.to_csv(index=False), end="")
+                click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
@@ -5217,7 +5217,7 @@ def nisra_wellbeing_cmd(dimension, metric_deprecated, year, output_format, force
             click.echo(data.to_json(orient="records", date_format="iso", indent=2))
         else:
             console.print("\n[bold]Data:[/bold]")
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
@@ -5373,7 +5373,7 @@ def nisra_cancer_cmd(target, dimension, year, output_format, force_refresh, save
             click.echo(data.to_json(orient="records", date_format="iso", indent=2))
         else:
             console.print("\n[bold]Data:[/bold]")
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
@@ -5461,7 +5461,7 @@ def nisra_diagnostic_waiting_times_cmd(trust, year, output_format, save, force_r
             click.echo(data.to_json(orient="records", date_format="iso", indent=2))
         else:
             console.print("\n[bold]Data:[/bold]")
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
@@ -5597,7 +5597,7 @@ def nisra_emergency_care_cmd(output_format, trust, attendance_type, year, save, 
                 console.print(f"[dim]... and {len(data) - 50:,} more rows (use --save to get all)[/dim]")
         else:
             console.print("\n[bold]Data:[/bold]")
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
@@ -5717,7 +5717,7 @@ def nisra_elective_waiting_times_cmd(waiting_type, trust, year, output_format, f
             click.echo(data.to_json(orient="records", date_format="iso", indent=2))
         else:
             console.print("\n[bold]Data:[/bold]")
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
@@ -5893,7 +5893,7 @@ def nisra_registrar_general_cmd(
             if output_format == "json":
                 click.echo(lgd_data.to_json(orient="records", indent=2))
             else:
-                console.print(lgd_data.to_csv(index=False), end="")
+                click.echo(lgd_data.to_csv(index=False), nl=False)
             return
 
         # Handle quarterly time series or latest
@@ -5978,7 +5978,7 @@ def nisra_registrar_general_cmd(
                         if output_format == "json":
                             click.echo(output.to_json(orient="records", date_format="iso", indent=2))
                         else:
-                            console.print(output.to_csv(index=False), end="")
+                            click.echo(output.to_csv(index=False), nl=False)
 
                 console.print("\n[bold]Deaths/Marriages Data:[/bold]")
                 if not data["deaths"].empty:
@@ -5997,7 +5997,7 @@ def nisra_registrar_general_cmd(
                         if output_format == "json":
                             click.echo(output.to_json(orient="records", date_format="iso", indent=2))
                         else:
-                            console.print(output.to_csv(index=False), end="")
+                            click.echo(output.to_csv(index=False), nl=False)
             else:
                 # Single dimension output
                 output_data = data["births"] if dimension == "births" else data["deaths"]
@@ -6024,7 +6024,7 @@ def nisra_registrar_general_cmd(
                 if output_format == "json":
                     click.echo(output_data.to_json(orient="records", date_format="iso", indent=2))
                 else:
-                    console.print(output_data.to_csv(index=False), end="")
+                    click.echo(output_data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
@@ -6167,7 +6167,7 @@ def psni_rtc_cmd(year, data_type, by, output_format, save, force_refresh):
                 console.print(f"\n[yellow]Showing first 50 of {len(df)} rows[/yellow]")
 
         elif output_format == "csv":
-            console.print(df.to_csv(index=False))
+            click.echo(df.to_csv(index=False), nl=False)
 
         elif output_format == "json":
             console.print(df.to_json(orient="records", indent=2))
@@ -6270,7 +6270,7 @@ def psni_ombudsman_cmd(breakdown, output_format, save, force_refresh):
                 console.print(f"\n[yellow]Showing first 50 of {len(df):,} rows[/yellow]")
 
         elif output_format == "csv":
-            console.print(df.to_csv(index=False))
+            click.echo(df.to_csv(index=False), nl=False)
 
         elif output_format == "json":
             console.print(df.to_json(orient="records", indent=2))
@@ -6369,7 +6369,7 @@ def psni_stop_search_cmd(year, district, output_format, save, force_refresh):
                 console.print(f"\n[yellow]Showing first 50 of {len(df):,} rows[/yellow]")
 
         elif output_format == "csv":
-            console.print(df.to_csv(index=False))
+            click.echo(df.to_csv(index=False), nl=False)
 
         elif output_format == "json":
             console.print(df.to_json(orient="records", indent=2))
@@ -6471,7 +6471,7 @@ def psni_pace_cmd(breakdown, output_format, save, force_refresh):
             console.print(table)
 
         elif output_format == "csv":
-            console.print(df.to_csv(index=False))
+            click.echo(df.to_csv(index=False), nl=False)
 
         elif output_format == "json":
             console.print(df.to_json(orient="records", indent=2))
@@ -6594,7 +6594,7 @@ def psni_motoring_offences_cmd(table, list_tables, year, output_format, save, fo
             console.print(rich_table)
 
         elif output_format == "csv":
-            console.print(df.to_csv(index=False))
+            click.echo(df.to_csv(index=False), nl=False)
 
         elif output_format == "json":
             console.print(df.to_json(orient="records", indent=2))
@@ -6730,7 +6730,7 @@ def psni_road_safety_cmd(dimension, year, camera_type, district, output_format, 
                 console.print(f"[dim]… {len(df) - 50:,} more rows (use --format csv for all)[/dim]")
 
         elif output_format == "csv":
-            console.print(df.to_csv(index=False))
+            click.echo(df.to_csv(index=False), nl=False)
 
         elif output_format == "json":
             console.print(df.to_json(orient="records", indent=2))
@@ -6860,7 +6860,7 @@ def nisra_planning_statistics_cmd(dimension, financial_year, output_format, forc
         if output_format == "json":
             click.echo(data.to_json(orient="records", date_format="iso", indent=2))
         else:
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
@@ -6943,7 +6943,7 @@ def nisra_housing_stock_cmd(geo, year_filter, output_format, force_refresh, save
         if output_format == "json":
             click.echo(data.to_json(orient="records", indent=2))
         else:
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
@@ -7018,7 +7018,7 @@ def nisra_homelessness_cmd(section, output_format, force_refresh, save):  # prag
         if output_format == "json":
             click.echo(data.to_json(orient="records", indent=2))
         else:
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
@@ -7130,7 +7130,7 @@ def nisra_housing_bulletin_cmd(table, list_tables, output_format, force_refresh,
         if output_format == "json":
             click.echo(data.to_json(orient="records", indent=2))
         else:
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
@@ -7232,7 +7232,7 @@ def nisra_baby_names_cmd(year, sex, top_n, output_format, force_refresh, save):
         if output_format == "json":
             click.echo(data.to_json(orient="records", indent=2))
         else:
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
@@ -7325,7 +7325,7 @@ def nisra_work_quality_cmd(indicator, year, output_format, force_refresh, save):
         if output_format == "json":
             click.echo(data.to_json(orient="records", indent=2))
         else:
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
@@ -7430,7 +7430,7 @@ def nisra_neet_cmd(table, year, output_format, force_refresh, save):
         if output_format == "json":
             click.echo(data.to_json(orient="records", indent=2))
         else:
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
@@ -7553,7 +7553,7 @@ def nisra_workless_households_cmd(table, list_tables, year, output_format, force
         if output_format == "json":
             click.echo(data.to_json(orient="records", indent=2))
         else:
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
@@ -7665,7 +7665,7 @@ def nisra_public_confidence_cmd(breakdown, output_format, force_refresh, save):
         if output_format == "json":
             click.echo(data.to_json(orient="records", indent=2))
         elif output_format == "csv":
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
         else:
             rich_table = Table(title=f"NISRA Public Confidence — {breakdown}")
             for col in data.columns:
@@ -7762,7 +7762,7 @@ def nisra_deprivation_cmd(lgd, output_format, force_refresh, save):
         if output_format == "json":
             click.echo(data.to_json(orient="records", indent=2))
         elif output_format == "csv":
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
         else:
             from rich.table import Table
 
@@ -7899,7 +7899,7 @@ def nisra_disease_prevalence_cmd(register, output_format, force_refresh, save, l
         if output_format == "json":
             click.echo(data.to_json(orient="records", indent=2))
         elif output_format == "csv":
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
         else:
             # Rich table — show a summary view
             if level == "gp":
@@ -7974,7 +7974,7 @@ def _emit_hsc_frame(console, data, output_format, save, title):
         click.echo(data.to_json(orient="records", indent=2))
         return
     if output_format == "csv":
-        console.print(data.to_csv(index=False), end="")
+        click.echo(data.to_csv(index=False), nl=False)
         return
 
     rich_table = RichTable(title=title)
@@ -8696,7 +8696,7 @@ def education_suspensions_cmd(year, output_format, force_refresh, save, summary)
         if output_format == "json":
             click.echo(data.to_json(orient="records", indent=2))
         else:
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
@@ -8832,7 +8832,7 @@ def dfi_school_travel_cmd(table, breakdown, question, list_questions, output_for
         if output_format == "json":
             click.echo(data.astype(str).to_json(orient="records", indent=2))
         else:
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
@@ -9065,7 +9065,7 @@ def justice_mortgages_cmd(table, output_format, force_refresh, save, summary):
         if output_format == "json":
             click.echo(data.astype(str).to_json(orient="records", indent=2))
         else:
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
@@ -9186,7 +9186,7 @@ def justice_nicts_quarterly_cmd(court, list_courts, year, quarter, annual, outpu
         if output_format == "json":
             click.echo(data.astype(str).to_json(orient="records", indent=2))
         else:
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
@@ -9270,7 +9270,7 @@ def justice_pbni_caseload_cmd(frequency, dimension, list_dimensions, output_form
             console.print("[green]PBNI caseload data retrieved successfully[/green]")
             for name, frame in data.items():
                 console.print(f"\n[bold cyan]{name}[/bold cyan] ({len(frame)} rows)")
-                console.print(frame.to_csv(index=False), end="")
+                click.echo(frame.to_csv(index=False), nl=False)
             return
 
         console.print("[green]PBNI caseload data retrieved successfully[/green]")
@@ -9307,7 +9307,7 @@ def justice_pbni_caseload_cmd(frequency, dimension, list_dimensions, output_form
         if output_format == "json":
             click.echo(data.astype(str).to_json(orient="records", indent=2))
         else:
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
@@ -9439,7 +9439,7 @@ def justice_pps_statistical_bulletin_cmd(
         if output_format == "json":
             click.echo(data.astype(str).to_json(orient="records", indent=2))
         else:
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
@@ -9571,7 +9571,7 @@ def justice_prosecutions_convictions_cmd(dataset, by, year, list_tables, output_
         if output_format == "json":
             click.echo(data.astype(str).to_json(orient="records", indent=2))
         else:
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
@@ -9647,7 +9647,7 @@ def ons_cpi_cmd(series_code, resolution, year, output_format, force_refresh, sav
         if output_format == "json":
             click.echo(data.astype(str).to_json(orient="records", indent=2))
         else:
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
@@ -9719,7 +9719,7 @@ def boe_base_rate_cmd(resolution, changes, year, output_format, force_refresh, s
         if output_format == "json":
             click.echo(data.astype(str).to_json(orient="records", indent=2))
         else:
-            console.print(data.to_csv(index=False), end="")
+            click.echo(data.to_csv(index=False), nl=False)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
