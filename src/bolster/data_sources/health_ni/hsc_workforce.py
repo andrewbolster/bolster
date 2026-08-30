@@ -76,6 +76,15 @@ _TURNOVER_TABLES = {
     "stability": r"^Workforce Stability",
 }
 
+# Turnover is a financial-year series and is not in every bulletin. Of the five
+# currently advertised, only March 2026 carries it; June 2026, December 2025,
+# September 2025 and June 2025 stop at table 6. Turnover therefore cannot be
+# read from "the latest bulletin" — that works one quarter in four.
+#
+# Which quarter closes the year is the publisher's choice, not ours, so the
+# bulletin is found by looking for the tables rather than by assuming a month.
+_TURNOVER_LOOKBACK = 5
+
 
 def list_publications() -> pd.DataFrame:
     """List every bulletin advertised on the series page.
@@ -167,6 +176,40 @@ def list_tables(period: str | pd.Timestamp | None = None, force_refresh: bool = 
         .sort_values("table_id")
         .reset_index(drop=True)
     )
+
+
+def find_turnover_data(period: str | pd.Timestamp | None = None, force_refresh: bool = False) -> pd.DataFrame:
+    """Get the newest bulletin that carries the turnover tables.
+
+    Turnover closes the financial year and appears in one bulletin a year, so
+    the most recent bulletin usually does not have it. Naming a ``period``
+    selects that bulletin regardless; leaving it unset walks back from the
+    latest until the tables are found.
+
+    Args:
+        period: Census point, e.g. ``"March 2026"``. Defaults to the newest
+            bulletin that carries turnover.
+        force_refresh: Bypass the download cache.
+
+    Returns:
+        Long-format frame as returned by :func:`get_latest_data`.
+
+    Raises:
+        NISRADataNotFoundError: If no bulletin within the search window carries
+            turnover tables, or if a named ``period`` does not.
+    """
+    if period is not None:
+        return get_latest_data(period=period, force_refresh=force_refresh)
+
+    publications = list_publications().head(_TURNOVER_LOOKBACK)
+    for census in publications.period:
+        data = get_latest_data(period=census, force_refresh=force_refresh)
+        if data.table_title.str.contains("|".join(_TURNOVER_TABLES.values()), case=False, regex=True, na=False).any():
+            logger.info("Turnover found in the %s bulletin", census.strftime("%B %Y"))
+            return data
+
+    searched = ", ".join(publications.period.dt.strftime("%B %Y"))
+    raise NISRADataNotFoundError(f"No turnover tables in the last {len(publications)} bulletins: {searched}")
 
 
 def _select_table(df: pd.DataFrame, pattern: str) -> pd.DataFrame:
@@ -340,7 +383,8 @@ def get_turnover(
     """Get a financial-year turnover time series.
 
     Args:
-        period: Census point. Defaults to the most recent bulletin.
+        period: Census point. Defaults to the newest bulletin that carries
+            turnover, which is not usually the newest bulletin.
         measure: One of ``"leavers"``, ``"joiners"`` or ``"stability"``.
         force_refresh: Bypass the download cache.
 
@@ -350,11 +394,12 @@ def get_turnover(
 
     Raises:
         ValueError: If ``measure`` is not a recognised series.
+        NISRADataNotFoundError: If no bulletin in range carries turnover.
     """
     if measure not in _TURNOVER_TABLES:
         raise ValueError(f"Unknown measure {measure!r}, expected one of {sorted(_TURNOVER_TABLES)}")
 
-    table = _select_table(get_latest_data(period=period, force_refresh=force_refresh), _TURNOVER_TABLES[measure])
+    table = _select_table(find_turnover_data(period=period, force_refresh=force_refresh), _TURNOVER_TABLES[measure])
     return (
         table.rename(columns={"column": "financial_year", "row_label": "metric"})[["financial_year", "metric", "value"]]
         .sort_values(["financial_year", "metric"])

@@ -58,8 +58,16 @@ class TestWorkforceIntegrity:
         }
 
     def test_all_expected_tables_present(self, latest_data: pd.DataFrame) -> None:
-        expected = {"1", "2A", "2B", "3", "4", "5", "6", "7A", "7B", "7C"}
+        # Tables 1 to 6 are in every bulletin. 7A, 7B and 7C carry turnover,
+        # which closes the financial year and appears once a year, so they are
+        # absent from three bulletins in four and are not asserted here.
+        expected = {"1", "2A", "2B", "3", "4", "5", "6"}
         assert expected <= set(latest_data.table_id), f"Missing tables: {sorted(expected - set(latest_data.table_id))}"
+
+    def test_turnover_tables_are_annual(self) -> None:
+        """Turnover is published once a year, so it must be found by search."""
+        data = hsc_workforce.find_turnover_data()
+        assert {"7A", "7B", "7C"} <= set(data.table_id)
 
     def test_list_tables_matches_data(self, latest_data: pd.DataFrame) -> None:
         tables = hsc_workforce.list_tables()
