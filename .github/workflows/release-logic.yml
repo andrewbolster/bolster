@@ -66,18 +66,21 @@ jobs:
                   script: |
                       const { execSync } = require('child_process');
 
-                      let lastTag;
+                      let lastTag = null;
                       try {
                         lastTag = execSync('git describe --tags --abbrev=0', { encoding: 'utf-8' }).trim();
                       } catch (e) {
-                        lastTag = 'v0.0.0';
+                        lastTag = null; // no tags in repo — initial release
                       }
-                      console.log(`Last tag: ${lastTag}`);
+                      console.log(`Last tag: ${lastTag || '(none — initial release)'}`);
 
-                      const commits = execSync(`git log ${lastTag}..HEAD --pretty=format:"%s"`, { encoding: 'utf-8' })
+                      const gitLogCmd = lastTag
+                        ? `git log ${lastTag}..HEAD --pretty=format:"%s"`
+                        : `git log HEAD --pretty=format:"%s"`;
+                      const commits = execSync(gitLogCmd, { encoding: 'utf-8' })
                         .split('\n')
                         .filter(line => line.trim());
-                      console.log(`Commits since ${lastTag}:`, commits);
+                      console.log(`Commits since ${lastTag || 'beginning'}:`, commits);
 
                       const skipPatterns = [
                         /^docs?(\(.*\))?:/,
