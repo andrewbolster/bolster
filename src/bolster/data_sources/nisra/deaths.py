@@ -8,6 +8,14 @@ Provides access to weekly death registration statistics for Northern Ireland wit
 
 Data is based on registration date. Most deaths are registered within 5 days in Northern Ireland.
 
+The ``demographics`` dimension mixes totals with their parts in *two* columns at
+once: ``sex`` includes "All persons" alongside "Male"/"Female", and ``age_range``
+includes "All ages" alongside the individual bands. Summing ``deaths`` over rows
+that vary in either column without filtering out the aggregate value first
+overcounts — filtering only one of the two still leaves the other's aggregate
+row in the sum. ``geography`` and ``place`` do not have this problem: both
+already exclude their aggregate row ("Northern Ireland", "All places").
+
 Data Source:
     NISRA PxStat API — https://ws-data.nisra.gov.uk/
     No authentication required; no observed rate limits.
@@ -87,7 +95,12 @@ def _get_demographics() -> pd.DataFrame:
     Returns DataFrame with columns:
         week_ending, sex, age_range, deaths
 
-    Includes aggregate rows ("All persons"/"All ages") for cross-validation.
+    Includes aggregate rows ("All persons"/"All ages") for cross-validation —
+    deliberately, so callers can check a total against its parts. This means
+    summing ``deaths`` across the returned rows for a week overcounts by 4x
+    unless both ``sex != "All persons"`` and ``age_range != "All ages"`` are
+    filtered first (filtering only one dimension still overcounts by 2x on
+    the other).
     """
     df = read_dataset("WDTHSSXAG")
     df["week_ending"] = _parse_week_ending(df["Week ending date"])
@@ -151,7 +164,9 @@ def get_latest_deaths(
     Args:
         dimension: Which dimension to retrieve. One of:
             - ``'totals'``: Weekly totals with observed, expected, excess, COVID, flu
-            - ``'demographics'``: By sex and age band
+            - ``'demographics'``: By sex and age band. Includes "All persons"
+              and "All ages" aggregate rows alongside the parts — see the
+              module docstring before summing ``deaths`` on this dimension.
             - ``'geography'``: By Local Government District
             - ``'place'``: By place of death
             - ``'all'``: All dimensions (returns dict of DataFrames)
