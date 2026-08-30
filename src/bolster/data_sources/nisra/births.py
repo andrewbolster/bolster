@@ -4,6 +4,12 @@ Provides access to monthly birth registration statistics for Northern Ireland wi
 - Sex (Persons, Male, Female)
 - Event type (Registration date vs Birth/Occurrence date)
 
+The `sex` column mixes a total with its parts: "Persons" is the sum of "Male" and
+"Female" for that month, not a third category. Summing `births` across all three
+rows double-counts every month; filter to "Persons" alone for a total, or to
+"Male"/"Female" for the breakdown. See `validate_births_totals` for the invariant
+this relies on.
+
 Births data are based on residence of mother at time of birth. Data includes both:
 - Births by month of registration: When the birth was officially registered
 - Births by month of occurrence: When the birth actually occurred
@@ -108,7 +114,8 @@ def parse_births_file(
         Otherwise: Single DataFrame with columns:
 
         - month: datetime (first day of month)
-        - sex: str (Persons, Male, Female)
+        - sex: str (Persons, Male, Female — "Persons" is the total of the
+          other two, not a third category; summing all three double-counts)
         - births: int (number of births)
 
     Raises:
@@ -285,7 +292,8 @@ def get_latest_births(
         Otherwise: Single DataFrame with columns:
 
         - month: datetime (first day of month)
-        - sex: str (Persons, Male, Female)
+        - sex: str (Persons, Male, Female — "Persons" is the total of the
+          other two, not a third category; summing all three double-counts)
         - births: int
 
     Raises:
