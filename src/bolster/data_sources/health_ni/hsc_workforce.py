@@ -57,6 +57,7 @@ from ._base import (
     list_dated_publications,
     parse_csv_tables,
     parse_period_column,
+    probe_dated_publications,
 )
 from ._base import clear_cache as _clear_cache
 
@@ -67,6 +68,20 @@ SERIES_URL = "https://www.health-ni.gov.uk/articles/staff-numbers"
 # Publication slugs end in the census month, e.g. "...-statistics-march-2026"
 _SLUG_PATTERN = r"workforce-statistics-([a-z]+)-(\d{4})"
 
+# The series page links roughly the last five bulletins. Older ones are
+# delisted rather than deleted and stay reachable at this address, so the
+# archive can be recovered by asking for each quarter in turn.
+_ARCHIVE_URL = (
+    "https://www.health-ni.gov.uk/publications/"
+    "northern-ireland-health-and-social-care-hsc-workforce-statistics-{month}-{year}"
+)
+
+# Census points are the quarter ends. March 2023 is the earliest bulletin that
+# answers; earlier quarters are absent rather than an error, so the floor is a
+# cost control on probing rather than a claim about what exists.
+_ARCHIVE_QUARTERS = (3, 6, 9, 12)
+_ARCHIVE_EARLIEST = pd.Timestamp("2023-03-01")
+
 # Bulletins are quarterly, so a long cache is safe
 _CACHE_TTL_HOURS = 24 * 60
 
@@ -75,6 +90,15 @@ _TURNOVER_TABLES = {
     "joiners": r"^Joiners",
     "stability": r"^Workforce Stability",
 }
+
+# Turnover is a financial-year series and is not in every bulletin. Of the five
+# currently advertised, only March 2026 carries it; June 2026, December 2025,
+# September 2025 and June 2025 stop at table 6. Turnover therefore cannot be
+# read from "the latest bulletin" — that works one quarter in four.
+#
+# Which quarter closes the year is the publisher's choice, not ours, so the
+# bulletin is found by looking for the tables rather than by assuming a month.
+_TURNOVER_LOOKBACK = 5
 
 
 def list_publications() -> pd.DataFrame:
@@ -110,10 +134,52 @@ def find_publication(period: str | pd.Timestamp | None = None) -> pd.Series:
 
     wanted = pd.Timestamp(period).to_period("M").to_timestamp()
     matched = publications[publications.period == wanted]
-    if matched.empty:
-        available = ", ".join(publications.period.dt.strftime("%B %Y"))
-        raise NISRADataNotFoundError(f"No bulletin for {wanted:%B %Y}; available: {available}")
-    return matched.iloc[0]
+    if not matched.empty:
+        return matched.iloc[0]
+
+    # Not advertised, but the series page shows only a rolling window. Ask for
+    # the one address rather than probing the whole archive.
+    archived = probe_dated_publications(_ARCHIVE_URL, [wanted])
+    if not archived.empty:
+        logger.info("Bulletin %s is delisted; reached it directly", wanted.strftime("%B %Y"))
+        return archived.iloc[0]
+
+    available = ", ".join(publications.period.dt.strftime("%B %Y"))
+    raise NISRADataNotFoundError(f"No bulletin for {wanted:%B %Y}; advertised: {available}")
+
+
+def list_archive(earliest: str | pd.Timestamp = _ARCHIVE_EARLIEST) -> pd.DataFrame:
+    """List every reachable bulletin, including those no longer advertised.
+
+    :func:`list_publications` reads the series page, which links roughly the
+    last five bulletins. Older ones are delisted rather than deleted, so this
+    asks for each quarter end in turn and keeps the ones that answer.
+
+    Costs one request per quarter, so prefer :func:`list_publications` unless
+    the archive is actually wanted.
+
+    Args:
+        earliest: Oldest census point to ask for. The default is a floor on
+            probing cost, not a claim about what exists.
+
+    Returns:
+        DataFrame with ``period``, ``title`` and ``url`` columns, most recent
+        first. Bulletins that were never published are simply absent.
+
+    Example:
+        >>> archive = list_archive(earliest="2024-03-01")  # doctest: +SKIP
+        >>> archive.period.dt.strftime("%B %Y").tolist()  # doctest: +SKIP
+        ['March 2026', 'December 2025', ..., 'March 2024']
+    """
+    floor = pd.Timestamp(earliest).to_period("M").to_timestamp()
+    today = pd.Timestamp.today().normalize()
+    candidates = [
+        pd.Timestamp(year=year, month=month, day=1)
+        for year in range(floor.year, today.year + 1)
+        for month in _ARCHIVE_QUARTERS
+        if floor <= pd.Timestamp(year=year, month=month, day=1) <= today
+    ]
+    return probe_dated_publications(_ARCHIVE_URL, sorted(candidates, reverse=True))
 
 
 def get_data_file_url(publication_url: str) -> str:
@@ -167,6 +233,40 @@ def list_tables(period: str | pd.Timestamp | None = None, force_refresh: bool = 
         .sort_values("table_id")
         .reset_index(drop=True)
     )
+
+
+def find_turnover_data(period: str | pd.Timestamp | None = None, force_refresh: bool = False) -> pd.DataFrame:
+    """Get the newest bulletin that carries the turnover tables.
+
+    Turnover closes the financial year and appears in one bulletin a year, so
+    the most recent bulletin usually does not have it. Naming a ``period``
+    selects that bulletin regardless; leaving it unset walks back from the
+    latest until the tables are found.
+
+    Args:
+        period: Census point, e.g. ``"March 2026"``. Defaults to the newest
+            bulletin that carries turnover.
+        force_refresh: Bypass the download cache.
+
+    Returns:
+        Long-format frame as returned by :func:`get_latest_data`.
+
+    Raises:
+        NISRADataNotFoundError: If no bulletin within the search window carries
+            turnover tables, or if a named ``period`` does not.
+    """
+    if period is not None:
+        return get_latest_data(period=period, force_refresh=force_refresh)
+
+    publications = list_publications().head(_TURNOVER_LOOKBACK)
+    for census in publications.period:
+        data = get_latest_data(period=census, force_refresh=force_refresh)
+        if data.table_title.str.contains("|".join(_TURNOVER_TABLES.values()), case=False, regex=True, na=False).any():
+            logger.info("Turnover found in the %s bulletin", census.strftime("%B %Y"))
+            return data
+
+    searched = ", ".join(publications.period.dt.strftime("%B %Y"))
+    raise NISRADataNotFoundError(f"No turnover tables in the last {len(publications)} bulletins: {searched}")
 
 
 def _select_table(df: pd.DataFrame, pattern: str) -> pd.DataFrame:
@@ -242,11 +342,16 @@ def get_workforce_by_staff_group(
     Args:
         period: Census point. Defaults to the most recent bulletin.
         sub: Return the finer sub staff group / profession breakdown instead of
-            the eight headline staff groups.
+            the eight headline staff groups. Only bulletins from March 2025
+            carry it; earlier ones raise rather than fall back to the headline
+            groups, which are a different cut and not a substitute.
         force_refresh: Bypass the download cache.
 
     Returns:
         DataFrame with ``period``, ``staff_group`` and ``wte`` columns.
+
+    Raises:
+        NISRADataNotFoundError: If the bulletin has no such breakdown.
     """
     pattern = r"by Sub Staff Group" if sub else r"\(WTE\) by Staff Group,"
     table = _with_periods(_select_table(get_latest_data(period=period, force_refresh=force_refresh), pattern))
@@ -340,7 +445,8 @@ def get_turnover(
     """Get a financial-year turnover time series.
 
     Args:
-        period: Census point. Defaults to the most recent bulletin.
+        period: Census point. Defaults to the newest bulletin that carries
+            turnover, which is not usually the newest bulletin.
         measure: One of ``"leavers"``, ``"joiners"`` or ``"stability"``.
         force_refresh: Bypass the download cache.
 
@@ -350,11 +456,12 @@ def get_turnover(
 
     Raises:
         ValueError: If ``measure`` is not a recognised series.
+        NISRADataNotFoundError: If no bulletin in range carries turnover.
     """
     if measure not in _TURNOVER_TABLES:
         raise ValueError(f"Unknown measure {measure!r}, expected one of {sorted(_TURNOVER_TABLES)}")
 
-    table = _select_table(get_latest_data(period=period, force_refresh=force_refresh), _TURNOVER_TABLES[measure])
+    table = _select_table(find_turnover_data(period=period, force_refresh=force_refresh), _TURNOVER_TABLES[measure])
     return (
         table.rename(columns={"column": "financial_year", "row_label": "metric"})[["financial_year", "metric", "value"]]
         .sort_values(["financial_year", "metric"])
