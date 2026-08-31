@@ -2,42 +2,205 @@
 Usage
 =====
 
-Basic Usage
+.. contents::
+   :local:
+   :depth: 1
+
+----
+
+Quick start
 -----------
 
-To use Bolster in a project::
+Install and run your first query:
 
-    import bolster
+.. code-block:: bash
 
-Core Functions
---------------
+    pip install bolster
 
-Concurrency and Performance
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. code-block:: python
 
-Bolster provides powerful utilities for concurrent processing and performance optimization.
+    from bolster.data_sources.nisra import claimant_count
 
-**Parallel Processing with Progress Tracking:**
+    df = claimant_count.get_latest_claimant_count("lgd")
+    print(df[df["date"] == df["date"].max()]
+          .sort_values("claimant_rate_total_pct", ascending=False)
+          [["geography", "claimants_total", "claimant_rate_total_pct"]])
+
+Or from the command line:
+
+.. code-block:: bash
+
+    bolster nisra claimant-count --breakdown lgd
+    bolster nisra deaths
+    bolster health-ni disease-prevalence --level gp
+    bolster translink departures "Europa Buscentre"
+
+See :doc:`data_sources` for the full list of available modules and
+:doc:`api` for the complete API reference.
+
+----
+
+Common patterns
+---------------
+
+All data source modules follow the same conventions.
+
+Getting a DataFrame
+~~~~~~~~~~~~~~~~~~~
+
+Every module exposes a ``get_latest_*()`` function that returns a tidy
+:class:`pandas.DataFrame`:
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import population, births, deaths
+    from bolster.data_sources.health_ni import disease_prevalence, emergency_care_waiting_times
+    from bolster.data_sources.psni import road_traffic_collisions
+
+    pop = population.get_latest_population(area="Northern Ireland")
+    b   = births.get_latest_births(event_type="registration")
+    d   = deaths.get_latest_deaths(dimension="demographics")
+
+    dp  = disease_prevalence.get_latest_disease_prevalence(level="ni")
+    gp  = disease_prevalence.get_latest_gp_prevalence()   # ~360 practices
+
+    ec  = emergency_care_waiting_times.get_latest_data()
+    rtc = road_traffic_collisions.get_latest_collisions()
+
+Caching
+~~~~~~~
+
+Downloads are cached to ``~/.cache/bolster/`` by default.  Pass
+``force_refresh=True`` to bypass the cache:
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import labour_market
+
+    df = labour_market.get_latest_employment(force_refresh=True)
+
+HTTP requests use a shared session with automatic retry and jitter backoff.
+Do not use ``requests.get()`` directly in data source modules — use
+:func:`bolster.utils.web.session` instead.
+
+----
+
+Example analyses
+----------------
+
+Claimant count trends by district
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+    import matplotlib.pyplot as plt
+    from bolster.data_sources.nisra import claimant_count
+
+    df = claimant_count.get_latest_claimant_count("lgd")
+
+    # Exclude the NI-wide summary row
+    lgd = df[df["geography"] != "Northern Ireland"]
+
+    pivot = lgd.pivot(index="date", columns="geography",
+                      values="claimant_rate_total_pct")
+    pivot.plot(title="UC+JSA claimant rate by LGD (%)", figsize=(12, 5))
+    plt.tight_layout()
+    plt.show()
+
+Disease prevalence at GP-practice level
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+    from bolster.data_sources.health_ni import disease_prevalence
+
+    gp = disease_prevalence.get_latest_gp_prevalence()
+
+    # Practices with highest hypertension prevalence in 2024/25
+    latest = gp[gp["financial_year"] == gp["financial_year"].max()]
+    hyp = latest[latest["disease"] == "Hypertension"]
+    print(hyp.sort_values("prevalence_per_1000", ascending=False)
+             .head(10)[["practice_name", "lcg", "registered_patients",
+                         "prevalence_per_1000"]])
+
+Economy: NICEI sector breakdown
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import composite_index
+
+    df = composite_index.get_latest_nicei()
+
+    # Year-on-year change in headline index
+    df["yoy"] = df["nicei"].pct_change(4) * 100
+    print(df.tail(8)[["year", "quarter", "nicei", "yoy"]])
+
+Earnings by sex (ASHE gender pay analysis)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import ashe
+
+    hourly = ashe.get_latest_ashe_timeseries("hourly")
+    weekly = ashe.get_latest_ashe_timeseries("weekly")
+
+    # Gender pay gap trend (full-time)
+    ft = weekly[weekly["work_pattern"] == "Full-time"]
+    print(ft.tail(10)[["year", "median_weekly_earnings"]])
+
+A&E performance by Trust
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+    import pandas as pd
+    from bolster.data_sources.health_ni import emergency_care_waiting_times
+
+    df = emergency_care_waiting_times.get_latest_data()
+
+    # Monthly 4-hour performance by Trust
+    monthly = (df.groupby(["date", "trust"])["pct_within_4hrs"]
+                 .mean()
+                 .reset_index()
+                 .sort_values("date"))
+    print(monthly[monthly["date"] == monthly["date"].max()])
+
+Live bus departures
+~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+    from bolster.data_sources import translink
+
+    # Next departures from a named stop
+    df = translink.get_departures_by_name("Europa Buscentre", limit=10)
+    print(df[["service", "destination", "aimed_departure", "status"]])
+
+----
+
+Utilities
+---------
+
+These helpers are used internally and available for general use.
+
+Parallel processing
+~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
     import bolster
 
-    # Process data in parallel with automatic progress monitoring
-    def process_item(item):
-        # Your processing logic here
-        return item ** 2
-
-    data = range(1000)
     results = bolster.poolmap(
-        process_item,
-        data,
+        lambda x: x ** 2,
+        range(1000),
         max_workers=4,
-        progress=True  # Shows progress bar if tqdm is available
+        progress=True,   # tqdm progress bar
     )
-    print(f"Processed {len(results)} items")
 
-**Exponential Backoff Retry:**
+Retry with exponential backoff
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
@@ -46,277 +209,30 @@ Bolster provides powerful utilities for concurrent processing and performance op
 
     @bolster.backoff((requests.RequestException, ConnectionError),
                     tries=5, delay=1, backoff=2)
-    def fetch_api_data(url):
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        return response.json()
+    def fetch(url):
+        return requests.get(url, timeout=10).json()
 
-    # This will automatically retry with exponential backoff on failure
-    data = fetch_api_data("https://api.example.com/data")
-
-**Instance Method Caching:**
+Instance method caching
+~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
-    class DataProcessor:
+    import bolster
+
+    class Processor:
         @bolster.memoize
-        def expensive_calculation(self, data_hash):
-            # Expensive operation that we want to cache
-            import time
-            time.sleep(2)  # Simulate expensive operation
-            return f"Processed: {data_hash}"
+        def expensive(self, key):
+            ...   # computed once per unique key
 
-    processor = DataProcessor()
-
-    # First call - takes 2 seconds
-    result1 = processor.expensive_calculation("abc123")
-
-    # Second call with same input - returns immediately from cache
-    result2 = processor.expensive_calculation("abc123")
-
-Data Processing and Transformation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-**Working with Nested Data Structures:**
-
-.. code-block:: python
-
-    # Extract values from deeply nested structures
-    nested_data = {
-        'users': {
-            'active': [{'name': 'Alice', 'age': 25}, {'name': 'Bob', 'age': 30}],
-            'inactive': [{'name': 'Charlie', 'age': 35}]
-        }
-    }
-
-    # Find all ages recursively
-    ages = bolster.get_recursively(nested_data, 'age')
-    print(ages)  # [25, 30, 35]
-
-    # Flatten nested structures
-    flat = bolster.flatten_dict(nested_data)
-    print(flat['users:active:0:name'])  # 'Alice'
-
-**Data Transformation:**
-
-.. code-block:: python
-
-    # Transform API response to database format
-    api_response = {
-        'user_name': 'john_doe',
-        'user_email': 'john@example.com',
-        'account_type': 'premium'
-    }
-
-    # Define transformation rules
-    rules = {
-        'user_name': ('username', str.upper),  # Rename and transform
-        'user_email': ('email', None),         # Keep as-is but rename
-        'account_type': ('tier', lambda x: x.title())  # Transform value
-    }
-
-    # Apply transformation
-    db_record = bolster.transform_(api_response, rules)
-    print(db_record)
-    # {'username': 'JOHN_DOE', 'email': 'john@example.com', 'tier': 'Premium'}
-
-**Batch Processing:**
-
-.. code-block:: python
-
-    # Process large datasets in chunks
-    large_dataset = range(10000)
-
-    # Split into batches of 100
-    for batch in bolster.batch(large_dataset, 100):
-        process_batch(batch)
-
-    # Or use chunks for generators
-    for chunk in bolster.chunks(large_dataset, 100):
-        process_chunk(chunk)
-
-Data Sources
-------------
-
-Northern Ireland Water Quality
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: python
-
-    from bolster.data_sources.ni_water import get_water_quality, get_water_quality_by_zone
-
-    # Get comprehensive water quality data for all NI supply zones
-    df = get_water_quality()
-    print(df.shape)  # Shows number of zones and parameters
-
-    # Get specific zone data
-    zone_data = get_water_quality_by_zone('BALM')  # Belfast Malone area
-    print(f"Hardness: {zone_data['NI Hardness Classification']}")
-
-Electoral Data (EONI)
+Nested dict utilities
 ~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
-    from bolster.data_sources.eoni import get_election_results
+    import bolster
 
-    # Get Assembly election results
-    results_2022 = get_election_results(2022)
-    results_2016 = get_election_results(2016)
+    data = {"a": {"b": [{"x": 1}, {"x": 2}]}}
 
-    # Compare elections using diff utility
-    comparison = bolster.diff(results_2022, results_2016)
-
-Companies House Data
-~~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: python
-
-    from bolster.data_sources.companies_house import search_companies, get_company_details
-
-    # Search for companies
-    results = search_companies("Technology")
-
-    # Get detailed company information
-    company = get_company_details("12345678")  # Company number
-    print(f"{company['name']} - Status: {company['status']}")
-
-Command Line Interface
-----------------------
-
-Bolster includes a CLI for common operations:
-
-**Get Precipitation Data:**
-
-.. code-block:: bash
-
-    # Download precipitation data with default settings
-    bolster get-precipitation --order-name "your-order-name"
-
-    # Download for specific region (Northern Ireland)
-    bolster get-precipitation \
-        --bounding-box "-8.5,54.0,-5.0,55.5" \
-        --order-name "your-order-name" \
-        --output "ni_rain.png"
-
-**Environment Variables:**
-
-Set these environment variables for the CLI:
-
-- ``MET_OFFICE_API_KEY``: Your Met Office API key (required)
-- ``MAP_IMAGES_ORDER_NAME``: Default order name for precipitation data (optional)
-
-Advanced Features
------------------
-
-Error Handling
-~~~~~~~~~~~~~~
-
-**Multiple Exception Accumulation:**
-
-.. code-block:: python
-
-    exceptions = bolster.MultipleErrors()
-
-    try:
-        do_risky_thing_with(this)  # raises ValueError
-    except:
-        exceptions.capture_current_exception()
-
-    try:
-        do_other_thing_with(this)  # raises AttributeError
-    except:
-        exceptions.capture_current_exception()
-
-    # Raise all accumulated exceptions at once
-    exceptions.do_raise()
-
-**Future Exception Handling:**
-
-.. code-block:: python
-
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-
-    def risky_task(item):
-        if item % 5 == 0:
-            raise ValueError(f"Failed on {item}")
-        return item * 2
-
-    with ThreadPoolExecutor() as executor:
-        futures = [executor.submit(risky_task, i) for i in range(20)]
-
-        # Handle exceptions gracefully without stopping execution
-        for result in bolster.exceptional_executor(futures):
-            print(f"Got result: {result}")
-
-Development Utilities
-~~~~~~~~~~~~~~~~~~~~~
-
-**Directory Context Manager:**
-
-.. code-block:: python
-
-    from pathlib import Path
-
-    with bolster.working_directory("/tmp"):
-        # All file operations happen in /tmp
-        Path("test.txt").write_text("Hello World")
-
-    # Back to original directory
-    print(Path.cwd())
-
-**HTTP Request Debugging:**
-
-.. code-block:: python
-
-    import requests
-
-    req = requests.Request('POST', 'https://api.example.com',
-                          headers={'Authorization': 'Bearer secret-token'},
-                          json={'data': 'test'})
-    prepared = req.prepare()
-
-    # Debug request with automatic auth header redaction
-    bolster.pretty_print_request(
-        prepared,
-        authentication_header_blacklist=['Authorization']
-    )
-
-Tree and Dictionary Analysis
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: python
-
-    # Analyze nested data structures
-    tree_data = {
-        'root': {
-            'branch1': {'leaf1': 1, 'leaf2': 2},
-            'branch2': {'leaf3': 3, 'leaf4': {'deep': 4}}
-        }
-    }
-
-    print(f"Tree depth: {bolster.depth(tree_data)}")      # 4
-    print(f"Tree breadth: {bolster.breadth(tree_data)}")  # 4 (total leaves)
-
-    # Get all leaf values
-    leaves = list(bolster.leaves(tree_data))
-    print(leaves)  # [1, 2, 3, 4]
-
-    # Get keys at specific depth level
-    level_2_keys = list(bolster.keys_at(tree_data, 2))
-    print(level_2_keys)  # ['leaf1', 'leaf2', 'leaf3', 'leaf4']
-
-Data Serialization
-~~~~~~~~~~~~~~~~~~
-
-.. code-block:: python
-
-    # Compress data for efficient storage/transmission
-    data = {'large': 'dataset', 'with': ['many', 'items']}
-
-    compressed = bolster.compress_for_relay(data)
-    print(f"Compressed size: {len(compressed)} characters")
-
-    # Decompress back to original
-    decompressed = bolster.decompress_from_relay(compressed)
-    assert decompressed == data
+    bolster.get_recursively(data, "x")   # [1, 2]
+    bolster.flatten_dict(data)           # {"a:b:0:x": 1, "a:b:1:x": 2}
+    bolster.depth(data)                  # 4

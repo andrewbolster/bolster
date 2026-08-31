@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## \[Unreleased\]
 
-## \[0.7.1\] - 2026-07-02
+## \[0.7.1\] - 2026-08-31
 
 ### Added
 
@@ -61,6 +61,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI: PyTest concurrency scoped per-ref to prevent cross-branch job starvation (#1950)
 - Web integration tests replaced with local server fixtures to avoid third-party
   rate-limiting in CI (#1961)
+
+### Also in this release
+
+Merging main into this long-open branch pulled in two months of work landed
+after the curated summary above was written. Listed as-is rather than
+recategorised/rewritten, to stay accurate without re-editorialising history:
+
+- fix(release): auto-merge patch release PRs directly (#2087)
+- Fix CSV output corruption from Rich Console word-wrapping (#2085)
+- fix(release-logic): handle repos with no existing tags (#2082)
+- Release bolster.help; the domain now serves the chat interface (#2080)
+- fix(health_ni): find turnover in the bulletin that carries it (#2081)
+- Fix doctest rot and enforce doctests in CI (#2060)
+- refactor(web): shared link-scraping helpers + fix list-sources coverage (#2057)
+- refactor(cli): introspect list-sources from the Click command tree (#2059)
+- fix(health-ni): repair disease prevalence source resolution (#2040)
+- feat(psni): add motoring offences statistics module (#2029)
+- feat(neet): add NISRA Young People NEET statistics (#2030)
+- feat(nisra): add working and workless households (LFS) data source (#2028)
+- feat: Family Resources Survey Report NI (DfC) (#2026)
+- feat(health_ni): add HSC workforce and active recruitment statistics (#2024)
+- feat(justice): add court prosecutions, convictions and out of court disposals (#2017)
+- feat(dfi): add YPBAS travel to/from school data source (#2015)
+- feat: add PPS Statistical Bulletin data source (#2014)
+- feat(nisra): add NI Housing Bulletin data source (#2027)
+- feat(teacher-workforce): add NISRA teacher workforce statistics module (#2013)
+- feat(justice): add DoJ first time entrants to the criminal justice system (#2012)
+- feat(daera): add NI Greenhouse Gas Inventory data source (#2035)
+- feat(psni): add NI Road Safety Partnership safety camera detections (#2034)
+- fix(ci): stop .codecov.yaml shadowing the cli.py coverage ignore (#2025)
+- Stabilise the test suite: skip WAF-blocked source, fix ruff violations in tests/ (#2016)
+- feat: add Child Maintenance Service statistics (DfC) (#2011)
+- fix(health-ni): resolve disease prevalence via article page, not site search (#2044)
+- feat(school-leavers): NI School Leavers Survey via PxStat (#2007)
+- feat: add PBNI caseload statistics (annual + quarterly) (#2008)
+- feat(justice): NICTS quarterly court business figures (#2009)
+- refactor: consolidate \_hash_url duplicates onto bolster.utils.cache.hash_url (#2003)
+- refactor(nisra): extract shared two-hop URL discovery into \_base.py (#2002)
+- feat(electricity-renewables): NI Electricity Consumption and Renewable Generation (#1992)
+- feat(homelessness): NI Homelessness Bulletin module (DfC/NIHE) (#1991)
+- fix(labour_market): add monthly LMR track + fix force_refresh propagation (#1999)
+- fix(ni_water): dynamic CKAN API lookup for resource URLs (#2000)
+- fix(ci): restore write permissions in release-logic.yml (#1982)
+- fix(ci): use --group fuzz flag for atheris install (#1981)
+- fix(ci): address Scorecards findings — permissions, fuzzing, continue-on-error (#1980)
+- feat(security): OpenSSF Best Practices compliance + Scorecards (#1970)
+- fix(dva): handle sheet name format change and datetime date values (#1975)
+- feat(agents): clarify agent triggers/scope, add data-maintenance agent, auto-retry timed-out CI (#1964)
+- Update concurrency group format in pytest.yml
+- Update concurrency group name in pytest workflow
+- ci+fix(web): restore PyTest concurrency throttle, widen page cache to text/\* and skip params (#1948)
+- fix(release): refresh open release PR's changelog on every main push (#1947)
+- revert(ci): remove global pytest-all concurrency group (#1946)
+- feat(cache): report file-download cache hit/miss counts after tests (#1945)
+- fix(rebase): skip PRs with a pending PyTest run already queued (#1943)
+- revert(ci): back to single global pytest-all concurrency group (#1941)
+- fix(ci): scope pytest concurrency to workflow level, not job level (#1940)
+- fix: only auto-release patch versions; minor and major require manual dispatch (#1894)
+- fix: rebase workflow skips PRs due to UNKNOWN mergeStateStatus (#1892)
+- fix: use BOLSTER_TOKEN PAT for auto-merge to trigger downstream workflows (#1891)
+- fix: resolve 4 CLI bugs (#1867, #1868, #1869, #1870) (#1889)
+- feat: dispatch bolster-release event to mcp.bolster.online on release (#1872)
+- feat(boe): add Bank of England base rate data source (#1860)
+- feat(ons): add ONS CPI/CPIH/RPI inflation data source (#1859)
+- feat(nisra): add drug-related and drug misuse deaths data source (#1855)
+- feat(justice): add NICTS mortgages actions for possession module (#1852)
 
 ## \[0.7.0\] - 2026-05-28
 

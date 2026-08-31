@@ -1,25 +1,27 @@
 Welcome to Bolster's documentation!
 ======================================
 
-Bolster is a Python utility library that provides standardised, ready-to-use
-access to Northern Ireland and UK government data sources alongside a set of
-general-purpose helpers for data processing, web scraping, and cloud
-integrations.
+Bolster is a Python library for accessing Northern Ireland and UK government
+open data.  It normalises dozens of official statistics sources — population,
+health, economy, crime, transport, housing, and more — into clean
+:class:`pandas.DataFrame` objects, with a matching CLI for every module.
 
 **Key areas:**
 
-- :doc:`Data sources <data_sources>` — NISRA, PSNI, DVA, NI Water, EONI, Companies House, Met Office, and more
-- :doc:`CLI <api>` — command-line access to every data source (``bolster --help``)
-- :doc:`Usage examples <usage>` — concurrency helpers, data transformation, HTTP utilities
+- :doc:`Data sources <data_sources>` — NISRA, Department of Health NI, PSNI,
+  DVA, Translink, NI Assembly, ONS, Bank of England, and more
+- :doc:`Installation <installation>` — ``pip install bolster``, Python 3.11+
+- :doc:`CLI and usage examples <usage>` — ``bolster nisra deaths``,
+  ``bolster health-ni disease-prevalence``, ...
+- :doc:`API reference <api>` — auto-generated from module docstrings
 
 .. toctree::
    :maxdepth: 2
    :caption: User Guide
 
-   readme
    installation
-   usage
    data_sources
+   usage
 
 .. toctree::
    :maxdepth: 3
