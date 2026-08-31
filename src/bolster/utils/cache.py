@@ -250,6 +250,7 @@ def stitch_publications(
     dedup_keys: list[str],
     sort_keys: list[str] | None = None,
     errors: tuple[type[Exception], ...] = (Exception,),
+    sort_kind: str = "quicksort",
 ) -> pd.DataFrame:
     """Download, parse, and merge several publications into one tidy frame.
 
@@ -275,6 +276,10 @@ def stitch_publications(
             and skipped rather than propagated. Defaults to catching anything,
             since a single publication's parse failure is exactly the case
             this function exists to tolerate.
+        sort_kind: Passed through to ``DataFrame.sort_values``. Pandas'
+            default (quicksort) isn't stable — pass ``"stable"`` when tied
+            rows must keep their pre-sort relative order (e.g. because a
+            caller relies on which of several same-key rows ends up first).
 
     Returns:
         Concatenated frame, deduplicated on ``dedup_keys`` (first occurrence —
@@ -304,4 +309,4 @@ def stitch_publications(
 
     keys = sort_keys or dedup_keys
     df = pd.concat(frames, ignore_index=True)
-    return df.drop_duplicates(subset=dedup_keys, keep="first").sort_values(keys).reset_index(drop=True)
+    return df.drop_duplicates(subset=dedup_keys, keep="first").sort_values(keys, kind=sort_kind).reset_index(drop=True)

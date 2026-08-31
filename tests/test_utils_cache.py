@@ -460,3 +460,21 @@ class TestStitchPublications:
         result = stitch_publications(publications, fetch_one, dedup_keys=["id"])
 
         assert result["id"].tolist() == [1, 2, 3]
+
+    def test_sort_kind_stable_preserves_tie_order(self):
+        """Test sort_kind='stable' keeps pre-sort relative order for tied rows."""
+        publications = [{"url": "a"}]
+
+        def fetch_one(pub):
+            # Two rows share id=1; "first" should stay first under a stable sort.
+            return pd.DataFrame({"id": [1, 1, 0], "label": ["first", "second", "zero"]})
+
+        result = stitch_publications(
+            publications,
+            fetch_one,
+            dedup_keys=["id", "label"],
+            sort_keys=["id"],
+            sort_kind="stable",
+        )
+
+        assert result["label"].tolist() == ["zero", "first", "second"]
