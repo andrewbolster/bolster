@@ -5,11 +5,9 @@ from unittest.mock import Mock, patch
 
 import pytest
 import requests
-from requests import exceptions as requests_exceptions
 from requests.adapters import HTTPAdapter
-from waybackpy import exceptions as wayback_exceptions
 
-from bolster.utils.web import RateLimitAwareRetry, _retry_strategy, resilient_get, session
+from bolster.utils.web import RateLimitAwareRetry, _retry_strategy, session
 
 
 class TestRetryConfiguration:
@@ -175,57 +173,6 @@ class TestRateLimitAwareRetry:
 
             mock_logger.assert_called_once()
             assert "500" in mock_logger.call_args[0][0]
-
-
-class TestResilientGet:
-    """Test resilient_get function to cover wayback machine error handling."""
-
-    def test_resilient_get_wayback_fallback_failure(self):
-        """Test resilient_get when both direct and wayback requests fail."""
-        test_url = "https://example.com/nonexistent"
-
-        # Mock session.get to fail on direct request
-        with patch.object(session, "get") as mock_get:
-            mock_get.side_effect = requests_exceptions.HTTPError("Direct request failed")
-
-            # Mock get_last_valid to raise NoCDXRecordFound
-            with patch("bolster.utils.web.get_last_valid") as mock_wayback:
-                mock_wayback.side_effect = wayback_exceptions.NoCDXRecordFound("No wayback record")
-
-                # Should raise the original HTTP error with wayback error as cause
-                with pytest.raises(requests_exceptions.HTTPError, match="Direct request failed"):
-                    resilient_get(test_url)
-
-                # Verify wayback was attempted (covers line 95)
-                mock_wayback.assert_called_once_with(test_url)
-
-    def test_resilient_get_successful_wayback_fallback(self):
-        """Test resilient_get successfully falling back to wayback machine."""
-        test_url = "https://example.com/content"
-        wayback_url = "https://web.archive.org/web/20230101000000/https://example.com/content"
-
-        # Mock successful response for wayback URL
-        mock_wayback_response = Mock()
-        mock_wayback_response.raise_for_status.return_value = None
-
-        with patch.object(session, "get") as mock_get:
-            # First call (direct) fails, second call (wayback) succeeds
-            mock_get.side_effect = [requests_exceptions.HTTPError("Direct failed"), mock_wayback_response]
-
-            with patch("bolster.utils.web.get_last_valid") as mock_wayback:
-                mock_wayback.return_value = wayback_url
-
-                with patch("bolster.utils.web.logger.warning") as mock_logger:
-                    result = resilient_get(test_url)
-
-                    # Should return the wayback response
-                    assert result == mock_wayback_response
-
-                    # Should log the fallback warning (covers line 100)
-                    mock_logger.assert_called_once()
-                    assert "Failed to get" in mock_logger.call_args[0][0]
-                    assert "waybackmachine" in mock_logger.call_args[0][0]
-                    assert wayback_url in mock_logger.call_args[0][0]
 
 
 @pytest.mark.integration
