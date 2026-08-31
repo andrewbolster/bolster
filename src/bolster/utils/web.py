@@ -33,7 +33,6 @@ from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 from tqdm import tqdm
 from urllib3.util.retry import Retry
-from waybackpy import WaybackMachineCDXServerAPI, exceptions
 
 from . import version_no
 
@@ -212,30 +211,6 @@ session = CachingSession()
 session.headers.update({"User-Agent": ua})
 session.mount("http://", _adapter)
 session.mount("https://", _adapter)
-
-
-def get_last_valid(url: str) -> str:
-    """Get the last valid URL from Wayback Machine."""
-    return WaybackMachineCDXServerAPI(url).oldest().archive_url
-
-
-def resilient_get(url: str, **kwargs) -> requests.Response:
-    """Attempt a get, but if it fails, try using the wayback machine to get the last valid version and get that.
-
-    If all else fails, raise a HTTPError from the inner "NoCDXRecordFound" exception.
-    """
-    try:
-        res = session.get(url, **kwargs)
-        res.raise_for_status()
-    except Exception as outer_err:
-        try:
-            last_valid = get_last_valid(url)
-        except exceptions.NoCDXRecordFound as inner_err:
-            raise outer_err from inner_err
-        res = session.get(last_valid, **kwargs)
-        res.raise_for_status()
-        logger.warning(f"Failed to get {url} directly, successfully used waybackmachine to get {last_valid}")
-    return res
 
 
 class LinkNotFoundError(LookupError):

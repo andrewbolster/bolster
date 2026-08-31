@@ -57,7 +57,6 @@ dependencies = [
     "rich>=14.2.0",
     "scipy>=1.10.1",
     "tqdm>=4.67.1",
-    "waybackpy>=3.0.6",
     "xlrd>=2.0.1",
 ]
 
@@ -89,7 +88,13 @@ addopts = [
     "--import-mode=importlib",
     "--doctest-modules",
     "--doctest-continue-on-failure",
-    "--ignore=notebooks"
+    "--ignore=notebooks",
+    # Blanket ceiling, not a target: a single unresponsive upstream (archive.org,
+    # confirmed live) can hang one test indefinitely with no other symptom — CI
+    # sat silent for 41 minutes past its last progress line before this existed.
+    # 120s is comfortably above the slowest legitimate real-network fixture, not
+    # tuned to any one test.
+    "--timeout=120"
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
@@ -232,6 +237,8 @@ dev = [
     "pydocstyle",
     "twine",
     "safety>=3.7.0",
+    "pytest-socket>=0.8.1",
+    "pytest-timeout>=2.4.0",
 ]
 docs = [
     "sphinx>=7.0",
