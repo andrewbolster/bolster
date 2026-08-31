@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import pandas as pd
 import pytest
 import requests
 
@@ -14,7 +15,9 @@ from bolster.utils.cache import (
     CachedDownloader,
     CacheError,
     DownloadError,
+    bind_download_file,
     hash_url,
+    stitch_publications,
 )
 
 
@@ -341,3 +344,137 @@ class TestCachedDownloader:
 
         # Should log cache hit
         mock_logger.info.assert_called_with(f"Using cached file: {cache_path}")
+
+
+class TestBindDownloadFile:
+    """Test bind_download_file() — the shared download_file wrapper (#2072)."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.test_cache_dir = Path(tempfile.mkdtemp())
+        self.cache_patcher = patch("bolster.utils.cache.CACHE_BASE", self.test_cache_dir)
+        self.cache_patcher.start()
+
+    def teardown_method(self):
+        """Clean up test fixtures."""
+        self.cache_patcher.stop()
+        if self.test_cache_dir.exists():
+            shutil.rmtree(self.test_cache_dir)
+
+    def test_returns_downloaded_path_with_default_ttl(self):
+        """Test the bound function forwards to downloader.download with the default TTL."""
+        downloader = CachedDownloader("test-bind")
+        download_file = bind_download_file(downloader, ValueError, default_ttl_hours=24)
+
+        with patch.object(downloader, "download", return_value=Path("/tmp/fake.csv")) as mock_download:
+            result = download_file("https://example.com/data.csv")
+
+        assert result == Path("/tmp/fake.csv")
+        mock_download.assert_called_once_with("https://example.com/data.csv", cache_ttl_hours=24, force_refresh=False)
+
+    def test_passes_through_custom_ttl_and_force_refresh(self):
+        """Test caller-supplied cache_ttl_hours/force_refresh override the bound default."""
+        downloader = CachedDownloader("test-bind")
+        download_file = bind_download_file(downloader, ValueError, default_ttl_hours=24)
+
+        with patch.object(downloader, "download", return_value=Path("/tmp/fake.csv")) as mock_download:
+            download_file("https://example.com/data.csv", cache_ttl_hours=1, force_refresh=True)
+
+        mock_download.assert_called_once_with("https://example.com/data.csv", cache_ttl_hours=1, force_refresh=True)
+
+    def test_converts_download_error_to_error_cls(self):
+        """Test DownloadError is re-raised as the module's own error class."""
+
+        class MyNotFoundError(Exception):
+            pass
+
+        downloader = CachedDownloader("test-bind")
+        download_file = bind_download_file(downloader, MyNotFoundError, default_ttl_hours=24)
+
+        with (
+            patch.object(downloader, "download", side_effect=DownloadError("boom")),
+            pytest.raises(MyNotFoundError, match="boom"),
+        ):
+            download_file("https://example.com/data.csv")
+
+
+class TestStitchPublications:
+    """Test stitch_publications() — the shared download+parse+merge shape (#2072)."""
+
+    def test_merges_and_dedups_newest_publication_wins(self):
+        """Test overlapping rows keep the first (newest) publication's value."""
+        publications = [{"url": "new"}, {"url": "old"}]
+
+        def fetch_one(pub):
+            if pub["url"] == "new":
+                return pd.DataFrame({"id": [1, 2], "value": ["new-1", "new-2"]})
+            return pd.DataFrame({"id": [2, 3], "value": ["old-2", "old-3"]})
+
+        result = stitch_publications(publications, fetch_one, dedup_keys=["id"])
+
+        assert result["id"].tolist() == [1, 2, 3]
+        assert result.loc[result["id"] == 2, "value"].iloc[0] == "new-2"
+
+    def test_skips_and_logs_a_failing_publication(self, caplog):
+        """Test one bad publication is skipped, logged, and doesn't block the rest."""
+        publications = [{"url": "good"}, {"url": "bad"}]
+
+        def fetch_one(pub):
+            if pub["url"] == "bad":
+                raise ValueError("parse failed")
+            return pd.DataFrame({"id": [1], "value": ["good"]})
+
+        with caplog.at_level("WARNING"):
+            result = stitch_publications(publications, fetch_one, dedup_keys=["id"])
+
+        assert result["value"].tolist() == ["good"]
+        assert "bad" in caplog.text
+
+    def test_raises_when_every_publication_fails(self):
+        """Test a fully-empty result raises rather than returning silently."""
+        publications = [{"url": "bad"}]
+
+        def fetch_one(pub):
+            raise ValueError("parse failed")
+
+        with pytest.raises(ValueError, match="No publications could be parsed"):
+            stitch_publications(publications, fetch_one, dedup_keys=["id"])
+
+    def test_errors_param_narrows_what_gets_skipped(self):
+        """Test an exception type outside `errors` propagates instead of being skipped."""
+        publications = [{"url": "a"}]
+
+        def fetch_one(pub):
+            raise KeyError("unexpected")
+
+        with pytest.raises(KeyError):
+            stitch_publications(publications, fetch_one, dedup_keys=["id"], errors=(ValueError,))
+
+    def test_sort_keys_defaults_to_dedup_keys(self):
+        """Test omitting sort_keys sorts by dedup_keys instead."""
+        publications = [{"url": "a"}]
+
+        def fetch_one(pub):
+            return pd.DataFrame({"id": [3, 1, 2], "value": ["c", "a", "b"]})
+
+        result = stitch_publications(publications, fetch_one, dedup_keys=["id"])
+
+        assert result["id"].tolist() == [1, 2, 3]
+
+    def test_sort_kind_stable_preserves_tie_order(self):
+        """Test sort_kind='stable' keeps pre-sort relative order for tied rows."""
+        publications = [{"url": "a"}]
+
+        def fetch_one(pub):
+            # Two rows share id=1; "first" should stay first under a stable sort.
+            return pd.DataFrame({"id": [1, 1, 0], "label": ["first", "second", "zero"]})
+
+        result = stitch_publications(
+            publications,
+            fetch_one,
+            dedup_keys=["id", "label"],
+            sort_keys=["id"],
+            sort_kind="stable",
+        )
+
+        assert result["label"].tolist() == ["zero", "first", "second"]
