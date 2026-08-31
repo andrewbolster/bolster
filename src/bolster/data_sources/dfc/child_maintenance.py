@@ -70,7 +70,7 @@ from urllib.parse import urljoin
 
 import pandas as pd
 
-from bolster.utils.cache import CachedDownloader, DownloadError
+from bolster.utils.cache import CachedDownloader, bind_download_file
 from bolster.utils.web import fetch_soup, scrape_file_links
 
 logger = logging.getLogger(__name__)
@@ -184,6 +184,11 @@ class CMSValidationError(CMSDataError):
     """Raised when parsed data fails validation."""
 
     pass
+
+
+# download_file(url, cache_ttl_hours=_CACHE_TTL_HOURS, force_refresh=False) -> Path,
+# raising CMSDataNotFoundError in place of DownloadError.
+download_file = bind_download_file(_downloader, CMSDataNotFoundError, _CACHE_TTL_HOURS)
 
 
 def _clean_label(value: object) -> str:
@@ -642,26 +647,6 @@ def find_publication_xlsx(publication_url: str) -> str:
         raise CMSDataNotFoundError(f"No xlsx workbook found on {publication_url}")
 
     return links[0]["url"]
-
-
-def download_file(url: str, cache_ttl_hours: int = _CACHE_TTL_HOURS, force_refresh: bool = False) -> Path:
-    """Download a tables workbook with caching.
-
-    Args:
-        url: URL of the xlsx workbook.
-        cache_ttl_hours: Cache validity in hours (default: 90 days).
-        force_refresh: If True, bypass the cache and re-download.
-
-    Returns:
-        Path to the downloaded (or cached) file.
-
-    Raises:
-        CMSDataNotFoundError: If the download fails.
-    """
-    try:
-        return _downloader.download(url, cache_ttl_hours=cache_ttl_hours, force_refresh=force_refresh)
-    except DownloadError as e:
-        raise CMSDataNotFoundError(str(e)) from e
 
 
 def _table_for_sheet(frame: pd.DataFrame) -> str | None:

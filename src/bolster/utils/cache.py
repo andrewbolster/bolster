@@ -19,8 +19,11 @@ Example:
 
 import hashlib
 import logging
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
+
+import pandas as pd
 
 from .web import session as web_session
 
@@ -199,3 +202,111 @@ class CachedDownloader:
 
         logger.info(f"Cleared {deleted} cached files from {self.namespace}")
         return deleted
+
+
+def bind_download_file(
+    downloader: CachedDownloader,
+    error_cls: type[Exception],
+    default_ttl_hours: int,
+) -> Callable[..., Path]:
+    """Build a module-level ``download_file`` bound to one downloader.
+
+    Every publication-catalogue module (``dfc.child_maintenance``,
+    ``justice.pps_statistical_bulletin``, and similar) defines a
+    near-identical five-line ``download_file`` that just wraps
+    :meth:`CachedDownloader.download` and converts :class:`DownloadError`
+    to the module's own not-found exception. This is that wrapper, factored
+    out so it isn't independently reimplemented per module (see issue #2072).
+
+    Args:
+        downloader: The module's ``CachedDownloader`` instance.
+        error_cls: Exception class to raise in place of ``DownloadError``.
+        default_ttl_hours: Default ``cache_ttl_hours`` for the returned function.
+
+    Returns:
+        A ``download_file(url, cache_ttl_hours=default_ttl_hours, force_refresh=False) -> Path``
+        function bound to ``downloader``.
+
+    Example:
+        >>> class _NotFoundError(Exception): pass
+        >>> _dl = CachedDownloader("doctest-bind-download-file")
+        >>> download_file = bind_download_file(_dl, _NotFoundError, 24)
+        >>> download_file.__name__
+        'download_file'
+    """
+
+    def download_file(url: str, cache_ttl_hours: int = default_ttl_hours, force_refresh: bool = False) -> Path:
+        try:
+            return downloader.download(url, cache_ttl_hours=cache_ttl_hours, force_refresh=force_refresh)
+        except DownloadError as e:
+            raise error_cls(str(e)) from e
+
+    return download_file
+
+
+def stitch_publications(
+    publications: list[dict],
+    fetch_one: Callable[[dict], pd.DataFrame],
+    dedup_keys: list[str],
+    sort_keys: list[str] | None = None,
+    errors: tuple[type[Exception], ...] = (Exception,),
+    sort_kind: str = "quicksort",
+) -> pd.DataFrame:
+    """Download, parse, and merge several publications into one tidy frame.
+
+    Several short-window data sources (e.g. quarterly bulletins that only
+    show the last few periods) recover their full back series by merging
+    consecutive releases — each module reimplemented the same download-parse-
+    skip-concat-dedup-sort shape to do it (see issue #2072). This is that
+    shape, factored out.
+
+    A per-publication failure is logged and skipped rather than aborting the
+    whole merge — one broken publication in the middle of a back-series pull
+    shouldn't cost the ones on either side of it.
+
+    Args:
+        publications: Publication records, as returned by a module's own
+            ``list_publications()``, newest first.
+        fetch_one: Downloads and parses a single publication record into a
+            DataFrame in the module's canonical shape. Raising is treated as
+            "skip this publication."
+        dedup_keys: Columns identifying a duplicate row across publications.
+        sort_keys: Columns to sort the result by. Defaults to ``dedup_keys``.
+        errors: Exception types from ``fetch_one`` that are caught, logged,
+            and skipped rather than propagated. Defaults to catching anything,
+            since a single publication's parse failure is exactly the case
+            this function exists to tolerate.
+        sort_kind: Passed through to ``DataFrame.sort_values``. Pandas'
+            default (quicksort) isn't stable — pass ``"stable"`` when tied
+            rows must keep their pre-sort relative order (e.g. because a
+            caller relies on which of several same-key rows ends up first).
+
+    Returns:
+        Concatenated frame, deduplicated on ``dedup_keys`` (first occurrence —
+        i.e. the newest publication — wins), sorted by ``sort_keys``.
+
+    Raises:
+        ValueError: If every publication failed and nothing could be merged.
+
+    Example:
+        >>> import pandas as pd
+        >>> pubs = [{"url": "a"}, {"url": "b"}]
+        >>> def fetch(pub):
+        ...     return pd.DataFrame({"id": [1, 2], "value": [pub["url"], pub["url"]]})
+        >>> stitch_publications(pubs, fetch, dedup_keys=["id"])["value"].tolist()
+        ['a', 'a']
+    """
+    logger_ = logging.getLogger(__name__)
+    frames = []
+    for publication in publications:
+        try:
+            frames.append(fetch_one(publication))
+        except errors as e:
+            logger_.warning("Skipping publication %s: %s", publication.get("url", publication), e)
+
+    if not frames:
+        raise ValueError("No publications could be parsed")
+
+    keys = sort_keys or dedup_keys
+    df = pd.concat(frames, ignore_index=True)
+    return df.drop_duplicates(subset=dedup_keys, keep="first").sort_values(keys, kind=sort_kind).reset_index(drop=True)

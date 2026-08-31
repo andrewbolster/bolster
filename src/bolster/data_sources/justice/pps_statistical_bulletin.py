@@ -64,7 +64,7 @@ from urllib.parse import urljoin
 
 import pandas as pd
 
-from bolster.utils.cache import CachedDownloader, DownloadError
+from bolster.utils.cache import CachedDownloader, bind_download_file, stitch_publications
 from bolster.utils.web import fetch_soup, scrape_file_links
 
 logger = logging.getLogger(__name__)
@@ -124,6 +124,11 @@ class PPSValidationError(PPSDataError):
     """Raised when parsed data fails validation."""
 
     pass
+
+
+# download_file(url, cache_ttl_hours=_CACHE_TTL_HOURS, force_refresh=False) -> Path,
+# raising PPSDataNotFoundError in place of DownloadError.
+download_file = bind_download_file(_downloader, PPSDataNotFoundError, _CACHE_TTL_HOURS)
 
 
 def _clean_label(text: str) -> str:
@@ -533,26 +538,6 @@ def find_publication_xlsx(publication_url: str) -> str:
     return links[0]["url"]
 
 
-def download_file(url: str, cache_ttl_hours: int = _CACHE_TTL_HOURS, force_refresh: bool = False) -> Path:
-    """Download a bulletin workbook with caching.
-
-    Args:
-        url: URL of the ``.xlsx`` workbook.
-        cache_ttl_hours: Cache validity in hours (default: 90 days).
-        force_refresh: If True, bypass the cache and re-download.
-
-    Returns:
-        Path to the downloaded (or cached) file.
-
-    Raises:
-        PPSDataNotFoundError: If the download fails.
-    """
-    try:
-        return _downloader.download(url, cache_ttl_hours=cache_ttl_hours, force_refresh=force_refresh)
-    except DownloadError as e:
-        raise PPSDataNotFoundError(str(e)) from e
-
-
 def parse_data(file_path: Path) -> pd.DataFrame:
     """Parse every statistical table from a bulletin workbook.
 
@@ -650,23 +635,22 @@ def get_historical_data(max_publications: int = 5, force_refresh: bool = False) 
     """
     annual = [p for p in list_publications() if p["quarters"] is None]
 
-    frames = []
-    for publication in annual[:max_publications]:
-        try:
-            url = find_publication_xlsx(publication["url"])
-            frames.append(parse_data(download_file(url, force_refresh=force_refresh)))
-        except PPSDataError as e:
-            logger.warning(f"Skipping {publication['title']}: {e}")
+    def fetch_one(publication: dict) -> pd.DataFrame:
+        url = find_publication_xlsx(publication["url"])
+        return parse_data(download_file(url, force_refresh=force_refresh))
 
-    if not frames:
-        raise PPSDataNotFoundError("No bulletins could be parsed")
-
-    combined = pd.concat(frames, ignore_index=True)
-    deduplicated = combined.drop_duplicates(
-        subset=["table", "financial_year", "category", "breakdown"],
-        keep="first",
-    )
-    return deduplicated.sort_values(["year", "table", "category", "breakdown"], kind="stable").reset_index(drop=True)
+    try:
+        combined = stitch_publications(
+            annual[:max_publications],
+            fetch_one,
+            dedup_keys=["table", "financial_year", "category", "breakdown"],
+            sort_keys=["year", "table", "category", "breakdown"],
+            errors=(PPSDataError,),
+            sort_kind="stable",
+        )
+    except ValueError as e:
+        raise PPSDataNotFoundError("No bulletins could be parsed") from e
+    return combined
 
 
 def list_tables(force_refresh: bool = False) -> list[str]:
