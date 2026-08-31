@@ -66,12 +66,15 @@ jobs:
                   script: |
                       const { execSync } = require('child_process');
 
-                      let lastTag = null;
-                      try {
-                        lastTag = execSync('git describe --tags --abbrev=0', { encoding: 'utf-8' }).trim();
-                      } catch (e) {
-                        lastTag = null; // no tags in repo — initial release
-                      }
+                      // Not `git describe --tags` — that requires the tag to be an ancestor
+                      // of HEAD, which a squash-merged release PR breaks on the very next
+                      // release: the tag lives on the (now-orphaned) release branch tip, not
+                      // on the new squash commit main gets. That's not hypothetical — it's
+                      // what actually crashed here (`fatal: ambiguous argument 'v0.0.0..HEAD'`)
+                      // once the old fallback's fabricated tag didn't exist either. Highest
+                      // version tag by name doesn't care about ancestry, and still returns ""
+                      // (not an error) when the repo has no tags at all.
+                      let lastTag = execSync("git tag --list 'v*' --sort=-v:refname | head -1", { encoding: 'utf-8' }).trim() || null;
                       console.log(`Last tag: ${lastTag || '(none — initial release)'}`);
 
                       const gitLogCmd = lastTag
