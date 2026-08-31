@@ -19,14 +19,20 @@ Available modules:
     - labour_market: Quarterly Labour Force Survey statistics (employment, economic inactivity)
     - marriages: Monthly marriage registrations
     - migration: Official and derived migration estimates (demographic components)
+    - neet: Young people (16-24) not in education, employment or training (NEET)
     - population: Annual mid-year population estimates by age, sex, and geography
     - planning_statistics: NI Planning Activity Statistics - quarterly applications, by council
     - population_projections: Population projections by age, sex, and geography (2022-2072)
     - registrar_general: Registrar General Quarterly Tables (quarterly births, deaths, marriages, LGD breakdowns)
+    - school_leavers: School Leavers Survey - attainment and destinations by geography and equality group
+    - teacher_workforce: Teachers in grant-aided schools — headcount, FTE and pupil:teacher ratios by LGD
     - baby_names: Annual baby name registrations (1997–present) by sex and rank
     - tourism: Tourism statistics including occupancy surveys, visitor stats (subpackage)
     - wellbeing: Individual wellbeing statistics (life satisfaction, happiness, anxiety, loneliness)
     - work_quality: Work Quality NI — seventeen indicators of job quality for employees
+    - workless_households: Working/mixed/workless households (LFS) — NI series since 1996
+    - homelessness: NI Homelessness Bulletin — biannual presentations/acceptances by LGD (DfC/NIHE)
+    - housing_bulletin: NI Housing Bulletin — quarterly social housing supply, stock, waiting list, sales (DfC)
     - housing_stock: NI Housing Stock annual statistics by property type (DoF/LPS)
     - public_confidence: Public Awareness of and Trust in Official Statistics (PCOS)
 
@@ -38,8 +44,8 @@ Note:
 
 Examples:
     >>> from bolster.data_sources.nisra import claimant_count
-    >>> cc_df = claimant_count.get_latest_claimant_count("headline")
-    >>> "claimants_000s" in cc_df.columns
+    >>> cc_df = claimant_count.get_latest_claimant_count("lgd")
+    >>> "claimants_total" in cc_df.columns
     True
 
     >>> from bolster.data_sources.nisra import ashe
@@ -117,6 +123,11 @@ Examples:
     >>> 'businesses' in df.columns
     True
 
+    >>> from bolster.data_sources.nisra import teacher_workforce
+    >>> df = teacher_workforce.get_headcount()
+    >>> 'all_teachers' in set(df['statistic'])
+    True
+
 """
 
 from . import (
@@ -130,22 +141,28 @@ from . import (
     deaths,
     deprivation,
     drug_related_deaths,
+    homelessness,
+    housing_bulletin,
     housing_stock,
     index_of_production,
     index_of_services,
     labour_market,
     marriages,
     migration,
+    neet,
     planning_statistics,
     population,
     population_projections,
     public_confidence,
     quarterly_employment_survey,
     registrar_general,
+    school_leavers,
     stillbirths,
+    teacher_workforce,
     tourism,
     wellbeing,
     work_quality,
+    workless_households,
 )
 
 __all__ = [
@@ -159,6 +176,8 @@ __all__ = [
     "deaths",
     "deprivation",
     "drug_related_deaths",
+    "homelessness",
+    "housing_bulletin",
     "housing_stock",
     "index_of_production",
     "index_of_services",
@@ -166,13 +185,17 @@ __all__ = [
     "quarterly_employment_survey",
     "marriages",
     "migration",
+    "neet",
     "planning_statistics",
     "population",
     "population_projections",
     "public_confidence",
     "registrar_general",
+    "school_leavers",
     "stillbirths",
+    "teacher_workforce",
     "tourism",
     "wellbeing",
     "work_quality",
+    "workless_households",
 ]

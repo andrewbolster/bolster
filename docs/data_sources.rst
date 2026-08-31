@@ -148,18 +148,84 @@ change including natural change, net migration, and cross-border flows.
 Labour Market
 ~~~~~~~~~~~~~
 
-Quarterly Labour Force Survey statistics: employment, economic inactivity, and
-unemployment rates for Northern Ireland.
+Labour Force Survey statistics for Northern Ireland, drawn from two separate
+NISRA publications:
+
+* The **quarterly LFS Tables** workbook supplies employment by age and sex
+  (Table 2.15) and economic inactivity by sex (Table 2.21). An annual LGD
+  tables publication carries the same measures for all 11 Local Government
+  Districts.
+* The **monthly Labour Market Report** supplies the rolling three-month
+  headline structure — population 16+, economically active, in employment,
+  unemployed, economically inactive — and is typically two to three months
+  more current than the quarterly tables.
+
+Both publication URLs are discovered by scraping the NISRA publication index,
+so no release date needs to be hardcoded.
 
 .. code-block:: python
 
     from bolster.data_sources.nisra import labour_market
 
-    df = labour_market.get_latest_employment()
+    # Rolling 3-month headline structure (monthly LMR — most current)
+    overview = labour_market.get_latest_labour_market_overview()
+
+    # Quarterly LFS tables
+    employment = labour_market.get_latest_employment()
+    inactivity = labour_market.get_latest_economic_inactivity()
+
+    # A specific quarter
+    tables = labour_market.get_quarterly_data(2025, "Jul-Sep")
+
+    # Annual employment by Local Government District
+    by_lgd = labour_market.get_latest_employment_by_lgd()
 
 .. code-block:: console
 
     $ bolster nisra labour-market
+    $ bolster nisra labour-market --dimension overview
+    $ bolster nisra labour-market --dimension employment
+    $ bolster nisra labour-market --dimension lgd --format json
+
+Young People NEET
+~~~~~~~~~~~~~~~~~
+
+Quarterly estimates of 16-24 year olds not in education, employment or training
+(NEET), from the Labour Force Survey.  Counts and rates by sex back to Jan-Mar
+2013, with confidence intervals, plus latest-quarter labour market status, NEET
+composition, and a UK comparison.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import neet
+
+    df = neet.get_quarterly_series()
+    gap = neet.get_gender_gap()
+
+.. code-block:: console
+
+    $ bolster nisra neet --table quarterly
+    $ bolster nisra neet --table gender-gap --year 2026
+
+Working and Workless Households
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Household-level economic activity from the LFS.  A household is *work rich* if
+every working-age adult is in work, *mixed* if some are, and *workless* if none
+are.  Combines the ONS Table C regional series (1996–present) with NISRA's
+quarterly LFS Households workbook for NI-only breakdowns.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import workless_households
+
+    ni = workless_households.get_northern_ireland_series()
+    status = workless_households.get_economic_status_summary()
+
+.. code-block:: console
+
+    $ bolster nisra workless-households
+    $ bolster nisra workless-households --table status
 
 Claimant Count
 ~~~~~~~~~~~~~~
@@ -178,7 +244,7 @@ April 1997, with LGD and SOA breakdowns.
     $ bolster nisra claimant-count
 
 Annual Survey of Hours and Earnings (ASHE)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Employee earnings statistics for Northern Ireland, covering median weekly and
 hourly earnings, real earnings growth, occupation/industry breakdowns, and gender
@@ -211,7 +277,7 @@ unadjusted.
     $ bolster nisra quarterly-employment-survey
 
 Composite Economic Index (NICEI)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The headline experimental quarterly economic indicator for Northern Ireland.
 
@@ -226,7 +292,7 @@ The headline experimental quarterly economic indicator for Northern Ireland.
     $ bolster nisra composite-index
 
 Index of Production / Services
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Quarterly Index of Production (IOP) and Index of Services (IOS) for NI.
 
@@ -259,7 +325,7 @@ maintenance.
     $ bolster nisra construction-output
 
 Business Register (IDBR)
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 NI Business Register (IDBR) — annual VAT/PAYE business counts by industry,
 legal status, and Local Government District.
@@ -291,7 +357,7 @@ refusals by council.
     $ bolster nisra planning-statistics
 
 Deprivation (NIMDM 2017)
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 NI Multiple Deprivation Measure 2017 — SOA-level overall and domain deprivation
 ranks for 890 Super Output Areas.
@@ -323,6 +389,66 @@ by type (detached, semi-detached, terraced, flat) and Local Government District.
 
     $ bolster nisra housing-stock
 
+Housing Bulletin
+~~~~~~~~~~~~~~~~
+
+NI Housing Bulletin (DfC) — quarterly housing statistics compiled from NIHE,
+LPS and NHBC administrative sources. Nine tables: social housing starts and
+completions by tenure, dwelling stock by tenure and district, the social
+housing waiting list and allocations, new dwelling sales and average prices,
+and the Affordable Warmth Scheme.
+
+Homelessness tables from the same workbook are not parsed here — the richer
+LGD-level series lives in :mod:`bolster.data_sources.nisra.homelessness`.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import housing_bulletin
+
+    stock = housing_bulletin.get_dwelling_stock_by_tenure()
+    starts = housing_bulletin.get_social_housing_starts()
+    sales = housing_bulletin.get_new_dwelling_sales()
+
+    # Or fetch any table by name
+    housing_bulletin.list_tables()
+    df = housing_bulletin.get_latest_data('waiting-list')
+
+.. code-block:: console
+
+    $ bolster nisra housing-bulletin --list-tables
+    $ bolster nisra housing-bulletin --table starts
+    $ bolster nisra housing-bulletin --table sales --summary
+
+Homelessness
+~~~~~~~~~~~~
+
+NI Homelessness Bulletin (DfC/NIHE) — biannual homeless presentations and
+acceptances by Local Government District, sourced from Northern Ireland
+Housing Executive casework records. Each six-month period (Apr–Sep, Oct–Mar)
+is published roughly three months after it ends, covering 2018/19 to present.
+
+Rows carry both the absolute count and a ``rate_per_1000`` population rate, for
+the 11 LGDs plus a ``'Northern Ireland'`` total. This data is not available via
+the NISRA PxStat API — DfC publish it directly as Excel workbooks.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import homelessness
+
+    presentations = homelessness.get_latest_data(section="presentations")
+    acceptances = homelessness.get_latest_data(section="acceptances")
+
+    # Both sections stacked, with a 'section' discriminator column
+    combined = homelessness.get_latest_data(section="all")
+
+    latest = presentations[presentations["lgd"] == "Belfast"]
+
+.. code-block:: console
+
+    $ bolster nisra homelessness
+    $ bolster nisra homelessness --section acceptances
+    $ bolster nisra homelessness --section all --format json --save homelessness.json
+
 Drug-Related Deaths
 ~~~~~~~~~~~~~~~~~~~
 
@@ -337,6 +463,25 @@ Annual drug-related and drug misuse deaths by year, age, gender, and substance.
 .. code-block:: console
 
     $ bolster nisra drug-related-deaths
+
+Teacher Workforce
+~~~~~~~~~~~~~~~~~
+
+Teachers in grant-aided schools — headcount by age, sex and working pattern,
+full-time equivalents by school type, and pupil:teacher ratios, all broken
+down by Local Government District.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import teacher_workforce
+
+    df = teacher_workforce.get_headcount()
+
+.. code-block:: console
+
+    $ bolster nisra teacher-workforce
+    $ bolster nisra teacher-workforce --dimension ptr
+    $ bolster nisra teacher-workforce --summary
 
 Wellbeing
 ~~~~~~~~~
@@ -355,7 +500,7 @@ satisfaction, happiness, anxiety, and loneliness.
     $ bolster nisra wellbeing
 
 Public Confidence in Official Statistics
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Public Awareness of and Trust in Official Statistics (PCOS) — awareness and
 trust indicators back to 2009.
@@ -371,7 +516,7 @@ trust indicators back to 2009.
     $ bolster nisra public-confidence
 
 Registrar General Quarterly Tables
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Quarterly births, deaths, marriages, and LGD breakdowns.
 
@@ -386,8 +531,25 @@ Quarterly births, deaths, marriages, and LGD breakdowns.
 
     $ bolster nisra registrar-general
 
+School Leavers Survey
+~~~~~~~~~~~~~~~~~~~~~
+
+Qualifications achieved and destinations of school leavers, by geography,
+free school meal entitlement, and equality group.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import school_leavers
+
+    attainment = school_leavers.get_latest_school_leavers("attainment", "lgd")
+    equality = school_leavers.get_attainment_by_equality_group()
+
+.. code-block:: console
+
+    $ bolster nisra school-leavers --dimension destination --geography lgd
+
 Tourism — Occupancy
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 
 Monthly hotel and guest accommodation occupancy rates.
 
@@ -402,7 +564,7 @@ Monthly hotel and guest accommodation occupancy rates.
     $ bolster nisra occupancy
 
 Tourism — Visitor Statistics
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Quarterly visitor numbers and spend.
 
@@ -419,14 +581,14 @@ Quarterly visitor numbers and spend.
 ----
 
 Department of Health NI (health_ni)
--------------------------------------
+-----------------------------------
 
 The `Department of Health <https://www.health-ni.gov.uk/>`_ publishes health
 and social care statistics for Northern Ireland.  All health_ni modules live
 under :mod:`bolster.data_sources.health_ni`.
 
 Cancer Waiting Times
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 14-day, 31-day, and 62-day cancer referral-to-treatment waiting times by tumour
 type and HSC Trust.  Data via PxStat.
@@ -442,7 +604,7 @@ type and HSC Trust.  Data via PxStat.
     $ bolster nisra cancer-waiting-times
 
 Diagnostic Waiting Times
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 Diagnostic waiting times by test type and HSC Trust.  Data via PxStat DWT matrix.
 
@@ -457,7 +619,7 @@ Diagnostic waiting times by test type and HSC Trust.  Data via PxStat DWT matrix
     $ bolster nisra diagnostic-waiting-times
 
 Elective Waiting Times
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
 
 Inpatient/day-case and outpatient referrals waiting by weeks-waited band,
 specialty, and HSC Trust.  Covers pre-encompass (legacy PAS) and encompass
@@ -474,7 +636,7 @@ specialty, and HSC Trust.  Covers pre-encompass (legacy PAS) and encompass
     $ bolster nisra elective-waiting-times
 
 Emergency Care Waiting Times
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Monthly A&E attendance and 4-hour target performance by HSC Trust and hospital
 department.
@@ -511,7 +673,7 @@ Covers 17 disease categories including hypertension, diabetes, and COPD.
     $ bolster nisra disease-prevalence --level gp
 
 Child Protection
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 
 NI child protection registrations, de-registrations, and case conference
 statistics from the Department of Health.
@@ -525,6 +687,59 @@ statistics from the Department of Health.
 .. code-block:: console
 
     $ bolster nisra child-protection
+
+HSC Workforce
+~~~~~~~~~~~~~
+
+Size, composition and turnover of the Health and Social Care workforce,
+from March 2021 to the latest census point.  Figures are whole-time
+equivalents (WTE) unless stated otherwise.
+
+.. code-block:: python
+
+    from bolster.data_sources.health_ni import hsc_workforce
+
+    # Headline WTE, headcount and active posts by census point
+    df = hsc_workforce.get_workforce_summary()
+
+    # WTE by staff group, or the profession-level cut
+    groups = hsc_workforce.get_workforce_by_staff_group()
+    professions = hsc_workforce.get_workforce_by_staff_group(sub=True)
+
+    # Joiners, leavers and stability by financial year
+    turnover = hsc_workforce.get_turnover(measure="leavers")
+
+.. code-block:: console
+
+    $ bolster nisra hsc-workforce
+    $ bolster nisra hsc-workforce --view staff-group --sub
+    $ bolster nisra hsc-workforce --view turnover --measure joiners
+
+HSC Active Recruitment
+~~~~~~~~~~~~~~~~~~~~~~
+
+Vacancy counts and vacancy rates across the HSC workforce, from March 2017
+to the latest census point.  Consultant and SAS doctor vacancies begin in
+March 2020.
+
+.. code-block:: python
+
+    from bolster.data_sources.health_ni import hsc_recruitment
+
+    # Vacancies by staff group and census point
+    df = hsc_recruitment.get_vacancies_by_staff_group()
+
+    # Vacancy rates as a proportion of funded posts
+    rates = hsc_recruitment.get_vacancy_rates()
+
+    # Consultant vacancies by clinical specialty
+    doctors = hsc_recruitment.get_doctor_vacancies(grade="consultant")
+
+.. code-block:: console
+
+    $ bolster nisra hsc-recruitment
+    $ bolster nisra hsc-recruitment --view rates
+    $ bolster nisra hsc-recruitment --view doctors --grade consultant
 
 ----
 
@@ -601,6 +816,30 @@ arrests by gender and category, back to 2013/14.
 
     $ bolster psni pace
 
+Motoring Offences
+~~~~~~~~~~~~~~~~~
+
+Annual motoring offence enforcement outcomes — fixed penalty notices,
+referrals for prosecution and driver retraining courses. Disposal-type
+totals run from 1998; offence-group breakdowns by month, age, gender,
+district and disposal cover the latest year, with per-offence series for
+speeding, mobile phone, careless driving and drink/drug driving from 2011.
+
+Complements :mod:`~bolster.data_sources.psni.road_traffic_collisions`, which
+covers injury events rather than enforcement actions.
+
+.. code-block:: python
+
+    from bolster.data_sources.psni import motoring_offences
+
+    trends = motoring_offences.get_annual_trends()
+    districts = motoring_offences.get_offences_by_district()
+
+.. code-block:: console
+
+    $ bolster psni motoring-offences --list-tables
+    $ bolster psni motoring-offences --table district
+
 Police Ombudsman
 ~~~~~~~~~~~~~~~~
 
@@ -617,10 +856,40 @@ district, allegation type, and outcome back to 2000/01.
 
     $ bolster psni police-ombudsman
 
+Road Safety Partnership
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Record-level safety camera detections from the Northern Ireland Road Safety
+Partnership — 719,200 detections from 2011 to 2024 covering fixed, mobile,
+average-speed and red light running cameras, with outcome, district, speed
+band and offender demographics. Published on OpenDataNI in two batches with
+differing column headers; the module normalises both onto a common schema and
+attaches LGD and NUTS3 codes.
+
+.. code-block:: python
+
+    from bolster.data_sources.psni import road_safety_partnership as rsp
+
+    df      = rsp.get_detections(year=2024)
+    annual  = rsp.get_annual_summary()
+    by_lgd  = rsp.get_detections_by_district(year=2024)
+    speeds  = rsp.get_speed_distribution(year=2024)
+
+.. code-block:: console
+
+    $ bolster psni road-safety
+    $ bolster psni road-safety --dimension district --year 2024
+
+.. note::
+
+   Reference numbers restart at 1 in each published batch and are not globally
+   unique. Red light running camera detections record no speed. Speed and
+   offender age are published as bands rather than exact values.
+
 ----
 
 DVA — Driver and Vehicle Agency
---------------------------------
+-------------------------------
 
 Monthly test statistics from the NI Driver and Vehicle Agency.
 
@@ -659,7 +928,7 @@ Drinking water quality data for all NI supply zones.
 ----
 
 NI Assembly (AIMS)
--------------------
+------------------
 
 NI Assembly AIMS data — Members of the Legislative Assembly, oral/written
 questions, and assembly votes.
@@ -715,26 +984,309 @@ Standardised house price index for Northern Ireland.
 
 ----
 
-Justice — NICTS
----------------
+Department for the Economy (DfE)
+--------------------------------
 
-NI Courts and Tribunals Service (NICTS) statistics.
+Statistics from the Department for the Economy, published in partnership with
+NISRA.
+
+Electricity Consumption and Renewable Generation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Quarterly progress against Northern Ireland's renewable electricity targets —
+80% of consumption from renewable sources by 2030, under the Climate Change
+Act (Northern Ireland) 2022.
+
+The source is an interactive NISRA datavis report which embeds its figures as
+base64-encoded CSV data-URIs rather than offering a downloadable workbook. Four
+headline series are extracted:
+
+* ``renewable_pct`` — rolling 12-month renewable generation as a proportion of
+  gross final electricity consumption, plus the monthly percentage.
+* ``consumption`` — total consumption, renewable and non-renewable generation,
+  and net imports (rolling 12-month GWh).
+* ``generation_by_technology`` — rolling 12-month generation by technology:
+  wind, hydro, bioenergy, landfill gas, solar PV.
+* ``generation_monthly`` — monthly renewable and non-renewable generation
+  (GWh), from February 2018.
+
+Rolling 12-month figures run from January 2019 to present.
+
+.. code-block:: python
+
+    from bolster.data_sources import electricity_renewables
+
+    data = electricity_renewables.get_latest_data()
+
+    pct = data["renewable_pct"]
+    latest = pct["renewable_pct_rolling_12m"].iloc[-1]
+
+    by_tech = data["generation_by_technology"]
+
+.. code-block:: console
+
+    $ bolster dfe electricity
+    $ bolster dfe electricity --dataset consumption
+    $ bolster dfe electricity --dataset renewable-pct --year 2024
+    $ bolster dfe electricity --dataset all --format csv --save electricity.csv
+
+----
+
+Infrastructure NI (DfI)
+-----------------------
+
+Statistics from the Department for Infrastructure.
+
+Travel to and from School (YPBAS)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The Young Persons' Behaviour and Attitudes Survey travel module: how pupils
+travel to and from school, how they would like to travel, perceived road
+safety, and walking/cycling participation. Detail tables carry 95% confidence
+intervals and break down by sex and school year group; the trend tables cover
+2016, 2019, 2022 and 2025.
+
+.. code-block:: python
+
+    from bolster.data_sources.dfi import school_travel
+
+    # Latest detail tables (686 estimates across 12 questions)
+    df = school_travel.get_latest_data()
+
+    # Year-group breakdown only
+    by_year = df[df["breakdown_type"] == "year_group"]
+
+    # Multi-year trend
+    trend = school_travel.get_trend_data()
+
+    # What questions are available?
+    school_travel.list_questions()
+
+.. code-block:: console
+
+    $ bolster dfi school-travel
+    $ bolster dfi school-travel --table trend
+    $ bolster dfi school-travel --breakdown year_group --summary
+    $ bolster dfi school-travel --list-questions
+
+----
+
+Justice
+-------
+
+Department of Justice, its sponsored bodies, and the NI Courts and Tribunals
+Service (NICTS).
 
 Mortgage Possession Actions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Quarterly mortgage possession actions (applications, orders, and warrants) by
-court district.
+Quarterly mortgage possession proceedings in the Chancery Division of the NI
+High Court: cases received, cases disposed, and the final orders made.
 
 .. code-block:: python
 
-    from bolster.data_sources import justice
+    from bolster.data_sources.justice import mortgages
 
-    df = justice.get_latest_mortgage_possession_actions()
+    tables = mortgages.get_latest_data()
+    received = tables["received"]
 
 .. code-block:: console
 
-    $ bolster justice mortgage-possession
+    $ bolster justice mortgages
+    $ bolster justice mortgages --table disposed
+
+Quarterly Court Business Figures
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Provisional case receipts, disposals, and outstanding workload across all ten
+NICTS court datasets — Court of Appeal (criminal and civil), the three High
+Court divisions, Crown, County, Magistrates', Children Order proceedings, and
+judicial sitting days. Annual totals from 2017 plus quarterly figures for the
+most recent years, returned as a single tidy long frame.
+
+.. code-block:: python
+
+    from bolster.data_sources.justice import nicts_quarterly
+
+    # Every court, every period
+    df = nicts_quarterly.get_latest_data()
+
+    # A single court
+    crown = nicts_quarterly.get_crown_court()
+
+    # What court keys are available?
+    nicts_quarterly.list_courts()
+
+.. code-block:: console
+
+    $ bolster justice nicts-quarterly --list-courts
+    $ bolster justice nicts-quarterly --court crown_court
+    $ bolster justice nicts-quarterly --annual --format json
+
+Prosecutions, Convictions and Out of Court Disposals
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Annual figures on how criminal cases are resolved: convictions and conviction
+rates by court tier, the mix of out of court disposals (cautions, informed
+warnings, penalty notices, youth conference plans), and diversionary disposals
+by gender and age band. Publications run from 2008 to the present.
+
+.. code-block:: python
+
+    from bolster.data_sources.justice import prosecutions_convictions as pcd
+
+    # Conviction rates by court tier
+    df = pcd.get_prosecutions_convictions()
+
+    # Court versus out of court resolution
+    cases = pcd.get_cases_dealt_with()
+
+    # Out of court disposals by type
+    disposals = pcd.get_out_of_court_disposals()
+
+    # Diversionary disposals by age band
+    by_age = pcd.get_diversionary_disposals(by="age")
+
+.. code-block:: console
+
+    $ bolster justice prosecutions-convictions --summary
+    $ bolster justice prosecutions-convictions --dataset out-of-court
+    $ bolster justice prosecutions-convictions --dataset diversionary --by age
+
+First Time Entrants
+~~~~~~~~~~~~~~~~~~~
+
+People receiving their first conviction or diversionary disposal in Northern
+Ireland, broken down by age band, gender, offence classification and disposal
+type, alongside the headline percentage of all offenders who are first time
+entrants. Financial years from 2011-12, with thirteen editions available.
+
+Tables are keyed by their title text rather than sheet name or worksheet
+number, since both drift between editions.
+
+.. code-block:: python
+
+    from bolster.data_sources.justice import first_time_entrants as fte
+
+    # Every table, every breakdown
+    df = fte.get_latest_data()
+
+    # A single breakdown
+    by_age = fte.get_by_age()
+    by_offence = fte.get_by_offence()
+
+    # Headline first time offender percentage over time
+    headline = fte.get_headline_series()
+
+    # Older editions
+    older = fte.parse_data(fte.download_file(fte.find_data_file(fte.list_publications()[5]["url"])))
+
+.. code-block:: console
+
+    $ bolster justice first-time-entrants --headline
+    $ bolster justice first-time-entrants --breakdown age_band
+    $ bolster justice first-time-entrants --table 3e --format json
+
+PBNI Caseload
+~~~~~~~~~~~~~
+
+Probation Board for Northern Ireland caseload statistics — annual (31 March
+snapshot, five years of history) and quarterly bulletins covering the people
+under probation supervision, their orders, demographics, risk assessments, and
+registered victims.
+
+.. code-block:: python
+
+    from bolster.data_sources.justice import pbni_caseload
+
+    df = pbni_caseload.get_annual_caseload()
+
+    # Any published breakdown
+    orders = pbni_caseload.get_latest_data("order_type", frequency="quarterly")
+    pbni_caseload.list_dimensions("quarterly")
+
+.. code-block:: console
+
+    $ bolster justice pbni-caseload --summary
+    $ bolster justice pbni-caseload --frequency quarterly --dimension order_type
+
+----
+
+Communities — Child Maintenance Service
+---------------------------------------
+
+Quarterly Child Maintenance Service statistics for Northern Ireland, published
+by the Department for Communities: applications and their clearance, the
+composition of arrangements, children covered, paying parent numbers and
+demographics, maintenance due and paid, and enforcement collections. All eight
+workbook tables are flattened into one tidy long frame with a ``table``
+discriminator column.
+
+A single release does not carry the full back series — most tables show only the
+last few years, and paying parent characteristics only a single quarter — so
+``get_historical_data()`` stitches successive releases together.
+
+.. code-block:: python
+
+    from bolster.data_sources.dfc import child_maintenance
+
+    # Every table from the most recent release
+    df = child_maintenance.get_latest_data()
+
+    # Stitch releases together for the full published run
+    history = child_maintenance.get_historical_data(max_publications=8)
+
+    # A single table
+    enforcement = child_maintenance.get_enforcement()
+
+    # What tables are available?
+    child_maintenance.list_tables()
+
+.. code-block:: console
+
+    $ bolster dfc child-maintenance --list-tables
+    $ bolster dfc child-maintenance --table enforcement
+    $ bolster dfc child-maintenance --historical --summary
+
+----
+
+Justice — PPS Statistical Bulletin
+----------------------------------
+
+Public Prosecution Service casework statistics: files and defendants received
+from police, prosecution and diversion decisions by offence group, the number
+of days taken to issue a decision, and the outcomes of contested Crown and
+Magistrates' court cases. Each annual bulletin restates the prior financial
+year alongside the current one, so a single download covers two years.
+
+Suppressed cells (small-count disclosure control) come back as ``NaN`` in
+``value`` with the original symbol preserved in ``marker``.
+
+.. code-block:: python
+
+    from bolster.data_sources.justice import pps_statistical_bulletin as pps
+
+    # Every table in the latest bulletin
+    df = pps.get_latest_data()
+
+    # Typed accessors for the headline tables
+    received = pps.get_files_received()
+    decisions = pps.get_decisions()
+    timeliness = pps.get_timeliness()
+    outcomes = pps.get_court_outcomes()
+
+    # Several bulletins stitched into one series
+    history = pps.get_historical_data(max_publications=5)
+
+    # What table keys are available?
+    pps.list_tables()
+
+.. code-block:: console
+
+    $ bolster justice pps-statistical-bulletin --list-tables
+    $ bolster justice pps-statistical-bulletin --table 1a
+    $ bolster justice pps-statistical-bulletin --table 3a --year 2024/25
+    $ bolster justice pps-statistical-bulletin --historical --format json
 
 ----
 
@@ -762,12 +1314,12 @@ Translink NI public transport network.
 ----
 
 ONS — Office for National Statistics
---------------------------------------
+------------------------------------
 
 ONS UK-wide statistical releases relevant to Northern Ireland.
 
 CPI / CPIH / RPI Inflation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Annual rates and price indices for CPI, CPIH, and RPI from ONS.
 
@@ -836,6 +1388,40 @@ UK Gender Pay Gap reporting data from 2017 to present (all employers with
 
 ----
 
+DAERA
+-----
+
+Greenhouse Gas Inventory
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Northern Ireland greenhouse gas emissions from 1990 onwards, broken down by
+sector, by gas, and under the National Communication and Territorial Emissions
+Statistics classifications, with UK totals for comparison.
+
+Full time series are reported in ktCO2e; summary and change tables are in
+MtCO2e.  LULUCF values can legitimately be negative where removals exceed
+emissions.
+
+.. code-block:: python
+
+    from bolster.data_sources.daera_greenhouse_gas import (
+        get_annual_totals,
+        get_emissions_by_sector,
+        get_gas_changes,
+    )
+
+    totals = get_annual_totals()
+    by_sector = get_emissions_by_sector()
+    by_gas = get_gas_changes()
+
+.. code-block:: console
+
+    $ bolster daera greenhouse-gas --summary
+    $ bolster daera greenhouse-gas --dataset totals
+    $ bolster daera greenhouse-gas --sector Agriculture --year 2024
+
+----
+
 Met Office
 ----------
 
@@ -873,8 +1459,36 @@ composition table).
 
 ----
 
-Discovering New Publications
+Family Resources Survey (DfC)
 -----------------------------
+
+Annual Department for Communities survey of Northern Ireland household
+income, state support receipt, housing tenure, caring responsibilities,
+disability, and household food security, with UK comparators.  The module
+discovers the latest edition at runtime; machine-readable tables are
+published from 2024/25 onwards.
+
+.. code-block:: python
+
+    from bolster.data_sources.dfc import family_resources_survey as frs
+
+    edition, url = frs.find_latest_edition()
+    food_security = frs.get_food_security_by_region()
+    tenure = frs.get_tenure_by_district()
+
+.. code-block:: console
+
+    $ bolster dfc frs --list-datasets
+    $ bolster dfc frs --dataset food-security-region
+    $ bolster dfc frs --dataset tenure-district --format csv --save tenure.csv
+
+Suppressed values (``".."``) are returned as ``NaN`` and negligible values
+(``"-"``) as ``0.0``.
+
+----
+
+Discovering New Publications
+----------------------------
 
 NISRA publishes new datasets regularly.  Use the RSS feed integration to
 discover publications before they are implemented as modules:

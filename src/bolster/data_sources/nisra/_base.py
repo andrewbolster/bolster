@@ -5,10 +5,11 @@ import re
 from pathlib import Path
 
 import pandas as pd
-from bs4 import BeautifulSoup
 
 from bolster.utils.cache import CachedDownloader, DownloadError
-from bolster.utils.web import session
+from bolster.utils.web import LinkNotFoundError, scrape_file_links
+from bolster.utils.web import find_publication_link as _find_publication_link
+from bolster.utils.web import make_absolute_url as make_absolute_url
 
 logger = logging.getLogger(__name__)
 
@@ -57,39 +58,84 @@ def download_file(url: str, cache_ttl_hours: int = 24, force_refresh: bool = Fal
         raise NISRADataNotFoundError(str(e)) from e
 
 
-def scrape_download_links(page_url: str, file_extension: str = ".xlsx") -> list[dict]:
+def scrape_download_links(
+    page_url: str,
+    file_extension: str = ".xlsx",
+    base_url: str = "https://www.nisra.gov.uk",
+) -> list[dict]:
     """Scrape download links from a NISRA page.
 
     Args:
         page_url: URL of the NISRA page to scrape
         file_extension: File extension to filter for (default: .xlsx)
+        base_url: Base URL for resolving relative hrefs (default: https://www.nisra.gov.uk)
 
     Returns:
         List of dicts with 'url' and 'text' keys
+
+    Raises:
+        NISRADataError: If the page cannot be fetched.
     """
     try:
-        response = session.get(page_url, timeout=30)
-        response.raise_for_status()
+        return scrape_file_links(page_url, file_extension=file_extension, base_url=base_url)
     except Exception as e:
         raise NISRADataError(f"Failed to fetch page {page_url}: {e}") from e
 
-    soup = BeautifulSoup(response.content, "html.parser")
 
-    links = []
-    for a_tag in soup.find_all("a", href=True):
-        href = a_tag["href"]
-        if file_extension in href.lower():
-            # Make absolute URL
-            if href.startswith("/"):
-                url = f"https://www.nisra.gov.uk{href}"
-            elif not href.startswith("http"):
-                url = f"https://www.nisra.gov.uk/{href}"
-            else:
-                url = href
+def find_publication_link(
+    hub_url: str,
+    pub_text_contains: str | None = None,
+    pub_href_contains: str | None = None,
+    file_extension: str = ".xlsx",
+    file_href_contains: str | None = None,
+    base_url: str = "https://www.nisra.gov.uk",
+    force_refresh: bool = False,
+) -> str:
+    """Two-hop NISRA URL discovery: hub page → publication page → file URL.
 
-            links.append({"url": url, "text": a_tag.get_text(strip=True)})
+    Finds the first publication link on a NISRA hub/statistics page that matches
+    the given text and/or href criteria, then fetches that publication page to
+    find the download file.
 
-    return links
+    Args:
+        hub_url: URL of the NISRA statistics/hub page listing publications.
+        pub_text_contains: If set, the publication link text must contain this string.
+        pub_href_contains: If set, the publication link href must contain this string.
+        file_extension: File extension to match on the publication page (default: ".xlsx").
+        file_href_contains: If set, the file link href must also contain this string.
+        base_url: Base URL for resolving relative hrefs (default: https://www.nisra.gov.uk).
+        force_refresh: If True, bypass the page cache for both requests.
+
+    Returns:
+        Absolute URL of the matched download file.
+
+    Raises:
+        NISRADataNotFoundError: If the publication link or file cannot be found.
+
+    Example:
+        >>> url = find_publication_link(
+        ...     "https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/births",
+        ...     pub_text_contains="Monthly Births",
+        ...     pub_href_contains="publications",
+        ...     file_href_contains="Births",
+        ... )
+        >>> url.endswith(".xlsx")
+        True
+    """
+    try:
+        return _find_publication_link(
+            hub_url,
+            pub_text_contains=pub_text_contains,
+            pub_href_contains=pub_href_contains,
+            file_extension=file_extension,
+            file_href_contains=file_href_contains,
+            base_url=base_url,
+            force_refresh=force_refresh,
+        )
+    except LinkNotFoundError as e:
+        raise NISRADataNotFoundError(str(e)) from e
+    except Exception as e:
+        raise NISRADataNotFoundError(f"Failed to fetch hub page {hub_url}: {e}") from e
 
 
 def clear_cache(pattern: str | None = None) -> int:
@@ -218,29 +264,6 @@ def extract_column_mapping(sheet, header_row: int, column_names: list[str]) -> d
         logger.warning(f"Could not find columns: {missing}")
 
     return mapping
-
-
-def make_absolute_url(url: str, base_url: str) -> str:
-    """Convert a relative URL to absolute.
-
-    Args:
-        url: URL that may be relative (starting with /) or absolute
-        base_url: Base URL to prepend for relative URLs (e.g., "https://www.nisra.gov.uk")
-
-    Returns:
-        Absolute URL
-
-    Example:
-        >>> make_absolute_url("/publications/file.xlsx", "https://www.nisra.gov.uk")
-        'https://www.nisra.gov.uk/publications/file.xlsx'
-        >>> make_absolute_url("https://example.com/file.xlsx", "https://www.nisra.gov.uk")
-        'https://example.com/file.xlsx'
-    """
-    if url.startswith("/"):
-        return f"{base_url}{url}"
-    if not url.startswith("http"):
-        return f"{base_url}/{url}"
-    return url
 
 
 def parse_month_year(month_str: str, format: str = "%B %Y") -> pd.Timestamp | None:

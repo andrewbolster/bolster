@@ -14,17 +14,11 @@ are scheduled and availability changes. The data reflects real-time cinema sched
 immediate updates for booking availability, screening times, and new film releases.
 Data is refreshed multiple times daily to maintain accuracy for current and upcoming showings.
 
-Example:
-    Retrieve current cinema listings for Belfast Cineworld:
-
-        >>> from bolster.data_sources import cineworld
-        >>> listings = cineworld.get_cinema_listings(117)
-        >>> len(listings) > 0
-        True
-        >>> 'name' in listings[0]
-        True
-
 Site Code 117 maps to Belfast, you're on your own for the rest.
+
+Note:
+    cineworld.co.uk returns 403 to automated clients, so this module's calls
+    cannot be exercised as doctests.
 """
 
 import logging
@@ -48,13 +42,6 @@ def get_cinema_listings(site_code: int = 117, screening_date: date = None) -> li
 
     Raises:
         Exception: If there was an error making the API request.
-
-    >>> cinema_listings = get_cinema_listings(117)
-    >>> set(cinema_listings[0].keys()).issuperset({'id', 'name','link','weight','releaseYear','releaseDate','attributeIds','date','site_code'})
-    True
-    >>> list(cinema_listings[0].keys()) # This is likely to break from upstream changes
-    ['id', 'name', 'length', 'posterLink', 'videoLink', 'link', 'weight', 'releaseYear', 'releaseDate', 'attributeIds', 'date', 'site_code']
-
     """
     if screening_date is None:
         screening_date = date.today()

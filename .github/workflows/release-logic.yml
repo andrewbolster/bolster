@@ -66,18 +66,24 @@ jobs:
                   script: |
                       const { execSync } = require('child_process');
 
-                      let lastTag;
-                      try {
-                        lastTag = execSync('git describe --tags --abbrev=0', { encoding: 'utf-8' }).trim();
-                      } catch (e) {
-                        lastTag = 'v0.0.0';
-                      }
-                      console.log(`Last tag: ${lastTag}`);
+                      // Not `git describe --tags` — that requires the tag to be an ancestor
+                      // of HEAD, which a squash-merged release PR breaks on the very next
+                      // release: the tag lives on the (now-orphaned) release branch tip, not
+                      // on the new squash commit main gets. That's not hypothetical — it's
+                      // what actually crashed here (`fatal: ambiguous argument 'v0.0.0..HEAD'`)
+                      // once the old fallback's fabricated tag didn't exist either. Highest
+                      // version tag by name doesn't care about ancestry, and still returns ""
+                      // (not an error) when the repo has no tags at all.
+                      let lastTag = execSync("git tag --list 'v*' --sort=-v:refname | head -1", { encoding: 'utf-8' }).trim() || null;
+                      console.log(`Last tag: ${lastTag || '(none — initial release)'}`);
 
-                      const commits = execSync(`git log ${lastTag}..HEAD --pretty=format:"%s"`, { encoding: 'utf-8' })
+                      const gitLogCmd = lastTag
+                        ? `git log ${lastTag}..HEAD --pretty=format:"%s"`
+                        : `git log HEAD --pretty=format:"%s"`;
+                      const commits = execSync(gitLogCmd, { encoding: 'utf-8' })
                         .split('\n')
                         .filter(line => line.trim());
-                      console.log(`Commits since ${lastTag}:`, commits);
+                      console.log(`Commits since ${lastTag || 'beginning'}:`, commits);
 
                       const skipPatterns = [
                         /^docs?(\(.*\))?:/,
@@ -172,7 +178,7 @@ jobs:
                   token: ${{ secrets.GITHUB_TOKEN }}
 
             - name: Setup Python and uv
-              uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990  # v8.3.2
+              uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d  # v10.0.1
               with:
                   python-version: "3.11"
 
@@ -220,8 +226,26 @@ jobs:
                   PACKAGE_NAME: ${{ inputs.package_name }}
                   DOCS_URL: ${{ inputs.docs_url }}
                   PYPI_BASE_URL: ${{ inputs.pypi_base_url }}
+                  VERSION_BUMP: ${{ needs.analyze-changes.outputs.version_bump }}
+                  BOLSTER_TOKEN: ${{ secrets.BOLSTER_TOKEN }}
               run: |
                   BRANCH="release/v${NEW_VERSION}"
+
+                  # PRs opened with GITHUB_TOKEN never fire pull_request_target (GitHub
+                  # suppresses it to prevent loops), so automerge.yml — which is built to
+                  # approve+merge exactly this kind of bot PR — can never see them; every
+                  # release PR to date has needed a manual merge regardless of bump size.
+                  # Patch bumps are already unattended in every other respect (auto-detected,
+                  # no block_minor gate), so enable auto-merge directly here with a token
+                  # that isn't GITHUB_TOKEN, instead of relying on a trigger that can't fire.
+                  # Minor/major bumps only reach this step via an explicit human
+                  # workflow_dispatch, so they're left for manual review and merge.
+                  enable_automerge() {
+                    if [ "$VERSION_BUMP" = "patch" ]; then
+                      echo "Patch release — enabling auto-merge for $1"
+                      GH_TOKEN="$BOLSTER_TOKEN" gh pr merge --auto --squash "$1"
+                    fi
+                  }
 
                   # Idempotency: tag already pushed in a previous run
                   if git ls-remote --exit-code origin "refs/tags/v${NEW_VERSION}" 2>/dev/null; then
@@ -229,6 +253,7 @@ jobs:
                     EXISTING_PR=$(gh pr list --head "$BRANCH" --base main --json number --jq '.[0].number' 2>/dev/null || true)
                     if [ -n "$EXISTING_PR" ]; then
                       echo "PR #${EXISTING_PR} already open — nothing to do"
+                      enable_automerge "$EXISTING_PR"
                       exit 0
                     fi
                     gh pr create \
@@ -237,6 +262,7 @@ jobs:
                       --label "version:skip" \
                       --base main \
                       --head "$BRANCH"
+                    enable_automerge "$BRANCH"
                     exit 0
                   fi
 
@@ -270,3 +296,4 @@ jobs:
                     --label "version:skip" \
                     --base main \
                     --head "$BRANCH"
+                  enable_automerge "$BRANCH"

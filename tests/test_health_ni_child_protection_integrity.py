@@ -39,9 +39,7 @@ class TestChildProtectionIntegrity:
 
     def test_year_dtype_is_integer(self, latest_data: pd.DataFrame) -> None:
         """Year column must be integer-compatible (Int64 nullable int)."""
-        assert pd.api.types.is_integer_dtype(latest_data["year"]), (
-            f"year column has dtype {latest_data['year'].dtype}"
-        )
+        assert pd.api.types.is_integer_dtype(latest_data["year"]), f"year column has dtype {latest_data['year'].dtype}"
 
     def test_value_dtype_is_integer(self, latest_data: pd.DataFrame) -> None:
         """Value column must be integer-compatible."""
@@ -120,6 +118,90 @@ class TestChildProtectionIntegrity:
         """validate_child_protection_data must return the same DataFrame unchanged."""
         result = cp.validate_child_protection_data(latest_data)
         assert result is latest_data
+
+    def test_cpr_ni_total_covers_full_trend(self, latest_data: pd.DataFrame) -> None:
+        """NI total must span the same years as the trust trend, not just the snapshot year."""
+        total = latest_data[latest_data["measure"] == cp.MEASURE_CPR_TOTAL]
+        assert total["year"].min() <= 2015, f"NI total starts at {total['year'].min()}, expected 2015 or earlier"
+        assert total["year"].max() >= 2024, f"NI total ends at {total['year'].max()}, expected 2024 or later"
+
+    def test_ni_total_not_folded_into_northern_trust(self, latest_data: pd.DataFrame) -> None:
+        """Each trust must have exactly one CPR value per year.
+
+        "Northern Ireland" contains "Northern", so a naive substring match folds the
+        NI-wide total into the Northern HSC Trust and silently doubles its series.
+        """
+        cpr = latest_data[latest_data["measure"] == "cpr_registrations_trust_snapshot"]
+        counts = cpr.groupby(["year", "subcategory"]).size()
+        assert (counts == 1).all(), f"Duplicate trust-year rows: {counts[counts > 1].to_dict()}"
+        assert "Northern Ireland" not in set(cpr["subcategory"]), "NI total leaked into the trust breakdown"
+
+    def test_trusts_sum_to_ni_total(self, latest_data: pd.DataFrame) -> None:
+        """CPR trust values must sum to the NI-wide total for each shared year."""
+        trusts = latest_data[latest_data["measure"] == "cpr_registrations_trust_snapshot"]
+        totals = latest_data[latest_data["measure"] == cp.MEASURE_CPR_TOTAL].set_index("year")["value"]
+        summed = trusts.groupby("year")["value"].sum()
+        shared = summed.index.intersection(totals.index)
+        assert len(shared) >= 5, f"Only {len(shared)} years overlap between trust and NI total series"
+        for year in shared:
+            assert summed[year] == totals[year], f"{year}: trusts sum to {summed[year]}, NI total is {totals[year]}"
+
+    def test_combined_abuse_categories_kept_distinct(self, latest_data: pd.DataFrame) -> None:
+        """Combined categories split by "Main Category of Abuse" must not collapse together."""
+        abuse = latest_data[latest_data["measure"] == "cpr_by_abuse_category"]
+        cats = set(abuse["subcategory"].unique())
+        expected = {
+            "Neglect and Physical Abuse (main: Neglect)",
+            "Neglect and Physical Abuse (main: Physical Abuse)",
+        }
+        assert expected.issubset(cats), f"Combined categories collapsed: {expected - cats}"
+
+    def test_abuse_categories_sum_to_ni_total(self, latest_data: pd.DataFrame) -> None:
+        """Abuse category counts must sum to the NI-wide CPR total for each year.
+
+        This cross-checks table 2.5a against table 2.2a — a dropped or collapsed
+        category row shows up here as a shortfall.
+        """
+        summed = latest_data[latest_data["measure"] == "cpr_by_abuse_category"].groupby("year")["value"].sum()
+        totals = latest_data[latest_data["measure"] == cp.MEASURE_CPR_TOTAL].set_index("year")["value"]
+        shared = summed.index.intersection(totals.index)
+        assert len(shared) >= 5, f"Only {len(shared)} years overlap between category and NI total series"
+        for year in shared:
+            assert summed[year] == totals[year], (
+                f"{year}: abuse categories sum to {summed[year]}, NI total is {totals[year]}"
+            )
+
+    def test_no_duplicate_records(self, latest_data: pd.DataFrame) -> None:
+        """Tables 2.1 and 2.2a both report the NI total; duplicates must be collapsed."""
+        dupes = latest_data.duplicated(subset=["year", "measure", "category", "subcategory"])
+        assert not dupes.any(), f"Duplicate records:\n{latest_data[dupes].to_string()}"
+
+
+class TestTrustNormalisation:
+    """Unit tests for trust-name normalisation — no network calls required."""
+
+    def test_northern_ireland_is_not_a_trust(self) -> None:
+        """The NI-wide label must never normalise to the Northern HSC Trust."""
+        assert cp._is_ni_total("Northern Ireland")
+        assert cp._normalise_trust("Northern Ireland") == "Northern Ireland"
+
+    def test_northern_trust_still_normalises(self) -> None:
+        """The Northern HSC Trust must still resolve to its short form."""
+        assert not cp._is_ni_total("Northern HSC Trust")
+        assert cp._normalise_trust("Northern HSC Trust") == "Northern"
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            ("Belfast HSC Trust", "Belfast"),
+            ("South Eastern HSC Trust", "South Eastern"),
+            ("Southern HSC Trust", "Southern"),
+            ("Western HSC Trust", "Western"),
+        ],
+    )
+    def test_known_trusts(self, raw: str, expected: str) -> None:
+        """Each HSC Trust must normalise to its canonical short form."""
+        assert cp._normalise_trust(raw) == expected
 
 
 class TestValidation:

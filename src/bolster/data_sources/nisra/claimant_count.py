@@ -16,16 +16,12 @@ PxStat matrices used:
 
 Update Frequency: Monthly, approximately 2–3 weeks after the reference month.
 
-Usage:
+Example:
     >>> from bolster.data_sources.nisra import claimant_count
     >>> df = claimant_count.get_latest_claimant_count("lgd")
     >>> "claimants_total" in df.columns
     True
-
-Example:
-    >>> from bolster.data_sources.nisra import claimant_count
-    >>> df = claimant_count.get_latest_claimant_count("lgd")
-    >>> df[df["geography"] == "Northern Ireland"]["claimants_total"].iloc[0] > 0
+    >>> bool(df[df["geography"] == "Northern Ireland"]["claimants_total"].iloc[0] > 0)
     True
 """
 

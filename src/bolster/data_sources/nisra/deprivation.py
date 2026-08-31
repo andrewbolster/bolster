@@ -121,13 +121,13 @@ def validate_data(df: pd.DataFrame) -> bool:
 
     Example:
         >>> import pandas as pd
+        >>> ranks = list(range(1, 891))  # one row per NI Super Output Area
         >>> df = pd.DataFrame({
-        ...     "soa_code": ["95AA01S1"], "soa_name": ["Aldergrove_1"],
-        ...     "lgd": ["Antrim and Newtownabbey"], "urban_rural": ["Rural"],
-        ...     "mdm_rank": [516], "income_rank": [790],
-        ...     "employment_rank": [888], "health_disability_rank": [890],
-        ...     "education_rank": [254], "access_to_services_rank": [17],
-        ...     "living_environment_rank": [75], "crime_disorder_rank": [874],
+        ...     "soa_code": [f"95AA{i:04d}" for i in ranks],
+        ...     "soa_name": [f"SOA_{i}" for i in ranks],
+        ...     "lgd": ["Antrim and Newtownabbey"] * len(ranks),
+        ...     "urban_rural": ["Rural"] * len(ranks),
+        ...     **{col: ranks for col in _RANK_COLUMNS},
         ... })
         >>> validate_data(df)
         True

@@ -44,9 +44,7 @@ class TestElectiveWaitingTimesIntegrity:
 
     def test_year_column_is_integer(self, latest_data: pd.DataFrame):
         """The year column must be an integer type."""
-        assert pd.api.types.is_integer_dtype(latest_data["year"]), (
-            f"Expected integer, got {latest_data['year'].dtype}"
-        )
+        assert pd.api.types.is_integer_dtype(latest_data["year"]), f"Expected integer, got {latest_data['year'].dtype}"
 
     def test_patients_waiting_is_numeric(self, latest_data: pd.DataFrame):
         """The patients_waiting column must be numeric."""
@@ -57,9 +55,7 @@ class TestElectiveWaitingTimesIntegrity:
     def test_no_negative_patients_waiting(self, latest_data: pd.DataFrame):
         """Patient counts must not be negative."""
         valid = latest_data["patients_waiting"].dropna()
-        assert (valid >= 0).all(), (
-            f"Negative patient counts found: min = {valid.min()}"
-        )
+        assert (valid >= 0).all(), f"Negative patient counts found: min = {valid.min()}"
 
     def test_both_waiting_types_present(self, latest_data: pd.DataFrame):
         """Both inpatient_day_case and outpatient types must be present."""
@@ -89,9 +85,7 @@ class TestElectiveWaitingTimesIntegrity:
         """Data must include records from the last 2 years."""
         current_year = datetime.datetime.now().year
         max_year = latest_data["year"].max()
-        assert max_year >= current_year - 2, (
-            f"Latest data ({max_year}) is more than 2 years old"
-        )
+        assert max_year >= current_year - 2, f"Latest data ({max_year}) is more than 2 years old"
 
     def test_weeks_waited_band_not_empty(self, latest_data: pd.DataFrame):
         """weeks_waited_band must contain at least one non-null value."""
@@ -109,22 +103,15 @@ class TestElectiveWaitingTimesIntegrity:
         expected = {"General Surgery", "Urology", "Cardiology"}
         actual = set(latest_data["specialty"].dropna().unique())
         overlap = expected & actual
-        assert len(overlap) > 0, (
-            f"None of the expected specialties {expected} found; sample: "
-            f"{sorted(actual)[:10]}"
-        )
+        assert len(overlap) > 0, f"None of the expected specialties {expected} found; sample: {sorted(actual)[:10]}"
 
     def test_date_year_consistency(self, latest_data: pd.DataFrame):
         """date and year columns must be internally consistent."""
-        assert (latest_data["date"].dt.year == latest_data["year"]).all(), (
-            "date and year columns are inconsistent"
-        )
+        assert (latest_data["date"].dt.year == latest_data["year"]).all(), "date and year columns are inconsistent"
 
     def test_quarter_ending_equals_date(self, latest_data: pd.DataFrame):
         """quarter_ending and date columns must be equal."""
-        assert (latest_data["quarter_ending"] == latest_data["date"]).all(), (
-            "quarter_ending and date columns differ"
-        )
+        assert (latest_data["quarter_ending"] == latest_data["date"]).all(), "quarter_ending and date columns differ"
 
     def test_validate_function_passes(self, latest_data: pd.DataFrame):
         """validate_elective_waiting_times must return True on real data."""
@@ -132,9 +119,7 @@ class TestElectiveWaitingTimesIntegrity:
 
     def test_large_dataset(self, latest_data: pd.DataFrame):
         """Combined dataset must contain a substantial number of rows."""
-        assert len(latest_data) > 10_000, (
-            f"Expected > 10,000 rows, got {len(latest_data)}"
-        )
+        assert len(latest_data) > 10_000, f"Expected > 10,000 rows, got {len(latest_data)}"
 
 
 class TestValidation:
@@ -154,59 +139,67 @@ class TestValidation:
     def test_validate_missing_columns(self):
         """Validation must raise NISRAValidationError when required columns are absent."""
         # Build a minimal DataFrame that has some — but not all — required cols
-        df = pd.DataFrame({
-            "date": pd.to_datetime(["2025-12-31"]),
-            "year": [2025],
-            # deliberately omit: quarter_ending, trust, specialty, etc.
-        })
+        df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2025-12-31"]),
+                "year": [2025],
+                # deliberately omit: quarter_ending, trust, specialty, etc.
+            }
+        )
         with pytest.raises(NISRAValidationError, match="Missing required columns"):
             ewt.validate_elective_waiting_times(df)
 
     def test_validate_negative_values(self):
         """Validation must raise NISRAValidationError when patients_waiting < 0."""
-        df = pd.DataFrame({
-            "date": pd.to_datetime(["2025-12-31"]),
-            "year": [2025],
-            "quarter_ending": pd.to_datetime(["2025-12-31"]),
-            "trust": ["Belfast"],
-            "specialty": ["General Surgery"],
-            "programme_of_care": ["Acute Services"],
-            "weeks_waited_band": ["0 - 6 weeks"],
-            "patients_waiting": [-1.0],
-            "waiting_type": ["inpatient_day_case"],
-        })
+        df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2025-12-31"]),
+                "year": [2025],
+                "quarter_ending": pd.to_datetime(["2025-12-31"]),
+                "trust": ["Belfast"],
+                "specialty": ["General Surgery"],
+                "programme_of_care": ["Acute Services"],
+                "weeks_waited_band": ["0 - 6 weeks"],
+                "patients_waiting": [-1.0],
+                "waiting_type": ["inpatient_day_case"],
+            }
+        )
         with pytest.raises(NISRAValidationError, match="negative"):
             ewt.validate_elective_waiting_times(df)
 
     def test_validate_valid_dataframe_passes(self):
         """Validation must return True for a correctly structured DataFrame."""
-        df = pd.DataFrame({
-            "date": pd.to_datetime(["2025-12-31", "2025-12-31"]),
-            "year": [2025, 2025],
-            "quarter_ending": pd.to_datetime(["2025-12-31", "2025-12-31"]),
-            "trust": ["Belfast", "Northern"],
-            "specialty": ["General Surgery", "Urology"],
-            "programme_of_care": ["Acute Services", "Acute Services"],
-            "weeks_waited_band": ["0 - 6 weeks", "> 6 - 13 weeks"],
-            "patients_waiting": [100.0, 50.0],
-            "waiting_type": ["inpatient_day_case", "outpatient"],
-        })
+        df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2025-12-31", "2025-12-31"]),
+                "year": [2025, 2025],
+                "quarter_ending": pd.to_datetime(["2025-12-31", "2025-12-31"]),
+                "trust": ["Belfast", "Northern"],
+                "specialty": ["General Surgery", "Urology"],
+                "programme_of_care": ["Acute Services", "Acute Services"],
+                "weeks_waited_band": ["0 - 6 weeks", "> 6 - 13 weeks"],
+                "patients_waiting": [100.0, 50.0],
+                "waiting_type": ["inpatient_day_case", "outpatient"],
+            }
+        )
         assert ewt.validate_elective_waiting_times(df) is True
 
     def test_validate_nan_patients_waiting_allowed(self):
         """NaN values in patients_waiting must not trigger the negative-values error."""
         import numpy as np
 
-        df = pd.DataFrame({
-            "date": pd.to_datetime(["2025-12-31"]),
-            "year": [2025],
-            "quarter_ending": pd.to_datetime(["2025-12-31"]),
-            "trust": ["Belfast"],
-            "specialty": ["General Surgery"],
-            "programme_of_care": ["Acute Services"],
-            "weeks_waited_band": ["0 - 6 weeks"],
-            "patients_waiting": [np.nan],
-            "waiting_type": ["inpatient_day_case"],
-        })
+        df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2025-12-31"]),
+                "year": [2025],
+                "quarter_ending": pd.to_datetime(["2025-12-31"]),
+                "trust": ["Belfast"],
+                "specialty": ["General Surgery"],
+                "programme_of_care": ["Acute Services"],
+                "weeks_waited_band": ["0 - 6 weeks"],
+                "patients_waiting": [np.nan],
+                "waiting_type": ["inpatient_day_case"],
+            }
+        )
         # Should not raise — NaN rows are excluded from the negative check
         assert ewt.validate_elective_waiting_times(df) is True

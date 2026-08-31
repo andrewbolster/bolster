@@ -77,10 +77,11 @@ from bolster.data_sources.nisra._base import (
     CACHE_DIR,
     NISRADataNotFoundError,
     download_file,
+    find_publication_link,
     safe_float,
     safe_int,
 )
-from bolster.utils.web import session
+from bolster.utils.web import fetch_soup, make_absolute_url, scrape_file_links
 
 logger = logging.getLogger(__name__)
 
@@ -489,123 +490,45 @@ def get_latest_lfs_publication_url(force_refresh: bool = False) -> tuple[str, st
         >>> url.startswith('https://')
         True
     """
-    from bs4 import BeautifulSoup
+    excel_url = find_publication_link(
+        hub_url="https://www.nisra.gov.uk/statistics/labour-market-and-social-welfare",
+        pub_text_contains="Quarterly Labour Force Survey Tables",
+        file_href_contains="lmr-labour-force-survey-quarterly-tables",
+        force_refresh=force_refresh,
+    )
 
-    # Mother page listing all labour market publications
-    mother_page = "https://www.nisra.gov.uk/statistics/labour-market-and-social-welfare"
+    # Extract quarter and year from filename
+    # Pattern: lmr-labour-force-survey-quarterly-tables-July-September-25.xlsx
+    filename = excel_url.split("/")[-1]
+    match = re.search(
+        r"(January|February|March|April|May|June|July|August|September|October|November|December)-"
+        r"(January|February|March|April|May|June|July|August|September|October|November|December)-"
+        r"(\d{2})",
+        filename,
+    )
 
-    try:
-        response = session.get(mother_page, timeout=30, force_refresh=force_refresh)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.content, "html.parser")
+    if not match:
+        raise NISRADataNotFoundError(f"Could not extract quarter and year from filename: {filename}")
 
-        # Find all links with "Quarterly Labour Force Survey Tables" in text
-        lfs_links = []
-        for link in soup.find_all("a", href=True):
-            link_text = link.get_text(strip=True)
-            if "Quarterly Labour Force Survey Tables" in link_text:
-                href = link["href"]
-                # Make absolute URL if needed
-                if href.startswith("/"):
-                    href = f"https://www.nisra.gov.uk{href}"
-                lfs_links.append({"text": link_text, "url": href})
+    month_to_abbrev = {
+        "January": "Jan",
+        "February": "Feb",
+        "March": "Mar",
+        "April": "Apr",
+        "May": "May",
+        "June": "Jun",
+        "July": "Jul",
+        "August": "Aug",
+        "September": "Sep",
+        "October": "Oct",
+        "November": "Nov",
+        "December": "Dec",
+    }
 
-        if not lfs_links:
-            raise NISRADataNotFoundError("No Quarterly Labour Force Survey Tables publications found")
-
-        # First link should be the latest (page shows newest first)
-        latest_pub = lfs_links[0]
-        logger.info(f"Found latest LFS publication: {latest_pub['text']}")
-
-        # Now fetch the publication page to get the Excel file
-        pub_response = session.get(latest_pub["url"], timeout=30, force_refresh=force_refresh)
-        pub_response.raise_for_status()
-        pub_soup = BeautifulSoup(pub_response.content, "html.parser")
-
-        # Find Excel file link for quarterly tables
-        excel_url = None
-        for link in pub_soup.find_all("a", href=True):
-            href = link["href"]
-            if "lmr-labour-force-survey-quarterly-tables" in href.lower() and href.endswith(".xlsx"):
-                excel_url = f"https://www.nisra.gov.uk{href}" if href.startswith("/") else href
-                break
-
-        if not excel_url:
-            raise NISRADataNotFoundError(f"No Excel file found on publication page: {latest_pub['url']}")
-
-        # Extract quarter and year from filename or page content
-        # Filename pattern: lmr-labour-force-survey-quarterly-tables-July-September-25.xlsx
-        filename = excel_url.split("/")[-1]
-        match = re.search(
-            r"(January|February|March|April|May|June|July|August|September|October|November|December)-"
-            r"(January|February|March|April|May|June|July|August|September|October|November|December)-"
-            r"(\d{2})",
-            filename,
-        )
-
-        if match:
-            first_month = match.group(1)
-            third_month = match.group(2)
-            year_short = match.group(3)
-            year = f"20{year_short}"
-
-            # Map months to quarter format
-            month_to_abbrev = {
-                "January": "Jan",
-                "February": "Feb",
-                "March": "Mar",
-                "April": "Apr",
-                "May": "May",
-                "June": "Jun",
-                "July": "Jul",
-                "August": "Aug",
-                "September": "Sep",
-                "October": "Oct",
-                "November": "Nov",
-                "December": "Dec",
-            }
-
-            quarter = f"{month_to_abbrev[first_month]}-{month_to_abbrev[third_month]}"
-            logger.info(f"Extracted quarter: {quarter} {year}")
-            return (excel_url, year, quarter)
-
-        # Fallback: Try to extract from page content
-        page_text = pub_soup.get_text()
-        match = re.search(
-            r"(January|February|March|April|May|June|July|August|September|October|November|December)\s+to\s+"
-            r"(January|February|March|April|May|June|July|August|September|October|November|December)\s+"
-            r"(\d{4})",
-            page_text,
-        )
-
-        if match:
-            first_month = match.group(1)
-            third_month = match.group(2)
-            year = match.group(3)
-
-            month_to_abbrev = {
-                "January": "Jan",
-                "February": "Feb",
-                "March": "Mar",
-                "April": "Apr",
-                "May": "May",
-                "June": "Jun",
-                "July": "Jul",
-                "August": "Aug",
-                "September": "Sep",
-                "October": "Oct",
-                "November": "Nov",
-                "December": "Dec",
-            }
-
-            quarter = f"{month_to_abbrev[first_month]}-{month_to_abbrev[third_month]}"
-            logger.info(f"Extracted quarter from page content: {quarter} {year}")
-            return (excel_url, year, quarter)
-
-        raise NISRADataNotFoundError("Could not extract quarter and year from publication")
-
-    except Exception as e:
-        raise NISRADataNotFoundError(f"Failed to fetch LFS publication list: {e}") from e
+    year = f"20{match.group(3)}"
+    quarter = f"{month_to_abbrev[match.group(1)]}-{month_to_abbrev[match.group(2)]}"
+    logger.info("Extracted quarter: %s %s from %s", quarter, year, filename)
+    return (excel_url, year, quarter)
 
 
 # ============================================================================
@@ -656,14 +579,10 @@ def get_latest_monthly_lmr_url(force_refresh: bool = False) -> tuple[str, int, i
         >>> url.startswith('https://')
         True
     """
-    from bs4 import BeautifulSoup
-
     mother_page = "https://www.nisra.gov.uk/statistics/labour-market-and-social-welfare"
 
     try:
-        response = session.get(mother_page, timeout=30, force_refresh=force_refresh)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.content, "html.parser")
+        soup = fetch_soup(mother_page, force_refresh=force_refresh)
 
         # Step 1: Find the most recent yearly collection page ("Labour Market Reports - YYYY")
         collection_url = None
@@ -671,7 +590,7 @@ def get_latest_monthly_lmr_url(force_refresh: bool = False) -> tuple[str, int, i
             text = link.get_text(strip=True)
             href = link["href"]
             if re.match(r"Labour Market Reports\s*-\s*\d{4}", text) and "/publications/labour-market-reports-" in href:
-                collection_url = f"{LFS_BASE_URL}{href}" if href.startswith("/") else href
+                collection_url = make_absolute_url(href, LFS_BASE_URL)
                 logger.info(f"Found LMR collection page: {text} → {collection_url}")
                 break
 
@@ -680,9 +599,7 @@ def get_latest_monthly_lmr_url(force_refresh: bool = False) -> tuple[str, int, i
 
         # Step 2: Find the latest individual monthly report that has a /publications/ page
         # (earlier months may link to datavis only and have no downloadable Excel)
-        coll_response = session.get(collection_url, timeout=30, force_refresh=force_refresh)
-        coll_response.raise_for_status()
-        coll_soup = BeautifulSoup(coll_response.content, "html.parser")
+        coll_soup = fetch_soup(collection_url, force_refresh=force_refresh)
 
         monthly_links = []
         for link in coll_soup.find_all("a", href=True):
@@ -692,29 +609,27 @@ def get_latest_monthly_lmr_url(force_refresh: bool = False) -> tuple[str, int, i
                 re.match(r"Labour Market Report\s*-\s*\w+ \d{4}", text)
                 and "/publications/labour-market-report-" in href
             ):
-                full_href = f"{LFS_BASE_URL}{href}" if href.startswith("/") else href
-                monthly_links.append({"text": text, "url": full_href})
+                monthly_links.append({"text": text, "url": make_absolute_url(href, LFS_BASE_URL)})
 
         if not monthly_links:  # pragma: no cover
             raise NISRADataNotFoundError(f"No individual monthly LMR publication links found on {collection_url}")
 
         # Try each month newest-first (collection page lists oldest-first) until we find Excel
         for pub in reversed(monthly_links):
-            pub_response = session.get(pub["url"], timeout=30, force_refresh=force_refresh)
-            if not pub_response.ok:  # pragma: no cover
+            try:
+                links = scrape_file_links(pub["url"], ".xlsx", base_url=LFS_BASE_URL, force_refresh=force_refresh)
+            except Exception:  # pragma: no cover
                 continue
-            pub_soup = BeautifulSoup(pub_response.content, "html.parser")
 
-            excel_url = None
-            for link in pub_soup.find_all("a", href=True):
-                href = link["href"]
-                if (
-                    "lmr-labour-force-survey-tables-" in href.lower()
-                    and "historical" not in href.lower()
-                    and href.endswith(".xlsx")
-                ):
-                    excel_url = f"{LFS_BASE_URL}{href}" if href.startswith("/") else href
-                    break
+            excel_url = next(
+                (
+                    link["url"]
+                    for link in links
+                    if "lmr-labour-force-survey-tables-" in link["url"].lower()
+                    and "historical" not in link["url"].lower()
+                ),
+                None,
+            )
 
             if not excel_url:  # pragma: no cover
                 logger.debug(f"No Excel file on {pub['url']}, trying next month")
@@ -996,23 +911,10 @@ def get_latest_lgd_employment_url() -> tuple[str, int]:
         pub_url = f"{LFS_BASE_URL}/publications/labour-force-survey-tables-local-government-districts-2009-{year}"
 
         try:
-            response = session.get(pub_url, timeout=30)
-            if response.status_code == 200:
-                # Found the publication page, now find the Excel file
-                from bs4 import BeautifulSoup
-
-                soup = BeautifulSoup(response.content, "html.parser")
-
-                # Find Excel file link
-                for link in soup.find_all("a", href=True):
-                    href = link["href"]
-                    if ".xlsx" in href.lower() and "labour" in href.lower():
-                        excel_url = href
-                        if not excel_url.startswith("http"):
-                            excel_url = f"{LFS_BASE_URL}{excel_url}"
-
-                        logger.info(f"Found latest LFS LGD tables: {year} at {excel_url}")
-                        return excel_url, year
+            for link in scrape_file_links(pub_url, ".xlsx", base_url=LFS_BASE_URL):
+                if "labour" in link["url"].lower():
+                    logger.info(f"Found latest LFS LGD tables: {year} at {link['url']}")
+                    return link["url"], year
 
         except Exception:
             continue

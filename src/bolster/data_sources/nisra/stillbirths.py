@@ -144,7 +144,7 @@ def validate_stillbirths_data(df: pd.DataFrame) -> bool:
 
     Example:
         >>> import pandas as pd
-        >>> validate_stillbirths_data(pd.DataFrame())
+        >>> validate_stillbirths_data(pd.DataFrame(columns=["year", "geography", "stillbirths"]))
         Traceback (most recent call last):
             ...
         bolster.data_sources.nisra.stillbirths.NISRAValidationError: DataFrame is empty

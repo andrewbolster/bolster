@@ -4,6 +4,7 @@
 import os
 from unittest.mock import patch
 
+import click
 from click.testing import CliRunner
 
 from bolster.cli import cli
@@ -343,9 +344,7 @@ class TestDeprecatedDimensionAliases:
         with patch("bolster.data_sources.nisra.wellbeing.get_latest_personal_wellbeing") as mock:
             import pandas as pd
 
-            mock.return_value = pd.DataFrame(
-                {"year": ["2024/25"], "measure": ["Life satisfaction"], "mean": [7.5]}
-            )
+            mock.return_value = pd.DataFrame({"year": ["2024/25"], "measure": ["Life satisfaction"], "mean": [7.5]})
             result = runner.invoke(cli, ["nisra", "wellbeing", "--metric", "personal"])
         assert "deprecated" in result.output.lower()
         assert "--dimension" in result.output
@@ -360,3 +359,23 @@ class TestDeprecatedDimensionAliases:
             result = runner.invoke(cli, ["nisra", "registrar-general", "--latest", "--table", "births"])
         assert "deprecated" in result.output.lower()
         assert "--dimension" in result.output
+
+
+class TestListSources:
+    def test_uncategorised_commands_fall_through_to_other(self):
+        """A command missing from the category map must still be listed, not dropped."""
+
+        @click.command("zzz-throwaway")
+        def throwaway():
+            """Throwaway summary."""
+
+        cli.add_command(throwaway)
+        try:
+            result = CliRunner().invoke(cli, ["list-sources"])
+        finally:
+            del cli.commands["zzz-throwaway"]
+
+        assert result.exit_code == 0
+        assert "OTHER" in result.output
+        assert "zzz-throwaway" in result.output
+        assert "Throwaway summary." in result.output

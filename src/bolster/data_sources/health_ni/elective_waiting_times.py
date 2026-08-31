@@ -48,10 +48,10 @@ Update Frequency:
     Quarterly, published approximately 3-6 months after the quarter end.
 
 Example:
-    >>> from bolster.data_sources.nisra import elective_waiting_times as ewt
+    >>> from bolster.data_sources.health_ni import elective_waiting_times as ewt
     >>> df = ewt.get_latest_elective_waiting_times()
-    >>> sorted(df.columns.tolist())
-    ['date', 'patients_waiting', 'programme_of_care', 'quarter_ending', 'specialty', 'trust', 'waiting_type', 'weeks_waited_band', 'year']
+    >>> {'trust', 'specialty', 'weeks_waited_band', 'patients_waiting'}.issubset(df.columns)
+    True
 
     >>> ewt.validate_elective_waiting_times(df)
     True

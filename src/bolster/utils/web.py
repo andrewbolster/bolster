@@ -14,7 +14,7 @@ uniformly.
 Example:
     >>> from bolster.utils.web import session
     >>> type(session).__name__
-    'Session'
+    'CachingSession'
 """
 
 import hashlib
@@ -25,9 +25,11 @@ from collections.abc import Generator
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pandas as pd
 import requests
+from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 from tqdm import tqdm
 from urllib3.util.retry import Retry
@@ -234,6 +236,148 @@ def resilient_get(url: str, **kwargs) -> requests.Response:
         res.raise_for_status()
         logger.warning(f"Failed to get {url} directly, successfully used waybackmachine to get {last_valid}")
     return res
+
+
+class LinkNotFoundError(LookupError):
+    """Raised when a scrape finds no link matching the requested criteria."""
+
+
+def make_absolute_url(url: str, base_url: str) -> str:
+    """Convert a possibly-relative URL to absolute against ``base_url``.
+
+    Example:
+        >>> make_absolute_url("/publications/file.xlsx", "https://www.nisra.gov.uk")
+        'https://www.nisra.gov.uk/publications/file.xlsx'
+        >>> make_absolute_url("https://example.com/file.xlsx", "https://www.nisra.gov.uk")
+        'https://example.com/file.xlsx'
+    """
+    if url.startswith("/"):
+        return f"{base_url}{url}"
+    if not url.startswith("http"):
+        return f"{base_url}/{url}"
+    return url
+
+
+def _origin_of(url: str) -> str:
+    """Return the scheme://host origin of ``url``, for resolving relative hrefs."""
+    parts = urlsplit(url)
+    return f"{parts.scheme}://{parts.netloc}"
+
+
+def fetch_soup(url: str, force_refresh: bool = False) -> BeautifulSoup:
+    """GET ``url`` through the shared session and parse it into a soup.
+
+    Use this instead of hand-rolling ``session.get`` → ``raise_for_status`` →
+    ``BeautifulSoup`` when a page needs custom link parsing that
+    :func:`scrape_file_links` cannot express.
+
+    Args:
+        url: Page to fetch.
+        force_refresh: Bypass the page cache.
+
+    Returns:
+        Parsed :class:`~bs4.BeautifulSoup` document.
+
+    Raises:
+        requests.HTTPError: If the page returns a non-2xx status.
+    """
+    response = session.get(url, force_refresh=force_refresh)
+    response.raise_for_status()
+    return BeautifulSoup(response.content, "html.parser")
+
+
+def scrape_file_links(
+    page_url: str,
+    file_extension: str = ".xlsx",
+    base_url: str | None = None,
+    force_refresh: bool = False,
+) -> list[dict]:
+    """Scrape a page for links whose href contains ``file_extension``.
+
+    Args:
+        page_url: Page to scrape.
+        file_extension: Substring matched case-insensitively against each href.
+        base_url: Base for resolving relative hrefs. Defaults to the origin of
+            ``page_url``.
+        force_refresh: Bypass the page cache.
+
+    Returns:
+        List of ``{"url": absolute_url, "text": link_text}`` dicts, in document order.
+    """
+    if base_url is None:
+        base_url = _origin_of(page_url)
+
+    soup = fetch_soup(page_url, force_refresh=force_refresh)
+
+    return [
+        {"url": make_absolute_url(a["href"], base_url), "text": a.get_text(strip=True)}
+        for a in soup.find_all("a", href=True)
+        if file_extension in a["href"].lower()
+    ]
+
+
+def find_publication_link(
+    hub_url: str,
+    pub_text_contains: str | None = None,
+    pub_href_contains: str | None = None,
+    file_extension: str = ".xlsx",
+    file_href_contains: str | None = None,
+    base_url: str | None = None,
+    force_refresh: bool = False,
+) -> str:
+    """Two-hop link discovery: hub page → publication page → file URL.
+
+    Finds the first link on ``hub_url`` matching the publication criteria, then
+    scrapes that publication page for the first matching file link.
+
+    Args:
+        hub_url: Page listing publications.
+        pub_text_contains: If set, publication link text must contain this.
+        pub_href_contains: If set, publication href must contain this (case-insensitive).
+        file_extension: Substring matched case-insensitively against file hrefs.
+        file_href_contains: If set, the file href must also contain this (case-sensitive).
+        base_url: Base for resolving relative hrefs. Defaults to the origin of ``hub_url``.
+        force_refresh: Bypass the page cache for both requests.
+
+    Returns:
+        Absolute URL of the matched file.
+
+    Raises:
+        LinkNotFoundError: If no publication link or no file link matches.
+    """
+    if base_url is None:
+        base_url = _origin_of(hub_url)
+
+    soup = fetch_soup(hub_url, force_refresh=force_refresh)
+
+    pub_link = None
+    for a_tag in soup.find_all("a", href=True):
+        href = a_tag["href"]
+        if pub_text_contains and pub_text_contains not in a_tag.get_text(strip=True):
+            continue
+        if pub_href_contains and pub_href_contains.lower() not in href.lower():
+            continue
+        pub_link = make_absolute_url(href, base_url)
+        logger.debug("Found publication link: %s", pub_link)
+        break
+
+    if not pub_link:
+        raise LinkNotFoundError(
+            f"No publication link found on {hub_url} "
+            f"(text_contains={pub_text_contains!r}, href_contains={pub_href_contains!r})"
+        )
+
+    for link in scrape_file_links(
+        pub_link, file_extension=file_extension, base_url=base_url, force_refresh=force_refresh
+    ):
+        if file_href_contains and file_href_contains not in link["url"]:
+            continue
+        return link["url"]
+
+    raise LinkNotFoundError(
+        f"No {file_extension} file found on publication page {pub_link}"
+        + (f" (href_contains={file_href_contains!r})" if file_href_contains else "")
+    )
 
 
 def get_excel_dataframe(

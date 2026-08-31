@@ -19,8 +19,7 @@ Data Source:
     The OpenDataNI dataset was last updated 27 January 2022 and only contains
     data through December 2021. PSNI stopped pushing updates to OpenDataNI after
     that date. The PSNI official statistics page publishes quarterly Excel files
-    with current data, but psni.police.uk is protected by Cloudflare which
-    blocks automated downloads.
+    with current data; a scraper for those has not been built yet.
 
     Calling ``get_latest_crime_statistics()`` will raise ``PSNIDataStaleError``
     to make this limitation explicit. The historical data (Apr 2001–Dec 2021)
@@ -62,7 +61,7 @@ from ._base import (
 
 logger = logging.getLogger(__name__)
 
-# OpenDataNI CSV URL (direct download, no Cloudflare protection)
+# OpenDataNI CSV URL (direct download)
 CRIME_STATISTICS_URL = "https://admin.opendatani.gov.uk/dataset/80dc9542-7b2a-48f5-bbf4-ccc7040d36af/resource/6fd51851-df78-4469-98c5-4f06953621a0/download/police-recorded-crime-monthly-data.csv"
 
 # Data guide for reference
@@ -236,18 +235,18 @@ def get_latest_crime_statistics(
 ) -> pd.DataFrame:
     """Raises PSNIDataStaleError — use get_historical_crime_statistics() instead.
 
-    The OpenDataNI source was last updated January 2022. PSNI's official site
-    publishes current data but is Cloudflare-protected and inaccessible to
-    automated downloads. Use ``get_historical_crime_statistics()`` to access
-    the data available (Apr 2001–Dec 2021).
+    The OpenDataNI source was last updated January 2022. PSNI publishes current
+    data on its own site, but a scraper for that has not been built. Use
+    ``get_historical_crime_statistics()`` to access the data available
+    (Apr 2001–Dec 2021).
 
     Raises:
-        PSNIDataStaleError: Always — this data source has no accessible update.
+        PSNIDataStaleError: Always — this module has no route to 2022+ data.
     """
     raise PSNIDataStaleError(
         "PSNI crime statistics are stale since January 2022 (last data: December 2021). "
-        "The OpenDataNI mirror has not been updated and the official PSNI website "
-        "(psni.police.uk) is Cloudflare-protected, blocking automated access to 2022+ data. "
+        "The OpenDataNI mirror has not been updated, and this module does not yet "
+        "scrape the quarterly Excel files PSNI publishes on its own site. "
         "To access the available historical data (Apr 2001–Dec 2021), use "
         "get_historical_crime_statistics() instead. "
         "For current data, visit: https://www.psni.police.uk/about-us/our-publications-and-reports/official-statistics/police-recorded-crime-statistics "
@@ -312,7 +311,7 @@ def validate_crime_statistics(df: pd.DataFrame) -> bool:  # pragma: no cover
         PSNIValidationError: If validation fails
 
     Example:
-        >>> df = get_latest_crime_statistics()
+        >>> df = get_historical_crime_statistics()
         >>> validate_crime_statistics(df)
         True
     """
@@ -381,7 +380,7 @@ def filter_by_district(
         Filtered DataFrame
 
     Example:
-        >>> df = get_latest_crime_statistics()
+        >>> df = get_historical_crime_statistics()
         >>> belfast = filter_by_district(df, "Belfast City")
         >>> belfast['policing_district'].unique().tolist()
         ['Belfast City']
@@ -411,7 +410,7 @@ def filter_by_crime_type(
         Filtered DataFrame
 
     Example:
-        >>> df = get_latest_crime_statistics()
+        >>> df = get_historical_crime_statistics()
         >>> violence = filter_by_crime_type(df, "Violence with injury (including homicide & death/serious injury by unlawful driving)")
         >>> len(violence) > 0
         True
@@ -438,7 +437,7 @@ def filter_by_date_range(
         Filtered DataFrame
 
     Example:
-        >>> df = get_latest_crime_statistics()
+        >>> df = get_historical_crime_statistics()
         >>> # Get 2020 data
         >>> df_2020 = filter_by_date_range(df, "2020-01-01", "2020-12-31")
         >>> df_2020['calendar_year'].unique().tolist()
@@ -478,7 +477,7 @@ def get_total_crimes_by_district(
         DataFrame with columns: policing_district, lgd_code, nuts3_code, total_crimes
 
     Example:
-        >>> df = get_latest_crime_statistics()
+        >>> df = get_historical_crime_statistics()
         >>> totals_2021 = get_total_crimes_by_district(df, year=2021)
         >>> sorted(totals_2021.columns.tolist())
         ['lgd_code', 'nuts3_code', 'policing_district', 'total_crimes']
@@ -521,7 +520,7 @@ def get_crime_trends(
         DataFrame with columns: date, calendar_year, month, count
 
     Example:
-        >>> df = get_latest_crime_statistics()
+        >>> df = get_historical_crime_statistics()
         >>> trends = get_crime_trends(df, district="Belfast City")
         >>> sorted(trends.columns.tolist())
         ['calendar_year', 'count', 'date', 'month']
@@ -554,7 +553,7 @@ def get_outcome_rates_by_district(
         DataFrame with columns: policing_district, lgd_code, average_outcome_rate
 
     Example:
-        >>> df = get_latest_crime_statistics()
+        >>> df = get_historical_crime_statistics()
         >>> outcomes = get_outcome_rates_by_district(df, year=2021)
         >>> 'average_outcome_rate' in outcomes.columns
         True
@@ -592,7 +591,7 @@ def get_available_crime_types(df: pd.DataFrame) -> list[str]:
         Sorted list of crime type names
 
     Example:
-        >>> df = get_latest_crime_statistics()
+        >>> df = get_historical_crime_statistics()
         >>> crime_types = get_available_crime_types(df)
         >>> isinstance(crime_types, list)
         True
@@ -612,7 +611,7 @@ def get_available_districts(df: pd.DataFrame) -> list[str]:
         Sorted list of district names
 
     Example:
-        >>> df = get_latest_crime_statistics()
+        >>> df = get_historical_crime_statistics()
         >>> districts = get_available_districts(df)
         >>> isinstance(districts, list)
         True

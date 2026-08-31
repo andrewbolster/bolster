@@ -30,7 +30,7 @@ Update Frequency:
     Annual, approximately May of the following calendar year.
 
 Example:
-    >>> from bolster.data_sources.nisra import disease_prevalence as dp
+    >>> from bolster.data_sources.health_ni import disease_prevalence as dp
     >>> df = dp.get_latest_disease_prevalence()
     >>> 'registered_patients' in df.columns
     True
@@ -44,7 +44,13 @@ import pandas as pd
 
 from bolster.data_sources.nisra.pxstat import read_dataset
 
-from ._base import NISRADataNotFoundError, NISRAValidationError, download_file, search_publications_xlsx
+from ._base import (
+    HEALTH_NI_BASE_URL,
+    NISRADataNotFoundError,
+    NISRAValidationError,
+    download_file,
+    find_latest_xlsx,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -263,11 +269,14 @@ def validate_disease_prevalence(df: pd.DataFrame, level: str = "ni") -> bool:
 
     Example:
         >>> import pandas as pd
+        >>> diseases = ["Hypertension", "Diabetes", "Asthma", "Depression", "Epilepsy"]
+        >>> years = list(range(2017, 2023))
         >>> df = pd.DataFrame({
-        ...     "year": [2017], "financial_year": ["2017/18"],
-        ...     "disease": ["Hypertension"],
-        ...     "registered_patients": [184824.0],
-        ...     "prevalence_per_1000": [102.9],
+        ...     "year": sum([[y] * len(diseases) for y in years], []),
+        ...     "financial_year": sum([[f"{y}/{(y + 1) % 100:02d}"] * len(diseases) for y in years], []),
+        ...     "disease": diseases * len(years),
+        ...     "registered_patients": [100000.0] * len(diseases) * len(years),
+        ...     "prevalence_per_1000": [55.0] * len(diseases) * len(years),
         ... })
         >>> validate_disease_prevalence(df)
         True
@@ -331,7 +340,10 @@ def get_latest_publication_url() -> str:
         >>> url.endswith(".xlsx")
         True
     """
-    return search_publications_xlsx("disease prevalence")
+    return find_latest_xlsx(
+        f"{HEALTH_NI_BASE_URL}/articles/prevalence-statistics",
+        keyword="raw-disease-prevalence-trend-data",
+    )
 
 
 def _normalise_gp_register(name: str) -> str:
@@ -478,10 +490,11 @@ def parse_gp_practice_lookup(file_path: str, sheet_name: str | None = None) -> p
         NISRADataNotFoundError: If the sheet cannot be found.
 
     Example:
-        >>> lkp = parse_gp_practice_lookup("/tmp/rdptd-tables-2026.xlsx")
+        >>> path = download_file(get_latest_publication_url(), cache_ttl_hours=_CACHE_TTL)
+        >>> lkp = parse_gp_practice_lookup(path)
         >>> "practice_code" in lkp.columns
         True
-        >>> lkp["practice_code"].str.startswith("Z").all()
+        >>> bool(lkp["practice_code"].str.startswith("Z").all())
         True
     """
     target = sheet_name or _SHEET_TABLE4
@@ -532,7 +545,8 @@ def parse_all_gp_practices(file_path: str) -> pd.DataFrame:
         NISRADataNotFoundError: If no Table 5 sheets can be found or parsed.
 
     Example:
-        >>> df = parse_all_gp_practices("/tmp/rdptd-tables-2026.xlsx")
+        >>> path = download_file(get_latest_publication_url(), cache_ttl_hours=_CACHE_TTL)
+        >>> df = parse_all_gp_practices(path)
         >>> df["financial_year"].nunique() >= 17
         True
         >>> df["practice_code"].nunique() >= 300
@@ -603,7 +617,7 @@ def get_latest_gp_prevalence(force_refresh: bool = False) -> pd.DataFrame:
 
     Example:
         >>> df = get_latest_gp_prevalence()
-        >>> df["practice_code"].str.startswith("Z").all()
+        >>> bool(df["practice_code"].str.startswith("Z").all())
         True
         >>> df["financial_year"].nunique() >= 3
         True

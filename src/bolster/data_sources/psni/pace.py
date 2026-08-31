@@ -11,11 +11,15 @@ published by PSNI Statistics Branch each May on the PSNI publications index:
 
     https://www.psni.police.uk/about-us/our-publications-and-reports/official-statistics/police-and-criminal-evidence-pace-order
 
-**URL discovery note**: The PSNI publications index page is protected by Cloudflare
-and cannot be scraped programmatically. Direct asset URLs at ``/sites/default/files/``
-*can* be fetched with a browser-like ``User-Agent`` + ``Referer`` header, but the
-filename portion of the URL is not predictable (includes the year in ``YYYY.YY``
-format and may include a revision suffix such as ``a2``).
+**URL discovery note**: The filename portion of each asset URL is not predictable
+— it includes the year in ``YYYY.YY`` format and may carry a revision suffix such
+as ``a2`` — so the download URL cannot be constructed from the year alone.
+
+psni.police.uk sits behind Cloudflare, which serves a block page to clients on some
+hosting-provider networks. This is an egress-reputation effect, not a property of
+the site: the publications index and its assets fetch normally from GitHub Actions
+and from ordinary consumer connections. Do not infer from a local 403 that the
+source is unavailable.
 
 The :data:`PACE_URLS` dict therefore hard-codes confirmed download URLs. It should
 be updated each May when PSNI publishes the new edition. Use
@@ -56,8 +60,7 @@ logger = logging.getLogger(__name__)
 #
 # IMPORTANT: Update this dict each May when PSNI publishes the new edition.
 # The URL filename is not predictable (year format YYYY.YY, sometimes with a
-# revision suffix like ``a2``).  The direct asset URLs can be fetched with the
-# browser-like headers defined in _base_http_headers.py.
+# revision suffix like ``a2``), so it must be read off the publications index.
 # ---------------------------------------------------------------------------
 PACE_URLS: dict[str, str] = {
     "2024/25": (
@@ -357,14 +360,6 @@ def get_latest_pace(breakdown: str = "stop_search", force_refresh: bool = False)
         ValueError: If ``breakdown`` is not ``"stop_search"`` or ``"arrests"``.
         PSNIDataNotFoundError: If the download fails.
         PSNIValidationError: If the workbook structure is not as expected.
-
-    Example:
-        >>> df = get_latest_pace(breakdown="stop_search")  # doctest: +SKIP
-        >>> "reason" in df.columns
-        True
-        >>> df = get_latest_pace(breakdown="arrests")  # doctest: +SKIP
-        >>> "category" in df.columns
-        True
     """
     if breakdown not in ("stop_search", "arrests"):
         raise ValueError(f"breakdown must be 'stop_search' or 'arrests', got {breakdown!r}")

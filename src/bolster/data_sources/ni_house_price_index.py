@@ -30,7 +30,6 @@ Example:
     True
 """
 
-import hashlib
 import logging
 import re
 import warnings
@@ -42,6 +41,7 @@ from urllib.parse import urlparse
 import bs4
 import pandas as pd
 
+from bolster.utils.cache import hash_url
 from bolster.utils.web import session
 
 logger = logging.getLogger(__name__)
@@ -69,11 +69,6 @@ class NIHPIDataNotFoundError(NIHPIDataError):
     pass
 
 
-def _hash_url(url: str) -> str:
-    """Generate a safe filename from a URL."""
-    return hashlib.md5(url.encode(), usedforsecurity=False).hexdigest()
-
-
 def _get_cached_file(url: str, cache_ttl_hours: int = 24) -> Path | None:
     """Return cached file if exists and fresh, else None.
 
@@ -84,7 +79,7 @@ def _get_cached_file(url: str, cache_ttl_hours: int = 24) -> Path | None:
     Returns:
         Path to cached file if valid, None otherwise
     """
-    url_hash = _hash_url(url)
+    url_hash = hash_url(url)
     ext = Path(url).suffix or ".xlsx"
     cache_path = CACHE_DIR / f"{url_hash}{ext}"
 
@@ -116,7 +111,7 @@ def _download_file(url: str, cache_ttl_hours: int = 24, force_refresh: bool = Fa
         if cached:
             return cached
 
-    url_hash = _hash_url(url)
+    url_hash = hash_url(url)
     ext = Path(url).suffix or ".xlsx"
     cache_path = CACHE_DIR / f"{url_hash}{ext}"
 

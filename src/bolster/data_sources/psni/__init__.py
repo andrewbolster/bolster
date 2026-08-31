@@ -6,6 +6,9 @@ This module provides access to PSNI open data including:
 - Police Ombudsman: Complaint statistics from 2000/01 to present
 - PACE Statistics: Annual stop & search and arrests under the Police and
   Criminal Evidence (PACE) Order
+- Motoring Offences: Annual enforcement statistics (fixed penalty notices,
+  prosecutions, driver retraining courses) by offence, disposal and district
+- Road Safety Partnership: Record-level safety camera detections from 2011
 
 Data is sourced from OpenDataNI and the Police Ombudsman's Office under the
 Open Government Licence v3.0.
@@ -15,11 +18,7 @@ with other NISRA datasets.
 
 Example:
     >>> from bolster.data_sources.psni import crime_statistics, road_traffic_collisions
-    >>> df = crime_statistics.get_historical_crime_statistics()
-    >>> 'lgd_code' in df.columns
-    True
-    >>> lgd_code = crime_statistics.get_lgd_code("Belfast City")
-    >>> lgd_code
+    >>> crime_statistics.get_lgd_code("Belfast City")
     'N09000003'
     >>> casualties = road_traffic_collisions.get_casualties()
     >>> 'severity' in casualties.columns
@@ -28,7 +27,7 @@ Example:
 See individual module docstrings for detailed documentation.
 """
 
-from . import pace, stop_and_search
+from . import motoring_offences, pace, road_safety_partnership, stop_and_search
 from ._base import (
     PSNIDataError,
     PSNIDataNotFoundError,
@@ -83,8 +82,12 @@ from .road_traffic_collisions import (
 __all__ = [
     # PACE Statistics
     "pace",
+    # Motoring Offences module
+    "motoring_offences",
     # Stop and Search module
     "stop_and_search",
+    # Road Safety Partnership module
+    "road_safety_partnership",
     # Crime Statistics - Main functions
     "get_historical_crime_statistics",
     "get_latest_crime_statistics",

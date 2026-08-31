@@ -3,31 +3,31 @@
 These tests validate the shared utility functions in the NISRA _base module.
 """
 
-from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
-import tempfile
+from unittest.mock import Mock, patch
 
 import pandas as pd
 import pytest
-from bs4 import BeautifulSoup
 
 from bolster.data_sources.nisra._base import (
+    NISRADataError,
+    NISRADataNotFoundError,
+    NISRAValidationError,
     add_date_columns,
+    clear_cache,
     download_file,
+    extract_column_mapping,
+    find_header_row,
+    find_publication_link,
     make_absolute_url,
+    parse_age_breakdowns,
     parse_month_year,
     safe_float,
     safe_int,
     scrape_download_links,
-    clear_cache,
-    find_header_row,
-    extract_column_mapping,
-    parse_age_breakdowns,
-    NISRADataError,
-    NISRADataNotFoundError,
-    NISRAValidationError,
 )
 from bolster.utils.cache import DownloadError
+from bolster.utils.web import LinkNotFoundError
 
 
 class TestMakeAbsoluteUrl:
@@ -222,7 +222,7 @@ class TestExceptions:
 class TestDownloadFile:
     """Test download_file function to cover error handling."""
 
-    @patch('bolster.data_sources.nisra._base._downloader')
+    @patch("bolster.data_sources.nisra._base._downloader")
     def test_download_file_success(self, mock_downloader):
         """Test successful download."""
         mock_path = Path("/tmp/test_file.xlsx")
@@ -232,12 +232,10 @@ class TestDownloadFile:
 
         assert result == mock_path
         mock_downloader.download.assert_called_once_with(
-            "https://example.com/file.xlsx",
-            cache_ttl_hours=24,
-            force_refresh=False
+            "https://example.com/file.xlsx", cache_ttl_hours=24, force_refresh=False
         )
 
-    @patch('bolster.data_sources.nisra._base._downloader')
+    @patch("bolster.data_sources.nisra._base._downloader")
     def test_download_file_with_custom_params(self, mock_downloader):
         """Test download with custom parameters."""
         mock_path = Path("/tmp/test_file.xlsx")
@@ -247,12 +245,10 @@ class TestDownloadFile:
 
         assert result == mock_path
         mock_downloader.download.assert_called_once_with(
-            "https://example.com/file.xlsx",
-            cache_ttl_hours=48,
-            force_refresh=True
+            "https://example.com/file.xlsx", cache_ttl_hours=48, force_refresh=True
         )
 
-    @patch('bolster.data_sources.nisra._base._downloader')
+    @patch("bolster.data_sources.nisra._base._downloader")
     def test_download_file_raises_nisra_error_on_download_error(self, mock_downloader):
         """Test that DownloadError is converted to NISRADataNotFoundError."""
         mock_downloader.download.side_effect = DownloadError("Network error")
@@ -304,106 +300,69 @@ class TestSafeConversions:
 
 
 class TestScrapeDownloadLinks:
-    """Test scrape_download_links function."""
+    """Test the NISRA wrapper around scrape_file_links.
 
-    @patch('bolster.data_sources.nisra._base.session')
-    def test_scrape_download_links_success(self, mock_session):
-        """Test successful link scraping."""
-        # Mock HTML content with Excel links
-        html_content = """
-        <html>
-            <body>
-                <a href="/data/report.xlsx">Annual Report 2023</a>
-                <a href="https://external.com/data.xlsx">External Data</a>
-                <a href="monthly_stats.xlsx">Monthly Stats</a>
-                <a href="/data/report.pdf">PDF Report</a>
-            </body>
-        </html>
-        """
+    Link parsing itself is covered in tests/test_utils_web.py; all this wrapper
+    adds is NISRA defaults and translation into NISRADataError.
+    """
 
-        mock_response = Mock()
-        mock_response.content = html_content.encode()
-        mock_response.raise_for_status.return_value = None
-        mock_session.get.return_value = mock_response
+    @patch("bolster.data_sources.nisra._base.scrape_file_links")
+    def test_passes_nisra_defaults_through(self, mock_scrape):
+        mock_scrape.return_value = [{"url": "https://www.nisra.gov.uk/f.xlsx", "text": "F"}]
 
         result = scrape_download_links("https://www.nisra.gov.uk/data")
 
-        expected_links = [
-            {"url": "https://www.nisra.gov.uk/data/report.xlsx", "text": "Annual Report 2023"},
-            {"url": "https://external.com/data.xlsx", "text": "External Data"},
-            {"url": "https://www.nisra.gov.uk/monthly_stats.xlsx", "text": "Monthly Stats"},
-        ]
+        assert result == [{"url": "https://www.nisra.gov.uk/f.xlsx", "text": "F"}]
+        mock_scrape.assert_called_once_with(
+            "https://www.nisra.gov.uk/data",
+            file_extension=".xlsx",
+            base_url="https://www.nisra.gov.uk",
+        )
 
-        assert result == expected_links
-        mock_session.get.assert_called_once_with("https://www.nisra.gov.uk/data", timeout=30)
-
-    @patch('bolster.data_sources.nisra._base.session')
-    def test_scrape_download_links_network_error(self, mock_session):
-        """Test scrape_download_links error handling - covers lines 73-74."""
-        mock_session.get.side_effect = Exception("Network error")
+    @patch("bolster.data_sources.nisra._base.scrape_file_links")
+    def test_network_error_becomes_nisra_data_error(self, mock_scrape):
+        mock_scrape.side_effect = Exception("Network error")
 
         with pytest.raises(NISRADataError, match="Failed to fetch page.*Network error"):
             scrape_download_links("https://www.nisra.gov.uk/data")
 
-    @patch('bolster.data_sources.nisra._base.session')
-    def test_scrape_download_links_different_file_extension(self, mock_session):
-        """Test scraping with different file extension."""
-        html_content = """
-        <html>
-            <body>
-                <a href="/data/report.pdf">PDF Report</a>
-                <a href="/data/data.csv">CSV Data</a>
-            </body>
-        </html>
-        """
 
-        mock_response = Mock()
-        mock_response.content = html_content.encode()
-        mock_response.raise_for_status.return_value = None
-        mock_session.get.return_value = mock_response
+class TestFindPublicationLink:
+    """Test the NISRA wrapper around utils.web.find_publication_link.
 
-        result = scrape_download_links("https://www.nisra.gov.uk/data", file_extension=".pdf")
+    Two-hop discovery itself is covered in tests/test_utils_web.py; all this
+    wrapper adds is NISRA defaults and translation into NISRADataNotFoundError.
+    """
 
-        expected_links = [
-            {"url": "https://www.nisra.gov.uk/data/report.pdf", "text": "PDF Report"},
-        ]
+    @patch("bolster.data_sources.nisra._base._find_publication_link")
+    def test_passes_nisra_defaults_through(self, mock_find):
+        mock_find.return_value = "https://www.nisra.gov.uk/f.xlsx"
 
-        assert result == expected_links
+        result = find_publication_link("https://www.nisra.gov.uk/hub", pub_text_contains="Monthly Births")
 
-    @patch('bolster.data_sources.nisra._base.session')
-    def test_scrape_download_links_url_processing(self, mock_session):
-        """Test URL processing logic - covers lines 85-88."""
-        html_content = """
-        <html>
-            <body>
-                <a href="/data/report.xlsx">Absolute path</a>
-                <a href="data/report.xlsx">Relative path</a>
-                <a href="https://example.com/report.xlsx">Full URL</a>
-            </body>
-        </html>
-        """
+        assert result == "https://www.nisra.gov.uk/f.xlsx"
+        assert mock_find.call_args.kwargs["base_url"] == "https://www.nisra.gov.uk"
+        assert mock_find.call_args.kwargs["file_extension"] == ".xlsx"
 
-        mock_response = Mock()
-        mock_response.content = html_content.encode()
-        mock_response.raise_for_status.return_value = None
-        mock_session.get.return_value = mock_response
+    @patch("bolster.data_sources.nisra._base._find_publication_link")
+    def test_link_not_found_becomes_nisra_not_found(self, mock_find):
+        mock_find.side_effect = LinkNotFoundError("No publication link found on hub")
 
-        result = scrape_download_links("https://www.nisra.gov.uk/publications")
+        with pytest.raises(NISRADataNotFoundError, match="No publication link found on hub"):
+            find_publication_link("https://www.nisra.gov.uk/hub")
 
-        expected_urls = [
-            "https://www.nisra.gov.uk/data/report.xlsx",  # Leading slash
-            "https://www.nisra.gov.uk/data/report.xlsx",   # No leading slash
-            "https://example.com/report.xlsx",             # Full URL unchanged
-        ]
+    @patch("bolster.data_sources.nisra._base._find_publication_link")
+    def test_network_error_becomes_nisra_not_found(self, mock_find):
+        mock_find.side_effect = Exception("Network error")
 
-        actual_urls = [link["url"] for link in result]
-        assert actual_urls == expected_urls
+        with pytest.raises(NISRADataNotFoundError, match="Failed to fetch hub page.*Network error"):
+            find_publication_link("https://www.nisra.gov.uk/hub")
 
 
 class TestClearCache:
     """Test clear_cache function."""
 
-    @patch('bolster.data_sources.nisra._base._downloader')
+    @patch("bolster.data_sources.nisra._base._downloader")
     def test_clear_cache_all_files(self, mock_downloader):
         """Test clearing all cached files - covers line 105."""
         mock_downloader.clear.return_value = 5
@@ -413,7 +372,7 @@ class TestClearCache:
         assert result == 5
         mock_downloader.clear.assert_called_once_with(None)
 
-    @patch('bolster.data_sources.nisra._base._downloader')
+    @patch("bolster.data_sources.nisra._base._downloader")
     def test_clear_cache_with_pattern(self, mock_downloader):
         """Test clearing cache with pattern."""
         mock_downloader.clear.return_value = 3
@@ -456,7 +415,7 @@ class TestFindHeaderRow:
 
         assert result == 1
 
-    @patch('bolster.data_sources.nisra._base.logger')
+    @patch("bolster.data_sources.nisra._base.logger")
     def test_find_header_row_not_found(self, mock_logger):
         """Test when header row is not found - covers line 177."""
         mock_sheet = Mock()
@@ -528,7 +487,7 @@ class TestExtractColumnMapping:
 
         assert result == expected
 
-    @patch('bolster.data_sources.nisra._base.logger')
+    @patch("bolster.data_sources.nisra._base.logger")
     def test_extract_column_mapping_missing_columns(self, mock_logger):
         """Test when some columns are missing - covers lines 210-213."""
         mock_cells = [
@@ -558,10 +517,10 @@ class TestParseAgeBreakdowns:
         """Test successful age breakdown parsing - covers lines 322-329."""
         # Mock Excel row with age data
         row = [None] * 25  # Create row with 25 columns
-        row[20] = "5"      # 0-7 days deaths
-        row[21] = "3"      # 7 days-1 year deaths
-        row[22] = "0"      # 1-14 deaths
-        row[23] = None     # Missing data
+        row[20] = "5"  # 0-7 days deaths
+        row[21] = "3"  # 7 days-1 year deaths
+        row[22] = "0"  # 1-14 deaths
+        row[23] = None  # Missing data
 
         age_map = {
             "0-7 days": 20,
@@ -592,9 +551,9 @@ class TestParseAgeBreakdowns:
     def test_parse_age_breakdowns_mixed_valid_invalid(self):
         """Test with mix of valid and invalid data."""
         row = [None] * 25
-        row[20] = "5"      # Valid
-        row[21] = "-"      # Invalid placeholder (safe_int returns None)
-        row[22] = ""       # Invalid empty (safe_int returns None)
+        row[20] = "5"  # Valid
+        row[21] = "-"  # Invalid placeholder (safe_int returns None)
+        row[22] = ""  # Invalid empty (safe_int returns None)
 
         age_map = {
             "0-7 days": 20,

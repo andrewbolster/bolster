@@ -425,7 +425,7 @@ def get_latest_work_quality(force_refresh: bool = False) -> pd.DataFrame:
         >>> df = get_latest_work_quality()
         >>> 'indicator' in df.columns
         True
-        >>> df['year'].max() >= 2025
+        >>> bool(df['year'].max() >= 2025)
         True
     """
     excel_url, year = get_work_quality_publication_url()
