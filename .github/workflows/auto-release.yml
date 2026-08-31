@@ -25,7 +25,7 @@ jobs:
             version_bump: ${{ inputs.version_bump || 'auto' }}
             block_minor: true
             package_name: bolster
-            docs_url: https://bolster.help
+            docs_url: https://bolster.readthedocs.io
             pypi_base_url: https://pypi.org/project/bolster
         permissions:
             contents: write
@@ -86,7 +86,7 @@ jobs:
                     exit 0
                   fi
 
-                  printf 'Automated version bump to %s.\n\n## Changes in this release\n\n%s\n\n## Installation\n\n```bash\npip install bolster==%s\n```\n\n## Documentation\n\n- [Documentation](https://bolster.help)\n- [PyPI Package](https://pypi.org/project/bolster/%s/)\n\n---\n*This PR was automatically created by the release workflow.*\n' \
+                  printf 'Automated version bump to %s.\n\n## Changes in this release\n\n%s\n\n## Installation\n\n```bash\npip install bolster==%s\n```\n\n## Documentation\n\n- [Documentation](https://bolster.readthedocs.io)\n- [PyPI Package](https://pypi.org/project/bolster/%s/)\n\n---\n*This PR was automatically created by the release workflow.*\n' \
                     "${VERSION}" "${CHANGELOG}" "${VERSION}" "${VERSION}" \
                     > /tmp/pr-body.md
 
