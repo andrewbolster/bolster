@@ -1,5 +1,7 @@
-# Legacy manual publishing workflow - kept for emergency use
-# Primary publishing now handled by auto-release.yml
+# auto-release.yml only opens/merges the version-bump PR and pushes the tag —
+# this is the workflow that actually builds and uploads to PyPI, for both the
+# automated tag-push path and a manual workflow_dispatch. Not legacy despite
+# the name; "Manual" here refers to the dispatch option, not the trigger.
 
 name: Manual Publish to PyPI
 
@@ -69,19 +71,24 @@ jobs:
                 attestations: true
                 print-hash: true
 
-            - name: Create GitHub Release (if manual)
-              if: github.event_name == 'workflow_dispatch'
+            - name: Create GitHub Release
+              # Ran only for workflow_dispatch until now, so every automated
+              # tag-push release published to PyPI with no GitHub Release —
+              # which is what notify-mcp-server.yml's `on: release: published`
+              # trigger needs to fire and dispatch the bolster-release event
+              # to mcp.bolster.online. Confirmed live: v0.7.1 published fine,
+              # no release created, no dispatch sent.
               uses: softprops/action-gh-release@7c4723f7a335432393329f8f1c564994ce50185d  # v3
               with:
-                tag_name: ${{ github.event.inputs.tag }}
-                name: Release ${{ github.event.inputs.tag }}
+                tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+                name: Release ${{ github.event.inputs.tag || github.ref_name }}
                 body: |
-                  Manual release of ${{ github.event.inputs.tag }}
+                  Release ${{ github.event.inputs.tag || github.ref_name }}
 
                   ## Installation
 
                   ```bash
-                  pip install bolster==${{ github.event.inputs.tag }}
+                  pip install bolster==${{ github.event.inputs.tag || github.ref_name }}
                   ```
                 draft: false
                 prerelease: false
