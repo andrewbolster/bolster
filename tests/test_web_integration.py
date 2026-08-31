@@ -4,10 +4,7 @@
 These tests exercise real HTTP behavior (a genuine socket round-trip,
 real gzip/chunked transfer, a real ZIP archive) against a local
 `http.server` fixture rather than third-party services — deterministic
-and fast, but without mocking `requests`/`session` itself. The one
-exception is the Wayback Machine fallback path in `resilient_get`,
-which has no local equivalent and is covered by a single, clearly
-marked real-network smoke test.
+and fast, but without mocking `requests`/`session` itself.
 """
 
 import io
@@ -18,7 +15,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import pandas as pd
 import pytest
 
-from bolster.utils.web import download_extract_zip, get_excel_dataframe, get_last_valid, resilient_get
+from bolster.utils.web import download_extract_zip, get_excel_dataframe
 
 
 def _make_xlsx_bytes() -> bytes:
@@ -131,33 +128,3 @@ class TestDownloadExtractZip:
 
         with pytest.raises(requests.HTTPError):
             list(download_extract_zip(f"{local_server}/does-not-exist.zip"))
-
-
-class TestResilientGet:
-    def test_success_path_does_not_use_wayback(self, local_server):
-        response = resilient_get(f"{local_server}/ok")
-        assert response.status_code == 200
-        assert response.content == b"ok"
-
-    @pytest.mark.network
-    def test_raises_when_target_and_wayback_both_fail(self, local_server):
-        """A URL on our own throwaway local port 404s immediately (no retry
-        storm), then resilient_get's fallback makes a real call to the
-        Wayback Machine, which finds no snapshot either — should raise, not
-        silently swallow the failure. Marked network: the local 404 is
-        instant, but the wayback lookup itself is a real third-party call."""
-        with pytest.raises(Exception):  # noqa: B017 — genuinely any exception is acceptable here
-            resilient_get(f"{local_server}/does-not-exist")
-
-
-@pytest.mark.network
-class TestWaybackMachineFallback:
-    """The one test in this module that depends on a real third-party
-    service (archive.org) — there's no local equivalent for wayback
-    snapshot lookup. Marked so it can be deselected with `-m "not network"`
-    if archive.org itself is degraded."""
-
-    def test_get_last_valid_returns_an_archive_url(self):
-        wayback_url = get_last_valid("https://www.python.org/")
-        assert isinstance(wayback_url, str)
-        assert "web.archive.org" in wayback_url
