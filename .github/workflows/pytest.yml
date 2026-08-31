@@ -93,7 +93,13 @@ jobs:
     # column or a URL. Run once on a single Python version rather than folding
     # `src` into the matrix above — the examples are version-independent, and
     # repeating them three times would triple the load on upstream publishers.
+    #
+    # needs: build — not for ordering's own sake (doctests isn't a required
+    # status check, so it never gates auto-merge), but running after rather
+    # than alongside the matrix means the two aren't hitting the same upstream
+    # APIs at the same time, which is the actual rate-limit risk.
     doctests:
+        needs: build
         runs-on: ubuntu-latest
 
         steps:
