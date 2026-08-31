@@ -172,10 +172,18 @@ jobs:
             contents: write
             pull-requests: write
         steps:
+            # BOLSTER_TOKEN, not GITHUB_TOKEN: the branch+tag push later in this
+            # job uses whatever credential this checkout configures. A
+            # GITHUB_TOKEN-authored push doesn't trigger downstream workflows
+            # (same reason the PR-merge step needs BOLSTER_TOKEN) — confirmed
+            # live, the tag for v0.7.1 never triggered publish.yml until it was
+            # manually re-pushed from a real account. `gh pr create` below still
+            # runs under its own GH_TOKEN: GITHUB_TOKEN env, unaffected by this,
+            # so the PR itself still shows as authored by github-actions[bot].
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
               with:
                   fetch-depth: 0
-                  token: ${{ secrets.GITHUB_TOKEN }}
+                  token: ${{ secrets.BOLSTER_TOKEN }}
 
             - name: Setup Python and uv
               uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d  # v10.0.1
