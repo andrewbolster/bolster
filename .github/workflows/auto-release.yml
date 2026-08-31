@@ -27,6 +27,12 @@ jobs:
             package_name: bolster
             docs_url: https://bolster.readthedocs.io
             pypi_base_url: https://pypi.org/project/bolster
+        # A local (same-repo) reusable-workflow call does NOT auto-inherit
+        # named secrets — only GITHUB_TOKEN is implicit. Without this,
+        # secrets.BOLSTER_TOKEN inside release-logic.yml resolves empty
+        # regardless of what the actual secret value is — confirmed live,
+        # a real, freshly-rotated token still showed blank in the run env.
+        secrets: inherit
         permissions:
             contents: write
             pull-requests: write
