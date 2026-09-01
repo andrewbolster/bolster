@@ -31,9 +31,10 @@ from __future__ import annotations
 import contextlib
 import logging
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import pandas as pd
+from bs4 import Tag  # noqa: TC002 (used inside `cast(...)`, evaluated at runtime)
 
 from bolster.utils.web import fetch_soup, make_absolute_url, scrape_file_links
 
@@ -94,8 +95,8 @@ def get_latest_publication_url() -> str:
 
         if not candidates:
             # Try following the first publication link on the hub page
-            for a_tag in fetch_soup(_HUB_URL).find_all("a", href=True):
-                href = a_tag["href"]
+            for a_tag in cast("list[Tag]", fetch_soup(_HUB_URL).find_all("a", href=True)):
+                href = cast("str", a_tag["href"])
                 if "homelessness-bulletin" in href.lower() and "publications" in href.lower():
                     pub_url = make_absolute_url(href, _SITE_ROOT)
                     candidates = [

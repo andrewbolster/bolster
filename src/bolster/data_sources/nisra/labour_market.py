@@ -69,8 +69,10 @@ Date: 2025-12-21
 import logging
 import re
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
+from bs4 import Tag  # noqa: TC002 (used inside `cast(...)`, evaluated at runtime)
 from openpyxl import load_workbook
 
 from bolster.data_sources.nisra._base import (
@@ -586,9 +588,9 @@ def get_latest_monthly_lmr_url(force_refresh: bool = False) -> tuple[str, int, i
 
         # Step 1: Find the most recent yearly collection page ("Labour Market Reports - YYYY")
         collection_url = None
-        for link in soup.find_all("a", href=True):
+        for link in cast("list[Tag]", soup.find_all("a", href=True)):
             text = link.get_text(strip=True)
-            href = link["href"]
+            href = cast("str", link["href"])
             if re.match(r"Labour Market Reports\s*-\s*\d{4}", text) and "/publications/labour-market-reports-" in href:
                 collection_url = make_absolute_url(href, LFS_BASE_URL)
                 logger.info(f"Found LMR collection page: {text} → {collection_url}")
@@ -602,9 +604,9 @@ def get_latest_monthly_lmr_url(force_refresh: bool = False) -> tuple[str, int, i
         coll_soup = fetch_soup(collection_url, force_refresh=force_refresh)
 
         monthly_links = []
-        for link in coll_soup.find_all("a", href=True):
+        for link in cast("list[Tag]", coll_soup.find_all("a", href=True)):
             text = link.get_text(strip=True)
-            href = link["href"]
+            href = cast("str", link["href"])
             if (
                 re.match(r"Labour Market Report\s*-\s*\w+ \d{4}", text)
                 and "/publications/labour-market-report-" in href

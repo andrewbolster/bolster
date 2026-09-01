@@ -55,6 +55,7 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
 
@@ -84,7 +85,7 @@ def get_latest_ashe_publication_url() -> tuple[str, int]:
         >>> url.startswith('https://')
         True
     """
-    from bs4 import BeautifulSoup
+    from bs4 import BeautifulSoup, Tag
 
     logger.info("Fetching latest ASHE publication URL...")
 
@@ -98,7 +99,7 @@ def get_latest_ashe_publication_url() -> tuple[str, int]:
 
     # Find the link to the latest publication
     # Pattern: "Employee earnings in NI 2025" or "Employee earnings in Northern Ireland 2025"
-    publication_links = soup.find_all("a", href=True)
+    publication_links = cast("list[Tag]", soup.find_all("a", href=True))
 
     for link in publication_links:
         link_text = link.get_text(strip=True)
@@ -106,7 +107,7 @@ def get_latest_ashe_publication_url() -> tuple[str, int]:
         match = re.search(r"Employee earnings in (?:Northern Ireland|NI)\s+(\d{4})", link_text)
         if match:
             year = int(match.group(1))
-            pub_url = link["href"]
+            pub_url = cast("str", link["href"])
             if not pub_url.startswith("http"):
                 pub_url = f"https://www.nisra.gov.uk{pub_url}"
 
@@ -1446,6 +1447,7 @@ def parse_ashe_real_earnings_index_by_sector(file_path: str | Path) -> pd.DataFr
 
         if matched_sheet is None:
             raise NISRADataNotFoundError("Could not find real earnings index sheet (Figure 6)")
+        assert header_idx is not None  # set alongside matched_sheet, above
 
         ws = wb[matched_sheet]
         rows = list(ws.iter_rows(values_only=True))

@@ -187,6 +187,7 @@ def _parse_sheet(court: str, rows: list[list[str]]) -> pd.DataFrame:
         labels += [""] * (3 - len(labels))
 
         for col_idx, label, parsed in periods:
+            assert parsed is not None  # periods was filtered to only parsed entries, above
             year, quarter = parsed
             records.append(
                 {

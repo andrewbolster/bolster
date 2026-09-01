@@ -15,7 +15,7 @@ import logging
 import time
 from collections.abc import Callable
 from functools import wraps
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 import tqdm
 
@@ -58,4 +58,4 @@ def timed(func: F) -> F:
         logger.info(f"{func.__name__} ran in {round(end - start, 2)}s")
         return result
 
-    return wrapper
+    return cast("F", wrapper)
