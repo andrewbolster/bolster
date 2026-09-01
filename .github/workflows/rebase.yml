@@ -39,10 +39,20 @@ jobs:
               if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.pr_number == '')
               run: |
                   set +e  # Don't exit on errors - we want to try each candidate
-                  echo "Looking for one PR to rebase (auto-merge PRs prioritised)..."
+                  echo "Looking for PRs to rebase (auto-merge PRs prioritised)..."
 
-                  # Sort: auto-merge PRs (autoMergeRequest != null) first, then by number.
-                  # Rebase only the first eligible PR per trigger so CI runs don't flood.
+                  # "One rebase per trigger" used to cap this at a single PR, on
+                  # the theory that more would flood CI. In practice it just
+                  # meant a busy day (several PRs open, several pushes to main
+                  # in quick succession) permanently outpaced the drain rate —
+                  # PRs sat BEHIND for hours needing repeated manual
+                  # `workflow_dispatch --pr-number` nudges to actually update.
+                  # Each PR's own pytest.yml concurrency group is scoped
+                  # per-ref, so rebasing several at once doesn't make them
+                  # contend with each other — capped at 5 per trigger as a
+                  # backstop against a pathologically large PR backlog, not
+                  # because concurrent rebases are unsafe.
+                  rebased=0
                   gh pr list --state open \
                     --json number,headRefName,mergeStateStatus,autoMergeRequest \
                     --jq '[.[] | select(.mergeStateStatus != "CLEAN") |
@@ -51,6 +61,11 @@ jobs:
                          sort_by(.p, .n) | .[] | [.n, .b] | @tsv' | \
                   while IFS=$'\t' read -r pr branch; do
                     echo "----------------------------------------"
+
+                    if [ "$rebased" -ge 5 ]; then
+                      echo "Hit the 5-per-trigger cap — remaining PRs get their turn next trigger"
+                      break
+                    fi
 
                     # Skip if this branch already has a PyTest run queued/in-progress:
                     # pushing now would supersede that run before it gets a turn in the
@@ -69,8 +84,8 @@ jobs:
                     if git merge --no-edit origin/main; then
                       git push origin "$branch"
                       git checkout main
-                      echo "✓ Successfully updated PR #$pr — one rebase per trigger, stopping"
-                      break  # One rebase per push-to-main; next PR gets its turn on the next trigger
+                      rebased=$((rebased + 1))
+                      echo "✓ Successfully updated PR #$pr ($rebased/5 this trigger)"
                     else
                       git merge --abort
                       git checkout main
