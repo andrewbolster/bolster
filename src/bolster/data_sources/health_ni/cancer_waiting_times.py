@@ -458,7 +458,7 @@ def get_performance_trend(df: pd.DataFrame, window: int = 12) -> pd.DataFrame:
     return df
 
 
-def get_tumour_site_ranking(df: pd.DataFrame, year: int = None) -> pd.DataFrame:
+def get_tumour_site_ranking(df: pd.DataFrame, year: int | None = None) -> pd.DataFrame:
     """Rank tumour sites by performance.
 
     Args:
