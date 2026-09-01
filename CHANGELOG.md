@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.3] - 2026-09-01
+
+- fix(release-logic): push the branch and tag via BOLSTER_TOKEN (#2094)
+- fix: point package Documentation metadata at ReadTheDocs (#2091)
+- refactor(cache): extract shared download_file/stitch_publications helpers (#2095)
+
+
 ## [0.7.2] - 2026-08-31
 
 - fix(release): pass secrets to release-logic.yml + fix docs_url (#2090)
