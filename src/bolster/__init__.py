@@ -102,7 +102,7 @@ def poolmap(
     f: Callable,
     iterable: Iterable,
     max_workers: int | None = None,
-    progress: Callable = None,
+    progress: Callable | None = None,
     **kwargs,
 ) -> dict:
     """Helper function to encapsulate a ThreadPoolExecutor mapped function workflow.

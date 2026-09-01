@@ -268,7 +268,7 @@ def parse_ashe_timeseries_annual(file_path: str | Path) -> pd.DataFrame:
     return result
 
 
-def parse_ashe_geography(file_path: str | Path, basis: str = "workplace", year: int = None) -> pd.DataFrame:
+def parse_ashe_geography(file_path: str | Path, basis: str = "workplace", year: int | None = None) -> pd.DataFrame:
     """Parse ASHE geographic earnings data.
 
     Extracts earnings by Local Government District from the linked tables file.

@@ -36,9 +36,10 @@ Example:
 import logging
 import re
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from openpyxl import load_workbook
 
 from bolster.utils.web import session
@@ -89,8 +90,8 @@ def get_baby_names_publication_url() -> str:
     # Find the most recent "Baby Names YYYY" publication link (first match = latest)
     pub_link = None
     pub_year = None
-    for link in soup.find_all("a", href=True):
-        href = link["href"]
+    for link in cast("list[Tag]", soup.find_all("a", href=True)):
+        href = cast("str", link["href"])
         text = link.get_text(strip=True)
         # Match links like /publications/baby-names-2025
         if re.search(r"/publications/baby-names-\d{4}", href):
@@ -121,8 +122,8 @@ def get_baby_names_publication_url() -> str:
     # Find the "Full Names List" Excel file link
     # Link text is like "Full Names List, 1997 to 2025 TablesMicrosoft Excel ..."
     excel_url = None
-    for link in pub_soup.find_all("a", href=True):
-        href = link["href"]
+    for link in cast("list[Tag]", pub_soup.find_all("a", href=True)):
+        href = cast("str", link["href"])
         text = link.get_text(strip=True)
         if href.lower().endswith(".xlsx") and "full" in text.lower() and "name" in text.lower():
             excel_url = href
@@ -131,8 +132,8 @@ def get_baby_names_publication_url() -> str:
 
     # Fallback: any xlsx link with "Full_Name_List" in the path
     if not excel_url:
-        for link in pub_soup.find_all("a", href=True):
-            href = link["href"]
+        for link in cast("list[Tag]", pub_soup.find_all("a", href=True)):
+            href = cast("str", link["href"])
             if href.lower().endswith(".xlsx") and "full_name_list" in href.lower():
                 excel_url = href
                 logger.info(f"Found Full Name List file (fallback): {href}")

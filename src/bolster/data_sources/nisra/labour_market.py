@@ -928,7 +928,7 @@ def get_latest_lgd_employment_url() -> tuple[str, int]:
     return fallback_url, 2024
 
 
-def parse_employment_by_lgd(file_path: str | Path, year: int = None) -> pd.DataFrame:
+def parse_employment_by_lgd(file_path: str | Path, year: int | None = None) -> pd.DataFrame:
     """Parse Table 1.16a: Employment by Local Government District (ages 16+).
 
     Extracts employment statistics for all 11 Northern Ireland LGDs from the annual

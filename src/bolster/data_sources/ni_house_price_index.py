@@ -33,9 +33,11 @@ Example:
 import logging
 import re
 import warnings
+from collections.abc import Callable
 from datetime import datetime
 from functools import partial
 from pathlib import Path
+from typing import Any, cast
 from urllib.parse import urlparse
 
 import bs4
@@ -53,8 +55,10 @@ DEFAULT_URL = "https://www.finance-ni.gov.uk/publications/ni-house-price-index-s
 CACHE_DIR = Path.home() / ".cache" / "bolster" / "ni_hpi"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-# Registry of table-specific transformation functions
-TABLE_TRANSFORMATION_MAP = {}
+# Registry of table-specific transformation functions. Keys are either an
+# exact table name or a compiled regex matched against several tables at
+# once (e.g. "Table 2a".."Table 2d") — see the isinstance check below.
+TABLE_TRANSFORMATION_MAP: dict[str | re.Pattern[str], Callable[..., Any]] = {}
 
 
 class NIHPIDataError(Exception):
@@ -156,9 +160,9 @@ def get_source_url(base_url=DEFAULT_URL) -> str:
 
     base_soup = bs4.BeautifulSoup(response.content, features="html.parser")
 
-    for a in base_soup.find_all("a"):
-        if a.attrs.get("href", "").lower().endswith("xlsx"):
-            source_url = a.attrs["href"]
+    for a in cast("list[bs4.Tag]", base_soup.find_all("a")):
+        if cast("str", a.attrs.get("href", "")).lower().endswith("xlsx"):
+            source_url = cast("str", a.attrs["href"])
             if source_url.startswith("/"):  # Relative URL
                 source_url = urlparse(base_url)._replace(path=source_url).geturl()
             logger.info(f"Found HPI Excel file: {source_url}")
