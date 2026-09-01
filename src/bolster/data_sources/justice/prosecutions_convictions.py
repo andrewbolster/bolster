@@ -49,9 +49,11 @@ Example:
 import logging
 import re
 from pathlib import Path
+from typing import cast
 from urllib.parse import urljoin
 
 import pandas as pd
+from bs4 import Tag  # noqa: TC002 (used inside `cast(...)`, evaluated at runtime)
 from odf.opendocument import load as load_ods
 from odf.table import Table
 
@@ -112,8 +114,8 @@ def list_publications() -> pd.DataFrame:
         raise ProsecutionsDataNotFoundError(f"Failed to fetch series page {SERIES_URL}: {e}") from e
 
     records: dict[str, dict[str, object]] = {}
-    for link in soup.find_all("a", href=True):
-        href = link["href"]
+    for link in cast("list[Tag]", soup.find_all("a", href=True)):
+        href = cast("str", link["href"])
         if "/publications/" not in href:
             continue
         title = link.get_text(strip=True)
@@ -357,12 +359,18 @@ def list_tables(year: int | None = None) -> pd.DataFrame:
     Returns:
         DataFrame with ``table_id``, ``table_title`` and ``records`` columns.
     """
+
+    def _table_sort_key(table_id: str) -> tuple[int, str]:
+        match = re.match(r"\d+", table_id)
+        leading_number = int(match.group()) if match else 0
+        return leading_number, table_id
+
     df = get_latest_data(year=year)
     return (
         df.groupby("table_id")
         .agg(table_title=("table_title", "first"), records=("value", "size"))
         .reset_index()
-        .sort_values("table_id", key=lambda s: s.map(lambda v: (int(re.match(r"\d+", v).group()), v)))
+        .sort_values("table_id", key=lambda s: s.map(_table_sort_key))
         .reset_index(drop=True)
     )
 
@@ -544,4 +552,4 @@ def clear_cache() -> int:
     Returns:
         Number of files removed.
     """
-    return _downloader.clear_cache()
+    return _downloader.clear()

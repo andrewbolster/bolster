@@ -37,6 +37,8 @@ Example:
 
 import logging
 import re
+from pathlib import Path
+from typing import cast
 
 import pandas as pd
 
@@ -72,7 +74,7 @@ def get_latest_visitor_statistics_publication_url() -> tuple[str, str]:
     Raises:
         NISRADataNotFoundError: If publication or file not found
     """
-    from bs4 import BeautifulSoup
+    from bs4 import BeautifulSoup, Tag
 
     try:
         # Use shared session with retry logic for resilient requests
@@ -87,9 +89,9 @@ def get_latest_visitor_statistics_publication_url() -> tuple[str, str]:
     # Pattern: "NI Tourism Q3 2025" with href ending in .xlsx
     excel_files = []
 
-    for link in soup.find_all("a", href=True):
+    for link in cast("list[Tag]", soup.find_all("a", href=True)):
         link_text = link.get_text(strip=True)
-        href = link["href"]
+        href = cast("str", link["href"])
 
         # Match Excel files with tourism in text
         if "tourism" in link_text.lower() and (href.endswith(".xls") or href.endswith(".xlsx")):
@@ -127,7 +129,7 @@ def get_latest_visitor_statistics_publication_url() -> tuple[str, str]:
 
 
 def _parse_visitor_statistics_file(
-    file_path: str,
+    file_path: str | Path,
 ) -> pd.DataFrame:
     """Parse visitor statistics Excel file (Table 10 - comprehensive market data).
 

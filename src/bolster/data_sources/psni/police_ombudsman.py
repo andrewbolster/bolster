@@ -37,9 +37,11 @@ Note:
 
 import logging
 import re
+from pathlib import Path
+from typing import cast
 
 import pandas as pd
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from bolster.utils.web import session
 
@@ -171,8 +173,8 @@ def get_quarterly_publication_url() -> str:
         raise PSNIDataNotFoundError(f"Failed to fetch quarterly-reports page: {exc}") from exc
 
     soup = BeautifulSoup(resp.text, "html.parser")
-    for a in soup.find_all("a", href=True):
-        href: str = a["href"]
+    for a in cast("list[Tag]", soup.find_all("a", href=True)):
+        href = cast("str", a["href"])
         if href.lower().endswith((".xlsx", ".xls")):
             return href if href.startswith("http") else _BASE_URL + href
 
@@ -199,8 +201,8 @@ def get_annual_publication_url() -> str:
         raise PSNIDataNotFoundError(f"Failed to fetch annual statistics page: {exc}") from exc
 
     soup = BeautifulSoup(resp.text, "html.parser")
-    for a in soup.find_all("a", href=True):
-        href: str = a["href"]
+    for a in cast("list[Tag]", soup.find_all("a", href=True)):
+        href = cast("str", a["href"])
         if href.lower().endswith((".xlsx", ".xls")):
             return href if href.startswith("http") else _BASE_URL + href
 
@@ -341,7 +343,7 @@ def _parse_annual_t12(xl: pd.ExcelFile) -> pd.DataFrame:
     return melted[["year", "year_label", "outcome", "closures"]].reset_index(drop=True)
 
 
-def parse_annual(file_path: str) -> dict[str, pd.DataFrame]:
+def parse_annual(file_path: str | Path) -> dict[str, pd.DataFrame]:
     """Parse the annual Police Ombudsman statistics Excel workbook.
 
     Extracts four key tables from the workbook:
@@ -374,7 +376,7 @@ def parse_annual(file_path: str) -> dict[str, pd.DataFrame]:
 # ── Quarterly file parser ──────────────────────────────────────────────────────
 
 
-def parse_quarterly(file_path: str) -> dict[str, pd.DataFrame]:
+def parse_quarterly(file_path: str | Path) -> dict[str, pd.DataFrame]:
     """Parse a quarterly Police Ombudsman statistics Excel workbook.
 
     Extracts three tables:

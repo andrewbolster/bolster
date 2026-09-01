@@ -66,9 +66,11 @@ import io
 import logging
 import re
 from pathlib import Path
+from typing import cast
 from urllib.parse import urljoin
 
 import pandas as pd
+from bs4 import Tag  # noqa: TC002 (used inside `cast(...)`, evaluated at runtime)
 
 from bolster.utils.cache import CachedDownloader, bind_download_file
 from bolster.utils.web import fetch_soup, scrape_file_links
@@ -604,8 +606,8 @@ def list_publications(topic_url: str = TOPIC_URL) -> list[dict]:
         raise CMSDataNotFoundError(f"Failed to fetch topic page {topic_url}: {e}") from e
 
     publications: dict[str, dict] = {}
-    for anchor in soup.find_all("a", href=True):
-        href = anchor["href"]
+    for anchor in cast("list[Tag]", soup.find_all("a", href=True)):
+        href = cast("str", anchor["href"])
         if "/publications/" not in href or "child-maintenance" not in href.lower():
             continue
         match = _SLUG_PERIOD_RE.search(href.lower())

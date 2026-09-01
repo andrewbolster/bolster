@@ -49,8 +49,10 @@ from __future__ import annotations
 import logging
 import re
 from functools import lru_cache
+from typing import cast
 
 import pandas as pd
+from bs4 import Tag  # noqa: TC002 (used inside `cast(...)`, evaluated at runtime)
 
 from bolster.utils.cache import CachedDownloader, DownloadError
 from bolster.utils.web import fetch_soup, scrape_file_links
@@ -114,10 +116,11 @@ def get_bulletin_pages() -> dict[int, str]:
     soup = fetch_soup(DAERA_ARTICLE_PAGE)
 
     pages: dict[int, str] = {}
-    for anchor in soup.find_all("a", href=True):
-        match = _BULLETIN_RE.search(anchor["href"])
+    for anchor in cast("list[Tag]", soup.find_all("a", href=True)):
+        href = cast("str", anchor["href"])
+        match = _BULLETIN_RE.search(href)
         if match:
-            pages[int(match.group(1))] = _absolute(anchor["href"])
+            pages[int(match.group(1))] = _absolute(href)
 
     if not pages:
         raise DAERADataNotFoundError(f"No greenhouse gas bulletin pages found on {DAERA_ARTICLE_PAGE}")

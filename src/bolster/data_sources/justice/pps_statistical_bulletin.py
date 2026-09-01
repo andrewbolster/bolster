@@ -60,9 +60,11 @@ Example:
 import logging
 import re
 from pathlib import Path
+from typing import cast
 from urllib.parse import urljoin
 
 import pandas as pd
+from bs4 import Tag  # noqa: TC002 (used inside `cast(...)`, evaluated at runtime)
 
 from bolster.utils.cache import CachedDownloader, bind_download_file, stitch_publications
 from bolster.utils.web import fetch_soup, scrape_file_links
@@ -479,7 +481,7 @@ def list_publications(base_url: str = PUBLICATION_URL) -> list[dict]:
         raise PPSDataNotFoundError(f"Failed to fetch publication page {base_url}: {e}") from e
 
     publications: dict[str, dict] = {}
-    for anchor in soup.find_all("a", href=True):
+    for anchor in cast("list[Tag]", soup.find_all("a", href=True)):
         title = " ".join(anchor.get_text().split())
         if "statistical bulletin" not in title.lower():
             continue
@@ -488,7 +490,7 @@ def list_publications(base_url: str = PUBLICATION_URL) -> list[dict]:
         if not financial_year:
             continue
         quarters = re.search(r"quarters?\s+([0-9]+(?:\s*-\s*[0-9]+)?)", title, re.IGNORECASE)
-        url = urljoin(base_url, anchor["href"])
+        url = urljoin(base_url, cast("str", anchor["href"]))
         publications[url] = {
             "title": title,
             "url": url,
