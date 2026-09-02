@@ -94,7 +94,15 @@ class TestStopDataframe:
 class TestFindStop:
     @pytest.fixture(scope="class")
     def results(self):
-        return find_stop("Cambria Street")
+        # Not "Cambria Street": Translink's own locationApi/find deterministically
+        # returns an unrelated stop (Sion Mills) for that exact two-word phrase,
+        # confirmed reproducible outside CI too — not a transient flake. Every
+        # other two-word street name tried (e.g. "Great Victoria Street",
+        # "Donegall Street") resolves correctly via the same request, so this is
+        # an upstream search quirk specific to this one phrase, not a bug in
+        # find_stop() or in how it builds the request. The shorter "Cambria"
+        # query reliably finds the same real stop (Shankill, Cambria Street).
+        return find_stop("Cambria")
 
     def test_returns_list(self, results):
         assert isinstance(results, list)
