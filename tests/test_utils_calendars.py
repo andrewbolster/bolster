@@ -1,4 +1,4 @@
-"""Unit tests for bolster.utils.availability.
+"""Unit tests for bolster.utils.calendars.
 
 These tests use mocked HTTP responses and in-memory ICS text — no real
 network calls, matching test_utils_datatables.py's convention for generic
@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from icalendar import Calendar as ICalendar
 
-from bolster.utils.availability import (
+from bolster.utils.calendars import (
     BUSY,
     FREE,
     TENTATIVE,
@@ -93,21 +93,21 @@ class TestEventSeverity:
 
 class TestFetchIcs:
     def test_fetch_success(self):
-        with patch("bolster.utils.availability.session") as mock_session:
+        with patch("bolster.utils.calendars.session") as mock_session:
             mock_session.get.return_value = _make_response(content=BUSY_ICAL.encode())
             cal = fetch_ics("work", "https://example.com/work.ics")
             assert cal is not None
             assert len(cal.walk("VEVENT")) == 1
 
     def test_fetch_http_error_returns_none(self):
-        with patch("bolster.utils.availability.session") as mock_session:
+        with patch("bolster.utils.calendars.session") as mock_session:
             mock_session.get.side_effect = ConnectionError("network unreachable")
             assert fetch_ics("work", "https://example.com/work.ics") is None
 
     def test_fetch_raise_for_status_error_returns_none(self):
         response = _make_response(content=b"not found")
         response.raise_for_status.side_effect = RuntimeError("404")
-        with patch("bolster.utils.availability.session") as mock_session:
+        with patch("bolster.utils.calendars.session") as mock_session:
             mock_session.get.return_value = response
             assert fetch_ics("work", "https://example.com/work.ics") is None
 
@@ -117,7 +117,7 @@ class TestCollectIntervals:
         tz = ZoneInfo("Europe/London")
         window_start = datetime(2024, 12, 1, tzinfo=tz)
         window_end = datetime(2024, 12, 8, tzinfo=tz)
-        with patch("bolster.utils.availability.session") as mock_session:
+        with patch("bolster.utils.calendars.session") as mock_session:
             mock_session.get.return_value = _make_response(content=BUSY_ICAL.encode())
             intervals = collect_intervals(
                 [{"name": "work", "url": "https://example.com/work.ics"}], window_start, window_end, tz
@@ -137,7 +137,7 @@ class TestCollectIntervals:
                 raise ConnectionError("nope")
             return _make_response(content=BUSY_ICAL.encode())
 
-        with patch("bolster.utils.availability.session") as mock_session:
+        with patch("bolster.utils.calendars.session") as mock_session:
             mock_session.get.side_effect = fake_get
             intervals = collect_intervals(
                 [
@@ -155,7 +155,7 @@ class TestCollectIntervals:
         tz = ZoneInfo("Europe/London")
         window_start = datetime(2024, 12, 1, tzinfo=tz)
         window_end = datetime(2024, 12, 8, tzinfo=tz)
-        with patch("bolster.utils.availability.session") as mock_session:
+        with patch("bolster.utils.calendars.session") as mock_session:
             mock_session.get.return_value = _make_response(content=EMPTY_ICAL.encode())
             intervals = collect_intervals(
                 [{"name": "work", "url": "https://example.com/work.ics"}], window_start, window_end, tz
@@ -172,7 +172,7 @@ class TestCollectIntervals:
         tz = ZoneInfo("Europe/London")
         window_start = datetime(2024, 12, 1, tzinfo=tz)
         window_end = datetime(2024, 12, 8, tzinfo=tz)
-        with patch("bolster.utils.availability.session") as mock_session:
+        with patch("bolster.utils.calendars.session") as mock_session:
             mock_session.get.return_value = _make_response(content=ical.encode())
             intervals = collect_intervals(
                 [{"name": "work", "url": "https://example.com/work.ics"}], window_start, window_end, tz
@@ -189,7 +189,7 @@ class TestCollectIntervals:
         tz = ZoneInfo("Europe/London")
         window_start = datetime(2024, 12, 1, tzinfo=tz)
         window_end = datetime(2024, 12, 8, tzinfo=tz)
-        with patch("bolster.utils.availability.session") as mock_session:
+        with patch("bolster.utils.calendars.session") as mock_session:
             mock_session.get.return_value = _make_response(content=ical.encode())
             intervals = collect_intervals(
                 [{"name": "work", "url": "https://example.com/work.ics"}], window_start, window_end, tz
@@ -280,7 +280,7 @@ class TestGetMergedAvailability:
             get_merged_availability([])
 
     def test_end_to_end(self):
-        with patch("bolster.utils.availability.session") as mock_session:
+        with patch("bolster.utils.calendars.session") as mock_session:
             mock_session.get.return_value = _make_response(content=BUSY_ICAL.encode())
             result = get_merged_availability(
                 [{"name": "work", "url": "https://example.com/work.ics"}],
@@ -292,7 +292,7 @@ class TestGetMergedAvailability:
         assert "[work]" in result
 
     def test_default_start_date_is_now(self):
-        with patch("bolster.utils.availability.session") as mock_session:
+        with patch("bolster.utils.calendars.session") as mock_session:
             mock_session.get.return_value = _make_response(content=EMPTY_ICAL.encode())
             result = get_merged_availability(
                 [{"name": "work", "url": "https://example.com/work.ics"}],

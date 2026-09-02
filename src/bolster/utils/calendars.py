@@ -13,7 +13,7 @@ process listings) rather than through whatever secret-management a caller
 already has.
 
 Example:
-    >>> from bolster.utils.availability import event_severity, FREE
+    >>> from bolster.utils.calendars import event_severity, FREE
     >>> from icalendar import Calendar
     >>> cal = Calendar.from_ical('''BEGIN:VCALENDAR
     ... VERSION:2.0
