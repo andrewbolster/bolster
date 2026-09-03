@@ -124,6 +124,16 @@ jobs:
                           const vLabel = pr.labels.map(l => l.name).find(n => n.startsWith('version:'));
                           if (vLabel) {
                             labelOverride = vLabel.replace('version:', '');
+                            // Major is never auto-applied, from a label any more than from
+                            // a commit message — pr-labeler.yml applies version:major
+                            // automatically based on its own (imperfect) detection, and
+                            // that automated label shouldn't be able to do what an
+                            // automated commit-message scan already isn't allowed to do.
+                            // Declaring 1.0.0 stays a workflow_dispatch-only decision.
+                            if (labelOverride === 'major') {
+                              console.log(`PR #${pr.number} label version:major downgraded to minor — major is never auto-applied`);
+                              labelOverride = 'minor';
+                            }
                             console.log(`PR #${pr.number} label override: ${labelOverride}`);
                             break;
                           }
