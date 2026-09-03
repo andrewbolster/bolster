@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.0] - 2026-09-03
+
+- fix: feat: commits bump patch, not minor, below 1.0.0 (#2111)
+- feat: add bolster.utils.availability — merged ICS free/busy utility (#2107)
+
+
 ## [0.7.4] - 2026-09-03
 
 - fix: stop testing find_stop against a phrase Translink's own search mishandles (#2109)
