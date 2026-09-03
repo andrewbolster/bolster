@@ -43,18 +43,18 @@ jobs:
       id: classify
       run: |
         uv run scripts/nisra_feed_tfidf.py \
-          --limit ${{ inputs.limit || '20' }} \
-          --covered-threshold ${{ inputs.covered_threshold || '0.60' }} \
-          --adjacent-threshold ${{ inputs.adjacent_threshold || '0.40' }} \
+          --limit "${{ inputs.limit || '20' }}" \
+          --covered-threshold "${{ inputs.covered_threshold || '0.60' }}" \
+          --adjacent-threshold "${{ inputs.adjacent_threshold || '0.40' }}" \
           --verbose \
           --json-out results.json \
           --github-summary \
-          || EXIT_CODE=$?
+          || true
 
         NEW_COUNT=$(python3 -c "import json; r=json.load(open('results.json')); print(sum(1 for x in r if x['status']=='new'))")
         ADJACENT_COUNT=$(python3 -c "import json; r=json.load(open('results.json')); print(sum(1 for x in r if x['status']=='adjacent'))")
-        echo "new_count=$NEW_COUNT" >> $GITHUB_OUTPUT
-        echo "adjacent_count=$ADJACENT_COUNT" >> $GITHUB_OUTPUT
+        echo "new_count=$NEW_COUNT" >> "$GITHUB_OUTPUT"
+        echo "adjacent_count=$ADJACENT_COUNT" >> "$GITHUB_OUTPUT"
         echo "New datasets found: $NEW_COUNT, Adjacent: $ADJACENT_COUNT"
 
         # Exit 0 even if new entries found — we handle that in the next job

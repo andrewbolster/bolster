@@ -92,6 +92,7 @@ jobs:
                     exit 0
                   fi
 
+                  # shellcheck disable=SC2016 # the backticks below are a literal markdown code fence, not command substitution
                   printf 'Automated version bump to %s.\n\n## Changes in this release\n\n%s\n\n## Installation\n\n```bash\npip install bolster==%s\n```\n\n## Documentation\n\n- [Documentation](https://bolster.readthedocs.io)\n- [PyPI Package](https://pypi.org/project/bolster/%s/)\n\n---\n*This PR was automatically created by the release workflow.*\n' \
                     "${VERSION}" "${CHANGELOG}" "${VERSION}" "${VERSION}" \
                     > /tmp/pr-body.md
