@@ -5,7 +5,13 @@ name: Release Logic (Reusable)
 # Inputs
 # ------
 # version_bump   : override bump type ('auto' means analyse commits)
-# block_minor    : when true, feat: commits require manual workflow_dispatch
+# block_minor    : when true, a detected breaking change requires manual
+#                  workflow_dispatch instead of auto-releasing. Below 1.0.0,
+#                  the minor position (0.X.y) is what block_minor guards —
+#                  feat: commits bump patch automatically, since a new
+#                  non-breaking feature isn't the kind of event a 0.x
+#                  package needs a human to sign off on; only an actual
+#                  BREAKING CHANGE/`!:` commit does.
 # package_name   : PyPI package name (used in PR body installation snippet)
 # docs_url       : documentation URL (omitted from PR body when blank)
 # pypi_base_url  : PyPI package base URL, e.g. https://pypi.org/project/bolster
@@ -138,22 +144,28 @@ jobs:
                         return;
                       }
 
+                      // Below 1.0.0 the minor position is the one that
+                      // signals a real compatibility break — feat: commits
+                      // are new, non-breaking functionality and bump patch
+                      // like everything else. Only an explicit BREAKING
+                      // CHANGE/`!:` marker bumps minor. major is never
+                      // auto-detected from commit messages at all — it's
+                      // only reachable via an explicit workflow_dispatch
+                      // (the versionBumpInput branch above), since declaring
+                      // 1.0.0 is a decision only a human makes.
                       let versionBump = labelOverride || 'patch';
                       if (!labelOverride) {
                         let hasBreaking = false;
-                        let hasFeatures = false;
                         for (const commit of releaseCommits) {
                           if (commit.includes('BREAKING CHANGE') || commit.includes('!:')) { hasBreaking = true; break; }
-                          if (commit.match(/^feat(\(.*\))?:/)) hasFeatures = true;
                         }
-                        if (hasBreaking) versionBump = 'major';
-                        else if (hasFeatures) versionBump = 'minor';
+                        if (hasBreaking) versionBump = 'minor';
                       }
 
-                      // Gate: major always requires manual dispatch; minor too when block_minor=true
+                      // Gate: a detected breaking change requires manual dispatch when block_minor=true
                       const blockMinor = '${{ inputs.block_minor }}' === 'true';
-                      if (versionBump === 'major' || (versionBump === 'minor' && blockMinor)) {
-                        console.log(`${versionBump} bump detected — requires manual workflow_dispatch`);
+                      if (versionBump === 'minor' && blockMinor) {
+                        console.log(`${versionBump} bump detected (breaking change) — requires manual workflow_dispatch`);
                         core.setOutput('should_release', 'false');
                         return;
                       }
@@ -200,9 +212,9 @@ jobs:
 
             - name: Bump version
               run: |
-                  uv run bump-my-version bump ${{ needs.analyze-changes.outputs.version_bump }}
+                  uv run bump-my-version bump "${{ needs.analyze-changes.outputs.version_bump }}"
                   NEW_VERSION=$(uv run bump-my-version show current_version)
-                  echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+                  echo "NEW_VERSION=$NEW_VERSION" >> "$GITHUB_ENV"
 
             - name: Generate changelog entry
               env:
