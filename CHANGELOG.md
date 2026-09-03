@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.4] - 2026-09-03
+
+- fix: stop testing find_stop against a phrase Translink's own search mishandles (#2109)
+- fix(rebase): update up to 5 PRs per trigger, not just one (#2103)
+
+
 ## [0.7.3] - 2026-09-01
 
 - fix(release-logic): push the branch and tag via BOLSTER_TOKEN (#2094)
