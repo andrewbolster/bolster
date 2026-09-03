@@ -45,9 +45,11 @@ Example:
 import logging
 import re
 from pathlib import Path
+from typing import cast
 from urllib.parse import urljoin
 
 import pandas as pd
+from bs4 import Tag  # noqa: TC002 (used inside `cast(...)`, evaluated at runtime)
 
 from bolster.utils.cache import CachedDownloader, DownloadError
 from bolster.utils.web import fetch_soup, scrape_file_links
@@ -156,8 +158,8 @@ def list_publications(index_url: str = INDEX_URL) -> list[dict]:
         raise SchoolTravelDataNotFoundError(f"Failed to fetch YPBAS index page {index_url}: {e}") from e
 
     publications: dict[int, str] = {}
-    for anchor in soup.find_all("a", href=True):
-        href = anchor["href"]
+    for anchor in cast("list[Tag]", soup.find_all("a", href=True)):
+        href = cast("str", anchor["href"])
         lowered = href.lower()
         if "/publications/" not in lowered or "travel" not in lowered or "school" not in lowered:
             continue

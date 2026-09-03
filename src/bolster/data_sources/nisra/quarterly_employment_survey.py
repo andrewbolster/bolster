@@ -33,9 +33,10 @@ Example:
 import logging
 import re
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from bolster.utils.web import session
 
@@ -68,8 +69,8 @@ def get_latest_qes_publication_url() -> str:
     soup = BeautifulSoup(response.content, "html.parser")
 
     # Find the supplementary tables publication link
-    for link in soup.find_all("a", href=True):
-        href = link["href"]
+    for link in cast("list[Tag]", soup.find_all("a", href=True)):
+        href = cast("str", link["href"])
         if "supplementary-tables" not in href or "quarterly-employment-survey" not in href:
             continue
 
@@ -82,8 +83,8 @@ def get_latest_qes_publication_url() -> str:
             continue
 
         pub_soup = BeautifulSoup(pub_resp.content, "html.parser")
-        for file_link in pub_soup.find_all("a", href=True):
-            file_href = file_link["href"]
+        for file_link in cast("list[Tag]", pub_soup.find_all("a", href=True)):
+            file_href = cast("str", file_link["href"])
             if "supplementary_tables" in file_href and file_href.endswith(".xlsx"):
                 excel_url = file_href if file_href.startswith("http") else f"{QES_BASE_URL}{file_href}"
                 logger.info(f"Found QES supplementary tables: {excel_url}")

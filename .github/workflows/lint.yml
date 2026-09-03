@@ -13,17 +13,16 @@ jobs:
         runs-on: ubuntu-latest
         steps:
           - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
-          # Scope and version both mirror .pre-commit-config.yaml so CI and the
-          # local hooks cannot disagree about what counts as clean.
-          - uses: astral-sh/ruff-action@278981a28ce3188b1e39527901f38254bf3aac89  # v4.1.0
+          - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d  # v10.0.1
             with:
-              version: "0.9.10"
-              src: "./src ./tests"
-          - uses: astral-sh/ruff-action@278981a28ce3188b1e39527901f38254bf3aac89  # v4.1.0
-            with:
-              version: "0.9.10"
-              src: "./src ./tests"
-              args: "format --check --diff"
+              python-version: "3.11"
+          # Runs the exact hook config in .pre-commit-config.yaml — CI and
+          # local pre-commit cannot disagree about what counts as clean,
+          # since there's only one place (that file) where versions live.
+          - name: Install dependencies
+            run: uv sync --group dev
+          - name: Run pre-commit
+            run: uv run pre-commit run --all-files --show-diff-on-failure
 
     security:
         runs-on: ubuntu-latest
@@ -36,3 +35,19 @@ jobs:
             run: uv tool install bandit
           - name: Run bandit security scan
             run: bandit -r src/bolster -ll -x src/bolster/cli.py
+
+    mypy:
+        runs-on: ubuntu-latest
+        # Not a pre-commit hook: 341 pre-existing errors across 50 files on
+        # first run would block every local commit. A separate job here
+        # instead — a real, visible, independently-failing merge status
+        # check without gating commits on a debt this change didn't create.
+        steps:
+          - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+          - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d  # v10.0.1
+            with:
+              python-version: "3.11"
+          - name: Install dependencies
+            run: uv sync --group dev
+          - name: Run mypy
+            run: uv run mypy src/bolster --ignore-missing-imports

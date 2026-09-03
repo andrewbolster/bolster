@@ -145,7 +145,7 @@ def filter_relevant_files(order_status: dict) -> list[dict]:
 def make_borders(data: bytes) -> Image.Image:
     """Create image borders from Met Office geographic data."""
     # Convert to grayscale
-    img = Image.open(BytesIO(data))
+    img: Image.Image = Image.open(BytesIO(data))
     img = img.point(lambda i: 255 if i else 0)
     # Convert to binary image
     img = img.convert("1")
