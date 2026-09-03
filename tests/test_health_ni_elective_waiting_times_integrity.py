@@ -203,3 +203,42 @@ class TestValidation:
         )
         # Should not raise — NaN rows are excluded from the negative check
         assert ewt.validate_elective_waiting_times(df) is True
+
+
+class TestParseFile:
+    """Tests for parse_elective_waiting_times_file() and sheet-name resolution."""
+
+    @pytest.fixture(scope="class")
+    def inpatient_path(self):
+        from bolster.data_sources.health_ni._base import download_file
+
+        url = ewt.get_elective_waiting_times_url()["inpatient"]
+        return download_file(url, force_refresh=False)
+
+    def test_parses_inpatient_file_directly(self, inpatient_path):
+        """parse_elective_waiting_times_file() must auto-detect inpatient files."""
+        df = ewt.parse_elective_waiting_times_file(inpatient_path)
+        assert "management" in df.columns
+        assert (df["waiting_type"] == "inpatient_day_case").all()
+
+    def test_no_matching_sheets_raises(self, tmp_path):
+        """A workbook with no Pre-encompass/Table 1/encompass/Table 2 sheet must raise."""
+        fake = tmp_path / "unrelated.xlsx"
+        pd.DataFrame({"a": [1]}).to_excel(fake, sheet_name="Unrelated Sheet", index=False)
+
+        with pytest.raises(NISRAValidationError, match="No data sheets found"):
+            ewt.parse_elective_waiting_times_file(fake)
+
+    def test_resolve_sheet_prefers_first_match(self):
+        """_resolve_sheet must return the first candidate present, in order."""
+        assert ewt._resolve_sheet(["Table 1", "Pre-encompass"], ("Pre-encompass", "Table 1")) == "Pre-encompass"
+        assert ewt._resolve_sheet(["Table 1"], ("Pre-encompass", "Table 1")) == "Table 1"
+        assert ewt._resolve_sheet(["Unrelated"], ("Pre-encompass", "Table 1")) is None
+
+    def test_parse_file_no_matching_sheets_raises(self, tmp_path):
+        """_parse_file() (used directly by get_latest_elective_waiting_times) must also raise."""
+        fake = tmp_path / "unrelated2.xlsx"
+        pd.DataFrame({"a": [1]}).to_excel(fake, sheet_name="Unrelated Sheet", index=False)
+
+        with pytest.raises(NISRAValidationError, match="No data sheets found"):
+            ewt._parse_file(fake, "inpatient_day_case")
