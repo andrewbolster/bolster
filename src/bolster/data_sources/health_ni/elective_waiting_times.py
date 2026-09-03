@@ -79,9 +79,12 @@ logger = logging.getLogger(__name__)
 DOH_INPATIENT_PAGE = "https://www.health-ni.gov.uk/articles/inpatient-waiting-times"
 DOH_OUTPATIENT_PAGE = "https://www.health-ni.gov.uk/articles/outpatient-waiting-times"
 
-# Sheet names (same in both inpatient and outpatient files)
-SHEET_PRE_ENCOMPASS = "Pre-encompass"
-SHEET_ENCOMPASS = "encompass"
+# Sheet names (same in both inpatient and outpatient files). NISRA renamed
+# these from "Pre-encompass"/"encompass" to "Table 1"/"Table 2" starting with
+# the Q1 2026-27 publication (same columns, same data — title only), so each
+# era is tried in order and the first match wins.
+SHEET_PRE_ENCOMPASS_CANDIDATES = ("Pre-encompass", "Table 1")
+SHEET_ENCOMPASS_CANDIDATES = ("encompass", "Table 2")
 
 # Expected HSC Trusts (excluding DPC variants)
 EXPECTED_TRUSTS = {"Belfast", "Northern", "South Eastern", "Southern", "Western"}
@@ -156,6 +159,11 @@ def get_elective_waiting_times_url() -> dict[str, str]:
         "inpatient": find_latest_xlsx(DOH_INPATIENT_PAGE, keyword="inpatient-and-day-case"),
         "outpatient": find_latest_xlsx(DOH_OUTPATIENT_PAGE, keyword="outpatient"),
     }
+
+
+def _resolve_sheet(sheet_names: list[str], candidates: tuple[str, ...]) -> str | None:
+    """Return the first name in ``candidates`` present in ``sheet_names``, or None."""
+    return next((name for name in candidates if name in sheet_names), None)
 
 
 def _parse_inpatient_sheet(file_path: str | Path, sheet_name: str) -> pd.DataFrame:
@@ -264,9 +272,13 @@ def _parse_file(file_path: str | Path, waiting_type: str) -> pd.DataFrame:
         sheet_names = xl.sheet_names
 
     parts = []
-    for sheet in [SHEET_PRE_ENCOMPASS, SHEET_ENCOMPASS]:
-        if sheet not in sheet_names:
-            logger.warning(f"Sheet '{sheet}' not found in {file_path} — skipping")
+    for label, candidates in (
+        ("Pre-encompass", SHEET_PRE_ENCOMPASS_CANDIDATES),
+        ("encompass", SHEET_ENCOMPASS_CANDIDATES),
+    ):
+        sheet = _resolve_sheet(sheet_names, candidates)
+        if sheet is None:
+            logger.warning(f"No sheet matching {candidates} found in {file_path} — skipping")
             continue
 
         if waiting_type == "inpatient_day_case":
@@ -274,7 +286,7 @@ def _parse_file(file_path: str | Path, waiting_type: str) -> pd.DataFrame:
         else:
             chunk = _parse_outpatient_sheet(file_path, sheet)
 
-        chunk["data_source"] = sheet  # Pre-encompass vs encompass label
+        chunk["data_source"] = label  # Pre-encompass vs encompass label, stable across sheet-title renames
         parts.append(chunk)
 
     if not parts:
@@ -336,7 +348,11 @@ def parse_elective_waiting_times_file(file_path: str | Path) -> pd.DataFrame:
     with pd.ExcelFile(file_path) as xl:
         sheet_names = xl.sheet_names
 
-    target_sheet = SHEET_PRE_ENCOMPASS if SHEET_PRE_ENCOMPASS in sheet_names else SHEET_ENCOMPASS
+    target_sheet = _resolve_sheet(sheet_names, SHEET_PRE_ENCOMPASS_CANDIDATES) or _resolve_sheet(
+        sheet_names, SHEET_ENCOMPASS_CANDIDATES
+    )
+    if target_sheet is None:
+        raise NISRAValidationError(f"No data sheets found in {file_path}")
     probe = pd.read_excel(file_path, sheet_name=target_sheet, nrows=0)
 
     waiting_type = "inpatient_day_case" if "Management" in probe.columns else "outpatient"
