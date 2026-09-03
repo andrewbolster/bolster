@@ -34,15 +34,25 @@ jobs:
             pull_number: number
           });
 
+          // Get commits — breaking-change detection below deliberately reads
+          // actual commit messages, not PR title/body prose. A PR that
+          // *discusses* "BREAKING CHANGE" (e.g. one fixing this very
+          // detection logic) previously got mislabeled version:major by a
+          // prBody.includes('BREAKING CHANGE') substring check, which then
+          // got trusted as a release-blocking override downstream.
+          const commitsResp = await github.rest.pulls.listCommits({
+            owner,
+            repo,
+            pull_number: number
+          });
+
           const changedFiles = files.data.map(f => f.filename);
-          const prBody = pr.data.body || '';
           const prTitle = pr.data.title || '';
 
           console.log('Changed files:', changedFiles);
 
           // Determine labels based on changes
           const labelsToAdd = [];
-          const labelsToRemove = [];
 
           // Auto-detect type based on files and conventional commits
           if (changedFiles.some(f => f.startsWith('docs/') || f === 'README.md')) {
@@ -61,23 +71,30 @@ jobs:
             labelsToAdd.push('data-source');
           }
 
-          // Check for breaking changes (constitutional review required)
-          if (prBody.includes('BREAKING CHANGE') || prTitle.includes('!:') ||
-              prBody.includes('💥 Breaking change')) {
+          // Breaking change = an actual conventional-commit marker on a real
+          // commit: `type!:` in the header, or a `BREAKING CHANGE:` footer
+          // line. Not freeform title/body text.
+          const breakingHeaderRe = /^\w+(\(.*\))?!:/;
+          const hasBreakingCommit = commitsResp.data.some(c => {
+            const message = c.commit.message || '';
+            const [header, ...rest] = message.split('\n');
+            const body = rest.join('\n');
+            return breakingHeaderRe.test(header) || /^BREAKING CHANGE:/m.test(body);
+          });
+
+          if (hasBreakingCommit) {
             labelsToAdd.push('version:major', 'breaking-change', 'constitutional-review');
           }
           // Check for new features
-          else if (prTitle.match(/^feat(\(.*\))?:/) || prBody.includes('✨ New feature')) {
+          else if (prTitle.match(/^feat(\(.*\))?:/)) {
             labelsToAdd.push('version:minor', 'enhancement');
           }
           // Check for bug fixes
-          else if (prTitle.match(/^fix(\(.*\))?:/) || prBody.includes('🐛 Bug fix')) {
+          else if (prTitle.match(/^fix(\(.*\))?:/)) {
             labelsToAdd.push('version:patch', 'bug');
           }
           // Check for docs/maintenance only
-          else if (prTitle.match(/^(docs?|chore|ci|style|test)(\(.*\))?:/) ||
-                   prBody.includes('📚 Documentation update') ||
-                   prBody.includes('🔧 Maintenance')) {
+          else if (prTitle.match(/^(docs?|chore|ci|style|test)(\(.*\))?:/)) {
             labelsToAdd.push('version:skip');
           }
 
