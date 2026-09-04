@@ -227,14 +227,101 @@ def merge_timeline(intervals: list[Interval], window_start: datetime, window_end
     return merged
 
 
+def _day_bounds(day: date, tz: ZoneInfo, day_start_hour: int, day_end_hour: int) -> tuple[datetime, datetime]:
+    return (
+        datetime.combine(day, time(hour=day_start_hour), tzinfo=tz),
+        datetime.combine(day, time(hour=day_end_hour), tzinfo=tz),
+    )
+
+
+def add_free_gaps(
+    merged: list[Interval],
+    window_start: datetime,
+    window_end: datetime,
+    *,
+    day_start_hour: int = 8,
+    day_end_hour: int = 20,
+) -> list[Interval]:
+    """Fill the gaps between busy/tentative segments with explicit FREE ones.
+
+    Asked to read a busy-only list, a small model reliably fabricates or
+    mislabels "free" time rather than correctly computing the complement —
+    observed live, it repeatedly invented specific free hours nowhere in the
+    data, and in one run reused a listed BUSY block as if it were free. This
+    computes the complement instead of leaving a caller (human or model) to.
+
+    Bounded to [day_start_hour, day_end_hour) each day rather than the full
+    24 hours: stating every night as "free" would swamp the real signal for
+    no benefit, and it keeps every synthesised segment within a single
+    calendar day, which format_timeline's one-segment-per-line rendering
+    assumes.
+
+    Args:
+        merged: Output of merge_timeline (busy/tentative only).
+        window_start: Start of the query window.
+        window_end: End of the query window.
+        day_start_hour: Start of the free-gap tracking window each day.
+        day_end_hour: End of the free-gap tracking window each day.
+
+    Returns:
+        merged, plus one FREE Interval per gap within the tracked window on
+        every day in range — including a single day-spanning FREE Interval
+        for a day with no busy/tentative activity at all.
+
+    Example:
+        >>> from datetime import datetime
+        >>> from zoneinfo import ZoneInfo
+        >>> tz = ZoneInfo("Europe/London")
+        >>> start = datetime(2025, 1, 6, tzinfo=tz)  # Monday
+        >>> end = datetime(2025, 1, 7, tzinfo=tz)
+        >>> filled = add_free_gaps([], start, end)
+        >>> len(filled)
+        1
+        >>> filled[0].severity == FREE
+        True
+    """
+    tz = window_start.tzinfo
+    result = list(merged)
+
+    day = window_start.date()
+    last_day = window_end.date()
+    while day <= last_day:
+        day_start, day_end = _day_bounds(day, tz, day_start_hour, day_end_hour)
+        day_start = max(day_start, window_start)
+        day_end = min(day_end, window_end)
+        if day_start >= day_end:
+            day += timedelta(days=1)
+            continue
+
+        busy_today = sorted(
+            (m for m in merged if m.start < day_end and m.end > day_start),
+            key=lambda m: m.start,
+        )
+
+        cursor = day_start
+        for seg in busy_today:
+            seg_start = max(seg.start, day_start)
+            if seg_start > cursor:
+                result.append(Interval(cursor, seg_start, FREE, "", ""))
+            cursor = max(cursor, min(seg.end, day_end))
+        if cursor < day_end:
+            result.append(Interval(cursor, day_end, FREE, "", ""))
+
+        day += timedelta(days=1)
+
+    return sorted(result, key=lambda i: i.start)
+
+
 def format_timeline(
     merged: list[Interval],
     window_start: datetime,
     window_end: datetime,
     *,
     detailed: bool,
+    day_start_hour: int = 8,
+    day_end_hour: int = 20,
 ) -> str:
-    """Render a merged timeline as text.
+    """Render a merged timeline as text, with explicit free gaps filled in.
 
     Args:
         merged: Output of merge_timeline.
@@ -244,29 +331,55 @@ def format_timeline(
             behind each block — for a caller who owns the calendars. If
             False, show only plain free/busy/tentative time ranges with
             no calendar source or event content — safe to show to anyone.
+        day_start_hour: Start of the free-gap tracking window each day —
+            see add_free_gaps.
+        day_end_hour: End of the free-gap tracking window each day.
 
     Returns:
         Multi-line text report.
     """
     header = f"Availability {window_start:%Y-%m-%d %H:%M} to {window_end:%Y-%m-%d %H:%M} ({window_start.tzname()}):"
-    if not merged:
-        return f"{header}\n\n✅ No busy or tentative time found — fully free."
+    filled = add_free_gaps(merged, window_start, window_end, day_start_hour=day_start_hour, day_end_hour=day_end_hour)
+
+    # "free all day" only when *nothing* — including outside the tracked
+    # window — is scheduled that calendar date. Tried gating this on the
+    # tracked window alone first: a day free 08:00-20:00 but with a real
+    # event at 21:00 (outside it) got "free all day" printed right next to
+    # that event, which a small model read as self-contradictory and
+    # resolved by inventing a story. Tried dropping the phrase entirely
+    # instead: a small model reading a long list of explicit HH:MM-HH:MM
+    # FREE lines reliably undercounted which days were actually free,
+    # including once concluding a fully-free weekend was "fully booked"
+    # since neither day got its own summary line. This is the version that
+    # tested clean on both counts.
+    scheduled_dates = {d for m in merged for d in (m.start.date(), m.end.date())}
 
     lines = [header, ""]
     current_day = None
-    for seg in merged:
+    for seg in filled:
         day = seg.start.date()
         if day != current_day:
             current_day = day
             lines.append(f"{day.strftime('%A %d %B')}")
+
+        day_start, day_end = _day_bounds(day, seg.start.tzinfo, day_start_hour, day_end_hour)
+        spans_tracked_window = seg.start <= max(day_start, window_start) and seg.end >= min(day_end, window_end)
+        if seg.severity == FREE and spans_tracked_window and day not in scheduled_dates:
+            lines.append("  free all day")
+            continue
+
         label = SEVERITY_LABEL[seg.severity].upper()
         line = f"  {seg.start.strftime('%H:%M')}-{seg.end.strftime('%H:%M')}  {label}"
-        if detailed:
+        if detailed and seg.calendar:
             line += f"  [{seg.calendar}] {seg.summary}"
         lines.append(line)
 
+    lines.append("")
+    lines.append(
+        f"Free time is shown for {day_start_hour:02d}:00-{day_end_hour:02d}:00 each day; "
+        'outside that window is not tracked. "free all day" means nothing at all is scheduled that day.'
+    )
     if not detailed:
-        lines.append("")
         lines.append("Note: showing free/busy only. Calendar source and event details are private.")
 
     return "\n".join(lines)
@@ -279,6 +392,8 @@ def get_merged_availability(
     days_ahead: int = 7,
     detailed: bool = True,
     tz_name: str = "Europe/London",
+    day_start_hour: int = 8,
+    day_end_hour: int = 20,
 ) -> str:
     """Fetch, merge, and render availability across several ICS calendars.
 
@@ -293,6 +408,9 @@ def get_merged_availability(
         detailed: If True, include calendar name and event title per
             block. If False, plain free/busy/tentative only.
         tz_name: IANA timezone name for the query window and output.
+        day_start_hour: Start of the free-gap tracking window each day —
+            see add_free_gaps.
+        day_end_hour: End of the free-gap tracking window each day.
 
     Returns:
         Multi-line text report (see format_timeline).
@@ -315,4 +433,11 @@ def get_merged_availability(
 
     intervals = collect_intervals(calendars, window_start, window_end, tz)
     merged = merge_timeline(intervals, window_start, window_end)
-    return format_timeline(merged, window_start, window_end, detailed=detailed)
+    return format_timeline(
+        merged,
+        window_start,
+        window_end,
+        detailed=detailed,
+        day_start_hour=day_start_hour,
+        day_end_hour=day_end_hour,
+    )
