@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.7.7] - 2026-09-04
+
+Manual release triggered
+
+
 ## [0.7.6] - 2026-09-04
 
 - fix: pr-labeler.yml still labelled feat: PRs version:minor (#2119)
