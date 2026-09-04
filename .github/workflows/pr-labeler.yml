@@ -85,9 +85,14 @@ jobs:
           if (hasBreakingCommit) {
             labelsToAdd.push('version:major', 'breaking-change', 'constitutional-review');
           }
-          // Check for new features
+          // Below 1.0.0 a new feature is a patch, same as release-logic.yml's
+          // own commit-message analysis — only an actual BREAKING CHANGE
+          // bumps minor. This used to say version:minor, which meant a
+          // feat: PR's own label blocked release-logic's block_minor gate
+          // from ever auto-releasing it, silently overriding the policy
+          // that gate exists to enforce.
           else if (prTitle.match(/^feat(\(.*\))?:/)) {
-            labelsToAdd.push('version:minor', 'enhancement');
+            labelsToAdd.push('version:patch', 'enhancement');
           }
           // Check for bug fixes
           else if (prTitle.match(/^fix(\(.*\))?:/)) {
