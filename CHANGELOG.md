@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.7.6] - 2026-09-04
+
+- fix: pr-labeler.yml still labelled feat: PRs version:minor (#2119)
+
+
 ## [0.7.5] - 2026-09-03
 
 - fix(elective_waiting_times): handle NISRA's Table 1/2 sheet rename (#2115)
