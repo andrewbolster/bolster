@@ -17,6 +17,7 @@ from bolster.utils.calendars import (
     FREE,
     TENTATIVE,
     Interval,
+    add_free_gaps,
     collect_intervals,
     event_severity,
     fetch_ics,
@@ -245,6 +246,71 @@ class TestMergeTimeline:
         assert merge_timeline([], datetime(2024, 12, 2, tzinfo=tz), datetime(2024, 12, 3, tzinfo=tz)) == []
 
 
+class TestAddFreeGaps:
+    """A small model reading a busy-only list reliably fabricates or misreads
+    "free" time rather than computing the true complement (observed live —
+    see calendars.py's add_free_gaps docstring). These lock in that the gap
+    computation itself is actually correct.
+    """
+
+    def test_single_day_no_busy_time_fills_whole_tracked_window(self):
+        tz = ZoneInfo("Europe/London")
+        start = datetime(2024, 12, 2, tzinfo=tz)
+        end = datetime(2024, 12, 3, tzinfo=tz)
+        filled = add_free_gaps([], start, end)
+        assert len(filled) == 1
+        assert filled[0].severity == FREE
+        assert filled[0].start == datetime(2024, 12, 2, 8, 0, tzinfo=tz)
+        assert filled[0].end == datetime(2024, 12, 2, 20, 0, tzinfo=tz)
+
+    def test_fills_gaps_either_side_of_a_busy_block(self):
+        tz = ZoneInfo("Europe/London")
+        start = datetime(2024, 12, 2, tzinfo=tz)
+        end = datetime(2024, 12, 3, tzinfo=tz)
+        busy = [
+            Interval(
+                datetime(2024, 12, 2, 10, 0, tzinfo=tz), datetime(2024, 12, 2, 10, 30, tzinfo=tz), BUSY, "work", "x"
+            )
+        ]
+        filled = add_free_gaps(busy, start, end)
+        free = sorted((f for f in filled if f.severity == FREE), key=lambda i: i.start)
+        assert [(f.start, f.end) for f in free] == [
+            (datetime(2024, 12, 2, 8, 0, tzinfo=tz), datetime(2024, 12, 2, 10, 0, tzinfo=tz)),
+            (datetime(2024, 12, 2, 10, 30, tzinfo=tz), datetime(2024, 12, 2, 20, 0, tzinfo=tz)),
+        ]
+
+    def test_busy_block_outside_tracked_window_leaves_full_day_free(self):
+        # A block entirely before day_start_hour (an early call) shouldn't
+        # eat into the tracked free window at all.
+        tz = ZoneInfo("Europe/London")
+        start = datetime(2024, 12, 2, tzinfo=tz)
+        end = datetime(2024, 12, 3, tzinfo=tz)
+        busy = [
+            Interval(datetime(2024, 12, 2, 6, 0, tzinfo=tz), datetime(2024, 12, 2, 7, 0, tzinfo=tz), BUSY, "work", "x")
+        ]
+        filled = add_free_gaps(busy, start, end)
+        free = [f for f in filled if f.severity == FREE]
+        assert len(free) == 1
+        assert free[0].start == datetime(2024, 12, 2, 8, 0, tzinfo=tz)
+        assert free[0].end == datetime(2024, 12, 2, 20, 0, tzinfo=tz)
+
+    def test_custom_day_window(self):
+        tz = ZoneInfo("Europe/London")
+        start = datetime(2024, 12, 2, tzinfo=tz)
+        end = datetime(2024, 12, 3, tzinfo=tz)
+        filled = add_free_gaps([], start, end, day_start_hour=9, day_end_hour=17)
+        assert filled[0].start == datetime(2024, 12, 2, 9, 0, tzinfo=tz)
+        assert filled[0].end == datetime(2024, 12, 2, 17, 0, tzinfo=tz)
+
+    def test_spans_multiple_days(self):
+        tz = ZoneInfo("Europe/London")
+        start = datetime(2024, 12, 2, tzinfo=tz)
+        end = datetime(2024, 12, 4, tzinfo=tz)
+        filled = add_free_gaps([], start, end)
+        days = {f.start.date() for f in filled}
+        assert days == {datetime(2024, 12, 2).date(), datetime(2024, 12, 3).date()}
+
+
 class TestFormatTimeline:
     def test_detailed_vs_not(self):
         tz = ZoneInfo("Europe/London")
@@ -267,11 +333,49 @@ class TestFormatTimeline:
         assert "[work]" not in plain
         assert "free/busy only" in plain
 
+    def test_free_all_day_only_when_nothing_scheduled_that_calendar_day(self):
+        # A day free within the tracked 08:00-20:00 window but with a real
+        # event outside it (e.g. an evening thing at 20:00) must NOT get
+        # "free all day" printed right next to that event — tested live, a
+        # small model reads that pairing as self-contradictory and starts
+        # inventing a story rather than reporting the actual timeline.
+        tz = ZoneInfo("Europe/London")
+        window_start = datetime(2024, 12, 2, tzinfo=tz)
+        window_end = datetime(2024, 12, 3, tzinfo=tz)
+        evening_event = [
+            Interval(
+                datetime(2024, 12, 2, 20, 0, tzinfo=tz), datetime(2024, 12, 2, 22, 0, tzinfo=tz), BUSY, "cal", "party"
+            )
+        ]
+        result = format_timeline(evening_event, window_start, window_end, detailed=False)
+        # Not a plain substring check: the footer note explaining what the
+        # phrase means also contains the words "free all day" in quotes.
+        assert "  free all day" not in result
+        assert "08:00-20:00  FREE" in result
+        assert "20:00-22:00  BUSY" in result
+
+    def test_free_all_day_when_genuinely_nothing_scheduled(self):
+        tz = ZoneInfo("Europe/London")
+        window_start = datetime(2024, 12, 2, tzinfo=tz)
+        window_end = datetime(2024, 12, 4, tzinfo=tz)
+        # One busy day, one genuinely empty day.
+        merged = [
+            Interval(
+                datetime(2024, 12, 2, 10, 0, tzinfo=tz), datetime(2024, 12, 2, 10, 30, tzinfo=tz), BUSY, "cal", "x"
+            )
+        ]
+        result = format_timeline(merged, window_start, window_end, detailed=False)
+        lines = result.split("\n")
+        tuesday_idx = lines.index("Tuesday 03 December")
+        assert lines[tuesday_idx + 1] == "  free all day"
+
     def test_no_busy_time_found(self):
         tz = ZoneInfo("Europe/London")
         window_start = datetime(2024, 12, 2, tzinfo=tz)
         window_end = datetime(2024, 12, 3, tzinfo=tz)
-        assert "fully free" in format_timeline([], window_start, window_end, detailed=True)
+        result = format_timeline([], window_start, window_end, detailed=True)
+        assert "free all day" in result
+        assert "Monday 02 December" in result
 
 
 class TestGetMergedAvailability:
