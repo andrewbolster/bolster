@@ -128,8 +128,15 @@ Economy and labour:
 [`business_register`](https://bolster.readthedocs.io/en/latest/data_sources.html#business-register-idbr),
 [`planning_statistics`](https://bolster.readthedocs.io/en/latest/data_sources.html#planning-statistics),
 [`housing_stock`](https://bolster.readthedocs.io/en/latest/data_sources.html#housing-stock),
+[`housing_bulletin`](https://bolster.readthedocs.io/en/latest/data_sources.html#housing-bulletin),
 [`tourism`](https://bolster.readthedocs.io/en/latest/data_sources.html#tourism-occupancy),
-[`work_quality`](https://bolster.readthedocs.io/en/latest/data_sources.html#id1)
+[`work_quality`](https://bolster.readthedocs.io/en/latest/data_sources.html#id1),
+[`workless_households`](https://bolster.readthedocs.io/en/latest/data_sources.html#working-and-workless-households),
+[`neet`](https://bolster.readthedocs.io/en/latest/data_sources.html#young-people-neet)
+
+Education:
+[`teacher_workforce`](https://bolster.readthedocs.io/en/latest/data_sources.html#teacher-workforce),
+[`school_leavers`](https://bolster.readthedocs.io/en/latest/data_sources.html#school-leavers-survey)
 
 ### Department of Health NI (`health_ni`)
 
@@ -138,7 +145,8 @@ Economy and labour:
 [`diagnostic_waiting_times`](https://bolster.readthedocs.io/en/latest/data_sources.html#diagnostic-waiting-times),
 [`elective_waiting_times`](https://bolster.readthedocs.io/en/latest/data_sources.html#elective-waiting-times),
 [`emergency_care_waiting_times`](https://bolster.readthedocs.io/en/latest/data_sources.html#emergency-care-waiting-times),
-[`child_protection`](https://bolster.readthedocs.io/en/latest/data_sources.html#child-protection)
+[`child_protection`](https://bolster.readthedocs.io/en/latest/data_sources.html#child-protection),
+[`hsc_workforce`](https://bolster.readthedocs.io/en/latest/data_sources.html#hsc-workforce) / [`hsc_recruitment`](https://bolster.readthedocs.io/en/latest/data_sources.html#hsc-workforce)
 
 ### PSNI — Police Service of Northern Ireland
 
@@ -146,7 +154,18 @@ Economy and labour:
 [`road_traffic_collisions`](https://bolster.readthedocs.io/en/latest/data_sources.html#road-traffic-collisions),
 [`stop_and_search`](https://bolster.readthedocs.io/en/latest/data_sources.html#stop-and-search),
 [`pace`](https://bolster.readthedocs.io/en/latest/data_sources.html#pace-statistics),
-[`police_ombudsman`](https://bolster.readthedocs.io/en/latest/data_sources.html#police-ombudsman)
+[`police_ombudsman`](https://bolster.readthedocs.io/en/latest/data_sources.html#police-ombudsman),
+[`motoring_offences`](https://bolster.readthedocs.io/en/latest/data_sources.html#motoring-offences),
+[`road_safety_partnership`](https://bolster.readthedocs.io/en/latest/data_sources.html#road-safety-partnership) (safety camera detections)
+
+### Department of Justice (`justice`)
+
+[`prosecutions_convictions`](https://bolster.readthedocs.io/en/latest/data_sources.html#prosecutions-convictions-and-out-of-court-disposals),
+[`first_time_entrants`](https://bolster.readthedocs.io/en/latest/data_sources.html#first-time-entrants),
+[`nicts_quarterly`](https://bolster.readthedocs.io/en/latest/data_sources.html#quarterly-court-business-figures),
+[`mortgages`](https://bolster.readthedocs.io/en/latest/data_sources.html#mortgage-possession-actions),
+[`pbni_caseload`](https://bolster.readthedocs.io/en/latest/data_sources.html#pbni-caseload),
+[`pps_statistical_bulletin`](https://bolster.readthedocs.io/en/latest/data_sources.html#justice-pps-statistical-bulletin)
 
 ### Other sources
 
@@ -162,8 +181,10 @@ Economy and labour:
 | Bank of England | `boe_base_rate` | Official Bank Rate (1694–present) |
 | Companies House | `companies_house` | UK company data |
 | Gender Pay Gap | `gender_pay_gap` | UK GPG reporting (250+ employees, 2017–present) |
-| DAERA | `daera_waste` | NI municipal waste statistics |
-| Justice (NICTS) | `justice` | Mortgage possession actions |
+| DAERA | `daera_waste`, [`daera_greenhouse_gas`](https://bolster.readthedocs.io/en/latest/data_sources.html#greenhouse-gas-inventory) | NI municipal waste statistics; greenhouse gas emissions inventory |
+| Communities (DfC) | [`family_resources_survey`](https://bolster.readthedocs.io/en/latest/data_sources.html#family-resources-survey-dfc), [`child_maintenance`](https://bolster.readthedocs.io/en/latest/data_sources.html#communities-child-maintenance-service) | Household income/food security/tenure; Child Maintenance Service statistics |
+| Infrastructure (DfI) | [`school_travel`](https://bolster.readthedocs.io/en/latest/data_sources.html#travel-to-and-from-school-ypbas) | Young Persons' Behaviour and Attitudes Survey travel module |
+| Economy (DfE) | [`electricity_renewables`](https://bolster.readthedocs.io/en/latest/data_sources.html#electricity-consumption-and-renewable-generation) | Electricity consumption and renewable generation progress |
 | Met Office | `metoffice` | UK precipitation maps (requires API key) |
 
 ______________________________________________________________________
