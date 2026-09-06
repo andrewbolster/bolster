@@ -741,6 +741,51 @@ March 2020.
     $ bolster nisra hsc-recruitment --view rates
     $ bolster nisra hsc-recruitment --view doctors --grade consultant
 
+NI General Medical Services (GMS) Statistics
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+GP practices, GPs, registered patients, funding and access equity across
+Northern Ireland, published by the Business Services Organisation / Family
+Practitioner Services (BSO/FPS).  Annual figures run 2014 to present (GP
+headcount back to 1985, funding from 2017/18); quarterly figures run from
+2017/18.  Geography is available by Health and Social Care Trust, Local
+Government District, or GP Federation.
+
+.. code-block:: python
+
+    from bolster.data_sources.health_ni import gms
+
+    # Average GP list size (registered patients per GP) by trust
+    list_size = gms.get_list_size(level="trust")
+
+    # Registered patients, GP headcount and practice counts by geography
+    patients = gms.get_registered_patients(level="lgd")
+    gps = gms.get_gp_count(level="federation")
+    practices = gms.get_practice_count(level="trust")
+
+    # BSO funding per registered patient, and patient-to-practice proximity
+    # (including by deprivation quintile)
+    funding = gms.get_funding_per_patient(level="trust")
+    proximity = gms.get_patient_proximity(level="deprivation_quintile")
+
+    # Every other topic (GP contractor type, UK-region comparison, non-UK
+    # registrations, ...) is reachable via the generic dispatchers
+    gms.list_annual_topics()
+    trend = gms.get_annual_data("gps_by_gender_trend", level=None)
+
+    # Per-practice detail: registered patients by gender/age (annual) or
+    # patient counts by financial quarter (quarterly)
+    by_practice = gms.get_latest_registered_patients_by_practice()
+    quarterly_by_practice = gms.get_latest_quarterly_patients_by_practice()
+
+.. code-block:: console
+
+    $ bolster nisra gms
+    $ bolster nisra gms --view registered-patients --level federation
+    $ bolster nisra gms --view proximity --level deprivation_quintile
+    $ bolster nisra gms --view list-topics
+    $ bolster nisra gms --view by-practice --cadence quarterly
+
 ----
 
 PSNI

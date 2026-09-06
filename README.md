@@ -59,6 +59,18 @@ gp = disease_prevalence.get_latest_gp_prevalence()
 print(gp[gp["disease"] == "Hypertension"].groupby("financial_year")["registered_patients"].sum())
 ```
 
+**How does GP list size vary by Trust, and how has it changed?**
+
+```python
+from bolster.data_sources.health_ni import gms
+
+df = gms.get_list_size(level="trust")
+# Western Trust has the largest lists at 1,619.8 patients/GP in 2025/26,
+# Belfast the smallest at 1,277.0 -- both up from five years earlier
+latest = df[df["period"] == df["period"].max()].sort_values("list_size")
+print(latest)
+```
+
 **How is NI's economy tracking against pre-pandemic levels?**
 
 ```python
@@ -146,7 +158,8 @@ Education:
 [`elective_waiting_times`](https://bolster.readthedocs.io/en/latest/data_sources.html#elective-waiting-times),
 [`emergency_care_waiting_times`](https://bolster.readthedocs.io/en/latest/data_sources.html#emergency-care-waiting-times),
 [`child_protection`](https://bolster.readthedocs.io/en/latest/data_sources.html#child-protection),
-[`hsc_workforce`](https://bolster.readthedocs.io/en/latest/data_sources.html#hsc-workforce) / [`hsc_recruitment`](https://bolster.readthedocs.io/en/latest/data_sources.html#hsc-workforce)
+[`hsc_workforce`](https://bolster.readthedocs.io/en/latest/data_sources.html#hsc-workforce) / [`hsc_recruitment`](https://bolster.readthedocs.io/en/latest/data_sources.html#hsc-workforce),
+[`gms`](https://bolster.readthedocs.io/en/latest/data_sources.html#ni-general-medical-services-gms-statistics) (GP practices/GPs/patients by trust, LGD or GP federation, funding, access equity)
 
 ### PSNI — Police Service of Northern Ireland
 
