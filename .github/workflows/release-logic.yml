@@ -237,7 +237,12 @@ jobs:
 
                   version = os.environ["NEW_VERSION"]
                   entry_text = os.environ["CHANGELOG_ENTRY"]
-                  entry = f"\n## [{version}] - {date.today()}\n\n{entry_text}\n"
+                  # Brackets escaped (\[...\]) so mdformat — which treats an
+                  # unescaped [label] at the start of a line as a possible
+                  # link reference — doesn't rewrite this on the next
+                  # `pre-commit run --all-files`, which some callers of this
+                  # reusable workflow run as their CI gate.
+                  entry = f"\n## \\[{version}\\] - {date.today()}\n\n{entry_text}\n"
 
                   path = Path("CHANGELOG.md")
                   content = path.read_text()
