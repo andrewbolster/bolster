@@ -20,6 +20,8 @@ from .data_sources.companies_house import get_companies_house_records_that_might
 from .data_sources.daera_waste import get_latest_waste_statistics, validate_waste_data
 from .data_sources.dfc import child_maintenance as dfc_child_maintenance
 from .data_sources.dfi import school_travel as dfi_school_travel
+from .data_sources.ecb_interest_rates import get_latest_data as get_ecb_interest_rates
+from .data_sources.ecb_interest_rates import get_rate_changes as get_ecb_rate_changes
 from .data_sources.electricity_renewables import get_latest_data as get_electricity_data
 from .data_sources.eoni import get_results as get_ni_election_results
 from .data_sources.health_ni import cancer_waiting_times as nisra_cancer
@@ -9657,6 +9659,89 @@ def ons_cpi_cmd(series_code, resolution, year, output_format, force_refresh, sav
         raise click.Abort() from e
 
 
+@cli.command(name="ecb-interest-rates")
+@click.option(
+    "--rate",
+    type=click.Choice(["mrr_fr", "dfr", "mlfr", "all"], case_sensitive=False),
+    default="all",
+    help="Which rate to fetch (default: all).",
+)
+@click.option(
+    "--resolution",
+    type=click.Choice(["monthly", "quarterly", "annual"], case_sensitive=False),
+    default="monthly",
+    help="Time resolution (default: monthly).",
+)
+@click.option(
+    "--changes",
+    is_flag=True,
+    help="Show the event-based history of rate changes instead of the resampled level series (requires --rate to be a single rate, not 'all').",
+)
+@click.option("--year", type=int, help="Filter data to a single calendar year.")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv).",
+)
+@click.option("--force-refresh", is_flag=True, help="Bypass cache and re-download.")
+@click.option("--save", help="Save data to a file (specify filename).")
+def ecb_interest_rates_cmd(rate, resolution, changes, year, output_format, force_refresh, save):
+    """European Central Bank key interest rates (Eurozone).
+
+    Retrieves the ECB's three official policy rates -- Main Refinancing
+    Operations rate (mrr_fr), Deposit Facility Rate (dfr), and Marginal
+    Lending Facility Rate (mlfr) -- from the ECB Data Portal's SDMX-JSON API.
+
+    The level series shares a fixed schema with the other macroeconomic
+    modules (date, year, quarter, month, resolution, series, value, unit,
+    geography, source) so it can be joined against UK inflation and base-rate
+    series for UK/NI vs Eurozone comparison.
+
+    Examples:
+        bolster ecb-interest-rates --resolution monthly
+        bolster ecb-interest-rates --rate dfr --resolution annual --year 2024
+        bolster ecb-interest-rates --rate mrr_fr --changes --format json
+
+    Source:
+        https://data.ecb.europa.eu/
+    """
+    console = Console()
+    try:
+        if changes:
+            if rate == "all":
+                raise click.UsageError("--changes requires a single --rate (mrr_fr, dfr, or mlfr), not 'all'")
+            data = get_ecb_rate_changes(rate, force_refresh=force_refresh)
+        else:
+            data = get_ecb_interest_rates(rate=rate, resolution=resolution, force_refresh=force_refresh)
+
+        if year:
+            data = data[data["year"] == year]
+
+        if save:
+            if output_format == "json":
+                data.astype(str).to_json(save, orient="records", indent=2)
+            else:
+                data.to_csv(save, index=False)
+            console.print(f"[green]Saved {len(data)} rows to {save}[/green]")
+            return
+
+        if output_format == "json":
+            click.echo(data.astype(str).to_json(orient="records", indent=2))
+        else:
+            click.echo(data.to_csv(index=False), nl=False)
+
+    except click.UsageError:
+        raise
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
 @cli.command(name="boe-base-rate")
 @click.option(
     "--resolution",
@@ -10238,7 +10323,7 @@ _SOURCE_CATEGORIES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("WATER & UTILITIES", ("water-quality",)),
     ("GOVERNMENT & POLITICS", ("ni-executive", "ni-elections", "niassembly")),
     ("BUSINESS & PROPERTY", ("companies-house", "ni-house-prices", "gender-pay-gap")),
-    ("ECONOMY & FINANCE", ("ons-cpi", "boe-base-rate")),
+    ("ECONOMY & FINANCE", ("ons-cpi", "boe-base-rate", "ecb-interest-rates")),
     ("TRANSPORT", ("translink", "dva")),
     ("ENTERTAINMENT & LIFESTYLE", ("cinema-listings",)),
     ("RSS & FEEDS", ("rss",)),
