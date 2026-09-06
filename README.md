@@ -179,6 +179,7 @@ Education:
 | Translink | `translink` | Live departures and vehicle positions |
 | ONS | `ons_cpi` | CPI / CPIH / RPI inflation indices |
 | Bank of England | `boe_base_rate` | Official Bank Rate (1694–present) |
+| European Central Bank | [`ecb_interest_rates`](https://bolster.readthedocs.io/en/latest/data_sources.html#european-central-bank) | Eurozone key policy rates (MRR, DFR, MLFR), 1999–present |
 | Companies House | `companies_house` | UK company data |
 | Gender Pay Gap | `gender_pay_gap` | UK GPG reporting (250+ employees, 2017–present) |
 | DAERA | `daera_waste`, [`daera_greenhouse_gas`](https://bolster.readthedocs.io/en/latest/data_sources.html#greenhouse-gas-inventory) | NI municipal waste statistics; greenhouse gas emissions inventory |
