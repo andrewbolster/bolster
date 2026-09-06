@@ -52,7 +52,7 @@ from functools import lru_cache
 
 import pandas as pd
 
-from bolster.utils.cache import CachedDownloader, DownloadError
+from bolster.utils.cache import CachedDownloader, bind_download_file
 from bolster.utils.web import fetch_soup, scrape_file_links
 
 logger = logging.getLogger(__name__)
@@ -84,6 +84,11 @@ class DAERADataNotFoundError(Exception):
 
 class DAERAValidationError(Exception):
     """DAERA DataFrame failed validation checks."""
+
+
+# download_file(url, cache_ttl_hours=_CACHE_TTL_HOURS, force_refresh=False) -> Path,
+# raising DAERADataNotFoundError in place of DownloadError.
+download_file = bind_download_file(_downloader, DAERADataNotFoundError, _CACHE_TTL_HOURS)
 
 
 # ── Source discovery ─────────────────────────────────────────────────────────
@@ -168,10 +173,7 @@ def _load_workbook(year: int | None = None, force_refresh: bool = False) -> pd.E
         DAERADataNotFoundError: If the workbook cannot be downloaded.
     """
     url = get_workbook_url(year)
-    try:
-        path = _downloader.download(url, cache_ttl_hours=_CACHE_TTL_HOURS, force_refresh=force_refresh)
-    except DownloadError as exc:
-        raise DAERADataNotFoundError(str(exc)) from exc
+    path = download_file(url, force_refresh=force_refresh)
     return pd.ExcelFile(path)
 
 

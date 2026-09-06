@@ -56,7 +56,7 @@ from urllib.parse import urljoin
 
 import pandas as pd
 
-from bolster.utils.cache import CachedDownloader, DownloadError
+from bolster.utils.cache import CachedDownloader, bind_download_file
 from bolster.utils.web import fetch_soup, scrape_file_links
 
 logger = logging.getLogger(__name__)
@@ -582,24 +582,9 @@ def find_data_file(publication_url: str) -> str:
     raise FirstTimeEntrantsNotFoundError(f"No spreadsheet linked from {publication_url}")
 
 
-def download_file(url: str, cache_ttl_hours: int = _CACHE_TTL_HOURS, force_refresh: bool = False) -> Path:
-    """Download a published tables file with caching.
-
-    Args:
-        url: URL of the spreadsheet.
-        cache_ttl_hours: Cache validity in hours (default: 180 days).
-        force_refresh: If True, bypass the cache and re-download.
-
-    Returns:
-        Path to the downloaded (or cached) file.
-
-    Raises:
-        FirstTimeEntrantsNotFoundError: If the download fails.
-    """
-    try:
-        return _downloader.download(url, cache_ttl_hours=cache_ttl_hours, force_refresh=force_refresh)
-    except DownloadError as e:
-        raise FirstTimeEntrantsNotFoundError(str(e)) from e
+# download_file(url, cache_ttl_hours=_CACHE_TTL_HOURS, force_refresh=False) -> Path,
+# raising FirstTimeEntrantsNotFoundError in place of DownloadError.
+download_file = bind_download_file(_downloader, FirstTimeEntrantsNotFoundError, _CACHE_TTL_HOURS)
 
 
 def parse_data(file_path: Path) -> pd.DataFrame:
