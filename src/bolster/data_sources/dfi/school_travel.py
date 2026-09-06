@@ -49,7 +49,7 @@ from urllib.parse import urljoin
 
 import pandas as pd
 
-from bolster.utils.cache import CachedDownloader, DownloadError
+from bolster.utils.cache import CachedDownloader, bind_download_file
 from bolster.utils.web import fetch_soup, scrape_file_links
 
 logger = logging.getLogger(__name__)
@@ -238,25 +238,10 @@ def get_latest_publication_url(index_url: str = INDEX_URL) -> tuple[str, int]:
     raise SchoolTravelDataNotFoundError("No YPBAS travel publication links to a spreadsheet")
 
 
-def download_file(url: str, cache_ttl_hours: int = 24 * 30, force_refresh: bool = False) -> Path:
-    """Download a YPBAS workbook with caching.
-
-    Args:
-        url: URL of the workbook.
-        cache_ttl_hours: Cache validity in hours (default: 30 days, since the
-            survey runs roughly every three years).
-        force_refresh: If True, bypass the cache and re-download.
-
-    Returns:
-        Path to the downloaded (or cached) file.
-
-    Raises:
-        SchoolTravelDataNotFoundError: If the download fails.
-    """
-    try:
-        return _downloader.download(url, cache_ttl_hours=cache_ttl_hours, force_refresh=force_refresh)
-    except DownloadError as e:
-        raise SchoolTravelDataNotFoundError(str(e)) from e
+# download_file(url, cache_ttl_hours=24*30, force_refresh=False) -> Path,
+# raising SchoolTravelDataNotFoundError in place of DownloadError. 30-day
+# default TTL since the survey runs roughly every three years.
+download_file = bind_download_file(_downloader, SchoolTravelDataNotFoundError, 24 * 30)
 
 
 def _parse_percentage(value) -> tuple[float | None, bool]:
