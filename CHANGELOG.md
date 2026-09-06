@@ -1,35 +1,30 @@
 # Changelog
 
-## [0.7.6] - 2026-09-04
+## \[0.7.6\] - 2026-09-04
 
 - fix: pr-labeler.yml still labelled feat: PRs version:minor (#2119)
 
-
-## [0.7.5] - 2026-09-03
+## \[0.7.5\] - 2026-09-03
 
 - fix(elective_waiting_times): handle NISRA's Table 1/2 sheet rename (#2115)
 - fix: don't let prose false-positives force a major release (#2113)
 - fix: feat: commits bump patch, not minor, below 1.0.0 (#2111)
 - feat: add bolster.utils.availability — merged ICS free/busy utility (#2107)
 
-
-## [0.7.4] - 2026-09-03
+## \[0.7.4\] - 2026-09-03
 
 - fix: stop testing find_stop against a phrase Translink's own search mishandles (#2109)
 - fix(rebase): update up to 5 PRs per trigger, not just one (#2103)
 
-
-## [0.7.3] - 2026-09-01
+## \[0.7.3\] - 2026-09-01
 
 - fix(release-logic): push the branch and tag via BOLSTER_TOKEN (#2094)
 - fix: point package Documentation metadata at ReadTheDocs (#2091)
 - refactor(cache): extract shared download_file/stitch_publications helpers (#2095)
 
-
-## [0.7.2] - 2026-08-31
+## \[0.7.2\] - 2026-08-31
 
 - fix(release): pass secrets to release-logic.yml + fix docs_url (#2090)
-
 
 All notable changes to this project will be documented in this file.
 
