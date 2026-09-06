@@ -1344,11 +1344,44 @@ Bank of England official Bank Rate (base rate) from 1694 to present.
 
     from bolster.data_sources import boe_base_rate
 
-    df = boe_base_rate.get_latest_base_rate()
+    df = boe_base_rate.get_latest_data()
 
 .. code-block:: console
 
     $ bolster boe-base-rate
+
+----
+
+European Central Bank
+----------------------
+
+The ECB's three official Eurozone policy rates -- Main Refinancing
+Operations rate (``mrr_fr``), Deposit Facility Rate (``dfr``), and Marginal
+Lending Facility Rate (``mlfr``) -- from 1999 to present. Shares the same
+fixed schema as ``ons_cpi`` and ``boe_base_rate`` for UK/NI vs Eurozone
+policy-rate comparison. ``geography="Eurozone"`` is this library's first
+non-UK/NI macro series; Northern Ireland's Windsor Framework arrangements
+keep it partially inside the EU single market for goods, giving Eurozone
+monetary policy more direct NI relevance than a GB-only dataset would have.
+
+.. code-block:: python
+
+    from bolster.data_sources import ecb_interest_rates
+
+    # All three rates, monthly
+    df = ecb_interest_rates.get_latest_data()
+
+    # A single rate at a given resolution
+    dfr = ecb_interest_rates.get_series("dfr", resolution="annual")
+
+    # Raw event-based history of rate changes
+    changes = ecb_interest_rates.get_rate_changes("mrr_fr")
+
+.. code-block:: console
+
+    $ bolster ecb-interest-rates
+    $ bolster ecb-interest-rates --rate dfr --resolution annual
+    $ bolster ecb-interest-rates --rate mrr_fr --changes
 
 ----
 

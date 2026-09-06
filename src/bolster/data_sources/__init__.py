@@ -20,6 +20,7 @@ Various scrapers and API wrappers for NI government data:
 - translink: Live and scheduled bus/rail departures + vehicle positions (Translink NI)
 - electricity_renewables: NI electricity consumption and renewable generation statistics (DfE/NISRA, quarterly)
 - daera_greenhouse_gas: NI Greenhouse Gas Inventory 1990–present (DAERA, annual)
+- ecb_interest_rates: ECB Eurozone key interest rates (MRR, DFR, MLFR), 1999–present
 
 Most have corresponding CLI commands.
 """
