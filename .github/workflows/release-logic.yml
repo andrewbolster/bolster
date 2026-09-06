@@ -232,6 +232,7 @@ jobs:
               run: |
                   python3 - <<'PYEOF'
                   import os
+                  import re
                   from datetime import date
                   from pathlib import Path
 
@@ -251,7 +252,13 @@ jobs:
                       if line.startswith("# "):
                           lines.insert(i + 1, entry)
                           break
-                  path.write_text("\n".join(lines))
+                  new_content = "\n".join(lines)
+                  # entry's own leading/trailing newlines plus the file's existing
+                  # blank-line separators otherwise stack into a double blank line
+                  # right before the previously-latest entry, which mdformat then
+                  # wants to collapse on the next `pre-commit run --all-files`.
+                  new_content = re.sub(r"\n{3,}", "\n\n", new_content)
+                  path.write_text(new_content)
                   PYEOF
 
             - name: Push version bump branch, tag, and open PR
