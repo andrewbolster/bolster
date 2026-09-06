@@ -55,7 +55,7 @@ import pandas as pd
 from odf.opendocument import load as load_ods
 from odf.table import Table
 
-from bolster.utils.cache import CachedDownloader, DownloadError
+from bolster.utils.cache import CachedDownloader, bind_download_file
 from bolster.utils.web import fetch_soup, scrape_file_links
 
 from ._base import _parse_value, _sheet_rows, _strip_note_refs
@@ -178,23 +178,9 @@ def get_data_file_url(publication_url: str) -> str:
     return candidates[0]
 
 
-def download_file(url: str, force_refresh: bool = False) -> Path:
-    """Download and cache an ODS workbook.
-
-    Args:
-        url: Workbook URL.
-        force_refresh: Bypass the cache.
-
-    Returns:
-        Path to the cached file.
-
-    Raises:
-        ProsecutionsDataNotFoundError: If the download fails.
-    """
-    try:
-        return _downloader.download(url, cache_ttl_hours=_CACHE_TTL_HOURS, force_refresh=force_refresh)
-    except DownloadError as e:
-        raise ProsecutionsDataNotFoundError(f"Failed to download {url}: {e}") from e
+# download_file(url, cache_ttl_hours=_CACHE_TTL_HOURS, force_refresh=False) -> Path,
+# raising ProsecutionsDataNotFoundError in place of DownloadError.
+download_file = bind_download_file(_downloader, ProsecutionsDataNotFoundError, _CACHE_TTL_HOURS)
 
 
 def _label_column_count(data_rows: list[list[str]]) -> int:

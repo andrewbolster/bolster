@@ -58,7 +58,7 @@ import pandas as pd
 from odf.opendocument import load as load_ods
 from odf.table import Table
 
-from bolster.utils.cache import CachedDownloader, DownloadError
+from bolster.utils.cache import CachedDownloader, bind_download_file
 from bolster.utils.web import scrape_file_links
 
 from ._base import _parse_value, _sheet_rows, _strip_note_refs
@@ -273,24 +273,9 @@ def find_latest_publication(base_url: str = PUBLICATION_URL) -> dict:
     return latest
 
 
-def download_file(url: str, cache_ttl_hours: int = _CACHE_TTL_HOURS, force_refresh: bool = False) -> Path:
-    """Download a bulletin ODS file with caching.
-
-    Args:
-        url: URL of the ODS file.
-        cache_ttl_hours: Cache validity in hours (default: 90 days).
-        force_refresh: If True, bypass the cache and re-download.
-
-    Returns:
-        Path to the downloaded (or cached) file.
-
-    Raises:
-        NICTSDataNotFoundError: If the download fails.
-    """
-    try:
-        return _downloader.download(url, cache_ttl_hours=cache_ttl_hours, force_refresh=force_refresh)
-    except DownloadError as e:
-        raise NICTSDataNotFoundError(str(e)) from e
+# download_file(url, cache_ttl_hours=_CACHE_TTL_HOURS, force_refresh=False) -> Path,
+# raising NICTSDataNotFoundError in place of DownloadError.
+download_file = bind_download_file(_downloader, NICTSDataNotFoundError, _CACHE_TTL_HOURS)
 
 
 def parse_data(file_path: Path) -> pd.DataFrame:
