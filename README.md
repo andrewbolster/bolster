@@ -71,6 +71,18 @@ latest = df[df["period"] == df["period"].max()].sort_values("list_size")
 print(latest)
 ```
 
+**How has the security situation in NI changed since the Troubles?**
+
+```python
+from bolster.data_sources.psni import security_situation
+
+df = security_situation.get_deaths()
+# 470 deaths in 1972, the worst year on record; 0 in both 2023 and 2025 --
+# a dramatic long-term decline, though the series hasn't reached zero every year
+print(df[["year", "total"]].sort_values("total", ascending=False).head(3))
+print(df[df["year"] >= 2020][["year", "total"]])
+```
+
 **How is NI's economy tracking against pre-pandemic levels?**
 
 ```python
@@ -169,7 +181,8 @@ Education:
 [`pace`](https://bolster.readthedocs.io/en/latest/data_sources.html#pace-statistics),
 [`police_ombudsman`](https://bolster.readthedocs.io/en/latest/data_sources.html#police-ombudsman),
 [`motoring_offences`](https://bolster.readthedocs.io/en/latest/data_sources.html#motoring-offences),
-[`road_safety_partnership`](https://bolster.readthedocs.io/en/latest/data_sources.html#road-safety-partnership) (safety camera detections)
+[`road_safety_partnership`](https://bolster.readthedocs.io/en/latest/data_sources.html#road-safety-partnership) (safety camera detections),
+[`security_situation`](https://bolster.readthedocs.io/en/latest/data_sources.html#security-situation-statistics) (deaths, incidents, paramilitary attacks, arrests, 1969-present)
 
 ### Department of Justice (`justice`)
 
