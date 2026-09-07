@@ -6397,6 +6397,105 @@ def psni_stop_search_cmd(year, district, output_format, save, force_refresh):
         raise click.Abort() from e
 
 
+@psni.command(name="security-situation")
+@click.option(
+    "--topic",
+    type=click.Choice(
+        ["deaths", "incidents", "paramilitary", "finds", "terrorism-act", "district"],
+        case_sensitive=False,
+    ),
+    default="deaths",
+    show_default=True,
+    help="Which breakdown to retrieve",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+def psni_security_situation_cmd(topic, output_format, save, force_refresh):
+    r"""PSNI Security Situation Statistics.
+
+    Monthly-updated statistics on deaths, security-related incidents,
+    paramilitary style attacks, firearms/explosives finds and Terrorism Act
+    arrests in Northern Ireland, maintained since 1969. Each series starts
+    annual-only and later switches to monthly at a point specific to that
+    series.
+
+    Available topics:
+
+    \b
+    deaths          - Deaths due to the security situation, 1969-present (annual)
+    incidents       - Shooting/bombing/incendiary incidents, 1969-present
+    paramilitary    - Paramilitary style shooting/assault casualties, 1973-present
+    finds           - Firearms, explosives and ammunition finds, 1969-present
+    terrorism-act   - Section 41 Terrorism Act arrests and charges, 2001-present
+    district        - Current financial-year-to-date breakdown by policing district
+
+    Examples:
+    \b
+        bolster psni security-situation
+        bolster psni security-situation --topic incidents
+        bolster psni security-situation --topic district --format csv
+        bolster psni security-situation --topic terrorism-act --save arrests.csv
+
+    Source:
+        https://www.psni.police.uk/official-statistics/security-situation-statistics
+    """
+    from rich.table import Table
+
+    from bolster.data_sources.psni import security_situation
+
+    console = Console()
+
+    _accessors = {
+        "deaths": security_situation.get_deaths,
+        "incidents": security_situation.get_security_related_incidents,
+        "paramilitary": security_situation.get_paramilitary_style_attacks,
+        "finds": security_situation.get_firearms_and_explosives_finds,
+        "terrorism-act": security_situation.get_terrorism_act_arrests,
+        "district": security_situation.get_district_breakdown,
+    }
+
+    try:
+        console.print("\n[bold blue]PSNI Security Situation Statistics[/bold blue]\n")
+        df = _accessors[topic.lower()](force_refresh=force_refresh)
+        title = f"Security Situation — {topic}"
+
+        console.print(f"[bold]{title}[/bold]  ({len(df):,} rows)\n")
+
+        if output_format == "table":
+            table = Table(show_header=True, header_style="bold cyan")
+            for col in df.columns:
+                table.add_column(str(col))
+            for _, row in df.head(50).iterrows():
+                table.add_row(*[str(v) for v in row.values])
+            console.print(table)
+            if len(df) > 50:
+                console.print(f"\n[yellow]Showing first 50 of {len(df):,} rows[/yellow]")
+
+        elif output_format == "csv":
+            click.echo(df.to_csv(index=False), nl=False)
+
+        elif output_format == "json":
+            console.print(df.to_json(orient="records", indent=2))
+
+        if save:
+            if save.endswith(".json"):
+                df.to_json(save, orient="records", indent=2)
+            else:
+                df.to_csv(save, index=False)
+            console.print(f"\n[green]Saved to {save}[/green]")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        raise click.Abort() from e
+
+
 @psni.command(name="pace")
 @click.option(
     "--breakdown",

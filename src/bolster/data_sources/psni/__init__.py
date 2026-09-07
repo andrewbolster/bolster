@@ -9,6 +9,9 @@ This module provides access to PSNI open data including:
 - Motoring Offences: Annual enforcement statistics (fixed penalty notices,
   prosecutions, driver retraining courses) by offence, disposal and district
 - Road Safety Partnership: Record-level safety camera detections from 2011
+- Security Situation Statistics: Deaths, security-related incidents,
+  paramilitary style attacks, firearms/explosives finds and Terrorism Act
+  arrests, monthly from 1969 to present
 
 Data is sourced from OpenDataNI and the Police Ombudsman's Office under the
 Open Government Licence v3.0.
@@ -27,7 +30,7 @@ Example:
 See individual module docstrings for detailed documentation.
 """
 
-from . import motoring_offences, pace, road_safety_partnership, stop_and_search
+from . import motoring_offences, pace, road_safety_partnership, security_situation, stop_and_search
 from ._base import (
     PSNIDataError,
     PSNIDataNotFoundError,
@@ -88,6 +91,8 @@ __all__ = [
     "stop_and_search",
     # Road Safety Partnership module
     "road_safety_partnership",
+    # Security Situation Statistics module
+    "security_situation",
     # Crime Statistics - Main functions
     "get_historical_crime_statistics",
     "get_latest_crime_statistics",
