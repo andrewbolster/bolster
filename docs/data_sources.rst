@@ -931,6 +931,46 @@ attaches LGD and NUTS3 codes.
    unique. Red light running camera detections record no speed. Speed and
    offender age are published as bands rather than exact values.
 
+Security Situation Statistics
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Monthly-updated statistics on deaths, security-related incidents,
+paramilitary style attacks, firearms/explosives finds, and Terrorism Act
+arrests in Northern Ireland, maintained since 1969.  Each series starts as
+annual-only figures and later switches to monthly reporting at a point
+specific to that series (deaths never switch; Terrorism Act arrests never
+had an annual-only era).  A current-financial-year breakdown by the 11
+policing districts is also available.
+
+.. code-block:: python
+
+    from bolster.data_sources.psni import security_situation
+
+    deaths       = security_situation.get_deaths()
+    incidents    = security_situation.get_security_related_incidents()
+    paramilitary = security_situation.get_paramilitary_style_attacks()
+    finds        = security_situation.get_firearms_and_explosives_finds()
+    arrests      = security_situation.get_terrorism_act_arrests()
+    by_district  = security_situation.get_district_breakdown()
+
+    # Every topic in one call
+    all_data = security_situation.get_all_data()
+
+.. code-block:: console
+
+    $ bolster psni security-situation
+    $ bolster psni security-situation --topic incidents
+    $ bolster psni security-situation --topic district --format csv
+
+.. note::
+
+   The source article page sits behind Cloudflare and can occasionally
+   return a 403 to requests from a lower-reputation IP even though the site
+   is not actually blocking automated access in general -- the workbook's
+   own download URL has no such issue once discovered. If
+   ``find_latest_workbook_url()`` fails in one environment, check whether the
+   same call succeeds in CI before concluding the source is unreachable.
+
 ----
 
 DVA — Driver and Vehicle Agency
