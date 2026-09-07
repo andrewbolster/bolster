@@ -12,6 +12,7 @@ from bolster.data_sources.health_ni._base import (
     NISRADataNotFoundError,
     parse_csv_tables,
     parse_period_column,
+    parse_stacked_tables,
     parse_value,
     strip_note_refs,
 )
@@ -170,3 +171,41 @@ class TestParseCsvTables:
         path.write_text("just,some,rows\nwith,no,markers\n", encoding="utf-8")
         with pytest.raises(NISRADataNotFoundError, match="No data tables"):
             parse_csv_tables(path)
+
+
+class TestParseStackedTables:
+    """Direct tests of the row-based core, for non-CSV sources (e.g. Excel sheets)."""
+
+    def test_dotted_table_id_matches(self):
+        # GMS-style marker ("1.1a") rather than DoH's plain "4A" -- both must
+        # be recognised, since parse_stacked_tables is now shared between them.
+        rows = [
+            ["Table 1.1a: Registered patients by gender, age group and LCG 2014"],
+            ["LCG", "Male", "Female"],
+            ["Belfast", "100", "110"],
+        ]
+        df = parse_stacked_tables(rows)
+        assert set(df.table_id) == {"1.1A"}
+        assert df.table_title.iloc[0] == "Registered patients by gender, age group and LCG 2014"
+
+    def test_plain_and_dotted_ids_coexist(self):
+        rows = [
+            ["Table 1: Plain marker"],
+            ["Label", "Value"],
+            ["Row", "1"],
+            ["Table 1.1a: Dotted marker"],
+            ["Label", "Value"],
+            ["Row", "2"],
+        ]
+        df = parse_stacked_tables(rows)
+        assert set(df.table_id) == {"1", "1.1A"}
+
+    def test_no_tables_raises(self):
+        with pytest.raises(NISRADataNotFoundError, match="No data tables"):
+            parse_stacked_tables([["just", "rows"], ["no", "markers"]])
+
+    def test_parse_csv_tables_still_works_via_shared_core(self, single_label_csv):
+        # parse_csv_tables is now a thin CSV-reading wrapper around
+        # parse_stacked_tables -- confirm the public behavior is unchanged.
+        df = parse_csv_tables(single_label_csv)
+        assert set(df.table_id) == {"1", "2A"}

@@ -28,6 +28,7 @@ from .data_sources.health_ni import cancer_waiting_times as nisra_cancer
 from .data_sources.health_ni import diagnostic_waiting_times as nisra_diagnostic
 from .data_sources.health_ni import disease_prevalence as nisra_disease_prevalence
 from .data_sources.health_ni import emergency_care_waiting_times as nisra_emergency
+from .data_sources.health_ni import gms as nisra_gms
 from .data_sources.health_ni import hsc_recruitment as nisra_hsc_recruitment
 from .data_sources.health_ni import hsc_workforce as nisra_hsc_workforce
 from .data_sources.justice import first_time_entrants as justice_first_time_entrants
@@ -8201,6 +8202,144 @@ def nisra_hsc_recruitment_cmd(view, period, sub, grade, output_format, force_ref
 
         _emit_hsc_frame(console, data, output_format, save, f"HSC Vacancies ({view})")
 
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@nisra.command(name="gms")
+@click.option(
+    "--view",
+    type=click.Choice(
+        [
+            "list-size",
+            "registered-patients",
+            "gp-count",
+            "practice-count",
+            "funding",
+            "proximity",
+            "topic",
+            "by-practice",
+            "list-topics",
+        ],
+        case_sensitive=False,
+    ),
+    default="list-size",
+    show_default=True,
+    help="Which breakdown to return",
+)
+@click.option(
+    "--cadence",
+    type=click.Choice(["annual", "quarterly"], case_sensitive=False),
+    default="annual",
+    show_default=True,
+    help="Publication cadence (--view topic/by-practice/list-topics only; other views are annual-only)",
+)
+@click.option("--topic", default=None, help="Topic name for --view topic; see --view list-topics")
+@click.option(
+    "--level",
+    type=click.Choice(["trust", "lgd", "federation", "deprivation_quintile", "none"], case_sensitive=False),
+    default="trust",
+    show_default=True,
+    help="Geography level; use 'none' for topics with a single NI-wide/UK-wide breakdown",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_gms_cmd(view, cadence, topic, level, output_format, force_refresh, save):
+    r"""NI General Medical Services (GMS) Statistics (BSO/FPS).
+
+    \b
+    GP practices, GPs, registered patients, funding and access equity across
+    Northern Ireland, by Health and Social Care Trust, Local Government
+    District, or GP Federation. Annual figures run 2014 to present (GP
+    headcount back to 1985); quarterly figures run from 2017/18.
+
+    Examples:
+        Average GP list size by trust::
+
+            bolster nisra gms
+
+        Registered patients by GP Federation::
+
+            bolster nisra gms --view registered-patients --level federation
+
+        Patient-to-practice proximity by deprivation quintile::
+
+            bolster nisra gms --view proximity --level deprivation_quintile
+
+        List every topic available in the annual workbook::
+
+            bolster nisra gms --view list-topics
+
+        A specific topic not covered by a named view::
+
+            bolster nisra gms --view topic --topic gps_by_contractor_type --level none
+
+        Per-practice quarterly patient counts::
+
+            bolster nisra gms --view by-practice --cadence quarterly
+
+    Source:
+        https://www.gov.uk/government/collections/general-medical-services-gms-statistics-for-northern-ireland
+    """
+    console = Console()
+    level_value = None if level == "none" else level
+
+    try:
+        with console.status("[bold green]Downloading GMS statistics...[/bold green]"):
+            if view == "list-topics":
+                topics = nisra_gms.list_annual_topics() if cadence == "annual" else nisra_gms.list_quarterly_topics()
+                for topic_name, topic_level in topics:
+                    console.print(f"  {topic_name}" + (f" (level={topic_level})" if topic_level else ""))
+                return
+            if view == "list-size":
+                data = nisra_gms.get_list_size(level=level_value or "trust", force_refresh=force_refresh)
+            elif view == "registered-patients":
+                data = nisra_gms.get_registered_patients(level=level_value or "trust", force_refresh=force_refresh)
+            elif view == "gp-count":
+                data = nisra_gms.get_gp_count(level=level_value or "trust", force_refresh=force_refresh)
+            elif view == "practice-count":
+                data = nisra_gms.get_practice_count(level=level_value or "trust", force_refresh=force_refresh)
+            elif view == "funding":
+                data = nisra_gms.get_funding_per_patient(level=level_value or "trust", force_refresh=force_refresh)
+            elif view == "proximity":
+                data = nisra_gms.get_patient_proximity(level=level_value or "trust", force_refresh=force_refresh)
+            elif view == "by-practice":
+                data = (
+                    nisra_gms.get_latest_registered_patients_by_practice(force_refresh=force_refresh)
+                    if cadence == "annual"
+                    else nisra_gms.get_latest_quarterly_patients_by_practice(force_refresh=force_refresh)
+                )
+            else:
+                if not topic:
+                    raise click.UsageError("--topic is required for --view topic; see --view list-topics")
+                data = (
+                    nisra_gms.get_annual_data(topic, level_value, force_refresh=force_refresh)
+                    if cadence == "annual"
+                    else nisra_gms.get_quarterly_data(topic, level_value, force_refresh=force_refresh)
+                )
+
+        if data.empty:
+            console.print("[yellow]No data found for the specified options[/yellow]")
+            return
+
+        console.print("[green]GMS data retrieved successfully[/green]")
+        console.print(f"[cyan]Rows: {len(data):,}[/cyan]")
+
+        _emit_hsc_frame(console, data, output_format, save, f"GMS ({view})")
+
+    except click.UsageError:
+        raise
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
         console.print("\n[yellow]Troubleshooting:[/yellow]")

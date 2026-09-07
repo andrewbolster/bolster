@@ -11,6 +11,10 @@ Several DoH series also publish an accessible CSV alongside the workbook, in
 which multiple sub-tables are stacked vertically and separated by single-cell
 ``Table 4A: ...`` marker rows. :func:`parse_csv_tables` reshapes that layout
 into one long frame so heterogeneous tables can be queried uniformly.
+:func:`parse_stacked_tables` is the same reshaping core taking rows directly,
+for non-CSV sources sharing this layout -- e.g. :mod:`bolster.data_sources.health_ni.gms`,
+whose BSO/FPS-published Excel sheets use the identical stacked-marker-row
+pattern (with dotted table IDs like ``1.1a`` rather than DoH's ``4A``).
 """
 
 import csv
@@ -48,6 +52,8 @@ __all__ = [
     "parse_value",
     "parse_period_column",
     "parse_csv_tables",
+    "parse_stacked_tables",
+    "trim_row",
     "list_dated_publications",
     "find_publication_csv",
 ]
@@ -59,7 +65,10 @@ _NOTE_REF_RE = re.compile(r"\s*\[note\s*\d+\]", re.IGNORECASE)
 
 # Sub-tables are introduced by a single-cell "Table 4A: <title>" row. Some
 # bulletins use a dash instead of a colon, e.g. "Table 7B - Joiners ...".
-_TABLE_MARKER_RE = re.compile(r"^Table\s*(\d+)\s*([A-Za-z])?\s*[:\-–]\s*(.+)$")
+# The whole ID is captured as one group (rather than digits/letter separately)
+# so dotted IDs like GMS's "Table 1.1a: ..." match too, alongside DoH's plain
+# "4A" form -- both are just whatever text precedes the "colon" separator.
+_TABLE_MARKER_RE = re.compile(r"^Table\s*([\d.]+[A-Za-z]?)\s*[:\-–]\s*(.+)$")
 
 # Bracketed codes used by the Government Statistical Service for absent values:
 # z = not applicable, c = suppressed, x = unavailable, w = no data, u = unreliable
@@ -167,8 +176,22 @@ def parse_period_column(text: str) -> pd.Timestamp | None:
     return None
 
 
-def _trim(row: list[str]) -> list[str]:
-    """Drop trailing empty cells left behind by spreadsheet autofill."""
+def trim_row(row: list[str]) -> list[str]:
+    """Drop trailing empty cells left behind by spreadsheet autofill.
+
+    A single-cell marker row (``["Table 1: ..."]``) is only length 1 in a
+    ragged source like a CSV reader. Rows pulled from a
+    ``pandas.DataFrame`` (e.g. an Excel sheet parsed with ``header=None``)
+    are always padded to the sheet's full width, so :func:`_split_blocks`'s
+    marker detection needs this trim first -- see
+    :mod:`bolster.data_sources.health_ni.gms` for that non-CSV use.
+
+    Args:
+        row: Raw cell values for one row.
+
+    Returns:
+        The row with trailing blank cells removed.
+    """
     trimmed = list(row)
     while trimmed and not trimmed[-1].strip():
         trimmed.pop()
@@ -223,7 +246,7 @@ def _split_blocks(rows: list[list[str]]) -> list[tuple[str, str, list[list[str]]
             if match:
                 if current:
                     blocks.append((*current, pending))
-                current = (f"{match.group(1)}{(match.group(2) or '').upper()}", strip_note_refs(match.group(3)))
+                current = (match.group(1).upper(), strip_note_refs(match.group(2)))
                 pending = []
             continue
         if current:
@@ -234,11 +257,17 @@ def _split_blocks(rows: list[list[str]]) -> list[tuple[str, str, list[list[str]]
     return blocks
 
 
-def parse_csv_tables(path: Path | str) -> pd.DataFrame:
-    """Parse a stacked multi-table DoH CSV into a long frame.
+def parse_stacked_tables(rows: list[list[str]]) -> pd.DataFrame:
+    """Parse stacked multi-table rows (marker-row separated) into a long frame.
+
+    The shared reshaping core behind :func:`parse_csv_tables` — split out so
+    non-CSV sources with the same layout (e.g. an Excel sheet parsed with
+    ``pandas.ExcelFile.parse(sheet_name, header=None)`` and converted to rows
+    via ``.fillna("").astype(str).values.tolist()``) can reuse it directly
+    without a CSV round-trip.
 
     Args:
-        path: Path to the downloaded CSV.
+        rows: All rows of the source, already trimmed of trailing empty cells.
 
     Returns:
         DataFrame with ``table_id``, ``table_title``, ``row_group``,
@@ -247,15 +276,8 @@ def parse_csv_tables(path: Path | str) -> pd.DataFrame:
         otherwise; ``row_label`` is always the innermost row label.
 
     Raises:
-        NISRADataNotFoundError: If the file cannot be read or holds no tables.
+        NISRADataNotFoundError: If no data tables are found in ``rows``.
     """
-    try:
-        text = Path(path).read_bytes().decode("utf-8-sig", errors="replace")
-    except OSError as e:
-        raise NISRADataNotFoundError(f"Failed to read {path}: {e}") from e
-
-    rows = [_trim(row) for row in csv.reader(io.StringIO(text))]
-
     records: list[dict[str, object]] = []
     for table_id, table_title, block in _split_blocks(rows):
         if len(block) < 2:
@@ -286,9 +308,39 @@ def parse_csv_tables(path: Path | str) -> pd.DataFrame:
                 )
 
     if not records:
-        raise NISRADataNotFoundError(f"No data tables found in {path}")
+        raise NISRADataNotFoundError("No data tables found")
 
     return pd.DataFrame(records)
+
+
+def parse_csv_tables(path: Path | str) -> pd.DataFrame:
+    """Parse a stacked multi-table DoH CSV into a long frame.
+
+    Thin wrapper around :func:`parse_stacked_tables` for the CSV case: reads
+    and decodes the file, then hands rows to the shared row-based parser.
+
+    Args:
+        path: Path to the downloaded CSV.
+
+    Returns:
+        DataFrame with ``table_id``, ``table_title``, ``row_group``,
+        ``row_label``, ``column`` and ``value`` columns. ``row_group`` holds
+        the outer category when a table has two label columns and is ``None``
+        otherwise; ``row_label`` is always the innermost row label.
+
+    Raises:
+        NISRADataNotFoundError: If the file cannot be read or holds no tables.
+    """
+    try:
+        text = Path(path).read_bytes().decode("utf-8-sig", errors="replace")
+    except OSError as e:
+        raise NISRADataNotFoundError(f"Failed to read {path}: {e}") from e
+
+    rows = [trim_row(row) for row in csv.reader(io.StringIO(text))]
+    try:
+        return parse_stacked_tables(rows)
+    except NISRADataNotFoundError:
+        raise NISRADataNotFoundError(f"No data tables found in {path}") from None
 
 
 def list_dated_publications(index_url: str, slug_pattern: str) -> pd.DataFrame:
