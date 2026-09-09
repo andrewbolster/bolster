@@ -297,31 +297,38 @@ jobs:
                     fi
                   }
 
-                  # Idempotency: tag already pushed in a previous run
+                  # Idempotency: the tag itself is immutable once pushed (it may
+                  # already be published), but the *branch* is not treated as a
+                  # source of truth — a previous run's branch can go stale (its PR
+                  # sat unmerged long enough to conflict with everything else that
+                  # landed on main since; confirmed live, this happened to v0.7.7).
+                  # So: always build the bump commit fresh from current HEAD
+                  # (already checked out at the top of this job) and force-push it,
+                  # regardless of what a prior attempt left behind. The only thing
+                  # gated on the tag already existing is re-tagging itself.
+                  TAG_EXISTS=false
                   if git ls-remote --exit-code origin "refs/tags/v${NEW_VERSION}" 2>/dev/null; then
-                    echo "Tag v${NEW_VERSION} already exists — checking for open PR"
-                    EXISTING_PR=$(gh pr list --head "$BRANCH" --base main --json number --jq '.[0].number' 2>/dev/null || true)
-                    if [ -n "$EXISTING_PR" ]; then
-                      echo "PR #${EXISTING_PR} already open — nothing to do"
-                      enable_automerge "$EXISTING_PR"
-                      exit 0
-                    fi
-                    gh pr create \
-                      --title "chore: bump version to ${NEW_VERSION}" \
-                      --body "Automated version bump to ${NEW_VERSION} (retry — tag was already pushed in a previous run)." \
-                      --label "version:skip" \
-                      --base main \
-                      --head "$BRANCH"
-                    enable_automerge "$BRANCH"
-                    exit 0
+                    echo "Tag v${NEW_VERSION} already exists — will refresh the version-bump branch/PR without re-tagging"
+                    TAG_EXISTS=true
                   fi
 
                   git checkout -b "$BRANCH"
                   git add .
                   git commit -m "chore: bump version to ${NEW_VERSION}"
-                  git tag "v${NEW_VERSION}"
-                  git push origin "$BRANCH"
-                  git push origin "v${NEW_VERSION}"
+                  if [ "$TAG_EXISTS" = false ]; then
+                    git tag "v${NEW_VERSION}"
+                  fi
+                  git push --force origin "$BRANCH"
+                  if [ "$TAG_EXISTS" = false ]; then
+                    git push origin "v${NEW_VERSION}"
+                  fi
+
+                  EXISTING_PR=$(gh pr list --head "$BRANCH" --base main --json number --jq '.[0].number' 2>/dev/null || true)
+                  if [ -n "$EXISTING_PR" ]; then
+                    echo "PR #${EXISTING_PR} already open — branch refreshed, nothing else to do"
+                    enable_automerge "$EXISTING_PR"
+                    exit 0
+                  fi
 
                   # Build optional PR body sections
                   INSTALL_SECTION=""
@@ -335,9 +342,13 @@ jobs:
                     [ -n "$PYPI_BASE_URL" ] && DOCS_SECTION="${DOCS_SECTION}- [PyPI Package](${PYPI_BASE_URL}/${NEW_VERSION}/)\n"
                     DOCS_SECTION="${DOCS_SECTION}\n"
                   fi
+                  RETRY_NOTE=""
+                  if [ "$TAG_EXISTS" = true ]; then
+                    RETRY_NOTE="_Retry: tag v${NEW_VERSION} was already pushed (and likely already published) in a previous run; this PR only catches main's version file up to it._\n\n"
+                  fi
 
-                  printf "Automated version bump to %s.\n\n## Changes in this release\n\n%s\n\n%s%s---\n*This PR was automatically created by the release workflow.*\n" \
-                    "${NEW_VERSION}" "${CHANGELOG_ENTRY}" "${INSTALL_SECTION}" "${DOCS_SECTION}" \
+                  printf "Automated version bump to %s.\n\n%s## Changes in this release\n\n%s\n\n%s%s---\n*This PR was automatically created by the release workflow.*\n" \
+                    "${NEW_VERSION}" "${RETRY_NOTE}" "${CHANGELOG_ENTRY}" "${INSTALL_SECTION}" "${DOCS_SECTION}" \
                     > /tmp/pr-body.md
 
                   gh pr create \
