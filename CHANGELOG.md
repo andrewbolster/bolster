@@ -1,5 +1,23 @@
 # Changelog
 
+## \[0.8.0\] - 2026-09-09
+
+Catch-up release: v0.7.7 was tagged and published on 2026-09-04, but its
+version-bump PR never merged to `main` (it drifted into a conflict with
+everything below and was closed unmerged, see #2140) — so `v0.7.7` on PyPI
+is code-identical to 0.7.6, and everything since has been sitting on `main`
+unreleased under any version. This catches `main` up under the correct
+semver bump (minor, not patch, since real features shipped) rather than
+reusing the already-published 0.7.7.
+
+- feat: add PSNI Security Situation Statistics module (#2129)
+- feat: add NI General Medical Services (GMS) statistics module (#2128)
+- feat(ecb_interest_rates): add ECB Eurozone key interest rates (#2127)
+- refactor: migrate remaining modules to bind_download_file() (#2126)
+- fix: release-logic.yml's changelog writer still left a double blank line (#2124)
+- fix: escape changelog version headers for mdformat compliance (#2123)
+- fix: patch and minor releases automatic, major requires manual dispatch (#2138)
+
 ## \[0.7.6\] - 2026-09-04
 
 - fix: pr-labeler.yml still labelled feat: PRs version:minor (#2119)
