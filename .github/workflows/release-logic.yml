@@ -5,13 +5,14 @@ name: Release Logic (Reusable)
 # Inputs
 # ------
 # version_bump   : override bump type ('auto' means analyse commits)
-# block_minor    : when true, a detected breaking change requires manual
-#                  workflow_dispatch instead of auto-releasing. Below 1.0.0,
-#                  the minor position (0.X.y) is what block_minor guards —
-#                  feat: commits bump patch automatically, since a new
-#                  non-breaking feature isn't the kind of event a 0.x
-#                  package needs a human to sign off on; only an actual
-#                  BREAKING CHANGE/`!:` commit does.
+# block_major    : when true, a detected breaking change requires manual
+#                  workflow_dispatch instead of auto-releasing. Standard
+#                  semver mapping: fix:/other -> patch, feat: -> minor,
+#                  both auto-released and auto-merged unattended; only an
+#                  actual BREAKING CHANGE/`!:` commit bumps major, and
+#                  major is a deliberate human decision even when detected
+#                  (a bigger piece of work than an auto-release should ship
+#                  on its own), gated by this flag.
 # package_name   : PyPI package name (used in PR body installation snippet)
 # docs_url       : documentation URL (omitted from PR body when blank)
 # pypi_base_url  : PyPI package base URL, e.g. https://pypi.org/project/bolster
@@ -29,8 +30,8 @@ on:
                 description: "Version bump override (auto, patch, minor, major)"
                 default: "auto"
                 type: string
-            block_minor:
-                description: "Block automatic minor bumps; require workflow_dispatch"
+            block_major:
+                description: "Block automatic major bumps; require workflow_dispatch"
                 default: true
                 type: boolean
             package_name:
@@ -91,6 +92,24 @@ jobs:
                         .filter(line => line.trim());
                       console.log(`Commits since ${lastTag || 'beginning'}:`, commits);
 
+                      // Separate query for breaking-change detection: %s above is
+                      // subject-only (deliberately, so the changelog stays one line
+                      // per commit) and can never contain a `BREAKING CHANGE:`
+                      // footer, which lives in the body. %B (raw body, subject
+                      // included) with a null-byte delimiter recovers the full text
+                      // per commit without disturbing the changelog's own parsing.
+                      const gitBodyCmd = lastTag
+                        ? `git log ${lastTag}..HEAD --pretty=format:"%B%x00"`
+                        : `git log HEAD --pretty=format:"%B%x00"`;
+                      const commitBodies = execSync(gitBodyCmd, { encoding: 'utf-8' })
+                        .split('\0')
+                        .map(body => body.trim())
+                        .filter(body => body.length > 0);
+                      const hasBreakingChange = commitBodies.some(
+                        body => /^[a-z]+(\(.*\))?!:/.test(body) || /^BREAKING CHANGE:/m.test(body)
+                      );
+                      if (hasBreakingChange) console.log('Breaking change detected (subject `!:` or body `BREAKING CHANGE:` footer)');
+
                       const skipPatterns = [
                         /^docs?(\(.*\))?:/,
                         /^ci(\(.*\))?:/,
@@ -101,6 +120,7 @@ jobs:
                         /Update.*dependabot/i
                       ];
                       const releaseCommits = commits.filter(c => !skipPatterns.some(p => p.test(c)));
+                      const hasFeature = releaseCommits.some(c => /^feat(\(.*\))?!?:/.test(c));
 
                       // Manual override: caller passes the workflow_dispatch input through
                       const versionBumpInput = '${{ inputs.version_bump }}';
@@ -124,16 +144,6 @@ jobs:
                           const vLabel = pr.labels.map(l => l.name).find(n => n.startsWith('version:'));
                           if (vLabel) {
                             labelOverride = vLabel.replace('version:', '');
-                            // Major is never auto-applied, from a label any more than from
-                            // a commit message — pr-labeler.yml applies version:major
-                            // automatically based on its own (imperfect) detection, and
-                            // that automated label shouldn't be able to do what an
-                            // automated commit-message scan already isn't allowed to do.
-                            // Declaring 1.0.0 stays a workflow_dispatch-only decision.
-                            if (labelOverride === 'major') {
-                              console.log(`PR #${pr.number} label version:major downgraded to minor — major is never auto-applied`);
-                              labelOverride = 'minor';
-                            }
                             console.log(`PR #${pr.number} label override: ${labelOverride}`);
                             break;
                           }
@@ -154,27 +164,24 @@ jobs:
                         return;
                       }
 
-                      // Below 1.0.0 the minor position is the one that
-                      // signals a real compatibility break — feat: commits
-                      // are new, non-breaking functionality and bump patch
-                      // like everything else. Only an explicit BREAKING
-                      // CHANGE/`!:` marker bumps minor. major is never
-                      // auto-detected from commit messages at all — it's
-                      // only reachable via an explicit workflow_dispatch
-                      // (the versionBumpInput branch above), since declaring
-                      // 1.0.0 is a decision only a human makes.
+                      // Standard semver mapping: fix:/other -> patch,
+                      // feat: -> minor, a breaking change -> major. A label
+                      // on the merged PR overrides commit-message detection
+                      // for patch/minor/major alike — including 'major',
+                      // which then hits the same gate below as an
+                      // auto-detected breaking change would.
                       let versionBump = labelOverride || 'patch';
                       if (!labelOverride) {
-                        let hasBreaking = false;
-                        for (const commit of releaseCommits) {
-                          if (commit.includes('BREAKING CHANGE') || commit.includes('!:')) { hasBreaking = true; break; }
-                        }
-                        if (hasBreaking) versionBump = 'minor';
+                        if (hasBreakingChange) versionBump = 'major';
+                        else if (hasFeature) versionBump = 'minor';
                       }
 
-                      // Gate: a detected breaking change requires manual dispatch when block_minor=true
-                      const blockMinor = '${{ inputs.block_minor }}' === 'true';
-                      if (versionBump === 'minor' && blockMinor) {
+                      // Gate: major never auto-releases when block_major=true —
+                      // it's a deliberate decision, larger than an unattended
+                      // release should ship on its own, made via an explicit
+                      // workflow_dispatch (the versionBumpInput branch above).
+                      const blockMajor = '${{ inputs.block_major }}' === 'true';
+                      if (versionBump === 'major' && blockMajor) {
                         console.log(`${versionBump} bump detected (breaking change) — requires manual workflow_dispatch`);
                         core.setOutput('should_release', 'false');
                         return;
@@ -277,14 +284,15 @@ jobs:
                   # suppresses it to prevent loops), so automerge.yml — which is built to
                   # approve+merge exactly this kind of bot PR — can never see them; every
                   # release PR to date has needed a manual merge regardless of bump size.
-                  # Patch bumps are already unattended in every other respect (auto-detected,
-                  # no block_minor gate), so enable auto-merge directly here with a token
-                  # that isn't GITHUB_TOKEN, instead of relying on a trigger that can't fire.
-                  # Minor/major bumps only reach this step via an explicit human
-                  # workflow_dispatch, so they're left for manual review and merge.
+                  # Patch and minor bumps are already unattended in every other respect
+                  # (auto-detected, past the block_major gate), so enable auto-merge
+                  # directly here with a token that isn't GITHUB_TOKEN, instead of
+                  # relying on a trigger that can't fire. Major only reaches this step
+                  # via an explicit human workflow_dispatch, so it's left for manual
+                  # review and merge — a deliberate decision shouldn't auto-merge itself.
                   enable_automerge() {
-                    if [ "$VERSION_BUMP" = "patch" ]; then
-                      echo "Patch release — enabling auto-merge for $1"
+                    if [ "$VERSION_BUMP" = "patch" ] || [ "$VERSION_BUMP" = "minor" ]; then
+                      echo "$VERSION_BUMP release — enabling auto-merge for $1"
                       GH_TOKEN="$BOLSTER_TOKEN" gh pr merge --auto --squash "$1"
                     fi
                   }
