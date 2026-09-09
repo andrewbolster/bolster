@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.8.1\] - 2026-09-09
+
+- fix: grant contents:write so publish.yml can create GitHub Releases (#2143)
+
 ## \[0.8.0\] - 2026-09-09
 
 Catch-up release: v0.7.7 was tagged and published on 2026-09-04, but its
