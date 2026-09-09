@@ -1,5 +1,16 @@
 # Changelog
 
+## \[0.7.7\] - 2026-09-09
+
+- fix: version-bump retry path reuses a stale branch instead of refreshing it (#2140)
+- fix: patch and minor releases automatic, major requires manual dispatch (#2138)
+- feat: add PSNI Security Situation Statistics module (#2129)
+- feat: add NI General Medical Services (GMS) statistics module (#2128)
+- feat(ecb_interest_rates): add ECB Eurozone key interest rates (#2127)
+- refactor: migrate remaining modules to bind_download_file() (#2126)
+- fix: release-logic.yml's changelog writer still left a double blank line (#2124)
+- fix: escape changelog version headers for mdformat compliance (#2123)
+
 ## \[0.7.6\] - 2026-09-04
 
 - fix: pr-labeler.yml still labelled feat: PRs version:minor (#2119)
