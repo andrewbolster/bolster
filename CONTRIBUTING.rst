@@ -158,16 +158,38 @@ See coverage with missing lines::
 Deploying
 ---------
 
-Maintainers only.
+Patch and minor releases are fully automated — most of the time there is
+nothing to do here at all.
 
-1. Update ``CHANGELOG.md`` with the new version entry.
-2. Bump the version::
+On every push to ``main``, ``release-logic.yml`` inspects the commits since
+the last tag and maps them to a version bump using conventional-commit
+prefixes:
 
-    $ uv run bump-my-version bump patch   # or minor / major
+* ``fix:`` (or anything else release-worthy) → **patch**
+* ``feat:`` → **minor**
+* ``feat!:`` / ``fix!:`` / any ``type!:``, or a ``BREAKING CHANGE:`` footer
+  in the commit body → **major**
 
-3. Push the resulting commit and tag::
+``docs:``, ``ci:``, ``chore:``, ``style:`` and ``test:`` commits are skipped
+entirely (no release opens for a docs-only or CI-only change).
 
-    $ git push --follow-tags
+For a **patch or minor** bump, the workflow opens a ``chore: bump version to
+vX.Y.Z`` PR, tags it, and auto-merges it once CI is green — no maintainer
+action needed. The tag push then triggers ``publish.yml``, which publishes
+to PyPI and creates the GitHub Release.
 
-GitHub Actions ``publish.yml`` will then tag, release, and deploy to PyPI
-once tests pass.
+A detected **major** bump (a real breaking change) never auto-releases,
+even though it's detected — it's a deliberate decision and a bigger piece
+of work than an unattended release should ship on its own. Cut it via
+GitHub Actions → **Automated Release** → **Run workflow**, choosing
+``major`` explicitly. The same manual dispatch path also works for forcing
+a specific bump type outside the automatic detection, if ever needed.
+
+Emergency manual override
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``publish.yml`` also accepts a direct ``workflow_dispatch`` with an existing
+tag name, for re-publishing a release that already exists (e.g. a PyPI
+upload that failed partway through). This does not create a new version or
+tag — it re-runs the build-and-publish steps against a tag that's already
+there.

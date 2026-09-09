@@ -23,7 +23,7 @@ jobs:
         uses: ./.github/workflows/release-logic.yml
         with:
             version_bump: ${{ inputs.version_bump || 'auto' }}
-            block_minor: true
+            block_major: true
             package_name: bolster
             docs_url: https://bolster.readthedocs.io
             pypi_base_url: https://pypi.org/project/bolster
