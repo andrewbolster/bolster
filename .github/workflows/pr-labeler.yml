@@ -85,14 +85,14 @@ jobs:
           if (hasBreakingCommit) {
             labelsToAdd.push('version:major', 'breaking-change', 'constitutional-review');
           }
-          // Below 1.0.0 a new feature is a patch, same as release-logic.yml's
-          // own commit-message analysis — only an actual BREAKING CHANGE
-          // bumps minor. This used to say version:minor, which meant a
-          // feat: PR's own label blocked release-logic's block_minor gate
-          // from ever auto-releasing it, silently overriding the policy
-          // that gate exists to enforce.
+          // Standard semver mapping, matching release-logic.yml's own
+          // commit-message analysis: a new feature is minor, a breaking
+          // change is major (handled above). version:minor here is exactly
+          // right and no longer fights the gate the way it used to — the
+          // gate now blocks major (block_major), not minor, so a feat: PR's
+          // own label doesn't override anything it shouldn't.
           else if (prTitle.match(/^feat(\(.*\))?:/)) {
-            labelsToAdd.push('version:patch', 'enhancement');
+            labelsToAdd.push('version:minor', 'enhancement');
           }
           // Check for bug fixes
           else if (prTitle.match(/^fix(\(.*\))?:/)) {

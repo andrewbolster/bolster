@@ -61,6 +61,22 @@ uv run bolster --help                                # CLI
 
 This applies even to small fixes. The only exception is post-merge follow-up commits already agreed with the user in the same session.
 
+### Releases
+
+Merging a PR to `main` can trigger an automatic release — `release-logic.yml`
+inspects commits since the last tag on every push and maps them by
+conventional-commit prefix:
+
+- `fix:` (or anything else release-worthy) → **patch**, auto-released and auto-merged unattended
+- `feat:` → **minor**, auto-released and auto-merged unattended
+- `feat!:` / `fix!:` / any `type!:`, or a `BREAKING CHANGE:` footer in the commit body → **major**, never auto-released — requires an explicit `workflow_dispatch` of "Automated Release" with `version_bump: major`
+
+`docs:`, `ci:`, `chore:`, `style:` and `test:` commits don't trigger a
+release at all. When merging a PR that introduces a real breaking change,
+use `!:`/a `BREAKING CHANGE:` footer deliberately — that's what keeps a
+major bump from shipping unattended. See `CONTRIBUTING.rst`'s "Deploying"
+section for the full mechanics.
+
 ## Standards
 
 - **No mocks** - tests use real data with `scope="class"` fixtures
