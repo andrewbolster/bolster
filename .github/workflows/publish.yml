@@ -1,6 +1,8 @@
-# Legacy manual publishing workflow - kept for emergency use
-# Primary publishing now handled by auto-release.yml
-
+# Publishes every release, automatic or manual: release-logic.yml pushes a
+# `v*.*.*` tag on every patch/minor auto-release (and on a manually
+# dispatched major one), which triggers this on the `push: tags` path below.
+# `workflow_dispatch` is the escape hatch for a manual/emergency re-publish
+# of a tag that already exists, not the normal path.
 name: Manual Publish to PyPI
 
 permissions: read-all
@@ -69,19 +71,24 @@ jobs:
                 attestations: true
                 print-hash: true
 
-            - name: Create GitHub Release (if manual)
-              if: github.event_name == 'workflow_dispatch'
+            - name: Create GitHub Release
+              # No `if:` gate — this used to only run on workflow_dispatch,
+              # which meant every automatic release (every patch/minor bump
+              # since v0.7.1) published to PyPI but never got a GitHub
+              # Release object, and anything listening for the `release`
+              # event (e.g. andrewbolster/mcp.bolster.online's
+              # repository_dispatch notifier) never fired.
               uses: softprops/action-gh-release@7c4723f7a335432393329f8f1c564994ce50185d  # v3
               with:
-                tag_name: ${{ github.event.inputs.tag }}
-                name: Release ${{ github.event.inputs.tag }}
+                tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+                name: Release ${{ github.event.inputs.tag || github.ref_name }}
                 body: |
-                  Manual release of ${{ github.event.inputs.tag }}
+                  Release ${{ github.event.inputs.tag || github.ref_name }}.
 
                   ## Installation
 
                   ```bash
-                  pip install bolster==${{ github.event.inputs.tag }}
+                  pip install bolster==${{ github.event.inputs.tag || github.ref_name }}
                   ```
                 draft: false
                 prerelease: false
