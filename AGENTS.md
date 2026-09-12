@@ -312,11 +312,11 @@ class TestValidation:
 
 **Purpose**: Review recently merged PRs to keep documentation current and surface emerging shared utility candidates as actionable issues.
 
-**Trigger**: Runs on a monthly schedule (first Monday of each month). Also invokable manually: "Use the data-maintenance agent to review last month's merges".
+**Trigger**: Runs weekly. Also invokable manually: "Use the data-maintenance agent to review this week's merges".
 
 **Workflow**:
 
-1. **Find scope** - Run `gh pr list --state merged --base main --limit 50 --json number,title,mergedAt,labels` and filter to PRs merged in the last 30 days. Skip PRs labelled `version:skip`, `dependencies`, or `documentation`.
+1. **Find scope** - Run `gh pr list --state merged --base main --limit 50 --json number,title,mergedAt,labels` and filter to PRs merged in the last 7 days. Skip PRs labelled `version:skip`, `dependencies`, or `documentation`.
 1. **README audit** - For each merged PR that touches `src/bolster/data_sources/`, verify:
    - The new module appears in the README coverage table
    - The CLI command is documented (`uv run bolster --help` output matches)
@@ -327,11 +327,12 @@ class TestValidation:
    - Code in a module that duplicates something already in `_base.py`, `pxstat.py`, `utils/web.py`, or `utils/cache.py`
    - New helper functions defined inline that belong in a shared utility
      For each identified pattern, open a `gh issue create --label "enhancement"` issue describing the candidate utility, which PRs introduced the pattern, and a sketch of the proposed API.
-1. **Summary** - Open a single `gh issue create --label "maintenance"` issue titled "Monthly Maintenance Review — <Month Year>" linking all issues raised (or noting "nothing to report" if clean).
+1. **Summary** - If nothing was found in the README audit or shared-utility scan (both clean, no new open-issue hygiene findings either), skip issue creation entirely — do not open a "nothing to report" issue. Only when there's something to report, open a single `gh issue create --label "maintenance"` issue titled "Maintenance Review - <YYYYMMDD>" linking all issues raised.
 
 **Key behaviors**:
 
 - Read-only on code — do NOT open PRs or modify `src/`
+- A clean review (nothing to report) produces no issue at all — silence is the expected, common case, not something to log
 - Open the minimum number of issues needed — batch documentation gaps into one issue, not one per module
 - Be conservative on shared utility candidates — only flag patterns seen in ≥2 separate PRs
 - Do not re-raise issues that are already open with the same label and similar title
