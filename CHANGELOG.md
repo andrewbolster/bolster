@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.8.2\] - 2026-09-12
+
+- fix: open version-bump PRs with BOLSTER_TOKEN, not GITHUB_TOKEN (#2148)
+
 ## \[0.8.1\] - 2026-09-09
 
 - fix: grant contents:write so publish.yml can create GitHub Releases (#2143)
