@@ -102,7 +102,7 @@ def poolmap(
     f: Callable,
     iterable: Iterable,
     max_workers: int | None = None,
-    progress: Callable = None,
+    progress: Callable | None = None,
     **kwargs,
 ) -> dict:
     """Helper function to encapsulate a ThreadPoolExecutor mapped function workflow.
@@ -380,7 +380,7 @@ def working_directory(path: str | Path) -> Generator:
         os.chdir(str(prev_cwd.absolute()))
 
 
-def compress_for_relay(obj: list | dict) -> AnyStr:
+def compress_for_relay(obj: list | dict) -> str:
     """Compress json-serializable object to a gzipped base64 string.
 
     Args:
@@ -611,7 +611,7 @@ def aggregate(
         item_key: Key to sum values for within each group
         condition: Optional function to filter records before grouping
     """
-    agg_c = Counter()
+    agg_c: Counter[Any] = Counter()
     if condition is None:
         condition = lambda x: True  # noqa: E731
 
@@ -648,7 +648,7 @@ def set_keys(d: dict) -> set[Hashable]:
     return keys
 
 
-def keys_at(d: dict, n: SupportsInt, i: SupportsInt = 0) -> Iterator[Hashable]:
+def keys_at(d: dict, n: int, i: int = 0) -> Iterator[Hashable]:
     """Extract the keys of a tree at a given depth."""
     if isinstance(d, dict):
         for k, v in d.items():
@@ -658,7 +658,7 @@ def keys_at(d: dict, n: SupportsInt, i: SupportsInt = 0) -> Iterator[Hashable]:
                 yield from keys_at(v, n, i + 1)
 
 
-def items_at(d: dict, n: SupportsInt, i: SupportsInt = 0) -> Iterator[tuple[Hashable, Any]]:
+def items_at(d: dict, n: int, i: int = 0) -> Iterator[tuple[Hashable, Any]]:
     """Extract the elements from a tree at a given depth."""
     if isinstance(d, dict):
         for k, v in d.items():

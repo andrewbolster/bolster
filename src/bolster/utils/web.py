@@ -25,11 +25,12 @@ from collections.abc import Generator
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
+from typing import IO, cast
 from urllib.parse import urlsplit
 
 import pandas as pd
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from requests.adapters import HTTPAdapter
 from tqdm import tqdm
 from urllib3.util.retry import Retry
@@ -285,9 +286,9 @@ def scrape_file_links(
     soup = fetch_soup(page_url, force_refresh=force_refresh)
 
     return [
-        {"url": make_absolute_url(a["href"], base_url), "text": a.get_text(strip=True)}
-        for a in soup.find_all("a", href=True)
-        if file_extension in a["href"].lower()
+        {"url": make_absolute_url(cast("str", a["href"]), base_url), "text": a.get_text(strip=True)}
+        for a in cast("list[Tag]", soup.find_all("a", href=True))
+        if file_extension in cast("str", a["href"]).lower()
     ]
 
 
@@ -326,8 +327,8 @@ def find_publication_link(
     soup = fetch_soup(hub_url, force_refresh=force_refresh)
 
     pub_link = None
-    for a_tag in soup.find_all("a", href=True):
-        href = a_tag["href"]
+    for a_tag in cast("list[Tag]", soup.find_all("a", href=True)):
+        href = cast("str", a_tag["href"])
         if pub_text_contains and pub_text_contains not in a_tag.get_text(strip=True):
             continue
         if pub_href_contains and pub_href_contains.lower() not in href.lower():
@@ -370,7 +371,7 @@ def get_excel_dataframe(
         return pd.read_excel(data, **read_kwargs)
 
 
-def download_extract_zip(url: str) -> Generator[tuple[str, io.BufferedReader], None, None]:
+def download_extract_zip(url: str) -> Generator[tuple[str, IO[bytes]], None, None]:
     """Download a ZIP file and extract its contents in memory.
 
     Yields (filename, file-like object) pairs. Shows a tqdm progress bar

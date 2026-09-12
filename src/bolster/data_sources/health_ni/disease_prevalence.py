@@ -39,6 +39,7 @@ Example:
 """
 
 import logging
+from pathlib import Path
 
 import pandas as pd
 
@@ -412,6 +413,8 @@ def _parse_table5_sheet(raw: pd.DataFrame, financial_year: str, year: int) -> pd
             f"Could not locate register blocks in sheet (financial_year={financial_year!r}). "
             f"Block labels found: {list(block_starts.values())}"
         )
+    assert count_end is not None  # set alongside count_start, above
+    assert prev_end is not None  # set alongside prev_start, above
 
     def _block_registers(start: int, end: int) -> list[tuple[int, str]]:
         result = []
@@ -476,7 +479,7 @@ def _parse_table5_sheet(raw: pd.DataFrame, financial_year: str, year: int) -> pd
     return pd.DataFrame(records)
 
 
-def parse_gp_practice_lookup(file_path: str, sheet_name: str | None = None) -> pd.DataFrame:
+def parse_gp_practice_lookup(file_path: str | Path, sheet_name: str | None = None) -> pd.DataFrame:
     """Parse Table 4 (GP practice details) into a lookup DataFrame.
 
     Args:
@@ -530,7 +533,7 @@ def parse_gp_practice_lookup(file_path: str, sheet_name: str | None = None) -> p
     return pd.DataFrame(records)
 
 
-def parse_all_gp_practices(file_path: str) -> pd.DataFrame:
+def parse_all_gp_practices(file_path: str | Path) -> pd.DataFrame:
     """Parse all Table 5 sheets and return a concatenated long-format DataFrame.
 
     Args:

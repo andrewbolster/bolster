@@ -30,7 +30,7 @@ class DataNotFoundError(DataSourceError):
         source: Optional data source identifier
     """
 
-    def __init__(self, message: str, url: str = None, source: str = None):
+    def __init__(self, message: str, url: str | None = None, source: str | None = None):
         """Initialize DataSourceError with message and optional context."""
         super().__init__(message)
         self.url = url
@@ -60,7 +60,7 @@ class ValidationError(DataSourceError):
         validation_type: Optional type of validation that failed
     """
 
-    def __init__(self, message: str, data_info: str = None, validation_type: str = None):
+    def __init__(self, message: str, data_info: str | None = None, validation_type: str | None = None):
         """Initialize ValidationError with message and optional validation context."""
         super().__init__(message)
         self.data_info = data_info
@@ -90,7 +90,7 @@ class ParseError(DataSourceError):
         parser_type: Optional type of parser (excel, csv, html, json)
     """
 
-    def __init__(self, message: str, file_path: str = None, parser_type: str = None):
+    def __init__(self, message: str, file_path: str | None = None, parser_type: str | None = None):
         """Initialize ParseError with message and optional parsing context."""
         super().__init__(message)
         self.file_path = file_path
@@ -121,7 +121,9 @@ class NetworkError(DataSourceError):
         retry_count: Optional number of retries attempted
     """
 
-    def __init__(self, message: str, url: str = None, status_code: int = None, retry_count: int = None):
+    def __init__(
+        self, message: str, url: str | None = None, status_code: int | None = None, retry_count: int | None = None
+    ):
         """Initialize NetworkError with message and optional network context."""
         super().__init__(message)
         self.url = url

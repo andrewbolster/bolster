@@ -47,6 +47,7 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
 
@@ -76,7 +77,7 @@ def get_latest_construction_publication_url() -> tuple[str, datetime]:
         >>> url.startswith('https://')
         True
     """
-    from bs4 import BeautifulSoup
+    from bs4 import BeautifulSoup, Tag
 
     logger.info("Fetching latest Construction Output publication URL...")
 
@@ -90,12 +91,12 @@ def get_latest_construction_publication_url() -> tuple[str, datetime]:
 
     # Find the link to the latest publication
     # Pattern: "Construction Output Statistics - Q2 - 2025" or similar
-    publication_links = soup.find_all("a", href=True)
+    publication_links = cast("list[Tag]", soup.find_all("a", href=True))
 
     for link in publication_links:
         link_text = link.get_text(strip=True)
         if "Construction Output Statistics" in link_text and "Q" in link_text:
-            pub_url = link["href"]
+            pub_url = cast("str", link["href"])
             if not pub_url.startswith("http"):
                 pub_url = f"https://www.nisra.gov.uk{pub_url}"
 
@@ -109,8 +110,8 @@ def get_latest_construction_publication_url() -> tuple[str, datetime]:
             pub_soup = BeautifulSoup(pub_response.content, "html.parser")
 
             # Find Excel file link (construction tables)
-            for file_link in pub_soup.find_all("a", href=True):
-                href = file_link["href"]
+            for file_link in cast("list[Tag]", pub_soup.find_all("a", href=True)):
+                href = cast("str", file_link["href"])
                 if ".xlsx" in href.lower() and "construction" in href.lower() and "table" in href.lower():
                     excel_url = href
                     if not excel_url.startswith("http"):
@@ -119,8 +120,8 @@ def get_latest_construction_publication_url() -> tuple[str, datetime]:
                     # Extract publication date
                     pub_date = datetime.now()
                     date_meta = pub_soup.find("meta", property="article:published_time")
-                    if date_meta and date_meta.get("content"):
-                        pub_date = datetime.fromisoformat(date_meta["content"].split("T")[0])
+                    if isinstance(date_meta, Tag) and date_meta.get("content"):
+                        pub_date = datetime.fromisoformat(cast("str", date_meta["content"]).split("T")[0])
 
                     logger.info(
                         f"Found latest Construction Output publication: {excel_url} (published {pub_date.date()})"

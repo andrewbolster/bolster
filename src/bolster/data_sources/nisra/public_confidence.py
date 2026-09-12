@@ -43,6 +43,7 @@ Publication Details:
 import logging
 import re
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
 
@@ -80,7 +81,7 @@ def get_latest_publication_url() -> str:
         >>> url.startswith("https://")
         True
     """
-    from bs4 import BeautifulSoup
+    from bs4 import BeautifulSoup, Tag
 
     from bolster.utils.web import session
 
@@ -96,8 +97,8 @@ def get_latest_publication_url() -> str:
 
     # Find all links to annual publication pages
     pub_links = []
-    for a_tag in soup.find_all("a", href=True):
-        href = a_tag["href"]
+    for a_tag in cast("list[Tag]", soup.find_all("a", href=True)):
+        href = cast("str", a_tag["href"])
         m = re.search(r"public-awareness-and-trust-official-statistics-(\d{4})$", href)
         if m:
             year = int(m.group(1))
@@ -122,8 +123,8 @@ def get_latest_publication_url() -> str:
 
     soup2 = BeautifulSoup(r2.content, "html.parser")
 
-    for a_tag in soup2.find_all("a", href=True):
-        href = a_tag["href"]
+    for a_tag in cast("list[Tag]", soup2.find_all("a", href=True)):
+        href = cast("str", a_tag["href"])
         if ".ods" in href.lower():
             ods_url = href if href.startswith("http") else f"{NISRA_BASE_URL}{href}"
             logger.info("Found ODS file: %s", ods_url)

@@ -66,6 +66,7 @@ Publication Details:
 import logging
 import re
 from pathlib import Path
+from typing import cast
 
 import openpyxl
 import pandas as pd
@@ -125,7 +126,7 @@ def get_work_quality_publication_url() -> tuple[str, int]:
         >>> year >= 2025
         True
     """
-    from bs4 import BeautifulSoup
+    from bs4 import BeautifulSoup, Tag
 
     logger.info("Fetching Work Quality publication URL from index page...")
 
@@ -139,9 +140,9 @@ def get_work_quality_publication_url() -> tuple[str, int]:
 
     # Collect all links whose text matches "Work Quality in Northern Ireland YYYY"
     publications: list[tuple[int, str]] = []
-    for a_tag in soup.find_all("a", href=True):
+    for a_tag in cast("list[Tag]", soup.find_all("a", href=True)):
         text = a_tag.get_text(strip=True)
-        href = a_tag["href"]
+        href = cast("str", a_tag["href"])
         match = re.search(r"Work Quality in Northern Ireland\s+(\d{4})", text, re.IGNORECASE)
         if match:
             year = int(match.group(1))
@@ -169,16 +170,16 @@ def get_work_quality_publication_url() -> tuple[str, int]:
     pub_soup = BeautifulSoup(pub_response.content, "html.parser")
 
     excel_url: str | None = None
-    for a_tag in pub_soup.find_all("a", href=True):
-        href = a_tag["href"]
+    for a_tag in cast("list[Tag]", pub_soup.find_all("a", href=True)):
+        href = cast("str", a_tag["href"])
         if ".xlsx" in href.lower() and "work-quality" in href.lower():
             excel_url = href if href.startswith("http") else f"{NISRA_BASE_URL}{href}"
             break
 
     if excel_url is None:
         # Fallback: any .xlsx link on the publication page
-        for a_tag in pub_soup.find_all("a", href=True):
-            href = a_tag["href"]
+        for a_tag in cast("list[Tag]", pub_soup.find_all("a", href=True)):
+            href = cast("str", a_tag["href"])
             if ".xlsx" in href.lower():
                 excel_url = href if href.startswith("http") else f"{NISRA_BASE_URL}{href}"
                 logger.warning(f"Using fallback Excel link (no 'work-quality' in path): {excel_url}")
