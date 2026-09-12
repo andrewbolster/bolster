@@ -42,7 +42,10 @@ class TestSourceDiscovery:
         assert all(2005 <= year <= 2100 for year in pages)
 
     def test_urls_are_daera_domain(self, pages: dict[int, str]):
-        assert all("daera-ni.gov.uk" in url for url in pages.values())
+        for url in pages.values():
+            host = urlparse(url).hostname
+            assert host is not None
+            assert host == "daera-ni.gov.uk" or host.endswith(".daera-ni.gov.uk")
 
     def test_pages_sorted_ascending(self, pages: dict[int, str]):
         assert list(pages) == sorted(pages)
