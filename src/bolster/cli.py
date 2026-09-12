@@ -11,6 +11,7 @@ from rich.panel import Panel
 from rich.text import Text
 
 from . import __version__
+from .data_sources import daera_air_quality as aq
 from .data_sources import daera_greenhouse_gas as ghg
 from .data_sources import dva, education_suspensions, gender_pay_gap
 from .data_sources.boe_base_rate import get_latest_data as get_boe_base_rate
@@ -1246,6 +1247,100 @@ def daera_greenhouse_gas_cmd(force_refresh, dataset, inventory_year, year, secto
                     f"[green]{int(latest['year'])} total:[/green] "
                     f"{latest['emissions_ktco2e'] / 1000:,.2f} MtCO2e\n"
                     f"[green]Change since {int(baseline['year'])}:[/green] {change:+.1%}",
+                    title="Summary",
+                    border_style="cyan",
+                )
+            )
+            return
+
+        if output_format == "json":
+            click.echo(df.to_json(orient="records", indent=2))
+        elif output_format == "csv":
+            click.echo(df.to_csv(index=False))
+        else:
+            out = df
+            if len(out) > 50:
+                console.print(f"[dim]Showing first 50 of {len(out):,} rows[/dim]")
+                out = out.head(50)
+            click.echo(out.to_string(index=False))
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise SystemExit(1) from e
+
+
+@daera.command(name="air-quality")
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option(
+    "--pollutant",
+    type=click.Choice(["no2", "pm10", "pm25", "all"]),
+    default="all",
+    help="Which pollutant to display (default: all)",
+)
+@click.option("--report-year", type=int, help="Report edition to read (default: latest)")
+@click.option("--year", type=int, help="Filter to a single reporting year")
+@click.option("--summary", is_flag=True, help="Show summary statistics only")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"]),
+    default="table",
+    help="Output format",
+)
+def daera_air_quality_cmd(force_refresh, pollutant, report_year, year, summary, save, output_format):
+    """NI Air Quality statistics.
+
+    Downloads the latest DAERA environmental statistics report workbook and
+    returns annual mean pollutant concentrations (NO2, PM10, PM2.5) by
+    monitoring site type (urban background, urban traffic, rural).
+
+    Examples:
+        bolster daera air-quality                       # All pollutants
+        bolster daera air-quality --pollutant no2        # Nitrogen dioxide only
+        bolster daera air-quality --year 2024            # Single year
+        bolster daera air-quality --summary              # Summary only
+        bolster daera air-quality --save air-quality.csv # Save to CSV
+    """
+    console = Console()
+
+    accessors = {
+        "no2": aq.get_no2,
+        "pm10": aq.get_pm10,
+        "pm25": aq.get_pm25,
+        "all": aq.get_all_pollutants,
+    }
+
+    try:
+        with console.status("[bold green]Downloading DAERA air quality statistics..."):
+            df = accessors[pollutant](year=report_year, force_refresh=force_refresh)
+
+        if year is not None:
+            df = df[df["year"] == year]
+            if df.empty:
+                console.print(f"[yellow]No data found for year {year}[/yellow]")
+                return
+
+        if save:
+            if save.endswith(".json"):
+                df.to_json(save, orient="records", indent=2)
+            else:
+                df.to_csv(save, index=False)
+            console.print(f"[green]Saved {len(df)} rows to {save}[/green]")
+            return
+
+        if summary:
+            value_column = "value_ugm3" if pollutant == "all" else next(c for c in df.columns if c.endswith("_ugm3"))
+            latest_year = int(df["year"].max())
+            console.print(
+                Panel(
+                    f"[bold cyan]NI Air Quality Statistics[/bold cyan]\n"
+                    f"[green]Pollutant:[/green] {pollutant}\n"
+                    f"[green]Rows:[/green] {len(df):,}\n"
+                    f"[green]Reporting years:[/green] {int(df['year'].min())} - {latest_year}\n"
+                    f"[green]Site types:[/green] {', '.join(sorted(df['site_type'].unique()))}\n"
+                    f"[green]Latest mean concentration:[/green] "
+                    f"{df[df['year'] == latest_year][value_column].mean():.2f} µg/m3",
                     title="Summary",
                     border_style="cyan",
                 )

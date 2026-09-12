@@ -208,7 +208,7 @@ Education:
 | European Central Bank | [`ecb_interest_rates`](https://bolster.readthedocs.io/en/latest/data_sources.html#european-central-bank) | Eurozone key policy rates (MRR, DFR, MLFR), 1999–present |
 | Companies House | `companies_house` | UK company data |
 | Gender Pay Gap | `gender_pay_gap` | UK GPG reporting (250+ employees, 2017–present) |
-| DAERA | `daera_waste`, [`daera_greenhouse_gas`](https://bolster.readthedocs.io/en/latest/data_sources.html#greenhouse-gas-inventory) | NI municipal waste statistics; greenhouse gas emissions inventory |
+| DAERA | `daera_waste`, [`daera_greenhouse_gas`](https://bolster.readthedocs.io/en/latest/data_sources.html#greenhouse-gas-inventory), [`daera_air_quality`](https://bolster.readthedocs.io/en/latest/data_sources.html#air-quality-statistics) | NI municipal waste statistics; greenhouse gas emissions inventory; NO2/PM10/PM2.5 air quality |
 | Communities (DfC) | [`family_resources_survey`](https://bolster.readthedocs.io/en/latest/data_sources.html#family-resources-survey-dfc), [`child_maintenance`](https://bolster.readthedocs.io/en/latest/data_sources.html#communities-child-maintenance-service) | Household income/food security/tenure; Child Maintenance Service statistics |
 | Infrastructure (DfI) | [`school_travel`](https://bolster.readthedocs.io/en/latest/data_sources.html#travel-to-and-from-school-ypbas) | Young Persons' Behaviour and Attitudes Survey travel module |
 | Economy (DfE) | [`electricity_renewables`](https://bolster.readthedocs.io/en/latest/data_sources.html#electricity-consumption-and-renewable-generation) | Electricity consumption and renewable generation progress |

@@ -1538,6 +1538,32 @@ emissions.
     $ bolster daera greenhouse-gas --dataset totals
     $ bolster daera greenhouse-gas --sector Agriculture --year 2024
 
+Air Quality Statistics
+~~~~~~~~~~~~~~~~~~~~~~
+
+Annual mean nitrogen dioxide (NO2), PM10 and PM2.5 particulate matter
+concentrations from Northern Ireland's air quality monitoring network,
+reported by monitoring site type (urban background, urban traffic, rural)
+rather than individual station.
+
+.. code-block:: python
+
+    from bolster.data_sources.daera_air_quality import (
+        get_all_pollutants,
+        get_no2,
+        get_pm10,
+        get_pm25,
+    )
+
+    no2 = get_no2()
+    combined = get_all_pollutants()
+
+.. code-block:: console
+
+    $ bolster daera air-quality --summary
+    $ bolster daera air-quality --pollutant no2
+    $ bolster daera air-quality --year 2024
+
 ----
 
 Met Office
