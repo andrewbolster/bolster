@@ -39,7 +39,7 @@ Example:
 import logging
 import re
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
 import pandas as pd
 
@@ -67,7 +67,7 @@ def get_latest_population_publication_url() -> tuple[str, int]:
     Raises:
         NISRADataNotFoundError: If publication or file not found
     """
-    from bs4 import BeautifulSoup
+    from bs4 import BeautifulSoup, Tag
 
     mother_page = POPULATION_BASE_URL
 
@@ -84,7 +84,7 @@ def get_latest_population_publication_url() -> tuple[str, int]:
     pub_link = None
     pub_year = None
 
-    for link in soup.find_all("a", href=True):
+    for link in cast("list[Tag]", soup.find_all("a", href=True)):
         link_text = link.get_text(strip=True)
 
         # Match pattern with year - title format changed in 2024 (dropped "Small Geographical Areas" suffix)
@@ -92,7 +92,7 @@ def get_latest_population_publication_url() -> tuple[str, int]:
 
         if match and "publications" in link["href"]:
             year = int(match.group(1))
-            href = link["href"]
+            href = cast("str", link["href"])
 
             if href.startswith("/"):
                 href = f"https://www.nisra.gov.uk{href}"
@@ -119,8 +119,8 @@ def get_latest_population_publication_url() -> tuple[str, int]:
     # Pattern: "MYE24_AGE_BANDS_NI_HSCT_PC.xlsx" or similar
     excel_url = None
 
-    for link in pub_soup.find_all("a", href=True):
-        href = link["href"]
+    for link in cast("list[Tag]", pub_soup.find_all("a", href=True)):
+        href = cast("str", link["href"])
         link_text = link.get_text(strip=True).lower()
 
         # Match on link text rather than filename — NISRA filename conventions vary by year
@@ -136,6 +136,7 @@ def get_latest_population_publication_url() -> tuple[str, int]:
     if not excel_url:
         raise NISRADataNotFoundError("Could not find age bands Excel file on publication page")
 
+    assert pub_year is not None  # set alongside pub_link, checked above
     return excel_url, pub_year
 
 

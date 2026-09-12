@@ -50,9 +50,10 @@ Example:
 import logging
 import re
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from bolster.utils.web import session
 
@@ -412,7 +413,7 @@ def get_official_migration_publication_url() -> tuple[str, int]:
     pub_link = None
     pub_year = None
 
-    for link in soup.find_all("a", href=True):
+    for link in cast("list[Tag]", soup.find_all("a", href=True)):
         link_text = link.get_text(strip=True)
 
         # Match publication title with year
@@ -420,7 +421,7 @@ def get_official_migration_publication_url() -> tuple[str, int]:
 
         if match and "publications" in link["href"]:
             year = int(match.group(1))
-            href = link["href"]
+            href = cast("str", link["href"])
 
             if href.startswith("/"):
                 href = f"https://www.nisra.gov.uk{href}"
@@ -446,8 +447,8 @@ def get_official_migration_publication_url() -> tuple[str, int]:
     # Find Excel link matching pattern: Mig[YY][YY]-Official_1.xlsx
     excel_url = None
 
-    for a_tag in pub_soup.find_all("a", href=True):
-        href = a_tag["href"]
+    for a_tag in cast("list[Tag]", pub_soup.find_all("a", href=True)):
+        href = cast("str", a_tag["href"])
         if "Official" in href and href.endswith(".xlsx"):
             # Make absolute URL
             if href.startswith("/"):
@@ -463,6 +464,7 @@ def get_official_migration_publication_url() -> tuple[str, int]:
     if not excel_url:
         raise NISRADataNotFoundError(f"Could not find Official estimates Excel file on {pub_link}")
 
+    assert pub_year is not None  # set alongside pub_link, which is checked above
     return excel_url, pub_year
 
 

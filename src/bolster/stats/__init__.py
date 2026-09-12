@@ -8,15 +8,13 @@ Simple functions for common data manipulation tasks:
 Plus distribution fitting in the distributions submodule.
 """
 
-from typing import AnyStr
-
 import pandas as pd
 
 
 def add_totals(
     df: pd.DataFrame,
-    column_total: AnyStr = "total",
-    row_total: AnyStr = "total",
+    column_total: str = "total",
+    row_total: str = "total",
     inplace=True,
 ):
     """Add Row and Column totals to a dataframe (in place).
@@ -57,8 +55,8 @@ def add_totals(
 
 def drop_totals(
     df: pd.DataFrame,
-    column_total: AnyStr = "total",
-    row_total: AnyStr = "total",
+    column_total: str = "total",
+    row_total: str = "total",
     inplace=True,
 ) -> pd.DataFrame:
     """Remove Row and Column totals from a dataframe (in place).
@@ -123,7 +121,7 @@ def fix_datetime_tz_columns(df: pd.DataFrame, inplace=True) -> pd.DataFrame:
     return df
 
 
-def top_n(df: pd.DataFrame, n: int, others: AnyStr = "others") -> pd.DataFrame:
+def top_n(df: pd.DataFrame, n: int, others: str = "others") -> pd.DataFrame:
     """Truncate the DataFrame to the top 'n' rows, summing all subsequent rows into an 'others' row.
 
     Parameters

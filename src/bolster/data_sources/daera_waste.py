@@ -39,9 +39,10 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from bolster.utils.cache import CachedDownloader, DownloadError
 from bolster.utils.web import session
@@ -187,8 +188,8 @@ def get_waste_publication_url(prefer: str = "csv") -> str:
     ext_order = (".csv", ".xlsx") if prefer == "csv" else (".xlsx", ".csv")
 
     candidates: dict[str, str] = {}
-    for a in soup.find_all("a", href=True):
-        href: str = a["href"]
+    for a in cast("list[Tag]", soup.find_all("a", href=True)):
+        href = cast("str", a["href"])
         href_lower = href.lower()
         if "lac-municipal-waste" not in href_lower:
             continue

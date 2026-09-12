@@ -30,7 +30,7 @@ from bolster.utils.web import session
 logger = logging.getLogger(__name__)
 
 
-def get_cinema_listings(site_code: int = 117, screening_date: date = None) -> list[dict[str, Any]]:
+def get_cinema_listings(site_code: int = 117, screening_date: date | None = None) -> list[dict[str, Any]]:
     """Get cinema listings from the Cineworld API.
 
     Args:

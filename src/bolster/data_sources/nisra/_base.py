@@ -329,7 +329,7 @@ def add_date_columns(df: pd.DataFrame, source_col: str, date_col: str = "date") 
     return df
 
 
-def parse_age_breakdowns(row, age_columns_map: dict[str, int], start_idx: int = None) -> list[dict]:
+def parse_age_breakdowns(row, age_columns_map: dict[str, int], start_idx: int | None = None) -> list[dict]:
     """Parse age breakdown columns into a list of age band dictionaries.
 
     This creates a flexible structure that can handle changing age bands across years.
