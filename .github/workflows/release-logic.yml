@@ -206,9 +206,13 @@ jobs:
             # GITHUB_TOKEN-authored push doesn't trigger downstream workflows
             # (same reason the PR-merge step needs BOLSTER_TOKEN) — confirmed
             # live, the tag for v0.7.1 never triggered publish.yml until it was
-            # manually re-pushed from a real account. `gh pr create` below still
-            # runs under its own GH_TOKEN: GITHUB_TOKEN env, unaffected by this,
-            # so the PR itself still shows as authored by github-actions[bot].
+            # manually re-pushed from a real account. `gh pr create` below is
+            # explicitly run with BOLSTER_TOKEN too — a PR authored by the
+            # github-actions[bot] App identity (the default GH_TOKEN) gets its
+            # pull_request-triggered checks stuck in "action_required" pending
+            # manual approval even on a same-repo, non-fork branch (confirmed
+            # live: v0.8.1's bump PR #2144 sat blocked for days because of
+            # this, silently defeating unattended auto-merge).
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
               with:
                   fetch-depth: 0
@@ -351,7 +355,7 @@ jobs:
                     "${NEW_VERSION}" "${RETRY_NOTE}" "${CHANGELOG_ENTRY}" "${INSTALL_SECTION}" "${DOCS_SECTION}" \
                     > /tmp/pr-body.md
 
-                  gh pr create \
+                  GH_TOKEN="$BOLSTER_TOKEN" gh pr create \
                     --title "chore: bump version to ${NEW_VERSION}" \
                     --body-file /tmp/pr-body.md \
                     --label "version:skip" \
