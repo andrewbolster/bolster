@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.10.1\] - 2026-09-13
+
+- fix(pr-labeler): preserve manual version:* label overrides across pushes (#2157)
+
 ## \[0.10.0\] - 2026-09-13
 
 - feat: add PSNI Preliminary Breath Tests module (#2154)
