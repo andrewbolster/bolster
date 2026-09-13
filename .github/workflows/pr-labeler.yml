@@ -82,6 +82,24 @@ jobs:
             return breakingHeaderRe.test(header) || /^BREAKING CHANGE:/m.test(body);
           });
 
+          // Fetch existing labels up front: a `synchronize` re-run (new
+          // commits pushed to an already-open PR) must not silently stomp a
+          // human's manual version:* override — e.g. a data-source PR
+          // re-labeled version:patch per AGENTS.md's judgment-call policy.
+          // Only a newly-detected breaking commit is allowed to override an
+          // existing version label, since silently missing a major bump is
+          // the one failure mode that must never happen.
+          const existingLabels = await github.rest.issues.listLabelsOnIssue({
+            owner,
+            repo,
+            issue_number: number
+          });
+
+          const versionLabels = existingLabels.data
+            .map(l => l.name)
+            .filter(name => name.startsWith('version:'));
+          const hasExistingVersionLabel = versionLabels.length > 0;
+
           if (hasBreakingCommit) {
             labelsToAdd.push('version:major', 'breaking-change', 'constitutional-review');
           }
@@ -91,6 +109,14 @@ jobs:
           // right and no longer fights the gate the way it used to — the
           // gate now blocks major (block_major), not minor, so a feat: PR's
           // own label doesn't override anything it shouldn't.
+          //
+          // None of this mechanical title-based classification runs if a
+          // version:* label is already present (and no breaking commit was
+          // just found) — that label may be a manual override that must
+          // survive later pushes.
+          else if (hasExistingVersionLabel) {
+            // Leave the existing version:* label alone.
+          }
           else if (prTitle.match(/^feat(\(.*\))?:/)) {
             labelsToAdd.push('version:minor', 'enhancement');
           }
@@ -102,17 +128,6 @@ jobs:
           else if (prTitle.match(/^(docs?|chore|ci|style|test)(\(.*\))?:/)) {
             labelsToAdd.push('version:skip');
           }
-
-          // Remove conflicting version labels first
-          const existingLabels = await github.rest.issues.listLabelsOnIssue({
-            owner,
-            repo,
-            issue_number: number
-          });
-
-          const versionLabels = existingLabels.data
-            .map(l => l.name)
-            .filter(name => name.startsWith('version:'));
 
           // If adding a new version label, remove others
           const newVersionLabel = labelsToAdd.find(l => l.startsWith('version:'));
