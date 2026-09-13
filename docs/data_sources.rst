@@ -1196,6 +1196,27 @@ Rolling 12-month figures run from January 2019 to present.
     $ bolster dfe electricity --dataset renewable-pct --year 2024
     $ bolster dfe electricity --dataset all --format csv --save electricity.csv
 
+Higher Education Enrolments
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Annual DfE bulletin, sourced from HESA (the Higher Education Statistics
+Agency): NI-domiciled students enrolled at any UK HEI (by level of study,
+mode of study and location of institution), and all enrolments at NI's own
+HEIs regardless of domicile (by level, mode and country of domicile).
+Academic years 2015/16 to present.
+
+.. code-block:: python
+
+    from bolster.data_sources.dfe import higher_education_enrolments as enrolments
+
+    ni_domiciled = enrolments.get_ni_domiciled_enrolments()
+    ni_heis = enrolments.get_ni_hei_enrolments()
+
+.. code-block:: console
+
+    $ bolster dfe enrolments
+    $ bolster dfe enrolments --topic ni-heis
+
 ----
 
 Infrastructure NI (DfI)

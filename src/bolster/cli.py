@@ -20,6 +20,7 @@ from .data_sources.cineworld import get_cinema_listings
 from .data_sources.companies_house import get_companies_house_records_that_might_be_in_farset, query_basic_company_data
 from .data_sources.daera_waste import get_latest_waste_statistics, validate_waste_data
 from .data_sources.dfc import child_maintenance as dfc_child_maintenance
+from .data_sources.dfe import higher_education_enrolments as dfe_higher_education_enrolments
 from .data_sources.dfi import school_travel as dfi_school_travel
 from .data_sources.ecb_interest_rates import get_latest_data as get_ecb_interest_rates
 from .data_sources.ecb_interest_rates import get_rate_changes as get_ecb_rate_changes
@@ -9312,6 +9313,81 @@ def education_suspensions_cmd(year, output_format, force_refresh, save, summary)
             except Exception as e:
                 console.print(f"[red]Error saving file: {e}[/red]")
                 return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        else:
+            click.echo(data.to_csv(index=False), nl=False)
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@dfe.command(name="enrolments")
+@click.option(
+    "--topic",
+    type=click.Choice(["ni-domiciled", "ni-heis"], case_sensitive=False),
+    default="ni-domiciled",
+    show_default=True,
+    help="ni-domiciled: NI-domiciled students at any UK HEI. ni-heis: all enrolments at NI's own HEIs.",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def dfe_enrolments_cmd(topic, output_format, force_refresh, save):
+    r"""Enrolments at UK Higher Education Institutions: NI Analysis.
+
+    \b
+    Annual DfE bulletin, sourced from HESA: NI-domiciled students enrolled
+    at any UK HEI (by level, mode and location), and all enrolments at NI's
+    own HEIs regardless of domicile (by level, mode and country of
+    domicile). Academic years 2015/16 to present.
+
+    Examples:
+        NI-domiciled students at any UK HEI::
+
+            bolster dfe enrolments
+
+        All enrolments at NI's own HEIs, by domicile::
+
+            bolster dfe enrolments --topic ni-heis
+
+        Save as JSON::
+
+            bolster dfe enrolments --topic ni-heis --format json --save ni_heis.json
+
+    Source:
+        https://www.economy-ni.gov.uk/articles/higher-education-enrolments
+    """
+    console = Console()
+
+    try:
+        with console.status(f"[bold green]Downloading enrolments data ({topic})..."):
+            if topic == "ni-domiciled":
+                data = dfe_higher_education_enrolments.get_ni_domiciled_enrolments(force_refresh=force_refresh)
+            else:
+                data = dfe_higher_education_enrolments.get_ni_hei_enrolments(force_refresh=force_refresh)
+
+        console.print("[green]Enrolments data retrieved successfully[/green]")
+        console.print(f"[cyan]Topic: {topic} | Rows: {len(data)}[/cyan]")
+
+        if save:
+            if output_format == "json" or save.endswith(".json"):
+                data.to_json(save, orient="records", indent=2)
+            else:
+                data.to_csv(save, index=False)
+            console.print(f"[green]Saved to: {save}[/green]")
+            return
 
         if output_format == "json":
             click.echo(data.to_json(orient="records", indent=2))
