@@ -1217,6 +1217,31 @@ Academic years 2015/16 to present.
     $ bolster dfe enrolments
     $ bolster dfe enrolments --topic ni-heis
 
+Higher Level Apprenticeships
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Annual DfE bulletin: HLA (Level 6/7 apprenticeship) starts, participants and
+qualifiers in Higher Education Institutions since 2018/19, published as 29
+tables (starts, participants, qualifiers, plus supplementary demographics
+for the latest year) — by provider, sex, age, level, subject, STEM
+indicator, deprivation quintile, Local Government District and
+Parliamentary Constituency. ``list_tables()`` surfaces the full catalogue
+and ``get_table()`` reads any one of them by table id.
+
+.. code-block:: python
+
+    from bolster.data_sources.dfe import higher_level_apprenticeships as hla
+
+    tables = hla.list_tables()
+    starts = hla.get_starts()
+    by_lgd = hla.get_table("A8")
+
+.. code-block:: console
+
+    $ bolster dfe apprenticeships
+    $ bolster dfe apprenticeships --list-tables
+    $ bolster dfe apprenticeships --table A8
+
 ----
 
 Infrastructure NI (DfI)

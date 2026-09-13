@@ -7,10 +7,12 @@ Education Statistics Agency) and share the same annual release programme.
 
 - higher_education_enrolments: NI-domiciled student enrolments at UK HEIs,
   and enrolments at NI's own HEIs regardless of domicile.
+- higher_level_apprenticeships: HLA (Level 6/7 apprenticeship) starts,
+  participants and qualifiers in Higher Education Institutions.
 
 Corresponding CLI commands live under ``bolster dfe ...``.
 """
 
-from bolster.data_sources.dfe import higher_education_enrolments
+from bolster.data_sources.dfe import higher_education_enrolments, higher_level_apprenticeships
 
-__all__ = ["higher_education_enrolments"]
+__all__ = ["higher_education_enrolments", "higher_level_apprenticeships"]
