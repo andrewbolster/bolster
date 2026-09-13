@@ -68,14 +68,31 @@ inspects commits since the last tag on every push and maps them by
 conventional-commit prefix:
 
 - `fix:` (or anything else release-worthy) → **patch**, auto-released and auto-merged unattended
-- `feat:` → **minor**, auto-released and auto-merged unattended
+- `feat:` → **minor** by default, auto-released and auto-merged unattended
 - `feat!:` / `fix!:` / any `type!:`, or a `BREAKING CHANGE:` footer in the commit body → **major**, never auto-released — requires an explicit `workflow_dispatch` of "Automated Release" with `version_bump: major`
 
+**Data-source nuance, not detected automatically** — apply a `version:patch`
+or `version:minor` label override on the PR before merge when the default
+above doesn't fit:
+
+- A `feat:` PR adding a module to an **already-covered** provider (other
+  files already exist under that provider's `data_sources/` path, e.g.
+  another `nisra/*` module) → **patch**, not minor.
+- A `feat:` PR adding the **first** module for a genuinely new provider →
+  **minor**, matching the default (no override needed).
+- A breaking change confined entirely to files under
+  `src/bolster/data_sources/` for one existing module → **minor**, not
+  major.
+- A breaking change touching shared code (`utils/`, `cli.py`, a base class
+  used by ≥2 providers) → stays **major** (no override needed).
+
+If it's not clear-cut — is this really a new provider, is this change
+actually breaking — ask the user before merging rather than guessing. This
+is a judgment call the pipeline doesn't verify.
+
 `docs:`, `ci:`, `chore:`, `style:` and `test:` commits don't trigger a
-release at all. When merging a PR that introduces a real breaking change,
-use `!:`/a `BREAKING CHANGE:` footer deliberately — that's what keeps a
-major bump from shipping unattended. See `CONTRIBUTING.rst`'s "Deploying"
-section for the full mechanics.
+release at all. See `CONTRIBUTING.rst`'s "Deploying" section for the full
+mechanics.
 
 ## Standards
 
@@ -193,6 +210,7 @@ Three specialized agents for the data source development lifecycle.
    - `make test` — >90% coverage on new code
    - `uv run pre-commit run --all-files` — must be clean
 1. **PR** - Only push and `gh pr create` once all quality checks pass locally. Include 2-3 example insights from the data and link the originating `data-source-candidate` issue with `Closes #NNN`.
+1. **Check the version label** - `pr-labeler.yml` auto-applies `version:minor` to a `feat:` PR title, but a module added to a provider that already has other modules should release as a **patch**, not a minor — override the label to `version:patch` before merge in that case (see "Releases" above). If it's not clear whether the provider counts as "new" or "already covered," ask the user before merging.
 1. **Verify CI** - After PR, run `gh pr checks` to confirm CI passes. Do not merge until green.
 
 **Module template (PxStat — preferred for NISRA)**:

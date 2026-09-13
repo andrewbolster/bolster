@@ -166,12 +166,31 @@ the last tag and maps them to a version bump using conventional-commit
 prefixes:
 
 * ``fix:`` (or anything else release-worthy) → **patch**
-* ``feat:`` → **minor**
+* ``feat:`` → **minor**, by default
 * ``feat!:`` / ``fix!:`` / any ``type!:``, or a ``BREAKING CHANGE:`` footer
   in the commit body → **major**
 
 ``docs:``, ``ci:``, ``chore:``, ``style:`` and ``test:`` commits are skipped
 entirely (no release opens for a docs-only or CI-only change).
+
+**Data-source PRs need a judgment call.** The prefix-based mapping above is
+a default, not a rule — these two cases aren't detected automatically, so
+apply a ``version:patch`` or ``version:minor`` label on the PR before merge
+to correct it:
+
+* Adding a module to a provider that already has other modules under
+  ``src/bolster/data_sources/`` (e.g. another NISRA dataset) is a
+  **patch**, not a minor, even though it's a ``feat:`` commit.
+* Adding the first module for a genuinely new provider stays a **minor** —
+  the default is already correct here.
+* A breaking change confined to one existing provider's own module(s) is a
+  **minor**, not a major. A breaking change touching shared code
+  (``utils/``, ``cli.py``, a base class used by more than one provider)
+  stays a **major**.
+
+When it isn't clear-cut whether a provider counts as "new" or a change is
+genuinely "breaking," ask before merging rather than trusting the label —
+the pipeline doesn't verify this, it just acts on whatever label is set.
 
 For a **patch or minor** bump, the workflow opens a ``chore: bump version to
 vX.Y.Z`` PR, tags it, and auto-merges it once CI is green — no maintainer
