@@ -6813,6 +6813,100 @@ def psni_motoring_offences_cmd(table, list_tables, year, output_format, save, fo
         raise click.Abort() from e
 
 
+@psni.command(name="breath-tests")
+@click.option(
+    "--topic",
+    type=click.Choice(["totals", "result", "reason", "month", "day-of-week", "time-of-day"], case_sensitive=False),
+    default="totals",
+    show_default=True,
+    help="Which breakdown to retrieve",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+def psni_breath_tests_cmd(topic, output_format, save, force_refresh):
+    r"""PSNI Preliminary Breath Tests Statistics.
+
+    How many preliminary breath tests (PBTs) PSNI conducted, their results,
+    and why they were carried out — distinct from motoring-offences'
+    drink-drug-driving series, which covers enforcement outcomes rather
+    than the tests themselves.
+
+    Available topics:
+
+    \b
+    totals        - Annual totals and positive/failed-to-provide rate, 2010-present
+    result        - Annual breakdown by result (zero/pass/warning/fail/failed to provide)
+    reason        - Annual breakdown by reason for test
+    month         - Current-year breakdown by month
+    day-of-week   - Current-year breakdown by day of week
+    time-of-day   - Current-year breakdown by time of day
+
+    Examples:
+    \b
+        bolster psni breath-tests
+        bolster psni breath-tests --topic result
+        bolster psni breath-tests --topic day-of-week --format csv
+
+    Source:
+        https://www.psni.police.uk/about-us/our-publications-and-reports/official-statistics/motoring-offence-statistics
+    """
+    from rich.table import Table
+
+    from bolster.data_sources.psni import breath_tests
+
+    console = Console()
+
+    _accessors = {
+        "totals": breath_tests.get_annual_totals,
+        "result": breath_tests.get_annual_by_result,
+        "reason": breath_tests.get_annual_by_reason,
+        "month": breath_tests.get_by_month,
+        "day-of-week": breath_tests.get_by_day_of_week,
+        "time-of-day": breath_tests.get_by_time_of_day,
+    }
+
+    try:
+        console.print("\n[bold blue]PSNI Preliminary Breath Tests[/bold blue]\n")
+        df = _accessors[topic.lower()](force_refresh=force_refresh)
+        title = f"Breath Tests — {topic}"
+
+        console.print(f"[bold]{title}[/bold]  ({len(df):,} rows)\n")
+
+        if output_format == "table":
+            table = Table(show_header=True, header_style="bold cyan")
+            for col in df.columns:
+                table.add_column(str(col))
+            for _, row in df.head(50).iterrows():
+                table.add_row(*[str(v) for v in row.values])
+            console.print(table)
+            if len(df) > 50:
+                console.print(f"\n[yellow]Showing first 50 of {len(df):,} rows[/yellow]")
+
+        elif output_format == "csv":
+            click.echo(df.to_csv(index=False), nl=False)
+
+        elif output_format == "json":
+            console.print(df.to_json(orient="records", indent=2))
+
+        if save:
+            if save.endswith(".json"):
+                df.to_json(save, orient="records", indent=2)
+            else:
+                df.to_csv(save, index=False)
+            console.print(f"\n[green]Saved to {save}[/green]")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        raise click.Abort() from e
+
+
 @psni.command(name="road-safety")
 @click.option(
     "--dimension",
