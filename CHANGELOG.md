@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.10.2\] - 2026-09-13
+
+- feat(nisra): add Highest Qualification and Participation module (#2159)
+- feat(nisra): add Census 2021 Armed Forces Veterans module (#2156)
+
 ## \[0.10.1\] - 2026-09-13
 
 - feat(nisra): add Census 2021 Armed Forces Veterans module (#2156)
