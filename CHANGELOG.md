@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.10.0\] - 2026-09-13
+
+- feat: add PSNI Preliminary Breath Tests module (#2154)
+
 ## \[0.9.0\] - 2026-09-12
 
 - feat: add DAERA Air Quality Statistics module (#2151)
