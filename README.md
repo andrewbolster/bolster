@@ -182,7 +182,8 @@ Education:
 [`police_ombudsman`](https://bolster.readthedocs.io/en/latest/data_sources.html#police-ombudsman),
 [`motoring_offences`](https://bolster.readthedocs.io/en/latest/data_sources.html#motoring-offences),
 [`road_safety_partnership`](https://bolster.readthedocs.io/en/latest/data_sources.html#road-safety-partnership) (safety camera detections),
-[`security_situation`](https://bolster.readthedocs.io/en/latest/data_sources.html#security-situation-statistics) (deaths, incidents, paramilitary attacks, arrests, 1969-present)
+[`security_situation`](https://bolster.readthedocs.io/en/latest/data_sources.html#security-situation-statistics) (deaths, incidents, paramilitary attacks, arrests, 1969-present),
+[`breath_tests`](https://bolster.readthedocs.io/en/latest/data_sources.html#preliminary-breath-tests) (preliminary breath tests conducted, 2010-present)
 
 ### Department of Justice (`justice`)
 

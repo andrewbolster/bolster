@@ -971,6 +971,38 @@ policing districts is also available.
    ``find_latest_workbook_url()`` fails in one environment, check whether the
    same call succeeds in CI before concluding the source is unreachable.
 
+Preliminary Breath Tests
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+How many preliminary breath tests (PBTs) PSNI conducted, their results, and
+the reason a test was carried out, 2010 to present.  Distinct from
+:mod:`bolster.data_sources.psni.motoring_offences`'s ``drink-drug-driving``
+series, which covers enforcement outcomes rather than the tests themselves.
+Current-year breakdowns by month, day of week and time of day are also
+available, though only for the workbook's most recent year -- these are not
+published as a historical series.
+
+.. code-block:: python
+
+    from bolster.data_sources.psni import breath_tests
+
+    totals    = breath_tests.get_annual_totals()
+    by_result = breath_tests.get_annual_by_result()
+    by_reason = breath_tests.get_annual_by_reason()
+    by_month  = breath_tests.get_by_month()
+
+.. code-block:: console
+
+    $ bolster psni breath-tests
+    $ bolster psni breath-tests --topic result
+    $ bolster psni breath-tests --topic day-of-week --format csv
+
+.. note::
+
+   Same Cloudflare caveat as Security Situation Statistics above -- the
+   listing page can 403 from a lower-reputation IP even though the workbook
+   asset itself is unaffected.
+
 ----
 
 DVA — Driver and Vehicle Agency
