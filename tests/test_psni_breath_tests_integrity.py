@@ -7,6 +7,8 @@ the local cache on subsequent runs).
 
 from __future__ import annotations
 
+from urllib.parse import urlparse
+
 import pandas as pd
 import pytest
 
@@ -24,7 +26,9 @@ class TestDiscovery:
 
     def test_workbook_url_is_psni_domain(self):
         url = bt.find_latest_workbook_url()
-        assert "psni.police.uk" in url
+        host = urlparse(url).hostname
+        assert host is not None
+        assert host == "psni.police.uk" or host.endswith(".psni.police.uk")
 
 
 @pytest.mark.network
