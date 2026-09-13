@@ -34,6 +34,7 @@ Example:
 import logging
 import re
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
 from openpyxl import load_workbook
@@ -85,7 +86,7 @@ def get_latest_publication_url() -> tuple[str, str, int, int]:
     Raises:
         NISRADataNotFoundError: If publication or file not found
     """
-    from bs4 import BeautifulSoup
+    from bs4 import BeautifulSoup, Tag
 
     mother_page = REGISTRAR_GENERAL_BASE_URL
 
@@ -103,29 +104,32 @@ def get_latest_publication_url() -> tuple[str, str, int, int]:
     year = None
     quarter = None
 
-    for link in soup.find_all("a", href=True):
+    for link in cast("list[Tag]", soup.find_all("a", href=True)):
         link_text = link.get_text(strip=True)
 
         # Match pattern like "Registrar General Quarterly Tables, Quarter 3 2025"
         # or "Registrar General Quarterly Tables Quarter 3 2025"
         if "Quarterly Tables" in link_text and "Quarter" in link_text:
-            href = link["href"]
+            href = cast("str", link["href"])
 
             if href.startswith("/"):
                 href = f"https://www.nisra.gov.uk{href}"
 
             # Extract quarter and year from link text
             match = re.search(r"Quarter\s*(\d)\s*(\d{4})", link_text)
-            if match:
-                quarter = int(match.group(1))
-                year = int(match.group(2))
-
+            if not match:
+                # Title matched but no parseable quarter/year — keep looking
+                # rather than return a publication we can't date.
+                continue
+            quarter = int(match.group(1))
+            year = int(match.group(2))
             pub_link = href
             logger.info(f"Found Registrar General Quarterly Tables: Q{quarter} {year}")
             break
 
     if not pub_link:
         raise NISRADataNotFoundError("Could not find Registrar General Quarterly Tables publication")
+    assert year is not None and quarter is not None  # set alongside pub_link, above
 
     # Scrape the publication page for Excel file
     try:
@@ -140,8 +144,8 @@ def get_latest_publication_url() -> tuple[str, str, int, int]:
     # Pattern: "Quarter 3 2025 Tables.xlsx" or similar
     excel_url = None
 
-    for link in pub_soup.find_all("a", href=True):
-        href = link["href"]
+    for link in cast("list[Tag]", pub_soup.find_all("a", href=True)):
+        href = cast("str", link["href"])
         link_text = link.get_text(strip=True)
 
         if href.endswith(".xlsx") and "Tables" in href:

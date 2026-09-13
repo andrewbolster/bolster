@@ -47,9 +47,10 @@ Publication Details:
 import logging
 import re
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from bolster.utils.web import session
 
@@ -102,9 +103,9 @@ def get_child_protection_publication_url() -> str:
 
     # Find the link to the latest annual Children's Social Care Statistics publication
     pub_url = None
-    for link in soup.find_all("a", href=True):
+    for link in cast("list[Tag]", soup.find_all("a", href=True)):
         text = link.get_text(strip=True).lower()
-        href = link["href"]
+        href = cast("str", link["href"])
         # Match "children's social care statistics" annual publications
         if "children" in text and "social care statistics" in text and ("202" in text or "publications" in href):
             pub_url = make_absolute_url(href, HEALTH_NI_BASE_URL)
@@ -127,8 +128,8 @@ def get_child_protection_publication_url() -> str:
 
     # Look for the main Excel data file (Tables spreadsheet, not pre-release PDF)
     excel_url = None
-    for link in pub_soup.find_all("a", href=True):
-        href = link["href"]
+    for link in cast("list[Tag]", pub_soup.find_all("a", href=True)):
+        href = cast("str", link["href"])
         text = link.get_text(strip=True).lower()
         if (
             re.search(r"\.(xlsx|xls)$", href, re.IGNORECASE)
@@ -213,7 +214,7 @@ def _parse_cpr_trend(file_path: str | Path, content: bytes | None = None) -> lis
     # 2.2a starts at row 0, 2.2b follows after 2.2a data
     # Identify header rows by looking for year columns
     current_subtable = None
-    header_years = []
+    header_years: list[int | None] = []
 
     for _idx, row in df.iterrows():
         cells = [str(c).strip() if str(c) != "nan" else "" for c in row]

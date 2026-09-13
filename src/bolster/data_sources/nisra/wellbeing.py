@@ -52,6 +52,7 @@ Publication Details:
 import logging
 import re
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
 
@@ -81,7 +82,7 @@ def get_latest_wellbeing_publication_url() -> tuple[str, str]:
         >>> url.startswith('https://')
         True
     """
-    from bs4 import BeautifulSoup
+    from bs4 import BeautifulSoup, Tag
 
     from bolster.utils.web import session
 
@@ -96,13 +97,13 @@ def get_latest_wellbeing_publication_url() -> tuple[str, str]:
     soup = BeautifulSoup(response.content, "html.parser")
 
     # Find links to publications - pattern: "Individual Wellbeing in Northern Ireland Report 2024/25"
-    publication_links = soup.find_all("a", href=True)
+    publication_links = cast("list[Tag]", soup.find_all("a", href=True))
 
     # Collect all matching publications and find the latest
     publications = []
     for link in publication_links:
         link_text = link.get_text(strip=True)
-        href = link["href"]
+        href = cast("str", link["href"])
 
         # Match "Report 2024/25" or similar year patterns
         match = re.search(r"(\d{4})/(\d{2})", link_text)
@@ -230,6 +231,7 @@ def parse_personal_wellbeing(file_path: str | Path) -> pd.DataFrame:
     df = None
     for _metric, df_metric in results.items():
         df = df_metric if df is None else df.merge(df_metric, on="year", how="outer")
+    assert df is not None  # results is non-empty, so the loop runs at least once
 
     # Sort by year
     df = df.sort_values("year").reset_index(drop=True)

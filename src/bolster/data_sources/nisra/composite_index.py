@@ -50,6 +50,7 @@ Date: 2025-12-22
 
 import logging
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
 
@@ -80,7 +81,7 @@ def get_latest_nicei_publication_url() -> tuple[str, int, str]:
         >>> url.startswith('https://')
         True
     """
-    from bs4 import BeautifulSoup
+    from bs4 import BeautifulSoup, Tag
 
     logger.info("Fetching latest NICEI publication URL...")
 
@@ -94,11 +95,11 @@ def get_latest_nicei_publication_url() -> tuple[str, int, str]:
 
     # Find the link to the latest publication
     # Pattern: "NICEI publication and tables Q# YYYY" or similar
-    publication_links = soup.find_all("a", href=True)
+    publication_links = cast("list[Tag]", soup.find_all("a", href=True))
 
     for link in publication_links:
         link_text = link.get_text(strip=True).lower()
-        href = link["href"]
+        href = cast("str", link["href"])
 
         # Look for publication links with quarter and year
         if "nicei" in link_text and "publication" in link_text and "tables" in link_text:
@@ -127,8 +128,8 @@ def get_latest_nicei_publication_url() -> tuple[str, int, str]:
                 pub_soup = BeautifulSoup(pub_response.content, "html.parser")
 
                 # Find Excel file link
-                for file_link in pub_soup.find_all("a", href=True):
-                    file_href = file_link["href"]
+                for file_link in cast("list[Tag]", pub_soup.find_all("a", href=True)):
+                    file_href = cast("str", file_link["href"])
                     if ".xlsx" in file_href.lower() and "nicei" in file_href.lower():
                         excel_url = file_href
                         if not excel_url.startswith("http"):

@@ -53,9 +53,10 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from bolster.utils.cache import hash_url
 from bolster.utils.web import session
@@ -183,8 +184,8 @@ def get_latest_dva_publication_url() -> tuple[str, str, datetime]:
 
                 # Find Excel file link
                 excel_url = None
-                for file_link in soup.find_all("a", href=True):
-                    href = file_link["href"]
+                for file_link in cast("list[Tag]", soup.find_all("a", href=True)):
+                    href = cast("str", file_link["href"])
                     if ".xlsx" in href.lower() and "tables" in href.lower():
                         if not href.startswith("http"):
                             href = f"https://www.infrastructure-ni.gov.uk{href}"

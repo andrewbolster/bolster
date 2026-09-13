@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.9.0\] - 2026-09-12
+
+- feat: add DAERA Air Quality Statistics module (#2151)
+
 ## \[0.8.2\] - 2026-09-12
 
 - fix: open version-bump PRs with BOLSTER_TOKEN, not GITHUB_TOKEN (#2148)

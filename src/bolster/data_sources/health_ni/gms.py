@@ -54,6 +54,7 @@ Example:
 
 import logging
 import re
+from collections.abc import Set as AbstractSet
 
 import pandas as pd
 
@@ -279,7 +280,7 @@ def _sheet_rows(workbook: pd.ExcelFile, sheet_name: str) -> list[list[str]]:
     return [trim_row([str(cell).strip() for cell in row]) for row in raw.itertuples(index=False, name=None)]
 
 
-def _data_sheets(workbook: pd.ExcelFile, *, skip: set[str] = frozenset()) -> list[str]:
+def _data_sheets(workbook: pd.ExcelFile, *, skip: AbstractSet[str] = frozenset[str]()) -> list[str]:
     return [name for name in workbook.sheet_names if name.strip().lower() not in _EXCLUDED_SHEETS and name not in skip]
 
 
@@ -380,7 +381,7 @@ def parse_registered_patients_by_practice(workbook: pd.ExcelFile) -> pd.DataFram
             if not any(cell.strip() for cell in row):
                 continue
             padded = row + [""] * (len(header) - len(row))
-            record = dict(zip(header, padded, strict=False))
+            record: dict[str, object] = dict(zip(header, padded, strict=False))
             record["year"] = year
             records.append(record)
 

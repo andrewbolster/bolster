@@ -135,9 +135,11 @@ def get_ni_executive_basic_table() -> pd.DataFrame:
         axis=1,
     )
     executive_dissolutions = executive_dissolutions.apply(
-        lambda r: r.Established - r.Dissolved
-        if not pd.isnull(r.Established)
-        else datetime.datetime.today().replace(hour=0, minute=0, second=0, microsecond=0) - r.Dissolved,
+        lambda r: (
+            r.Established - r.Dissolved
+            if not pd.isnull(r.Established)
+            else datetime.datetime.today().replace(hour=0, minute=0, second=0, microsecond=0) - r.Dissolved
+        ),
         axis=1,
     )
 

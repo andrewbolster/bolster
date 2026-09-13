@@ -36,9 +36,10 @@ Example:
 import logging
 import re
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from bolster.utils.web import session
 
@@ -70,8 +71,8 @@ def get_latest_ios_publication_url() -> tuple[str, int, int]:
     # Pub list uses slugs like: /publications/index-services-ios-...-quarter-4-2025...
     quarter_slug_pat = re.compile(r"quarter[- _](\d+)[- _](\d{4})", re.IGNORECASE)
 
-    for link in soup.find_all("a", href=True):
-        href = link["href"]
+    for link in cast("list[Tag]", soup.find_all("a", href=True)):
+        href = cast("str", link["href"])
         if "index-services-ios" not in href or "publications" not in href:
             continue
 
@@ -91,8 +92,8 @@ def get_latest_ios_publication_url() -> tuple[str, int, int]:
             continue
 
         pub_soup = BeautifulSoup(pub_resp.content, "html.parser")
-        for file_link in pub_soup.find_all("a", href=True):
-            file_href = file_link["href"]
+        for file_link in cast("list[Tag]", pub_soup.find_all("a", href=True)):
+            file_href = cast("str", file_link["href"])
             file_text = file_link.get_text(strip=True).lower()
             if "ios" in file_text and "tables" in file_text and file_href.endswith(".xlsx"):
                 excel_url = file_href if file_href.startswith("http") else f"{IOS_BASE_URL}{file_href}"

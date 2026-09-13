@@ -23,6 +23,7 @@ import logging
 import re
 from collections.abc import Iterable
 from pathlib import Path
+from typing import cast
 from urllib.parse import urljoin
 
 import bs4
@@ -370,8 +371,8 @@ def list_dated_publications(index_url: str, slug_pattern: str) -> pd.DataFrame:
     soup = bs4.BeautifulSoup(response.content, "html.parser")
 
     records: dict[str, dict[str, object]] = {}
-    for link in soup.find_all("a", href=True):
-        href = link["href"]
+    for link in cast("list[bs4.Tag]", soup.find_all("a", href=True)):
+        href = cast("str", link["href"])
         match = pattern.search(href)
         if "/publications/" not in href or not match:
             continue
@@ -452,8 +453,8 @@ def find_publication_csv(publication_url: str, keyword: str | None = None) -> st
         raise NISRADataNotFoundError(f"Failed to fetch {publication_url}: {e}") from e
 
     soup = bs4.BeautifulSoup(response.content, "html.parser")
-    for link in soup.find_all("a", href=True):
-        href = link["href"]
+    for link in cast("list[bs4.Tag]", soup.find_all("a", href=True)):
+        href = cast("str", link["href"])
         if not href.lower().endswith(".csv"):
             continue
         if keyword and keyword.lower() not in href.lower():
@@ -493,8 +494,8 @@ def find_latest_xlsx(article_url: str, keyword: str | None = None) -> str:
 
     soup = BeautifulSoup(resp.content, "html.parser")
     pub_url: str | None = None
-    for a in soup.find_all("a", href=True):
-        href: str = a["href"]
+    for a in cast("list[bs4.Tag]", soup.find_all("a", href=True)):
+        href = cast("str", a["href"])
         if "/publications/" in href and (keyword is None or keyword in href):
             pub_url = make_absolute_url(href, HEALTH_NI_BASE_URL)
             break
@@ -510,8 +511,8 @@ def find_latest_xlsx(article_url: str, keyword: str | None = None) -> str:
         raise NISRADataNotFoundError(f"Failed to fetch {pub_url}: {exc}") from exc
 
     pub_soup = BeautifulSoup(pub_resp.content, "html.parser")
-    for a in pub_soup.find_all("a", href=True):
-        href = a["href"]
+    for a in cast("list[bs4.Tag]", pub_soup.find_all("a", href=True)):
+        href = cast("str", a["href"])
         if href.lower().endswith(".xlsx"):
             return make_absolute_url(href, HEALTH_NI_BASE_URL)
 

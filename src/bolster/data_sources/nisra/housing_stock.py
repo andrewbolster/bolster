@@ -37,9 +37,10 @@ from __future__ import annotations
 
 import logging
 import re
+from typing import cast
 
 import pandas as pd
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from bolster.utils.web import session
 
@@ -116,8 +117,8 @@ def get_latest_publication_url(geo: str = "lgd") -> str:
         soup = BeautifulSoup(response.content, "html.parser")
 
         candidates: list[str] = []
-        for a_tag in soup.find_all("a", href=True):
-            href: str = a_tag["href"]
+        for a_tag in cast("list[Tag]", soup.find_all("a", href=True)):
+            href = cast("str", a_tag["href"])
             if ".xlsx" not in href.lower():
                 continue
             # Make absolute
@@ -197,7 +198,7 @@ def _parse_lgd_sheet(sheet_df: pd.DataFrame, year: int) -> pd.DataFrame:
     headers = [str(v).strip() if pd.notna(v) else "" for v in sheet_df.iloc[header_row_idx]]
 
     # Map semantic names → column positions
-    col_map: dict[str, int] = {}
+    col_map: dict[str, int | None] = {}
 
     def _find_col(keyword: str) -> int | None:
         for i, h in enumerate(headers):

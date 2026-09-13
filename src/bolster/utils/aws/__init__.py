@@ -161,7 +161,7 @@ def check_s3(key: str, bucket: str, client=None) -> bool:
     return any(obj["Key"] == key for obj in response.get("Contents", []))
 
 
-def get_matching_s3_objects(bucket: AnyStr, prefix="", suffix="", client=None) -> Iterator:
+def get_matching_s3_objects(bucket: str, prefix="", suffix="", client=None) -> Iterator:
     """Generate objects in an S3 bucket.
 
     https://alexwlchan.net/2018/01/listing-s3-keys-redux/
@@ -206,7 +206,7 @@ def get_matching_s3_objects(bucket: AnyStr, prefix="", suffix="", client=None) -
             break
 
 
-def get_matching_s3_keys(bucket: AnyStr, **kwargs) -> Iterator:
+def get_matching_s3_keys(bucket: str, **kwargs) -> Iterator:
     """Generate the keys in an S3 bucket.
 
     https://alexwlchan.net/2018/01/listing-s3-keys-redux/.
@@ -243,8 +243,8 @@ def select_from_csv(bucket, key, fields, client=None) -> list:
             stats_details = event["Stats"]["Details"]
             logger.info(stats_details)
 
-    results = "".join(results)[:-1].replace("\n", ",")
-    return json.loads("[" + results + "]")
+    results_str = "".join(results)[:-1].replace("\n", ",")
+    return json.loads("[" + results_str + "]")
 
 
 def get_latest_key(prefix: str, bucket: str, key: Callable | None = None, client=None) -> str:
@@ -310,7 +310,7 @@ def send_to_sqs(records: Iterator, queue: str, chunksize: int = 1, client=None) 
 ###
 # Shared Secret Manager Helpers
 ###
-_ssm_params = {}
+_ssm_params: dict[str, str] = {}
 
 
 def get_ssm_client():
@@ -349,7 +349,7 @@ def get_ssm_param(param_name: str, client=None) -> str:
 ###
 # Kinesis/Firehose Helpers
 ###
-def fh_json_decode(content: AnyStr) -> Iterator[dict | list]:
+def fh_json_decode(content: str) -> Iterator[dict | list]:
     """Customised JSON Decoder for consuming Firehose batched records.
 
     Firehose doesn't include entry separators between entries, so we intercept the raw_decoder
@@ -357,7 +357,7 @@ def fh_json_decode(content: AnyStr) -> Iterator[dict | list]:
     rest of the content until we reach the end of the given content string.
 
     Args:
-      content: AnyStr:
+      content: str:
 
 
     >>> list(fh_json_decode('{"test":"value"}{"test":"othervalue"}'))
@@ -416,12 +416,12 @@ def iterate_kinesis_payloads(event: dict) -> Generator[dict, None, None]:
 class KinesisLoader:
     """Kinesis batchwise insertion handler with chunking and retry."""
 
-    def __init__(self, batch_size: int = 500, maximum_records: int = None, stream: str = None):
+    def __init__(self, batch_size: int = 500, maximum_records: int | None = None, stream: str | None = None):
         """The default batch_size here is to match the maximum allowed by Kinesis in a PutRecords request."""
-        start_session()
+        aws_session = start_session()
         self.batch_size = min(batch_size, 500)
         self.maximum_records = maximum_records
-        self.kinesis_client = session.client(
+        self.kinesis_client = aws_session.client(
             "kinesis",
             config=botocore.config.Config(
                 connect_timeout=5,
@@ -430,11 +430,11 @@ class KinesisLoader:
                 retries={"max_attempts": 3},
             ),
         )
-        if stream.startswith("arn"):
+        if stream is not None and stream.startswith("arn"):
             stream = stream.split("/")[-1]
         self.stream = stream
 
-    def generate_and_submit(self, items: Iterator, partition_key: str = None) -> SupportsInt:
+    def generate_and_submit(self, items: Iterator, partition_key: str | None = None) -> int:
         """Submit batches of items to the configured stream.
 
         Args:
@@ -492,7 +492,7 @@ class KinesisLoader:
             failed_record_count = result["FailedRecordCount"]
 
 
-def send_to_kinesis(records: Iterator[Sequence], stream: str, partition_key: str = None) -> int:
+def send_to_kinesis(records: Iterator[Sequence], stream: str, partition_key: str | None = None) -> int:
     """Accessory function for the KinesisLoader class.
 
     Args:
@@ -529,9 +529,9 @@ def invoke_self_async(event: dict, context: Any):
       event: Dict:
       context: Any:
     """
-    start_session()
+    aws_session = start_session()
     event["async"] = True
-    session.client("lambda").invoke(
+    aws_session.client("lambda").invoke(
         FunctionName=context.invoked_function_arn,
         InvocationType="Event",
         Payload=bytes(json.dumps(event).encode("utf-8")),

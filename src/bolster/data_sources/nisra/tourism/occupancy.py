@@ -39,7 +39,7 @@ Example:
 import logging
 import re
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
 import pandas as pd
 
@@ -66,7 +66,7 @@ def get_latest_hotel_occupancy_publication_url() -> tuple[str, str]:
     Raises:
         NISRADataNotFoundError: If publication or file not found
     """
-    from bs4 import BeautifulSoup
+    from bs4 import BeautifulSoup, Tag
 
     mother_page = OCCUPANCY_BASE_URL
 
@@ -84,12 +84,12 @@ def get_latest_hotel_occupancy_publication_url() -> tuple[str, str]:
     pub_link = None
     pub_date = None
 
-    for link in soup.find_all("a", href=True):
+    for link in cast("list[Tag]", soup.find_all("a", href=True)):
         link_text = link.get_text(strip=True)
 
         # Match hotel occupancy publications
         if "hotel occupancy" in link_text.lower() and "publications" in link["href"]:
-            href = link["href"]
+            href = cast("str", link["href"])
 
             if href.startswith("/"):
                 href = f"https://www.nisra.gov.uk{href}"
@@ -121,8 +121,8 @@ def get_latest_hotel_occupancy_publication_url() -> tuple[str, str]:
     # Pattern: "2024-Hotel-December-excel-(online).xls" or similar
     excel_url = None
 
-    for link in pub_soup.find_all("a", href=True):
-        href = link["href"]
+    for link in cast("list[Tag]", pub_soup.find_all("a", href=True)):
+        href = cast("str", link["href"])
 
         # Match Excel files (.xls or .xlsx)
         if "Hotel" in href and (href.endswith(".xls") or href.endswith(".xlsx")):
@@ -155,7 +155,7 @@ def get_latest_ssa_occupancy_publication_url() -> tuple[str, str]:
     Raises:
         NISRADataNotFoundError: If publication or file not found
     """
-    from bs4 import BeautifulSoup
+    from bs4 import BeautifulSoup, Tag
 
     mother_page = OCCUPANCY_BASE_URL
 
@@ -173,12 +173,12 @@ def get_latest_ssa_occupancy_publication_url() -> tuple[str, str]:
     pub_link = None
     pub_date = None
 
-    for link in soup.find_all("a", href=True):
+    for link in cast("list[Tag]", soup.find_all("a", href=True)):
         link_text = link.get_text(strip=True)
 
         # Match SSA publications
         if "small service accommodation" in link_text.lower() and "publications" in link["href"]:
-            href = link["href"]
+            href = cast("str", link["href"])
 
             if href.startswith("/"):
                 href = f"https://www.nisra.gov.uk{href}"
@@ -209,8 +209,8 @@ def get_latest_ssa_occupancy_publication_url() -> tuple[str, str]:
     # Pattern: "2025-Small Service-November-excel-(online).xls" or similar
     excel_url = None
 
-    for link in pub_soup.find_all("a", href=True):
-        href = link["href"]
+    for link in cast("list[Tag]", pub_soup.find_all("a", href=True)):
+        href = cast("str", link["href"])
 
         # Match Excel files (.xls or .xlsx) - SSA files have "Small" or "Service" in name
         if ("Small" in href or "Service" in href) and (href.endswith(".xls") or href.endswith(".xlsx")):

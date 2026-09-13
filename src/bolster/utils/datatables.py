@@ -19,9 +19,10 @@ Example:
 
 import json
 import logging
+from typing import cast
 
 import pandas as pd
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from .web import session
 
@@ -98,7 +99,7 @@ def _extract_datatables_payload(html: str, source_url: str = "") -> dict:
         DataTablesError: If no valid DT widget payload is found.
     """
     soup = BeautifulSoup(html, "html.parser")
-    json_scripts = soup.find_all("script", type="application/json")
+    json_scripts = cast("list[Tag]", soup.find_all("script", type="application/json"))
 
     if not json_scripts:
         raise DataTablesError(f"No application/json script blocks found in {source_url}")

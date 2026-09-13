@@ -34,6 +34,7 @@ Example:
 
 import logging
 from pathlib import Path
+from typing import cast
 from urllib.parse import urljoin
 
 import bs4
@@ -156,8 +157,8 @@ def get_suspensions_publication_url() -> str:
 
     soup = bs4.BeautifulSoup(resp.content, "html.parser")
     pub_href = None
-    for a in soup.find_all("a", href=True):
-        href = a["href"]
+    for a in cast("list[bs4.Tag]", soup.find_all("a", href=True)):
+        href = cast("str", a["href"])
         if "suspension" in href.lower() and "/publications/" in href:
             pub_href = href
             break  # first match is the most recent
@@ -176,8 +177,8 @@ def get_suspensions_publication_url() -> str:
         raise EducationSuspensionsNotFoundError(f"Failed to fetch publication page {pub_url}: {exc}") from exc
 
     soup2 = bs4.BeautifulSoup(resp2.content, "html.parser")
-    for a in soup2.find_all("a", href=True):
-        href = a["href"]
+    for a in cast("list[bs4.Tag]", soup2.find_all("a", href=True)):
+        href = cast("str", a["href"])
         if href.lower().endswith(".xlsx") or href.lower().endswith(".xls"):
             xlsx_url = href if href.startswith("http") else urljoin(BASE_URL, href)
             logger.info("Found XLSX URL: %s", xlsx_url)

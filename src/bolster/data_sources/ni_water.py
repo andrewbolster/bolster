@@ -253,6 +253,8 @@ def get_postcode_to_water_supply_zone() -> dict[str, str]:
     with session.get(url, stream=True) as r:
         lines = (line.decode("utf-8-sig") for line in r.iter_lines())
         reader = csv.DictReader(lines)
+        if reader.fieldnames is None:
+            raise RuntimeError("No data found")
         keys = reader.fieldnames[:2]  # POSTCODE and most-recent year column
         zones = dict([row[k] for k in keys] for row in reader)
         if not zones:

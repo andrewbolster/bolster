@@ -33,9 +33,10 @@ Publication Details:
 """
 
 import logging
+from typing import cast
 
 import pandas as pd
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from bolster.utils.datatables import DataTablesError, datatables_to_dataframe, fetch_datatables_json
 from bolster.utils.web import session
@@ -85,8 +86,8 @@ def get_latest_url() -> str:
     soup = BeautifulSoup(response.content, "html.parser")
 
     pub_url = None
-    for a in soup.find_all("a", href=True):
-        href = a["href"]
+    for a in cast("list[Tag]", soup.find_all("a", href=True)):
+        href = cast("str", a["href"])
         if "publications" in href and "emergency-care-waiting-times" in href:
             pub_url = href if href.startswith("http") else f"{HEALTH_NI_BASE_URL}{href}"
             break
@@ -104,8 +105,8 @@ def get_latest_url() -> str:
     pub_soup = BeautifulSoup(pub_resp.content, "html.parser")
 
     # Prefer the raw data page (contains "-data-") over the interactive publication
-    for a in pub_soup.find_all("a", href=True):
-        href = a["href"]
+    for a in cast("list[Tag]", pub_soup.find_all("a", href=True)):
+        href = cast("str", a["href"])
         if (
             "datavis.nisra.gov.uk" in href
             and href.endswith(".html")
@@ -116,8 +117,8 @@ def get_latest_url() -> str:
             return href
 
     # Fallback: any datavis link that is not the interactive publication
-    for a in pub_soup.find_all("a", href=True):
-        href = a["href"]
+    for a in cast("list[Tag]", pub_soup.find_all("a", href=True)):
+        href = cast("str", a["href"])
         if "datavis.nisra.gov.uk" in href and href.endswith(".html") and "interactive" not in href.lower():
             logger.info(f"Found datavis URL (fallback): {href}")
             return href

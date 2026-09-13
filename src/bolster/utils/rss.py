@@ -6,7 +6,7 @@ with a focus on government statistics and research publications.
 
 import contextlib
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 import feedparser
@@ -27,14 +27,9 @@ class FeedEntry:
     updated: datetime | None = None
     summary: str | None = None
     author: str | None = None
-    categories: list[str] = None
+    categories: list[str] = field(default_factory=list)
     content: str | None = None
     id: str | None = None
-
-    def __post_init__(self):
-        """Initialize empty lists for mutable default arguments."""
-        if self.categories is None:
-            self.categories = []
 
     def to_dict(self) -> dict:
         """Convert entry to dictionary representation."""
@@ -58,14 +53,9 @@ class Feed:
     title: str
     link: str
     description: str | None = None
-    entries: list[FeedEntry] = None
+    entries: list[FeedEntry] = field(default_factory=list)
     language: str | None = None
     updated: datetime | None = None
-
-    def __post_init__(self):
-        """Initialize empty lists for mutable default arguments."""
-        if self.entries is None:
-            self.entries = []
 
     def to_dict(self) -> dict:
         """Convert feed to dictionary representation."""

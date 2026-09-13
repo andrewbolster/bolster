@@ -36,10 +36,10 @@ import datetime
 import logging
 import re
 from collections.abc import Iterable
-from typing import AnyStr
+from typing import cast
 
 import pandas as pd
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from bolster.utils.web import get_excel_dataframe, session, ua
 
@@ -53,7 +53,7 @@ _headers = {
 _base_url = "https://www.eoni.org.uk"
 
 
-def get_page(path: AnyStr) -> BeautifulSoup:
+def get_page(path: str) -> BeautifulSoup:
     """For a given path (within EONI.org.uk), get the response as a BeautifulSoup instance.
 
     Note:
@@ -69,7 +69,7 @@ def get_page(path: AnyStr) -> BeautifulSoup:
     return BeautifulSoup(res.content, features="html.parser")
 
 
-def find_xls_links_in_page(page: BeautifulSoup) -> Iterable[AnyStr]:
+def find_xls_links_in_page(page: BeautifulSoup) -> Iterable[str]:
     """Walk through a BeautifulSoup page and iterate through '(XLS)' suffixed links.
 
     (Primarily Used for 'Results' pages within given elections)
@@ -84,9 +84,12 @@ def find_xls_links_in_page(page: BeautifulSoup) -> Iterable[AnyStr]:
     'https://www.eoni.org.uk/media/omtlpqow/ni-assembly-election-2022-result-sheet-belfast-east-xls.xlsx'
 
     """
-    for _p in page.select_one(".c-article--main").find_all("a", href=True):
-        if "xls" in _p.contents[0].lower():
-            yield _base_url + _p.attrs["href"]
+    article = page.select_one(".c-article--main")
+    if article is None:
+        return
+    for _p in cast("list[Tag]", article.find_all("a", href=True)):
+        if "xls" in str(_p.contents[0]).lower():
+            yield _base_url + cast("str", _p.attrs["href"])
 
 
 def normalise_constituencies(cons_str: str) -> str:
@@ -120,9 +123,12 @@ def get_metadata_from_df(
             'electoral_quota': int
     """
     stage_n_catcher = re.compile(r"^Stage (\d+)")
+    stage_match = re.match(stage_n_catcher, df.columns[5])
+    if stage_match is None:
+        raise ValueError(f"Could not find a 'Stage N' header in column 5: {df.columns[5]!r}")
 
     return {
-        "stage": int(re.match(stage_n_catcher, df.columns[5]).group(1)),
+        "stage": int(stage_match.group(1)),
         # should have been just int(df.columns[5].split()[-1])., but someone insisted on messing up 2017
         "date": df.columns[10],
         "constituency": normalise_constituencies(df.iloc[0, 3]),
@@ -144,7 +150,7 @@ def get_candidates_from_df(df: pd.DataFrame) -> pd.DataFrame:
 
 def get_stage_votes_from_df(df: pd.DataFrame) -> pd.DataFrame:
     """Extract the votes from each stage as a mapped column for each stage, i.e. stages 1...N."""
-    stages = get_metadata_from_df(df)["stage"]
+    stages = cast("int", get_metadata_from_df(df)["stage"])
     return (
         pd.concat({n: extract_stage_n_votes(df, n) for n in range(stages)})
         .unstack()
@@ -155,7 +161,7 @@ def get_stage_votes_from_df(df: pd.DataFrame) -> pd.DataFrame:
 
 def get_stage_transfers_from_df(df: pd.DataFrame) -> pd.DataFrame:
     """Extract the transfers from each stage as a mapped column for each stage, i.e. stages 2...N."""
-    stages = get_metadata_from_df(df)["stage"]
+    stages = cast("int", get_metadata_from_df(df)["stage"])
     return (
         pd.concat({n: extract_stage_n_transfers(df, n) for n in range(stages)})
         .unstack()
@@ -199,7 +205,7 @@ def extract_stage_n_transfers(df: pd.DataFrame, n: int) -> pd.Series | None:
     return df.iloc[row_offset : row_offset + 20, col_offset].reset_index(drop=True)
 
 
-def get_results_from_sheet(sheet_url: AnyStr) -> dict[str, pd.DataFrame | dict]:
+def get_results_from_sheet(sheet_url: str) -> dict[str, pd.DataFrame | dict]:
     """Download and parse election results from an Excel sheet URL."""
     df = get_excel_dataframe(sheet_url, requests_kwargs={"headers": _headers})
     metadata = get_metadata_from_df(df)

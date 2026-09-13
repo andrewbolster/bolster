@@ -27,6 +27,7 @@ Example:
 
 import logging
 from datetime import datetime
+from typing import cast
 
 import pandas as pd
 
@@ -88,11 +89,11 @@ def get_idbr_publication_url(year: int | None = None) -> tuple[str, int]:
             logger.debug(f"Failed to fetch IDBR publication page {pub_url}: {e}")
             continue
 
-        from bs4 import BeautifulSoup
+        from bs4 import BeautifulSoup, Tag
 
         soup = BeautifulSoup(response.content, "html.parser")
-        for a_tag in soup.find_all("a", href=True):
-            href = a_tag["href"]
+        for a_tag in cast("list[Tag]", soup.find_all("a", href=True)):
+            href = cast("str", a_tag["href"])
             if "idbr" in href.lower() and href.lower().endswith(".xlsx"):
                 excel_url = href if href.startswith("http") else f"{NISRA_BASE_URL}{href}"
                 return excel_url, candidate_year

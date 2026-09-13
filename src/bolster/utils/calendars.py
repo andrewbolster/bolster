@@ -31,7 +31,7 @@ Example:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, tzinfo
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -227,7 +227,7 @@ def merge_timeline(intervals: list[Interval], window_start: datetime, window_end
     return merged
 
 
-def _day_bounds(day: date, tz: ZoneInfo, day_start_hour: int, day_end_hour: int) -> tuple[datetime, datetime]:
+def _day_bounds(day: date, tz: tzinfo | None, day_start_hour: int, day_end_hour: int) -> tuple[datetime, datetime]:
     return (
         datetime.combine(day, time(hour=day_start_hour), tzinfo=tz),
         datetime.combine(day, time(hour=day_end_hour), tzinfo=tz),

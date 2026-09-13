@@ -44,6 +44,7 @@ Example:
 import datetime as dt
 import logging
 import re
+from typing import cast
 from urllib.parse import urljoin
 
 import bs4
@@ -164,8 +165,8 @@ def find_latest_workbook_url() -> str:
         raise PSNIDataNotFoundError(f"Failed to fetch {SECURITY_SITUATION_URL}: {e}") from e
 
     soup = bs4.BeautifulSoup(response.content, "html.parser")
-    for link in soup.find_all("a", href=True):
-        href = link["href"]
+    for link in cast("list[bs4.Tag]", soup.find_all("a", href=True)):
+        href = cast("str", link["href"])
         if href.lower().endswith(".xls"):
             return urljoin(SECURITY_SITUATION_URL, href)
 
@@ -267,7 +268,9 @@ def _parse_series_sheet(df: pd.DataFrame, config: dict) -> pd.DataFrame:
         if kind == "monthly":
             date = pd.Timestamp(label).replace(day=1)
         else:
-            year = int(_ANNUAL_LABEL_RE.fullmatch(str(label).strip()).group(1))
+            match = _ANNUAL_LABEL_RE.fullmatch(str(label).strip())
+            assert match is not None  # kind == "annual" implies _classify_label already confirmed this
+            year = int(match.group(1))
             date = pd.Timestamp(year=year, month=1, day=1)
 
         record: dict[str, object] = {"date": date, "year": date.year, "resolution": kind}
