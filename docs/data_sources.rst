@@ -574,6 +574,29 @@ free school meal entitlement, and equality group.
 
     $ bolster nisra school-leavers --dimension destination --geography lgd
 
+Highest Qualification and Participation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Annual Labour Force Survey release: highest qualification level held (No
+qualifications through Level 6+) for working-age adults (16-64), the
+lifelong learning participation indicator (25-64), and a Level 2+/Level 3+
+attainment breakdown by Local Government District, sex, age band,
+disability and deprivation quintile.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import highest_qualification
+
+    levels = highest_qualification.get_qualification_levels()
+    participation = highest_qualification.get_participation()
+    by_lgd = highest_qualification.get_qualified_level_2_3("NI")
+
+.. code-block:: console
+
+    $ bolster nisra highest-qualification
+    $ bolster nisra highest-qualification --topic participation
+    $ bolster nisra highest-qualification --topic level-2-3 --breakdown Deprivation
+
 Tourism — Occupancy
 ~~~~~~~~~~~~~~~~~~~
 

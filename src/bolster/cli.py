@@ -54,6 +54,7 @@ from .data_sources.nisra import construction_output as nisra_construction
 from .data_sources.nisra import deaths as nisra_deaths
 from .data_sources.nisra import deprivation as nisra_deprivation
 from .data_sources.nisra import drug_related_deaths as nisra_drug_related_deaths
+from .data_sources.nisra import highest_qualification as nisra_highest_qualification
 from .data_sources.nisra import homelessness as nisra_homelessness
 from .data_sources.nisra import housing_bulletin as nisra_housing_bulletin
 from .data_sources.nisra import housing_stock as nisra_housing_stock
@@ -8897,6 +8898,97 @@ def nisra_armed_forces_veterans_cmd(table, list_tables, geography, output_format
 
         console.print("[green]Armed Forces Veterans data retrieved successfully[/green]")
         console.print(f"[cyan]Table: {table} | Rows: {len(data)}[/cyan]")
+
+        if save:
+            if output_format == "json" or save.endswith(".json"):
+                data.to_json(save, orient="records", indent=2)
+            else:
+                data.to_csv(save, index=False)
+            console.print(f"[green]Saved to: {save}[/green]")
+            return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        else:
+            click.echo(data.to_csv(index=False), nl=False)
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@nisra.command(name="highest-qualification")
+@click.option(
+    "--topic",
+    type=click.Choice(["levels", "participation", "level-2-3"], case_sensitive=False),
+    default="levels",
+    show_default=True,
+    help="Which measure to show.",
+)
+@click.option(
+    "--breakdown",
+    default="NI",
+    show_default=True,
+    help="For --topic level-2-3: one of LEVEL_2_3_BREAKDOWNS (NI, Male, Female, age bands, Disabled, "
+    "Not_disabled, Deprivation).",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_highest_qualification_cmd(topic, breakdown, output_format, force_refresh, save):
+    r"""Highest qualification level held and participation in education/training (LFS).
+
+    \b
+    Annual Labour Force Survey release: highest qualification level held
+    (No qualifications through Level 6+) for working-age adults (16-64),
+    the lifelong learning participation indicator (25-64), and a Level 2+/
+    Level 3+ attainment breakdown by Local Government District, sex, age
+    band, disability and deprivation quintile.
+
+    Examples:
+        Qualification levels, NI and UK::
+
+            bolster nisra highest-qualification
+
+        Lifelong learning participation::
+
+            bolster nisra highest-qualification --topic participation
+
+        Level 2+/3+ attainment by LGD::
+
+            bolster nisra highest-qualification --topic level-2-3 --breakdown NI
+
+        Level 2+/3+ attainment for males, saved as JSON::
+
+            bolster nisra highest-qualification --topic level-2-3 --breakdown Male --format json --save male.json
+
+    Source:
+        https://www.nisra.gov.uk/statistics/work-pay-and-benefits/labour-force-survey
+    """
+    console = Console()
+
+    try:
+        if topic == "levels":
+            with console.status("[bold green]Downloading qualification levels..."):
+                data = nisra_highest_qualification.get_qualification_levels(force_refresh=force_refresh)
+        elif topic == "participation":
+            with console.status("[bold green]Downloading participation data..."):
+                data = nisra_highest_qualification.get_participation(force_refresh=force_refresh)
+        else:
+            with console.status(f"[bold green]Downloading Level 2/3 attainment ({breakdown})..."):
+                data = nisra_highest_qualification.get_qualified_level_2_3(breakdown, force_refresh=force_refresh)
+
+        console.print("[green]Highest qualification data retrieved successfully[/green]")
+        console.print(f"[cyan]Topic: {topic} | Rows: {len(data)}[/cyan]")
 
         if save:
             if output_format == "json" or save.endswith(".json"):
