@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.11.0\] - 2026-09-13
+
+- feat(dfe): add higher_education_enrolments module (new provider) (#2161)
+
 ## \[0.10.2\] - 2026-09-13
 
 - feat(nisra): add Highest Qualification and Participation module (#2159)
