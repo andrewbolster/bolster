@@ -161,7 +161,8 @@ Economy and labour:
 
 Education:
 [`teacher_workforce`](https://bolster.readthedocs.io/en/latest/data_sources.html#teacher-workforce),
-[`school_leavers`](https://bolster.readthedocs.io/en/latest/data_sources.html#school-leavers-survey)
+[`school_leavers`](https://bolster.readthedocs.io/en/latest/data_sources.html#school-leavers-survey),
+[`highest_qualification`](https://bolster.readthedocs.io/en/latest/data_sources.html#highest-qualification-and-participation)
 
 ### Department of Health NI (`health_ni`)
 
