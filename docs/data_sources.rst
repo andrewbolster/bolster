@@ -464,6 +464,32 @@ Annual drug-related and drug misuse deaths by year, age, gender, and substance.
 
     $ bolster nisra drug-related-deaths
 
+Census 2021: UK Armed Forces Veterans
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A one-off Census 2021 topic report estimating NI's veteran population, produced
+by linking the Ministry of Defence's Service Leavers Database against Census
+records. Published as 138 separate cross-tabulation tables (age, sex, health,
+housing, employment and more) at NI, LGD and/or HSCT level — use
+``list_tables()`` to browse the catalogue and ``get_table()`` to read any one
+of them, mirroring the PxStat matrix-code pattern.
+
+This is a static snapshot: the underlying data will never change, so downloads
+are cached indefinitely.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import armed_forces_veterans
+
+    tables = armed_forces_veterans.list_tables()
+    df = armed_forces_veterans.get_population()  # AFV001, all geography levels
+
+.. code-block:: console
+
+    $ bolster nisra armed-forces-veterans
+    $ bolster nisra armed-forces-veterans --list-tables
+    $ bolster nisra armed-forces-veterans --table AFV009 --geography LGD
+
 Teacher Workforce
 ~~~~~~~~~~~~~~~~~
 

@@ -5,6 +5,7 @@ including births, deaths, labour market, population, migration, economic indicat
 and tourism statistics.
 
 Available modules:
+    - armed_forces_veterans: Census 2021 UK Armed Forces Veterans for Northern Ireland (one-off static snapshot)
     - ashe: Annual Survey of Hours and Earnings (employee earnings statistics)
     - births: Monthly birth registrations by registration and occurrence date
     - business_register: NI Business Register (IDBR) — annual VAT/PAYE business counts by industry, legal status, LGD
@@ -131,6 +132,7 @@ Examples:
 """
 
 from . import (
+    armed_forces_veterans,
     ashe,
     baby_names,
     births,
@@ -166,6 +168,7 @@ from . import (
 )
 
 __all__ = [
+    "armed_forces_veterans",
     "ashe",
     "baby_names",
     "births",

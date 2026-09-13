@@ -44,6 +44,7 @@ from .data_sources.ni_water import get_postcode_to_water_supply_zone, get_water_
 from .data_sources.niassembly import members as niassembly_members
 from .data_sources.niassembly import questions as niassembly_questions
 from .data_sources.niassembly import votes as niassembly_votes
+from .data_sources.nisra import armed_forces_veterans as nisra_armed_forces_veterans
 from .data_sources.nisra import ashe as nisra_ashe
 from .data_sources.nisra import baby_names as nisra_baby_names
 from .data_sources.nisra import births as nisra_births
@@ -8817,6 +8818,104 @@ def nisra_claimant_count_cmd(breakdown, output_format, force_refresh, save):
         console.print("   - Check your internet connection")
         console.print("   - Try again with --force-refresh to bypass cache")
         console.print("   - Visit NISRA website to verify data availability")
+        raise click.Abort() from e
+
+
+@nisra.command(name="armed-forces-veterans")
+@click.option(
+    "--table",
+    default="AFV001",
+    show_default=True,
+    help="Table number to show, e.g. AFV001. Use --list-tables to see the catalogue.",
+)
+@click.option("--list-tables", is_flag=True, help="List the full table catalogue and exit")
+@click.option(
+    "--geography",
+    type=click.Choice(["NI", "LGD", "HSCT"], case_sensitive=False),
+    help="Filter to a single geography level (default: all levels available for the table)",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_armed_forces_veterans_cmd(table, list_tables, geography, output_format, force_refresh, save):
+    r"""Census 2021: UK Armed Forces Veterans for Northern Ireland.
+
+    \b
+    A one-off Census 2021 topic report estimating NI's veteran population by
+    linking the Ministry of Defence's Service Leavers Database against Census
+    records. Published as 138 separate cross-tabulation tables (age, sex,
+    health, housing, employment and more) at NI, LGD and/or HSCT level.
+
+    \b
+    This is a static snapshot — the underlying data will never change, so
+    downloads are cached indefinitely.
+
+    Examples:
+        Headline veteran/non-veteran population (default table)::
+
+            bolster nisra armed-forces-veterans
+
+        See the full table catalogue::
+
+            bolster nisra armed-forces-veterans --list-tables
+
+        A specific table, filtered to one geography level::
+
+            bolster nisra armed-forces-veterans --table AFV009 --geography LGD
+
+        Save as JSON::
+
+            bolster nisra armed-forces-veterans --table AFV001 --format json --save afv001.json
+
+    Source:
+        https://www.nisra.gov.uk/publications/census-2021-uk-armed-forces-veterans-for-northern-ireland
+    """
+    from rich.table import Table
+
+    console = Console()
+
+    try:
+        if list_tables:
+            catalogue = nisra_armed_forces_veterans.list_tables(force_refresh=force_refresh)
+            table_ui = Table(title="Armed Forces Veterans — Table Catalogue", show_lines=False)
+            table_ui.add_column("Table", style="bold cyan")
+            table_ui.add_column("Title")
+            table_ui.add_column("Geographies", style="dim")
+            for _, row in catalogue.iterrows():
+                table_ui.add_row(str(row["table_number"]), str(row["table_title"]), str(row["geographies"]))
+            console.print(table_ui)
+            return
+
+        with console.status(f"[bold green]Downloading table {table}..."):
+            data = nisra_armed_forces_veterans.get_table(table, geography=geography, force_refresh=force_refresh)
+
+        console.print("[green]Armed Forces Veterans data retrieved successfully[/green]")
+        console.print(f"[cyan]Table: {table} | Rows: {len(data)}[/cyan]")
+
+        if save:
+            if output_format == "json" or save.endswith(".json"):
+                data.to_json(save, orient="records", indent=2)
+            else:
+                data.to_csv(save, index=False)
+            console.print(f"[green]Saved to: {save}[/green]")
+            return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        else:
+            click.echo(data.to_csv(index=False), nl=False)
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
         raise click.Abort() from e
 
 

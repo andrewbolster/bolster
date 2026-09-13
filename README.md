@@ -138,7 +138,8 @@ People and society:
 [`deprivation`](https://bolster.readthedocs.io/en/latest/data_sources.html#deprivation-nimdm-2017),
 [`wellbeing`](https://bolster.readthedocs.io/en/latest/data_sources.html#wellbeing),
 [`public_confidence`](https://bolster.readthedocs.io/en/latest/data_sources.html#public-confidence-in-official-statistics),
-[`drug_related_deaths`](https://bolster.readthedocs.io/en/latest/data_sources.html#drug-related-deaths)
+[`drug_related_deaths`](https://bolster.readthedocs.io/en/latest/data_sources.html#drug-related-deaths),
+[`armed_forces_veterans`](https://bolster.readthedocs.io/en/latest/data_sources.html#census-2021-uk-armed-forces-veterans)
 
 Economy and labour:
 [`labour_market`](https://bolster.readthedocs.io/en/latest/data_sources.html#labour-market),
