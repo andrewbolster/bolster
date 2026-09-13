@@ -63,7 +63,9 @@ PUBLICATION_URL = "https://www.nisra.gov.uk/publications/census-2021-uk-armed-fo
 # Static Census 2021 snapshot -- this data will never change, so cache for a year.
 _CACHE_TTL_HOURS = 24 * 365
 
-_TABLE_NUMBER_RE = re.compile(r"^AFV\d{3}$", re.IGNORECASE)
+# Most table numbers are "AFV" + 3 digits, but some have a trailing letter
+# for an alternative/supplementary cut of the same base table (e.g. "AFV038a").
+_TABLE_NUMBER_RE = re.compile(r"^AFV\d{3}[a-z]?$", re.IGNORECASE)
 
 
 def _find_listing_url() -> str:
@@ -154,10 +156,15 @@ def get_table(table_number: str, geography: str | None = None, force_refresh: bo
     path = download_file(url, cache_ttl_hours=_CACHE_TTL_HOURS, force_refresh=force_refresh)
     workbook = pd.ExcelFile(path)
 
-    # Sheets are named "{TABLE_NUMBER}_{GEOGRAPHY}", e.g. "AFV001_NI"; not
-    # every table publishes all three geography levels.
+    # Sheets are usually named "{TABLE_NUMBER}_{GEOGRAPHY}", e.g. "AFV001_NI";
+    # not every table publishes all three geography levels. Some "a"-suffixed
+    # supplementary tables (e.g. "AFV038a") instead publish bare geography
+    # sheet names with no table-number prefix at all.
+    geography_levels = {"NI", "LGD", "HSCT"}
     prefix = f"{table_number.upper()}_"
     available = {name[len(prefix) :]: name for name in workbook.sheet_names if name.startswith(prefix)}
+    if not available:
+        available = {name.upper(): name for name in workbook.sheet_names if name.upper() in geography_levels}
 
     if geography is not None:
         if geography.upper() not in available:
