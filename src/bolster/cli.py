@@ -21,6 +21,7 @@ from .data_sources.companies_house import get_companies_house_records_that_might
 from .data_sources.daera_waste import get_latest_waste_statistics, validate_waste_data
 from .data_sources.dfc import child_maintenance as dfc_child_maintenance
 from .data_sources.dfe import higher_education_enrolments as dfe_higher_education_enrolments
+from .data_sources.dfe import higher_level_apprenticeships as dfe_higher_level_apprenticeships
 from .data_sources.dfi import school_travel as dfi_school_travel
 from .data_sources.ecb_interest_rates import get_latest_data as get_ecb_interest_rates
 from .data_sources.ecb_interest_rates import get_rate_changes as get_ecb_rate_changes
@@ -9380,6 +9381,96 @@ def dfe_enrolments_cmd(topic, output_format, force_refresh, save):
 
         console.print("[green]Enrolments data retrieved successfully[/green]")
         console.print(f"[cyan]Topic: {topic} | Rows: {len(data)}[/cyan]")
+
+        if save:
+            if output_format == "json" or save.endswith(".json"):
+                data.to_json(save, orient="records", indent=2)
+            else:
+                data.to_csv(save, index=False)
+            console.print(f"[green]Saved to: {save}[/green]")
+            return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        else:
+            click.echo(data.to_csv(index=False), nl=False)
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@dfe.command(name="apprenticeships")
+@click.option(
+    "--table",
+    default="A2",
+    show_default=True,
+    help="Table id to show, e.g. A2. Use --list-tables to see the catalogue.",
+)
+@click.option("--list-tables", is_flag=True, help="List the full table catalogue and exit")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def dfe_apprenticeships_cmd(table, list_tables, output_format, force_refresh, save):
+    r"""Higher Level Apprenticeships (HLA) in Higher Education Institutions NI.
+
+    \b
+    Annual DfE bulletin: HLA (Level 6/7 apprenticeship) starts, participants
+    and qualifiers in NI HEIs since 2018/19, published as 29 tables (A =
+    starts, B = participants, C = qualifiers, S = supplementary
+    demographics for the latest year only) -- by provider, sex, age,
+    level, subject, STEM indicator, deprivation quintile, LGD and
+    Parliamentary Constituency.
+
+    Examples:
+        Starts by sex (default table)::
+
+            bolster dfe apprenticeships
+
+        See the full table catalogue::
+
+            bolster dfe apprenticeships --list-tables
+
+        NI-domiciled starts by Local Government District::
+
+            bolster dfe apprenticeships --table A8
+
+        Qualifiers, saved as JSON::
+
+            bolster dfe apprenticeships --table C1 --format json --save qualifiers.json
+
+    Source:
+        https://www.economy-ni.gov.uk/articles/higher-level-apprenticeships-northern-ireland-heis-statistical-fact-sheets
+    """
+    from rich.table import Table
+
+    console = Console()
+
+    try:
+        if list_tables:
+            catalogue = dfe_higher_level_apprenticeships.list_tables(force_refresh=force_refresh)
+            table_ui = Table(title="Higher Level Apprenticeships — Table Catalogue", show_lines=False)
+            table_ui.add_column("Table", style="bold cyan")
+            table_ui.add_column("Title")
+            for _, row in catalogue.iterrows():
+                table_ui.add_row(str(row["table_id"]), str(row["title"]))
+            console.print(table_ui)
+            return
+
+        with console.status(f"[bold green]Downloading table {table}..."):
+            data = dfe_higher_level_apprenticeships.get_table(table, force_refresh=force_refresh)
+
+        console.print("[green]HLA data retrieved successfully[/green]")
+        console.print(f"[cyan]Table: {table} | Rows: {len(data)}[/cyan]")
 
         if save:
             if output_format == "json" or save.endswith(".json"):
