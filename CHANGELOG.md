@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.11.1\] - 2026-09-14
+
+- feat(dfe): add higher_level_apprenticeships module (#2163)
+
 ## \[0.11.0\] - 2026-09-13
 
 - feat(dfe): add higher_education_enrolments module (new provider) (#2161)
