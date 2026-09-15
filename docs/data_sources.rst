@@ -1217,6 +1217,28 @@ Academic years 2015/16 to present.
     $ bolster dfe enrolments
     $ bolster dfe enrolments --topic ni-heis
 
+Higher Education Qualifications
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Annual DfE bulletin, sourced from HESA, and the direct companion to
+Higher Education Enrolments above: NI-domiciled students gaining
+qualifications at any UK HEI (by level of qualification, mode of study and
+location of institution), and all qualifications gained at NI's own HEIs
+regardless of domicile (by level, mode and country of domicile). Academic
+years 2015/16 to present.
+
+.. code-block:: python
+
+    from bolster.data_sources.dfe import higher_education_qualifications as qualifications
+
+    ni_domiciled = qualifications.get_ni_domiciled_qualifications()
+    ni_heis = qualifications.get_ni_hei_qualifications()
+
+.. code-block:: console
+
+    $ bolster dfe qualifications
+    $ bolster dfe qualifications --topic ni-heis
+
 Higher Level Apprenticeships
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
