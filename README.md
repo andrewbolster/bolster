@@ -170,6 +170,7 @@ Education:
 [`cancer_waiting_times`](https://bolster.readthedocs.io/en/latest/data_sources.html#cancer-waiting-times),
 [`diagnostic_waiting_times`](https://bolster.readthedocs.io/en/latest/data_sources.html#diagnostic-waiting-times),
 [`elective_waiting_times`](https://bolster.readthedocs.io/en/latest/data_sources.html#elective-waiting-times),
+[`hospital_activity`](https://bolster.readthedocs.io/en/latest/data_sources.html#inpatient-and-day-case-activity) (beds, independent-sector activity, theatre usage),
 [`emergency_care_waiting_times`](https://bolster.readthedocs.io/en/latest/data_sources.html#emergency-care-waiting-times),
 [`child_protection`](https://bolster.readthedocs.io/en/latest/data_sources.html#child-protection),
 [`hsc_workforce`](https://bolster.readthedocs.io/en/latest/data_sources.html#hsc-workforce) / [`hsc_recruitment`](https://bolster.readthedocs.io/en/latest/data_sources.html#hsc-workforce),
