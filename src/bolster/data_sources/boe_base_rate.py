@@ -60,8 +60,15 @@ from bolster.utils.web import session
 
 logger = logging.getLogger(__name__)
 
-#: Static XLS published by the Bank of England (Excel 97-2003, needs ``xlrd``).
+#: Static workbook published by the Bank of England at a stable ``.xls`` URL.
+#: The BoE has silently switched the actual bytes served here between the
+#: legacy binary format (needs ``xlrd``) and modern OOXML (needs
+#: ``openpyxl``) without changing the URL, so the engine is chosen by
+#: sniffing the response content rather than trusting the ``.xls`` extension.
 DATA_URL = "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy/baserate.xls"
+
+#: OOXML (.xlsx) files are zip archives; legacy .xls is an OLE2 compound file.
+_OOXML_MAGIC = b"PK\x03\x04"
 
 #: Sheet holding the daily series (one column per historical rate regime).
 RAW_DATA_SHEET = "Raw Data"
@@ -146,10 +153,29 @@ class BoEValidationError(BoEDataError):
     """Raised when a DataFrame fails :func:`validate_data`."""
 
 
+def _sniff_excel_engine(content: bytes) -> str:
+    r"""Return the pandas engine matching the actual bytes of a downloaded workbook.
+
+    Args:
+        content: Raw response bytes.
+
+    Returns:
+        ``"openpyxl"`` for OOXML (modern ``.xlsx``) content, ``"xlrd"``
+        otherwise (legacy binary ``.xls``).
+
+    Example:
+        >>> _sniff_excel_engine(b"PK\x03\x04rest-of-zip")
+        'openpyxl'
+        >>> _sniff_excel_engine(b"\xd0\xcf\x11\xe0rest-of-ole2")
+        'xlrd'
+    """
+    return "openpyxl" if content.startswith(_OOXML_MAGIC) else "xlrd"
+
+
 def _download_workbook(force_refresh: bool = False) -> pd.ExcelFile:
     """Download the BoE base-rate workbook and return it as an ``ExcelFile``.
 
-    The workbook is a binary ``.xls`` and is therefore not cached by the
+    The workbook is a binary spreadsheet and is therefore not cached by the
     shared :class:`~bolster.utils.web.CachingSession` (which only caches HTML);
     ``force_refresh`` is accepted for API parity with the sibling macroeconomic
     modules but has no effect on this code path.
@@ -158,16 +184,18 @@ def _download_workbook(force_refresh: bool = False) -> pd.ExcelFile:
         force_refresh: Accepted for API parity; binary downloads are not cached.
 
     Returns:
-        A :class:`pandas.ExcelFile` opened with the ``xlrd`` engine.
+        A :class:`pandas.ExcelFile`, opened with whichever engine matches the
+        actual bytes served (see :data:`_OOXML_MAGIC`).
 
     Raises:
-        BoEDataError: If the download fails or the bytes are not a valid xls.
+        BoEDataError: If the download fails or the bytes are not a valid
+            spreadsheet.
     """
     del force_refresh  # Binary responses are not cached; nothing to refresh.
     try:
         response = session.get(DATA_URL, timeout=60)
         response.raise_for_status()
-        return pd.ExcelFile(io.BytesIO(response.content), engine="xlrd")
+        return pd.ExcelFile(io.BytesIO(response.content), engine=_sniff_excel_engine(response.content))
     except Exception as e:  # noqa: BLE001 - re-wrapped as a domain error
         raise BoEDataError(f"Failed to fetch BoE base rate workbook from {DATA_URL}: {e}") from e
 
