@@ -254,6 +254,35 @@ class TestParseSingleTableSheet:
         with pytest.raises(NISRADataNotFoundError):
             ha._parse_single_table_sheet(path)
 
+    def test_no_header_row_after_marker_raises(self, tmp_path):
+        rows = [
+            ["Example Table Title"],
+            ["This worksheet contains one table."],
+            [None],
+            [None],
+        ]
+        path = self._write(rows, tmp_path)
+        with pytest.raises(NISRADataNotFoundError, match="header row"):
+            ha._parse_single_table_sheet(path)
+
+
+class TestDataSheetName:
+    """Behaviour of the "Data Warning" cover-sheet filter (no network required)."""
+
+    def test_skips_data_warning_sheet(self, tmp_path):
+        path = tmp_path / "test.xlsx"
+        with pd.ExcelWriter(path) as writer:
+            pd.DataFrame({"a": [1]}).to_excel(writer, sheet_name="Data Warning", index=False)
+            pd.DataFrame({"a": [1]}).to_excel(writer, sheet_name="hs-tables-25-26", index=False)
+        assert ha._data_sheet_name(path) == "hs-tables-25-26"
+
+    def test_raises_when_only_data_warning_sheet_present(self, tmp_path):
+        path = tmp_path / "test.xlsx"
+        with pd.ExcelWriter(path) as writer:
+            pd.DataFrame({"a": [1]}).to_excel(writer, sheet_name="Data Warning", index=False)
+        with pytest.raises(NISRADataNotFoundError, match="No data sheet"):
+            ha._data_sheet_name(path)
+
 
 class TestCleanColumn:
     """Behaviour of the column-name normaliser (no network required)."""
@@ -281,8 +310,11 @@ class TestValidateData:
             ha.validate_data(df)
 
     def test_rejects_all_null_numeric_data(self):
-        df = pd.DataFrame({"hsc_trust": ["Belfast"], "total_occupied_beds": [None]})
-        with pytest.raises(NISRAValidationError):
+        # dtype=float64 explicitly, so the column is still detected as
+        # numeric (a bare [None] column infers as object dtype, which would
+        # instead hit "No numeric data columns found").
+        df = pd.DataFrame({"hsc_trust": ["Belfast"], "total_occupied_beds": pd.array([None], dtype="float64")})
+        with pytest.raises(NISRAValidationError, match="entirely null"):
             ha.validate_data(df)
 
     def test_accepts_valid_frame(self):
