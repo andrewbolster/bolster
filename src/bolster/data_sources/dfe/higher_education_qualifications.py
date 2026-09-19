@@ -27,8 +27,9 @@ Data Source:
     **Hub page**: https://www.economy-ni.gov.uk/articles/higher-education-qualifications
 
     The current edition is discovered by scraping the hub page for the
-    "Higher education qualifications" publication link, then scraping that
-    publication page for its workbook. Filenames change every year (e.g.
+    "Qualifications gained at UK Higher Education Institutions" publication
+    link, then scraping that publication page for its workbook. Filenames
+    change every year (e.g.
     ``Qualifications  2024_25 Tables.xlsx``), so the URL is always
     discovered, never constructed.
 
@@ -64,7 +65,7 @@ from ._base import DfEDataNotFoundError, DfEValidationError
 logger = logging.getLogger(__name__)
 
 HUB_URL = "https://www.economy-ni.gov.uk/articles/higher-education-qualifications"
-_PUB_TEXT = "Higher education qualifications"
+_PUB_TEXT = "Qualifications gained at UK Higher Education Institutions"
 
 # Annual publication -- re-check monthly for a new edition.
 _CACHE_TTL_HOURS = 24 * 30
