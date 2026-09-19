@@ -52,6 +52,8 @@ import re
 
 import pandas as pd
 
+from bolster.utils.text import clean_column_name
+
 from ._base import NISRADataNotFoundError, NISRAValidationError, download_file, find_publication_link
 
 logger = logging.getLogger(__name__)
@@ -97,8 +99,7 @@ def _clean_column(name: object) -> str:
     text = re.sub(r"\(number\)", " number", text, flags=re.IGNORECASE)
     text = re.sub(r"\(percentage\)", " pct", text, flags=re.IGNORECASE)
     text = re.sub(r"\(%\)", " pct", text)
-    text = re.sub(r"[^a-zA-Z0-9]+", "_", text.strip().lower())
-    return text.strip("_")
+    return clean_column_name(text)
 
 
 def _extract_area(title: str, sheet_name: str) -> str:
