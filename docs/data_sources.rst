@@ -684,6 +684,29 @@ specialty, and HSC Trust.  Covers pre-encompass (legacy PAS) and encompass
 
     $ bolster nisra elective-waiting-times
 
+Inpatient and Day Case Activity
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Hospital bed activity (available/occupied beds, admissions), independent-sector
+activity, and operating theatre usage — distinct from Elective Waiting Times
+above, which covers patients queued *for* treatment rather than activity once
+admitted. Published as separate workbooks per breakdown: a long-run series by
+legacy specialty (2016/17–present), an encompass-era series by Treatment
+Function Code (2023/24–present), independent-sector activity, and theatre
+usage (both 2016/17–present).
+
+.. code-block:: python
+
+    from bolster.data_sources.health_ni import hospital_activity
+
+    beds = hospital_activity.get_bed_activity_by_specialty()
+    theatres = hospital_activity.get_theatre_usage()
+
+.. code-block:: console
+
+    $ bolster nisra hospital-activity
+    $ bolster nisra hospital-activity --dataset theatres
+
 Emergency Care Waiting Times
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1216,6 +1239,28 @@ Academic years 2015/16 to present.
 
     $ bolster dfe enrolments
     $ bolster dfe enrolments --topic ni-heis
+
+Higher Education Qualifications
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Annual DfE bulletin, sourced from HESA, and the direct companion to
+Higher Education Enrolments above: NI-domiciled students gaining
+qualifications at any UK HEI (by level of qualification, mode of study and
+location of institution), and all qualifications gained at NI's own HEIs
+regardless of domicile (by level, mode and country of domicile). Academic
+years 2015/16 to present.
+
+.. code-block:: python
+
+    from bolster.data_sources.dfe import higher_education_qualifications as qualifications
+
+    ni_domiciled = qualifications.get_ni_domiciled_qualifications()
+    ni_heis = qualifications.get_ni_hei_qualifications()
+
+.. code-block:: console
+
+    $ bolster dfe qualifications
+    $ bolster dfe qualifications --topic ni-heis
 
 Higher Level Apprenticeships
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
