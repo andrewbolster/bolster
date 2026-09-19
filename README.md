@@ -170,6 +170,7 @@ Education:
 [`cancer_waiting_times`](https://bolster.readthedocs.io/en/latest/data_sources.html#cancer-waiting-times),
 [`diagnostic_waiting_times`](https://bolster.readthedocs.io/en/latest/data_sources.html#diagnostic-waiting-times),
 [`elective_waiting_times`](https://bolster.readthedocs.io/en/latest/data_sources.html#elective-waiting-times),
+[`hospital_activity`](https://bolster.readthedocs.io/en/latest/data_sources.html#inpatient-and-day-case-activity) (beds, independent-sector activity, theatre usage),
 [`emergency_care_waiting_times`](https://bolster.readthedocs.io/en/latest/data_sources.html#emergency-care-waiting-times),
 [`child_protection`](https://bolster.readthedocs.io/en/latest/data_sources.html#child-protection),
 [`hsc_workforce`](https://bolster.readthedocs.io/en/latest/data_sources.html#hsc-workforce) / [`hsc_recruitment`](https://bolster.readthedocs.io/en/latest/data_sources.html#hsc-workforce),
@@ -214,7 +215,7 @@ Education:
 | DAERA | `daera_waste`, [`daera_greenhouse_gas`](https://bolster.readthedocs.io/en/latest/data_sources.html#greenhouse-gas-inventory), [`daera_air_quality`](https://bolster.readthedocs.io/en/latest/data_sources.html#air-quality-statistics) | NI municipal waste statistics; greenhouse gas emissions inventory; NO2/PM10/PM2.5 air quality |
 | Communities (DfC) | [`family_resources_survey`](https://bolster.readthedocs.io/en/latest/data_sources.html#family-resources-survey-dfc), [`child_maintenance`](https://bolster.readthedocs.io/en/latest/data_sources.html#communities-child-maintenance-service) | Household income/food security/tenure; Child Maintenance Service statistics |
 | Infrastructure (DfI) | [`school_travel`](https://bolster.readthedocs.io/en/latest/data_sources.html#travel-to-and-from-school-ypbas) | Young Persons' Behaviour and Attitudes Survey travel module |
-| Economy (DfE) | [`electricity_renewables`](https://bolster.readthedocs.io/en/latest/data_sources.html#electricity-consumption-and-renewable-generation), [`higher_education_enrolments`](https://bolster.readthedocs.io/en/latest/data_sources.html#higher-education-enrolments), [`higher_level_apprenticeships`](https://bolster.readthedocs.io/en/latest/data_sources.html#higher-level-apprenticeships) | Electricity consumption and renewable generation progress; NI/UK HEI enrolments (HESA); HLA starts/participants/qualifiers |
+| Economy (DfE) | [`electricity_renewables`](https://bolster.readthedocs.io/en/latest/data_sources.html#electricity-consumption-and-renewable-generation), [`higher_education_enrolments`](https://bolster.readthedocs.io/en/latest/data_sources.html#higher-education-enrolments), [`higher_education_qualifications`](https://bolster.readthedocs.io/en/latest/data_sources.html#higher-education-qualifications), [`higher_level_apprenticeships`](https://bolster.readthedocs.io/en/latest/data_sources.html#higher-level-apprenticeships) | Electricity consumption and renewable generation progress; NI/UK HEI enrolments (HESA); NI/UK HEI qualifications gained (HESA); HLA starts/participants/qualifiers |
 | Met Office | `metoffice` | UK precipitation maps (requires API key) |
 
 ______________________________________________________________________
