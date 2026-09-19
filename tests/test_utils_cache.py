@@ -17,6 +17,7 @@ from bolster.utils.cache import (
     DownloadError,
     bind_download_file,
     hash_url,
+    load_workbook,
     stitch_publications,
 )
 
@@ -396,6 +397,40 @@ class TestBindDownloadFile:
             pytest.raises(MyNotFoundError, match="boom"),
         ):
             download_file("https://example.com/data.csv")
+
+
+class TestLoadWorkbook:
+    """Test load_workbook() — the shared download-and-open wrapper (#2176)."""
+
+    def test_downloads_and_opens_as_excel_file(self, tmp_path):
+        workbook_path = tmp_path / "test.xlsx"
+        pd.DataFrame({"a": [1, 2]}).to_excel(workbook_path, index=False)
+
+        calls = []
+
+        def fake_download_file(url, **kwargs):
+            calls.append((url, kwargs))
+            return workbook_path
+
+        result = load_workbook("https://example.com/data.xlsx", fake_download_file)
+
+        assert isinstance(result, pd.ExcelFile)
+        assert result.sheet_names == ["Sheet1"]
+        assert calls == [("https://example.com/data.xlsx", {})]
+
+    def test_forwards_kwargs_to_download_file(self, tmp_path):
+        workbook_path = tmp_path / "test.xlsx"
+        pd.DataFrame({"a": [1]}).to_excel(workbook_path, index=False)
+
+        received = {}
+
+        def fake_download_file(url, **kwargs):
+            received.update(kwargs)
+            return workbook_path
+
+        load_workbook("https://example.com/data.xlsx", fake_download_file, force_refresh=True, cache_ttl_hours=1)
+
+        assert received == {"force_refresh": True, "cache_ttl_hours": 1}
 
 
 class TestStitchPublications:
