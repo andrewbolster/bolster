@@ -12,6 +12,9 @@ Modules:
     - gms: BSO/FPS General Medical Services statistics (GP practices, GPs, patients, funding, access equity)
     - hsc_recruitment: Active recruitment (vacancy) statistics for the HSC workforce
     - hsc_workforce: Quarterly HSC workforce size, composition and turnover
+    - hospital_activity: Hospital bed activity (available/occupied beds,
+      admissions), independent-sector activity and theatre usage -- distinct
+      from elective_waiting_times, which covers patients queued for treatment
 """
 
 from bolster.data_sources.health_ni import (
@@ -22,6 +25,7 @@ from bolster.data_sources.health_ni import (
     elective_waiting_times,
     emergency_care_waiting_times,
     gms,
+    hospital_activity,
     hsc_recruitment,
     hsc_workforce,
 )
@@ -34,6 +38,7 @@ __all__ = [
     "elective_waiting_times",
     "emergency_care_waiting_times",
     "gms",
+    "hospital_activity",
     "hsc_recruitment",
     "hsc_workforce",
 ]
