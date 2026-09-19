@@ -51,6 +51,23 @@ QES_BASE_URL = "https://www.nisra.gov.uk"
 _QUARTER_MONTHS = {"Mar": (3, 1), "Jun": (6, 2), "Sep": (9, 3), "Dec": (12, 4)}
 
 
+def _is_supplementary_tables_publication_link(href: str) -> bool:
+    """Check whether a hub-page href points at the supplementary tables publication."""
+    href_lower = href.lower()
+    return "supplementary-tables" in href_lower and "quarterly-employment-survey" in href_lower
+
+
+def _is_supplementary_tables_file(href: str) -> bool:
+    """Check whether a publication-page href is the supplementary tables workbook.
+
+    Matches case-insensitively: NISRA has published this filename in both
+    lower_case (``supplementary_tables...xlsx``) and Title_Case
+    (``..._Supplementary_Tables.xlsx``).
+    """
+    href_lower = href.lower()
+    return "supplementary_tables" in href_lower and href_lower.endswith(".xlsx")
+
+
 def get_latest_qes_publication_url() -> str:
     """Scrape the QES statistics page to find the latest supplementary tables Excel.
 
@@ -71,7 +88,7 @@ def get_latest_qes_publication_url() -> str:
     # Find the supplementary tables publication link
     for link in cast("list[Tag]", soup.find_all("a", href=True)):
         href = cast("str", link["href"])
-        if "supplementary-tables" not in href or "quarterly-employment-survey" not in href:
+        if not _is_supplementary_tables_publication_link(href):
             continue
 
         pub_url = href if href.startswith("http") else f"{QES_BASE_URL}{href}"
@@ -85,7 +102,7 @@ def get_latest_qes_publication_url() -> str:
         pub_soup = BeautifulSoup(pub_resp.content, "html.parser")
         for file_link in cast("list[Tag]", pub_soup.find_all("a", href=True)):
             file_href = cast("str", file_link["href"])
-            if "supplementary_tables" in file_href and file_href.endswith(".xlsx"):
+            if _is_supplementary_tables_file(file_href):
                 excel_url = file_href if file_href.startswith("http") else f"{QES_BASE_URL}{file_href}"
                 logger.info(f"Found QES supplementary tables: {excel_url}")
                 return excel_url
