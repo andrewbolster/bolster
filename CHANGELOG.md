@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.11.2\] - 2026-09-19
+
+- feat(health_ni): add hospital_activity module (#2171)
+- feat(dfe): add higher_education_qualifications module (#2170)
+
 ## \[0.11.1\] - 2026-09-14
 
 - feat(dfe): add higher_level_apprenticeships module (#2163)
