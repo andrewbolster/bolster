@@ -1978,6 +1978,8 @@ def nisra_feed(limit: int, title_filter: str, days: int, check_coverage: bool):
         "emergency care": "emergency-care",
         "elective": "elective-waiting-times",
         "outpatient": "elective-waiting-times",
+        "inpatient and day case activity": "hospital-activity",
+        "hospital activity": "hospital-activity",
         "quarterly employment survey": "quarterly-employment-survey",
         "claimant count": "claimant-count",
         "claimant": "claimant-count",
@@ -5827,6 +5829,91 @@ def nisra_elective_waiting_times_cmd(waiting_type, trust, year, output_format, f
         console.print("\n[yellow]Troubleshooting:[/yellow]")
         console.print("   • Check your internet connection")
         console.print("   • Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@nisra.command(name="hospital-activity")
+@click.option(
+    "--dataset",
+    type=click.Choice(["specialty", "treatment-function", "independent", "theatres"], case_sensitive=False),
+    default="specialty",
+    show_default=True,
+    help="specialty: long-run bed activity by legacy specialty. treatment-function: encompass-era bed "
+    "activity by Treatment Function Code. independent: independent-sector activity. "
+    "theatres: operating theatre case throughput.",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_hospital_activity_cmd(dataset, output_format, force_refresh, save):
+    r"""Inpatient and Day Case Activity in Northern Ireland.
+
+    \b
+    Annual Department of Health (DoH) / NISRA Hospital Activity Information
+    Branch (HAIB) publication covering hospital bed activity, independent-
+    sector activity and theatre usage -- distinct from elective-waiting-times,
+    which covers patients queued for treatment rather than activity once
+    admitted. Published as separate workbooks per breakdown, 2016/17 to
+    present (2023/24 to present for treatment-function).
+
+    Examples:
+        Long-run bed activity by specialty::
+
+            bolster nisra hospital-activity
+
+        Encompass-era bed activity by Treatment Function Code::
+
+            bolster nisra hospital-activity --dataset treatment-function
+
+        Operating theatre throughput, saved as JSON::
+
+            bolster nisra hospital-activity --dataset theatres --format json --save theatres.json
+
+    Source:
+        https://www.health-ni.gov.uk/articles/inpatient-and-day-case-activity
+    """
+    from bolster.data_sources.health_ni import hospital_activity as ha
+
+    console = Console()
+
+    getters = {
+        "specialty": ha.get_bed_activity_by_specialty,
+        "treatment-function": ha.get_bed_activity_by_treatment_function,
+        "independent": ha.get_independent_sector_activity,
+        "theatres": ha.get_theatre_usage,
+    }
+
+    try:
+        with console.status(f"[bold green]Downloading hospital activity data ({dataset})..."):
+            data = getters[dataset](force_refresh=force_refresh)
+
+        console.print("[green]Hospital activity data retrieved successfully[/green]")
+        console.print(f"[cyan]Dataset: {dataset} | Rows: {len(data)}[/cyan]")
+
+        if save:
+            if output_format == "json" or save.endswith(".json"):
+                data.to_json(save, orient="records", date_format="iso", indent=2)
+            else:
+                data.to_csv(save, index=False)
+            console.print(f"[green]Saved to: {save}[/green]")
+            return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            click.echo(data.to_csv(index=False), nl=False)
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
         raise click.Abort() from e
 
 
