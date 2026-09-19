@@ -212,6 +212,19 @@ class TestInternals:
         assert out.loc[0, "quarter"] == "Q2"
         assert pd.isna(out.loc[0, "month"])
 
+    # Regression coverage for a real 2026-09 break: the BoE switched the
+    # bytes served at the stable baserate.xls URL from legacy binary to
+    # modern OOXML without changing the URL, and a hardcoded engine="xlrd"
+    # silently stopped being able to open the file.
+    def test_sniffs_ooxml_content_as_openpyxl(self):
+        assert boe_base_rate._sniff_excel_engine(b"PK\x03\x04rest-of-a-real-xlsx-zip") == "openpyxl"
+
+    def test_sniffs_legacy_binary_content_as_xlrd(self):
+        assert boe_base_rate._sniff_excel_engine(b"\xd0\xcf\x11\xe0rest-of-a-real-ole2-xls") == "xlrd"
+
+    def test_sniffs_unrecognised_content_as_xlrd_default(self):
+        assert boe_base_rate._sniff_excel_engine(b"not an excel file at all") == "xlrd"
+
 
 class TestValidation:
     """Unit tests for :func:`validate_data` edge cases (no network calls)."""
