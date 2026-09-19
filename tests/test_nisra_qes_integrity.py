@@ -176,3 +176,35 @@ class TestQESValidation:
         data["quarter"] = 1
         with pytest.raises(qes.NISRAValidationError, match="Too few rows"):
             qes.validate_qes_data(pd.DataFrame(data))
+
+
+class TestSupplementaryTablesMatching:
+    """Unit tests for the file/link matching helpers — no network calls needed.
+
+    Regression coverage for a real 2026-09 break: NISRA renamed the
+    supplementary tables workbook from lower_case to Title_Case
+    (``20262_Supplementary_Tables.xlsx``), and the original case-sensitive
+    substring check silently stopped matching it.
+    """
+
+    def test_matches_lower_case_filename(self):
+        assert qes._is_supplementary_tables_file("/system/files/statistics/2026-06/20261_supplementary_tables.xlsx")
+
+    def test_matches_title_case_filename(self):
+        assert qes._is_supplementary_tables_file("/system/files/statistics/2026-09/20262_Supplementary_Tables.xlsx")
+
+    def test_rejects_non_matching_filename(self):
+        assert not qes._is_supplementary_tables_file("/system/files/statistics/2026-09/20262_Historical_Tables.xlsx")
+
+    def test_rejects_non_xlsx_extension(self):
+        assert not qes._is_supplementary_tables_file("/system/files/statistics/2026-09/20262_Supplementary_Tables.pdf")
+
+    def test_matches_publication_link_case_insensitively(self):
+        assert qes._is_supplementary_tables_publication_link(
+            "/publications/Quarterly-Employment-Survey-Supplementary-Tables-June-2026"
+        )
+
+    def test_rejects_unrelated_publication_link(self):
+        assert not qes._is_supplementary_tables_publication_link(
+            "/publications/quarterly-employment-survey-historical-tables-june-2026"
+        )
