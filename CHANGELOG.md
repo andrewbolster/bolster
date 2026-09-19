@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.11.2\] - 2026-09-19
+
+- fix: NISRA QES filename casing + BoE base rate format detection (#2178)
+
 ## \[0.11.1\] - 2026-09-14
 
 - feat(dfe): add higher_level_apprenticeships module (#2163)
