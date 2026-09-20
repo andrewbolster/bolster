@@ -52,6 +52,7 @@ import re
 
 import pandas as pd
 
+from bolster.utils.excel import find_marker_row
 from bolster.utils.web import scrape_file_links
 
 from ._base import NISRADataNotFoundError, NISRAValidationError, download_file
@@ -185,11 +186,7 @@ def _parse_sheet(workbook: pd.ExcelFile, sheet_name: str) -> pd.DataFrame:
     """Parse one geography-level sheet: header row starts at "Geography", data follows to the end."""
     sheet = pd.read_excel(workbook, sheet_name=sheet_name, header=None)
 
-    header_row = None
-    for index in range(min(20, len(sheet))):
-        if str(sheet.iat[index, 0]).strip() == "Geography":
-            header_row = index
-            break
+    header_row = find_marker_row(sheet, lambda v: str(v).strip() == "Geography", max_rows=20)
     if header_row is None:
         raise NISRAValidationError(f"Could not find a 'Geography' header row in sheet {sheet_name!r}")
 

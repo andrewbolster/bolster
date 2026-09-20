@@ -55,6 +55,8 @@ import re
 import pandas as pd
 
 from bolster.utils.cache import CachedDownloader, bind_download_file
+from bolster.utils.excel import find_marker_row
+from bolster.utils.text import clean_column_name as _clean_column
 from bolster.utils.web import find_publication_link
 
 from ._base import DfEDataNotFoundError, DfEValidationError
@@ -73,12 +75,6 @@ _downloader = CachedDownloader("dfe_higher_level_apprenticeships", timeout=60)
 download_file = bind_download_file(_downloader, DfEDataNotFoundError, _CACHE_TTL_HOURS)
 
 _NOTE_RE = re.compile(r"\s*\[notes? [\d, ]+\]", re.IGNORECASE)
-
-
-def _clean_column(name: object) -> str:
-    """Normalise a column header into snake_case."""
-    text = re.sub(r"[^a-zA-Z0-9]+", "_", str(name).strip().lower())
-    return text.strip("_")
 
 
 def get_workbook_url(force_refresh: bool = False) -> str:
@@ -164,13 +160,10 @@ def get_table(table_id: str, force_refresh: bool = False) -> pd.DataFrame:
     path = download_file(get_workbook_url(force_refresh=force_refresh), force_refresh=force_refresh)
     sheet = pd.read_excel(path, sheet_name=sheet_name, header=None)
 
-    header_row = None
-    for index in range(min(10, len(sheet))):
-        if isinstance(sheet.iat[index, 0], str) and "worksheet contains" in sheet.iat[index, 0].lower():
-            header_row = index + 1
-            break
-    if header_row is None:
+    marker_row = find_marker_row(sheet, lambda v: isinstance(v, str) and "worksheet contains" in v.lower())
+    if marker_row is None:
         raise DfEDataNotFoundError(f"Could not find a header row in sheet {sheet_name!r}")
+    header_row = marker_row + 1
 
     columns = ["category"] + [_clean_column(c) for c in sheet.iloc[header_row, 1:]]
     table = sheet.iloc[header_row + 1 :].copy()
