@@ -53,6 +53,7 @@ import re
 
 import pandas as pd
 
+from bolster.utils.cache import load_workbook
 from bolster.utils.web import scrape_file_links
 
 from ._base import PSNIDataNotFoundError, PSNIValidationError, download_file
@@ -121,8 +122,7 @@ def _load_workbook(force_refresh: bool = False) -> pd.ExcelFile:
         PSNIDataNotFoundError: If the workbook cannot be downloaded.
     """
     url = find_latest_workbook_url()
-    path = download_file(url, cache_ttl_hours=_CACHE_TTL_HOURS, force_refresh=force_refresh)
-    return pd.ExcelFile(path)
+    return load_workbook(url, download_file, cache_ttl_hours=_CACHE_TTL_HOURS, force_refresh=force_refresh)
 
 
 def _sheet(name: str, force_refresh: bool = False) -> pd.DataFrame:

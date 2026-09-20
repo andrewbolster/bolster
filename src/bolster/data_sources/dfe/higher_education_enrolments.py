@@ -52,6 +52,8 @@ import re
 import pandas as pd
 
 from bolster.utils.cache import CachedDownloader, bind_download_file
+from bolster.utils.excel import find_marker_row
+from bolster.utils.text import clean_column_name as _clean_column
 from bolster.utils.web import find_publication_link
 
 from ._base import DfEDataNotFoundError, DfEValidationError
@@ -69,12 +71,6 @@ download_file = bind_download_file(_downloader, DfEDataNotFoundError, _CACHE_TTL
 
 _MODE_LABELS = {"Full-time", "Part-time", "Total"}
 _YEAR_RE = re.compile(r"^\d{4}/\d{2}$")
-
-
-def _clean_column(name: object) -> str:
-    """Normalise a column header (possibly combining a level-of-study group with a sub-label)."""
-    text = re.sub(r"[^a-zA-Z0-9]+", "_", str(name).strip().lower())
-    return text.strip("_")
 
 
 def get_workbook_url(force_refresh: bool = False) -> str:
@@ -121,11 +117,7 @@ def _parse_wide_table(path, sheet_name: str) -> pd.DataFrame:
     """
     sheet = pd.read_excel(path, sheet_name=sheet_name, header=None)
 
-    header_row = None
-    for index in range(min(10, len(sheet))):
-        if str(sheet.iat[index, 0]).strip() == "Mode and Year":
-            header_row = index
-            break
+    header_row = find_marker_row(sheet, lambda v: str(v).strip() == "Mode and Year")
     if header_row is None:
         raise DfEDataNotFoundError(f"Could not find a 'Mode and Year' header row in sheet {sheet_name!r}")
 
