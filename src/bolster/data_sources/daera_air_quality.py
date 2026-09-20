@@ -47,7 +47,7 @@ from typing import TYPE_CHECKING, cast
 
 import pandas as pd
 
-from bolster.utils.cache import CachedDownloader, bind_download_file
+from bolster.utils.cache import CachedDownloader, bind_download_file, load_workbook
 from bolster.utils.web import fetch_soup, scrape_file_links
 
 if TYPE_CHECKING:
@@ -175,9 +175,7 @@ def _load_workbook(year: int | None = None, force_refresh: bool = False) -> pd.E
     Raises:
         DAERADataNotFoundError: If the workbook cannot be downloaded.
     """
-    url = get_workbook_url(year)
-    path = download_file(url, force_refresh=force_refresh)
-    return pd.ExcelFile(path)
+    return load_workbook(get_workbook_url(year), download_file, force_refresh=force_refresh)
 
 
 def _sheet(name: str, year: int | None = None, force_refresh: bool = False) -> pd.DataFrame:

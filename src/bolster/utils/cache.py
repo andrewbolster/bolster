@@ -244,6 +244,32 @@ def bind_download_file(
     return download_file
 
 
+def load_workbook(url: str, download_file: Callable[..., Path], **kwargs) -> pd.ExcelFile:
+    """Download a workbook via ``download_file`` and open it as an ``ExcelFile``.
+
+    Several modules define an identical-bodied ``_load_workbook`` that just
+    does these two steps (see issue #2176). URL resolution stays the
+    caller's job -- pass the already-resolved URL in.
+
+    Args:
+        url: Absolute URL of the workbook to download.
+        download_file: A module's own bound ``download_file`` function
+            (e.g. from :func:`bind_download_file`).
+        **kwargs: Forwarded to ``download_file`` -- e.g. ``force_refresh``,
+            ``cache_ttl_hours`` -- since different modules' bound functions
+            accept different optional arguments.
+
+    Returns:
+        An open :class:`pandas.ExcelFile` for the downloaded workbook.
+
+    Example:
+        >>> from pathlib import Path
+        >>> load_workbook("https://example.com/x.xlsx", lambda url, **kw: Path(url))  # doctest: +SKIP
+    """
+    path = download_file(url, **kwargs)
+    return pd.ExcelFile(path)
+
+
 def stitch_publications(
     publications: list[dict],
     fetch_one: Callable[[dict], pd.DataFrame],
