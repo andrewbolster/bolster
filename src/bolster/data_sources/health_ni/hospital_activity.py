@@ -64,6 +64,8 @@ from typing import cast
 import bs4
 import pandas as pd
 
+from bolster.utils.excel import find_marker_row
+from bolster.utils.text import clean_column_name
 from bolster.utils.web import session
 
 from ._base import (
@@ -94,9 +96,7 @@ _FOOTNOTE_RE = re.compile(r"\*+$")
 
 def _clean_column(name: object) -> str:
     """Normalise a column header to snake_case, stripping trailing footnote markers."""
-    text = _FOOTNOTE_RE.sub("", str(name).strip())
-    text = re.sub(r"[^a-zA-Z0-9]+", "_", text.lower())
-    return text.strip("_")
+    return clean_column_name(_FOOTNOTE_RE.sub("", str(name).strip()))
 
 
 def get_workbook_urls() -> dict[str, str]:
@@ -180,12 +180,7 @@ def _parse_single_table_sheet(path) -> pd.DataFrame:
     sheet_name = _data_sheet_name(path)
     sheet = pd.read_excel(path, sheet_name=sheet_name, header=None)
 
-    marker_row = None
-    for index in range(min(10, len(sheet))):
-        value = sheet.iat[index, 0]
-        if isinstance(value, str) and "worksheet contains" in value.lower():
-            marker_row = index
-            break
+    marker_row = find_marker_row(sheet, lambda v: isinstance(v, str) and "worksheet contains" in v.lower())
     if marker_row is None:
         raise NISRADataNotFoundError(f"Could not find a 'worksheet contains' marker row in {sheet_name!r}")
 
