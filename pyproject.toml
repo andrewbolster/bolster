@@ -232,7 +232,7 @@ dev = [
     "httpx",
     "pytest-cov",
     "pytest-mock",
-    "ruff==0.16.5",
+    "ruff==0.16.7",
     "mypy==2.3.1",
     "bandit>=1.7",
     "nbmake",
