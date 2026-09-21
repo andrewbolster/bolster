@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.11.3\] - 2026-09-21
+
+Manual release triggered
+
 ## \[0.11.1\] - 2026-09-14
 
 - feat(dfe): add higher_level_apprenticeships module (#2163)
