@@ -17,8 +17,10 @@ src/bolster/
 │   │   └── road_traffic_collisions.py, crime_statistics.py
 │   └── dva.py          # Driver and Vehicle Agency
 ├── utils/
-│   ├── cache.py        # CachedDownloader (uses web.session)
+│   ├── cache.py        # CachedDownloader, bind_download_file, load_workbook
+│   ├── excel.py        # find_marker_row
 │   ├── rss.py          # get_nisra_statistics_feed()
+│   ├── text.py         # clean_column_name
 │   └── web.py          # HTTP session with retry logic
 └── cli.py              # Click-based CLI
 ```
@@ -91,8 +93,47 @@ actually breaking — ask the user before merging rather than guessing. This
 is a judgment call the pipeline doesn't verify.
 
 `docs:`, `ci:`, `chore:`, `style:` and `test:` commits don't trigger a
-release at all. See `CONTRIBUTING.rst`'s "Deploying" section for the full
-mechanics.
+release at all. `refactor:` is **not** in that skip list — a behaviour-neutral
+refactor still releases as a patch unless the PR carries `version:skip`, so
+label it before merge. See `CONTRIBUTING.rst`'s "Deploying" section for the
+full mechanics.
+
+**Known release gotchas**
+
+- **The label override only sees HEAD's PR.** `release-logic.yml` looks up
+  `version:*` labels on the PR associated with the newest commit only. If
+  several PRs land between releases and the newest one is unlabelled (or
+  labelled `version:skip`), an earlier `feat:` can drive a bigger bump than
+  intended. When the automatic classification looks wrong, run
+  "Automated Release" via `workflow_dispatch` with an explicit `version_bump`
+  (`patch`/`minor`/`major`) instead of letting `auto` guess — the manual
+  input bypasses all analysis.
+- **The `chore: bump version` PR is housekeeping, not the release.** The tag
+  is pushed (and PyPI publish triggered) *before* that PR opens; the PR only
+  syncs `pyproject.toml` back to `main`. It can go stale
+  (`CONFLICTING`/`BEHIND`) if other PRs merge first. If you close it instead
+  of merging, sync the version yourself in a `version:skip` PR
+  (`uv run bump-my-version bump <type>` locally, or edit both
+  `[project] version` and `[tool.bumpversion] current_version`) — otherwise
+  the next automatic bump is computed from a stale number.
+- **`pr-labeler.yml` labels by title prefix**, so a `chore: bump version` PR
+  is auto-labelled `version:skip`. That's harmless for the bump PR itself but
+  is why a wrongly-prefixed PR can silently suppress a release.
+
+### CI failures: rerun or root-cause?
+
+Integrity tests hit live publisher sites, so some failures are transient and
+some are real breakage. Decide before rerunning:
+
+- **Rerun once, don't chase:** PSNI `403` (see #2041), ECB `503`, Wikipedia
+  timeouts, and the `actionlint-py` wheel-build failure in the pre-commit
+  lint job. These resolve on a rerun (`gh run rerun <id> --failed`).
+- **Root-cause before rerunning:** anything you can reproduce locally, and
+  anything that fails the same way twice. Publishers rename files, change
+  casing and swap file formats without notice — a QES filename-casing change
+  and a Bank of England `.xls` that became OOXML were both real, reproducible
+  breaks that a rerun would only have hidden. Fix the module (match
+  case-insensitively, sniff the format) and add a regression test.
 
 ## Standards
 
@@ -114,6 +155,20 @@ response = session.get(url)  # Retries on 500/502/503/504; 30s timeout applied a
 ```
 
 Do NOT use raw `requests.get()` - it lacks retry logic and causes CI flakiness.
+
+### Spreadsheet helpers (`utils/text.py`, `utils/excel.py`, `utils/cache.py`)
+
+Excel-scraping modules repeatedly need the same three small things. Use these
+rather than defining a local copy:
+
+| Function | Purpose |
+|----------|---------|
+| `clean_column_name(name)` (`utils.text`) | Header → snake_case (`"Total (No.)"` → `"total_no"`). Do source-specific pre-cleaning (footnote markers, `(%)` suffixes) first, then delegate the tail to this |
+| `find_marker_row(sheet, predicate, max_rows=10)` (`utils.excel`) | Index of the first row in the first `max_rows` whose column 0 satisfies `predicate`, else `None`. Callers raise their own module error on `None` |
+| `load_workbook(url, download_file, **kwargs)` (`utils.cache`) | Download via the module's `download_file` and open as `pd.ExcelFile`; kwargs (`force_refresh`, `cache_ttl_hours`) pass through |
+
+`find_marker_row` is for "where does the header start"; it is not a fit for
+scanning *every* matching row (stacked sub-tables) or for finding a footer.
 
 ### NISRA PxStat API (`src/bolster/data_sources/nisra/pxstat.py`)
 
@@ -199,7 +254,7 @@ Three specialized agents for the data source development lifecycle.
 1. **Find spec** - If directed at a specific issue, read it. Otherwise run `gh issue list --label "data-source-candidate" --state open` and find issues with a RECOMMENDED `data-explore` evaluation comment. Confirm with the user before proceeding if ambiguous.
 1. **Check CI status** - Run `gh pr list` and `gh run list --limit 5` to confirm no failing tests on `main` before starting.
 1. **Branch** - `git checkout -b feat/<name>` from a clean `main`.
-1. **Study patterns** - Read 2-3 similar existing modules before writing any code.
+1. **Study patterns** - Read 2-3 similar existing modules before writing any code. Use the shared helpers (`web.session`, `clean_column_name`, `find_marker_row`, `load_workbook`, `bind_download_file`) instead of re-implementing them.
 1. **Implement in phases** — commit after each phase to enable safe rollback:
    - **Phase 1**: Core module in `src/bolster/data_sources/<source>/` + `__init__.py` exports. Commit: `feat(<name>): add core module`
    - **Phase 2**: Data integrity tests in `tests/test_<source>_<name>_integrity.py`. Run `uv run pytest tests/test_<source>_<name>_integrity.py -v` — must pass. Commit: `test(<name>): add integrity tests`
@@ -334,7 +389,7 @@ class TestValidation:
 
 **Workflow**:
 
-1. **Find scope** - Run `gh pr list --state merged --base main --limit 50 --json number,title,mergedAt,labels` and filter to PRs merged in the last 7 days. Skip PRs labelled `version:skip`, `dependencies`, or `documentation`.
+1. **Find scope** - Run `gh pr list --state merged --base main --limit 50 --json number,title,mergedAt,labels` and filter to PRs merged in the last 7 days. Skip PRs labelled `dependencies`, and PRs whose only non-`version:*` label is `documentation`. Do **not** skip on `version:skip` alone — refactors and internal utility extractions carry that label precisely because they change no behaviour, which is where shared-utility duplication shows up.
 1. **README audit** - For each merged PR that touches `src/bolster/data_sources/`, verify:
    - The new module appears in the README coverage table
    - The CLI command is documented (`uv run bolster --help` output matches)

@@ -1,16 +1,15 @@
-# Claude Code Configuration
+# Claude Code
 
-See @AGENTS.md for project structure, standards, tool preferences, git workflow, and agent definitions.
+Project guidance for all coding agents lives in @AGENTS.md — structure, commands, standards, shared utilities, release rules and the data-source agent workflows. Read it first; this file only covers what is specific to Claude Code.
 
-## Claude-Specific Settings
+## `.claude/` folder
 
-### Subagents
+- `agents/` — subagents for the data-source lifecycle. Invoke with "Use the data-explore agent to…":
+  - `data-explore` — evaluate `data-source-candidate` issues
+  - `data-build` — build a module from a RECOMMENDED issue
+  - `data-review` — review open data-source PRs
+  - `data-maintenance` — weekly review of merged PRs for doc gaps and shared-utility candidates
+- `commands/nisra-feed-review.md` — `/nisra-feed-review`: scan the NISRA RSS feed and open `data-source-candidate` issues
+- `constitution.md` — conventions distilled from the existing modules
 
-Three specialized subagents are defined in `.claude/agents/`:
-
-- `data-explore` — discover and evaluate new data sources; posts evaluations to `data-source-candidate` issues
-- `data-build` — build production modules with tests and CLI from a RECOMMENDED issue
-- `data-review` — review open data-source PRs for consistency against project standards
-- `data-maintenance` — monthly review of merged PRs for doc gaps and shared utility candidates
-
-Invoke with: "Use the data-explore agent to..."
+The agent definitions themselves are specified in AGENTS.md; the files in `.claude/agents/` are the Claude Code wrappers.

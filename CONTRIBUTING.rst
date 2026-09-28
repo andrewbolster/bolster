@@ -155,6 +155,21 @@ See coverage with missing lines::
 
     $ uv run pytest tests/ --cov=src/bolster --cov-report=term-missing
 
+If CI fails on a data-source test
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The integrity tests download from live publisher sites, so a red run is
+either transient or a genuine break, and it's worth telling them apart before
+pressing *Re-run*:
+
+* A one-off ``403``/``503`` from an external site (PSNI, ECB), a Wikipedia
+  timeout, or a wheel-build hiccup in the pre-commit job usually clears on a
+  single re-run.
+* A failure you can reproduce locally, or that fails the same way twice, is
+  real — publishers rename files, change filename casing and switch file
+  formats without notice. Fix the module (case-insensitive matching, sniffing
+  the file format) and add a regression test rather than re-running.
+
 Deploying
 ---------
 
@@ -171,7 +186,15 @@ prefixes:
   in the commit body → **major**
 
 ``docs:``, ``ci:``, ``chore:``, ``style:`` and ``test:`` commits are skipped
-entirely (no release opens for a docs-only or CI-only change).
+entirely (no release opens for a docs-only or CI-only change). ``refactor:``
+is *not* skipped: a behaviour-neutral refactor still releases as a patch
+unless the PR carries a ``version:skip`` label.
+
+The ``version:*`` label override is read from the PR of the *newest* commit
+only. If several PRs merge close together and the last one is unlabelled, an
+earlier PR's prefix can produce a bump you didn't intend — in that case,
+dispatch **Automated Release** manually with an explicit bump type (below)
+rather than relying on the automatic classification.
 
 **Data-source PRs need a judgment call.** The prefix-based mapping above is
 a default, not a rule — these two cases aren't detected automatically, so
@@ -196,6 +219,14 @@ For a **patch or minor** bump, the workflow opens a ``chore: bump version to
 vX.Y.Z`` PR, tags it, and auto-merges it once CI is green — no maintainer
 action needed. The tag push then triggers ``publish.yml``, which publishes
 to PyPI and creates the GitHub Release.
+
+The ``chore: bump version`` PR is housekeeping: the tag is pushed (and the
+PyPI publish started) before it opens, and the PR only syncs the new version
+number in ``pyproject.toml`` back to ``main``. If it goes stale after other
+PRs merge and you close it instead of merging, sync the version in a separate
+``version:skip`` PR (``uv run bump-my-version bump patch``, or edit both
+``version`` and ``current_version``) so the next automatic bump starts from
+the right number.
 
 A detected **major** bump (a real breaking change) never auto-releases,
 even though it's detected — it's a deliberate decision and a bigger piece
