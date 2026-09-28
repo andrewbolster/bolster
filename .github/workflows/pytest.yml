@@ -12,28 +12,48 @@ on:
 # Per-ref + cancel-in-progress was chosen over a single global queue after
 # 7 PRs toggled between the two strategies in ~2 weeks (PRs #1938–#1950).
 #
-# The alternative (group: pytest-all, cancel-in-progress: false) serialises
-# ALL runs to avoid concurrent load on upstream NISRA/NI Assembly APIs. But
-# it was dropped because:
-#   1. The ~/.cache/bolster download cache (actions/cache, daily key) means
-#      most network hits are served from cache rather than hitting upstream,
-#      so concurrent runs don't pile on the same endpoints.
-#   2. The retry-on-timeout workflow (rerun-timed-out.yml) handles the residual
-#      flakiness from throttled upstreams, removing the main motivation for
-#      serialising globally.
-#   3. A global queue starves fast-feedback: when several PRs are open
-#      simultaneously, every push waits for all earlier runs to finish.
+# The alternative tried then (group: pytest-all, cancel-in-progress: false)
+# serialised ALL runs to avoid concurrent load on upstream NISRA/NI Assembly
+# APIs, but was dropped because a single shared group across all refs breaks
+# under rebase-style traffic: a fresh push to the SAME ref makes that ref's
+# own already-queued entry in the group look like a brand-new low-priority
+# entrant and cancels it on the spot. Once rebase.yml started pushing every
+# open PR forward on every merge to main, a run could wait ~29 minutes and
+# still get wiped before a single job ran — twice in a row. That starvation,
+# not the serialisation goal itself, is what killed the global queue.
 #
-# If upstream throttling becomes a problem again, revisit the cache TTL and
-# retry settings in src/bolster/utils/web.py before reaching for the global
-# queue — serialising CI is a blunt instrument.
-concurrency:
-    group: ${{ github.event_name }}-${{ github.workflow }}-${{ github.ref }}
-    cancel-in-progress: true
-
+# The two-tier structure below (queue -> build) restores cross-ref
+# serialisation without reintroducing that failure mode: `queue` is a
+# near-instant job holding the one shared, global group, so a branch that
+# gets re-pushed while waiting only loses a few seconds of position, not a
+# run's full ~20 minutes. `build` keeps its own concurrency group scoped
+# per-ref *and* per-matrix-cell, so same-ref reruns still cancel each other
+# immediately and the matrix still runs (with max-parallel: 1, in sequence)
+# same as before. Prototyped and verified first in
+# andrewbolster/mcp.bolster.online#23 (same problem, ~2min matrix instead of
+# ~20min, so a bad iteration was cheap to observe there).
+#
+# If starvation reappears under real traffic, or the download cache/
+# rerun-timed-out.yml stop being enough on their own, revisit before
+# reaching for anything blunter than this.
 jobs:
-    build:
+    queue:
+        name: Queue gate
         runs-on: ubuntu-latest
+        concurrency:
+            group: bolster-pytest-queue
+            cancel-in-progress: false
+        steps:
+            - run: echo "cleared to run for ${{ github.sha }} on ${{ github.ref }}"
+
+    build:
+        needs: queue
+        runs-on: ubuntu-latest
+        # Matrix cell included so a future increase in max-parallel still
+        # only cancels same-ref-same-cell reruns, not the whole matrix.
+        concurrency:
+            group: ${{ github.event_name }}-${{ github.workflow }}-${{ github.ref }}-${{ matrix.python-version }}
+            cancel-in-progress: true
         strategy:
             max-parallel: 1
             matrix:
