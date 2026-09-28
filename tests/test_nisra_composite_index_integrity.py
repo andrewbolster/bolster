@@ -176,7 +176,7 @@ class TestNICEIIndicesIntegrity:
 
 
 class TestNICEIContributionsIntegrity:
-    """Integrity tests for NICEI sector contributions data (Table 11)."""
+    """Integrity tests for NICEI sector contributions data (sector contributions table)."""
 
     @pytest.fixture(scope="class")
     def latest_contributions(self):
@@ -332,3 +332,37 @@ class TestNICEIHelperFunctions:
         # Test an invalid quarter
         df_invalid = composite_index.get_nicei_by_quarter(latest_nicei, 2024, 5)
         assert len(df_invalid) == 0
+
+
+class TestContributionsSheetDiscovery:
+    """Table numbers shift between releases (11 -> 12 in Q2 2026); the sheet is found by title."""
+
+    @staticmethod
+    def _workbook(tmp_path, titles):
+        path = tmp_path / "nicei.xlsx"
+        with pd.ExcelWriter(path) as writer:
+            pd.DataFrame([["Contents"]]).to_excel(writer, sheet_name="Contents", header=False, index=False)
+            for sheet, (col, title) in titles.items():
+                row = [None] * 6
+                row[col] = title
+                pd.DataFrame([row]).to_excel(writer, sheet_name=sheet, header=False, index=False)
+        return pd.ExcelFile(path)
+
+    def test_finds_title_in_first_column(self, tmp_path):
+        wb = self._workbook(tmp_path, {"Table 11": (0, "NICEI sector contributions to quarterly change, Q3 2016")})
+        assert composite_index._find_contributions_sheet(wb) == "Table 11"
+
+    def test_finds_title_in_a_later_column_and_skips_other_tables(self, tmp_path):
+        wb = self._workbook(
+            tmp_path,
+            {
+                "Table 11": (0, "Comparison of the NICEI series quarter on quarter change"),
+                "Table 12": (5, "NICEI sector contributions to quarterly change, Q3 2016 to Q2 2026"),
+            },
+        )
+        assert composite_index._find_contributions_sheet(wb) == "Table 12"
+
+    def test_raises_when_absent(self, tmp_path):
+        wb = self._workbook(tmp_path, {"Table 1": (0, "NICEI and component indices by quarter")})
+        with pytest.raises(ValueError, match="sector contributions"):
+            composite_index._find_contributions_sheet(wb)
