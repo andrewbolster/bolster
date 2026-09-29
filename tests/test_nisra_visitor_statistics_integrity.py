@@ -289,3 +289,17 @@ class TestVisitorStatisticsValidation:
             ]
         )
         assert visitor_statistics.validate_visitor_statistics(few_markets_df) is False
+
+
+@pytest.mark.parametrize(
+    ("link_text", "expected"),
+    [
+        ("NI Tourism Q3 2025", (2025, 3)),
+        ("NI Tourism 2025 Quarter 3", (2025, 3)),
+        ("NI Tourism 2026 Q1Microsoft Excel (144 KB)", (2026, 1)),
+        ("Tourism Statistics background quality report", None),
+    ],
+)
+def test_publication_period_parsing(link_text, expected):
+    """NISRA has reworded these links more than once; each known form must keep parsing."""
+    assert visitor_statistics._parse_publication_period(link_text) == expected
