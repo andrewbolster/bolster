@@ -1,5 +1,13 @@
 # Changelog
 
+## \[0.11.4\] - 2026-09-29
+
+Manual release triggered
+
+## \[0.11.3\] - 2026-09-29
+
+- fix(nisra): tolerate September 2026 publication changes (population, NICEI, LGD, tourism) (#2195)
+
 ## \[0.11.1\] - 2026-09-14
 
 - feat(dfe): add higher_level_apprenticeships module (#2163)
