@@ -188,6 +188,9 @@ def parse_population_file(
     except Exception as e:
         raise NISRAValidationError(f"Failed to read population file: {e}") from e
 
+    # NISRA changed the case of these headers between releases (age_5 -> AGE_5 in MYE25)
+    df = df.rename(columns={c: c.lower() for c in df.columns if str(c).lower() in {"age_5", "age_band", "age_broad"}})
+
     # Validate expected columns
     expected_cols = {"area", "area_code", "area_name", "year", "sex", "age_5", "age_band", "age_broad", "MYE"}
     if not expected_cols.issubset(df.columns):

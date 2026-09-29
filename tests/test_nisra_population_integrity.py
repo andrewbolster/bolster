@@ -13,6 +13,7 @@ Key validations:
 
 import re
 
+import pandas as pd
 import pytest
 
 from bolster.data_sources.nisra import population
@@ -190,3 +191,31 @@ class TestPopulationDataIntegrity:
 
         current_year = datetime.datetime.now().year
         assert max_year >= current_year - 2, f"Latest data ({max_year}) is more than 2 years old"
+
+
+class TestHeaderCaseTolerance:
+    """NISRA upper-cased the age headers in MYE25; both spellings must parse."""
+
+    @pytest.mark.parametrize("upper", [False, True])
+    def test_age_column_case_is_normalised(self, tmp_path, upper):
+        columns = ["area", "area_code", "area_name", "year", "sex", "age_5", "age_band", "age_broad", "MYE"]
+        if upper:
+            columns = [c.upper() if c.startswith("age_") else c for c in columns]
+        row = [
+            "1. Northern Ireland",
+            "N92000002",
+            "NORTHERN IRELAND",
+            2025,
+            "All persons",
+            "00-04",
+            "00-03",
+            "00-15",
+            100,
+        ]
+        path = tmp_path / "pop.xlsx"
+        pd.DataFrame([row], columns=columns).to_excel(path, sheet_name="Flat", index=False)
+
+        df = population.parse_population_file(path)
+
+        assert {"age_5", "age_band", "age_broad", "population"} <= set(df.columns)
+        assert df["population"].iloc[0] == 100
