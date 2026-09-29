@@ -202,8 +202,22 @@ def parse_nicei_indices(file_path: str | Path) -> pd.DataFrame:
     return df
 
 
+def _find_contributions_sheet(workbook: pd.ExcelFile) -> str:
+    """Return the name of the sheet titled "NICEI sector contributions to quarterly change".
+
+    The title sits in the first row, not always in the first column.
+    """
+    for name in workbook.sheet_names:
+        if not str(name).lower().startswith("table"):
+            continue
+        first_row = workbook.parse(name, header=None, nrows=1)
+        if any("sector contributions" in str(cell).lower() for cell in first_row.iloc[0]):
+            return str(name)
+    raise ValueError("Could not find the NICEI sector contributions table in the workbook")
+
+
 def parse_nicei_contributions(file_path: str | Path) -> pd.DataFrame:
-    """Parse NICEI Table 11: Sector contributions to quarterly change.
+    """Parse the NICEI sector contributions to quarterly change table (Table 11 before Q2 2026, Table 12 since).
 
     Extracts how much each sector contributed to the quarterly change in NICEI.
 
@@ -231,9 +245,10 @@ def parse_nicei_contributions(file_path: str | Path) -> pd.DataFrame:
     """
     logger.info(f"Parsing NICEI sector contributions from: {file_path}")
 
-    # Read Table 11 - has a multi-row header structure
-    # Skip title row, next 2 rows are headers
-    df = pd.read_excel(file_path, sheet_name="Table 11", skiprows=2)
+    # Table numbers shift when NISRA adds tables (11 -> 12 in Q2 2026), so find the sheet by title.
+    # Multi-row header structure: skip the title row, next 2 rows are headers.
+    workbook = pd.ExcelFile(file_path)
+    df = workbook.parse(_find_contributions_sheet(workbook), skiprows=2)
 
     # Rename columns based on the structure
     # Columns: Year, Quarter, NICEI, NICEI Quarterly Change, Public Sector, Services, Production, Construction, Agriculture
