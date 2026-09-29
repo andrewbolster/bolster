@@ -260,6 +260,30 @@ pay distribution (Figures 1–18).
 
     $ bolster nisra ashe
 
+NI Civil Service Pay Statistics
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Annual pay statistics for the Northern Ireland Civil Service at 31 March:
+median and quartile pay by analogous grade, the ten-year median pay trend,
+gender and community background pay gaps by grade, and NI pay against England,
+Scotland and Wales. NISRA publishes this as an interactive report rather than a
+spreadsheet, but every figure embeds its data as a real ``.xlsx`` file, which
+the module reads (via ``bolster.utils.datavis``); the report URL changes each
+year and is discovered from the publication page.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import nics_pay
+
+    by_grade = nics_pay.get_pay_by_grade()
+    trend = nics_pay.get_pay_trend()
+    gaps = nics_pay.get_gender_pay_gap_by_grade()
+
+.. code-block:: console
+
+    $ bolster nisra nics-pay
+    $ bolster nisra nics-pay --dataset gender-gap
+
 Quarterly Employment Survey
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -508,6 +532,32 @@ down by Local Government District.
     $ bolster nisra teacher-workforce
     $ bolster nisra teacher-workforce --dimension ptr
     $ bolster nisra teacher-workforce --summary
+
+Teacher Vacancies, Sickness Absence and Substitution
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Annual Department of Education statistics on filled and unfilled teacher
+vacancies (by school type and grade), days lost to sickness per teacher
+(by school type, over time and by spell length), and substitute cover costs
+in grant-aided schools. Published as an interactive report whose figures and
+tables each embed a real ``.xlsx`` file; the module reads those via
+``bolster.utils.datavis``. The report URL changes every year and is discovered
+from the school-year publication page. The full set of 13 statistical tables
+(substitution costs by management and school type, cover rates, and so on) is
+available as published from ``get_tables()``.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import teacher_vacancies_absence as tva
+
+    vacancies = tva.get_vacancies_by_school_type()
+    absence = tva.get_sickness_absence_trend()
+    costs = tva.get_substitution_costs()
+
+.. code-block:: console
+
+    $ bolster nisra teacher-vacancies-absence
+    $ bolster nisra teacher-vacancies-absence --dataset sickness-trend
 
 Wellbeing
 ~~~~~~~~~
@@ -1186,9 +1236,11 @@ Quarterly progress against Northern Ireland's renewable electricity targets —
 80% of consumption from renewable sources by 2030, under the Climate Change
 Act (Northern Ireland) 2022.
 
-The source is an interactive NISRA datavis report which embeds its figures as
-base64-encoded CSV data-URIs rather than offering a downloadable workbook. Four
-headline series are extracted:
+The source is an interactive NISRA datavis report which embeds each figure as
+base64 ``.xlsx`` and ``.csv`` data-URIs rather than offering a downloadable
+workbook. The module reads the ``.xlsx`` copies (via ``bolster.utils.datavis``);
+the ``.csv`` copies are malformed and lose every second month. Four headline
+series are extracted:
 
 * ``renewable_pct`` — rolling 12-month renewable generation as a proportion of
   gross final electricity consumption, plus the monthly percentage.
@@ -1197,9 +1249,9 @@ headline series are extracted:
 * ``generation_by_technology`` — rolling 12-month generation by technology:
   wind, hydro, bioenergy, landfill gas, solar PV.
 * ``generation_monthly`` — monthly renewable and non-renewable generation
-  (GWh), from February 2018.
+  (GWh), from January 2018.
 
-Rolling 12-month figures run from January 2019 to present.
+Rolling 12-month figures run from December 2018 to present.
 
 .. code-block:: python
 
@@ -1286,6 +1338,29 @@ and ``get_table()`` reads any one of them by table id.
     $ bolster dfe apprenticeships
     $ bolster dfe apprenticeships --list-tables
     $ bolster dfe apprenticeships --table A8
+
+Further Education Outcomes
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Annual survey of what Further Education college leavers went on to do:
+the share in work, further learning, unemployment or other activity, where
+in Northern Ireland the workers are, and the quality of that work (permanent
+contract, guaranteed hours, Real Living Wage). Published as an interactive
+report whose figures embed ``.xlsx`` files; the report URL is discovered from
+the latest academic-year publication page.
+
+.. code-block:: python
+
+    from bolster.data_sources.dfe import further_education_outcomes as feo
+
+    outcomes = feo.get_leaver_outcomes()
+    by_lgd = feo.get_leavers_working_by_lgd()
+    quality = feo.get_work_quality_indicators()
+
+.. code-block:: console
+
+    $ bolster dfe further-education-outcomes
+    $ bolster dfe further-education-outcomes --dataset lgd
 
 ----
 
@@ -1800,6 +1875,33 @@ published from 2024/25 onwards.
 
 Suppressed values (``".."``) are returned as ``NaN`` and negligible values
 (``"-"``) as ``0.0``.
+
+Neighbourhood Renewal Area Profiles (DfC)
+-----------------------------------------
+
+Annual statistical profiles of the 36 Neighbourhood Renewal Areas: about 60
+charts per area across population, employment, health, education, crime and
+census sections, each comparing the area with Northern Ireland. Each profile
+is a separate interactive page with **no downloadable files**; every chart's
+data is only in the page as Plotly JSON, which the module reads without running
+any JavaScript (via ``bolster.utils.htmlwidgets``). Results are in long form
+(``nra``, ``section``, ``figure``, ``unit``, ``series``, ``category``, ``value``).
+Each page is about 5 MB; fetching all 36 takes a couple of minutes on a cold cache.
+
+.. code-block:: python
+
+    from bolster.data_sources.dfc import neighbourhood_renewal_profiles as nra
+
+    areas = nra.list_areas()
+    profile = nra.get_area_profile("Andersonstown")
+    everything = nra.get_all_area_profiles()
+    some = nra.get_all_area_profiles(["Andersonstown", "Armagh"])
+
+.. code-block:: console
+
+    $ bolster dfc neighbourhood-renewal --list
+    $ bolster dfc neighbourhood-renewal --area Andersonstown
+    $ bolster dfc neighbourhood-renewal --all --save nra_profiles.csv
 
 ----
 

@@ -5,6 +5,8 @@ Department for the Economy, published at https://www.economy-ni.gov.uk. Both
 series in this package are ultimately sourced from HESA (the Higher
 Education Statistics Agency) and share the same annual release programme.
 
+- further_education_outcomes: What FE college leavers went on to do -- employment, further learning,
+  where they work, and work quality (NISRA datavis report).
 - higher_education_enrolments: NI-domiciled student enrolments at UK HEIs,
   and enrolments at NI's own HEIs regardless of domicile.
 - higher_education_qualifications: the enrolments module's direct
@@ -17,12 +19,14 @@ Corresponding CLI commands live under ``bolster dfe ...``.
 """
 
 from bolster.data_sources.dfe import (
+    further_education_outcomes,
     higher_education_enrolments,
     higher_education_qualifications,
     higher_level_apprenticeships,
 )
 
 __all__ = [
+    "further_education_outcomes",
     "higher_education_enrolments",
     "higher_education_qualifications",
     "higher_level_apprenticeships",

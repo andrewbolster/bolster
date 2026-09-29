@@ -145,6 +145,7 @@ Economy and labour:
 [`labour_market`](https://bolster.readthedocs.io/en/latest/data_sources.html#labour-market),
 [`claimant_count`](https://bolster.readthedocs.io/en/latest/data_sources.html#claimant-count),
 [`ashe`](https://bolster.readthedocs.io/en/latest/data_sources.html#annual-survey-of-hours-and-earnings-ashe),
+[`nics_pay`](https://bolster.readthedocs.io/en/latest/data_sources.html#ni-civil-service-pay-statistics),
 [`quarterly_employment_survey`](https://bolster.readthedocs.io/en/latest/data_sources.html#quarterly-employment-survey),
 [`composite_index`](https://bolster.readthedocs.io/en/latest/data_sources.html#composite-economic-index-nicei),
 [`index_of_production`](https://bolster.readthedocs.io/en/latest/data_sources.html#index-of-production-services),
@@ -161,6 +162,7 @@ Economy and labour:
 
 Education:
 [`teacher_workforce`](https://bolster.readthedocs.io/en/latest/data_sources.html#teacher-workforce),
+[`teacher_vacancies_absence`](https://bolster.readthedocs.io/en/latest/data_sources.html#teacher-vacancies-sickness-absence-and-substitution),
 [`school_leavers`](https://bolster.readthedocs.io/en/latest/data_sources.html#school-leavers-survey),
 [`highest_qualification`](https://bolster.readthedocs.io/en/latest/data_sources.html#highest-qualification-and-participation)
 
@@ -213,9 +215,9 @@ Education:
 | Companies House | `companies_house` | UK company data |
 | Gender Pay Gap | `gender_pay_gap` | UK GPG reporting (250+ employees, 2017–present) |
 | DAERA | `daera_waste`, [`daera_greenhouse_gas`](https://bolster.readthedocs.io/en/latest/data_sources.html#greenhouse-gas-inventory), [`daera_air_quality`](https://bolster.readthedocs.io/en/latest/data_sources.html#air-quality-statistics) | NI municipal waste statistics; greenhouse gas emissions inventory; NO2/PM10/PM2.5 air quality |
-| Communities (DfC) | [`family_resources_survey`](https://bolster.readthedocs.io/en/latest/data_sources.html#family-resources-survey-dfc), [`child_maintenance`](https://bolster.readthedocs.io/en/latest/data_sources.html#communities-child-maintenance-service) | Household income/food security/tenure; Child Maintenance Service statistics |
+| Communities (DfC) | [`family_resources_survey`](https://bolster.readthedocs.io/en/latest/data_sources.html#family-resources-survey-dfc), [`child_maintenance`](https://bolster.readthedocs.io/en/latest/data_sources.html#communities-child-maintenance-service), [`neighbourhood_renewal_profiles`](https://bolster.readthedocs.io/en/latest/data_sources.html#neighbourhood-renewal-area-profiles-dfc) | Household income/food security/tenure; Child Maintenance Service statistics; profiles of the 36 Neighbourhood Renewal Areas |
 | Infrastructure (DfI) | [`school_travel`](https://bolster.readthedocs.io/en/latest/data_sources.html#travel-to-and-from-school-ypbas) | Young Persons' Behaviour and Attitudes Survey travel module |
-| Economy (DfE) | [`electricity_renewables`](https://bolster.readthedocs.io/en/latest/data_sources.html#electricity-consumption-and-renewable-generation), [`higher_education_enrolments`](https://bolster.readthedocs.io/en/latest/data_sources.html#higher-education-enrolments), [`higher_education_qualifications`](https://bolster.readthedocs.io/en/latest/data_sources.html#higher-education-qualifications), [`higher_level_apprenticeships`](https://bolster.readthedocs.io/en/latest/data_sources.html#higher-level-apprenticeships) | Electricity consumption and renewable generation progress; NI/UK HEI enrolments (HESA); NI/UK HEI qualifications gained (HESA); HLA starts/participants/qualifiers |
+| Economy (DfE) | [`further_education_outcomes`](https://bolster.readthedocs.io/en/latest/data_sources.html#further-education-outcomes), [`electricity_renewables`](https://bolster.readthedocs.io/en/latest/data_sources.html#electricity-consumption-and-renewable-generation), [`higher_education_enrolments`](https://bolster.readthedocs.io/en/latest/data_sources.html#higher-education-enrolments), [`higher_education_qualifications`](https://bolster.readthedocs.io/en/latest/data_sources.html#higher-education-qualifications), [`higher_level_apprenticeships`](https://bolster.readthedocs.io/en/latest/data_sources.html#higher-level-apprenticeships) | What FE leavers do next; electricity consumption and renewable generation progress; NI/UK HEI enrolments (HESA); NI/UK HEI qualifications gained (HESA); HLA starts/participants/qualifiers |
 | Met Office | `metoffice` | UK precipitation maps (requires API key) |
 
 ______________________________________________________________________

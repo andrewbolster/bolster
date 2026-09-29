@@ -18,7 +18,9 @@ src/bolster/
 │   └── dva.py          # Driver and Vehicle Agency
 ├── utils/
 │   ├── cache.py        # CachedDownloader, bind_download_file, load_workbook
+│   ├── datavis.py      # read_tables: figures/tables embedded in NISRA datavis pages
 │   ├── excel.py        # find_marker_row
+│   ├── htmlwidgets.py  # extract_widgets, plotly_frame: Plotly data from R htmlwidgets pages
 │   ├── rss.py          # get_nisra_statistics_feed()
 │   ├── text.py         # clean_column_name
 │   └── web.py          # HTTP session with retry logic
@@ -170,6 +172,21 @@ rather than defining a local copy:
 `find_marker_row` is for "where does the header start"; it is not a fit for
 scanning *every* matching row (stacked sub-tables) or for finding a footer.
 
+### Interactive report pages (`utils/datavis.py`, `utils/htmlwidgets.py`)
+
+NISRA publishes some reports only as interactive `datavis.nisra.gov.uk` pages. These are **not** a blocker: read the data
+out of the page instead of scraping charts.
+
+| Function | Purpose |
+|----------|---------|
+| `read_tables(html)` (`utils.datavis`) | Every figure/table on the page as a `DatavisTable` (label, title, DataFrame), read from the `.xlsx`/`.csv` files embedded as base64 `data:` links. Prefers `.xlsx`; the `.csv` copies can be malformed |
+| `coerce_numeric(series)`, `clean_labels(series)` (`utils.datavis`) | `"3.4%"`/`"£1,234"` → float (unparseable → `NaN`); drop `[4]` footnote markers and stray whitespace from row labels |
+| `extract_widgets(html)`, `plotly_frame(widgets)` (`utils.htmlwidgets`) | For pages with **no** embedded files: Plotly data from R htmlwidgets JSON blocks, as long-form rows. General to any htmlwidgets page |
+
+Find tables by title keywords, not by `Figure N` position, so a reordered report can't silently return the wrong one. Assert
+that series are contiguous and that related tables agree: these readers once lost data without any error (blank spacer
+rows, mangled CSV encodings) and range checks alone did not notice.
+
 ### NISRA PxStat API (`src/bolster/data_sources/nisra/pxstat.py`)
 
 **Always check PxStat first for NISRA data** — it has no rate limits, no auth, and no CI flakiness.
@@ -218,7 +235,7 @@ Three specialized agents for the data source development lifecycle.
 
 1. **Find scope** - Run `gh issue list --label "data-source-candidate" --state open` to find candidate issues. If directed at a specific issue, use that; otherwise process all with no evaluation comment.
 1. **Gap analysis** - Compare against README coverage table and existing modules in `src/bolster/data_sources/`
-1. **Research** - For each candidate, evaluate accessibility, format, history. Check PxStat first (`https://data.nisra.gov.uk/`).
+1. **Research** - For each candidate, evaluate accessibility, format, history. Check PxStat first (`https://data.nisra.gov.uk/`). A `datavis.nisra.gov.uk` page is not automatically "no clean export": check for base64 `.xlsx`/`.csv` `data:` links first (`utils.datavis`), then htmlwidgets JSON (`utils.htmlwidgets`), before scoring accessibility.
 1. **Validate** - Write disposable scripts in `/tmp/` to test assumptions. Never commit these.
 1. **Score** - Rate on accessibility, stability, usefulness, complexity
 1. **Output** - Post evaluation as a comment on the `data-source-candidate` issue. Do not create new issues or modify `src/`.
