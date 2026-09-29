@@ -997,9 +997,13 @@ def parse_employment_by_lgd(file_path: str | Path, year: int | None = None) -> p
         "notes",
     ]
 
-    # Drop notes column and Total row
+    # Drop notes column and the total row (labelled "Total" historically, "Northern Ireland" from the 2025 release)
     df = df.drop(columns=["notes"])
-    df = df[df["lgd"] != "Total"].reset_index(drop=True)
+    df["lgd"] = df["lgd"].astype(str).str.strip()
+    df = df[~df["lgd"].str.lower().isin({"total", "northern ireland"})].reset_index(drop=True)
+
+    # NISRA spelled this "Newry, Mourne and Down" in the 2025 release; keep one spelling across years
+    df["lgd"] = df["lgd"].replace({"Newry, Mourne and Down": "Newry Mourne and Down"})
 
     # Add year column
     df["year"] = year
