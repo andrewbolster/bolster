@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.11.4\] - 2026-09-29
+
+Manual release triggered
+
 ## \[0.11.3\] - 2026-09-29
 
 - fix(nisra): tolerate September 2026 publication changes (population, NICEI, LGD, tourism) (#2195)
