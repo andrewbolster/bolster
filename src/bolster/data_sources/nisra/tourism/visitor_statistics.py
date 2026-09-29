@@ -62,6 +62,32 @@ MARKET_NAMES = [
 ]
 
 
+_PERIOD_PATTERNS = (
+    (re.compile(r"Q(\d)\s+(\d{4})", re.IGNORECASE), "qy"),  # "NI Tourism Q3 2025"
+    (re.compile(r"(\d{4})\s+Quarter\s+(\d)", re.IGNORECASE), "yq"),  # "NI Tourism 2025 Quarter 3"
+    (re.compile(r"(\d{4})\s+Q(\d)", re.IGNORECASE), "yq"),  # "NI Tourism 2026 Q1" (from 2026)
+)
+
+
+def _parse_publication_period(link_text: str) -> tuple[int, int] | None:
+    """Extract (year, quarter) from a publication link's text, or None if it has no period.
+
+    Example:
+        >>> _parse_publication_period("NI Tourism 2026 Q1Microsoft Excel (144 KB)")
+        (2026, 1)
+        >>> _parse_publication_period("NI Tourism Q3 2025")
+        (2025, 3)
+        >>> _parse_publication_period("Tourism Statistics background quality report") is None
+        True
+    """
+    for pattern, order in _PERIOD_PATTERNS:
+        match = pattern.search(link_text)
+        if match:
+            first, second = int(match.group(1)), int(match.group(2))
+            return (second, first) if order == "qy" else (first, second)
+    return None
+
+
 def get_latest_visitor_statistics_publication_url() -> tuple[str, str]:
     """Scrape NISRA tourism publications page to find the latest quarterly file.
 
@@ -98,21 +124,11 @@ def get_latest_visitor_statistics_publication_url() -> tuple[str, str]:
             if href.startswith("/"):
                 href = f"https://www.nisra.gov.uk{href}"
 
-            # Extract quarter/year from link text
-            # Pattern: "NI Tourism Q3 2025" or "NI Tourism 2025 Quarter 3"
-            q_match = re.search(r"Q(\d)\s+(\d{4})", link_text, re.IGNORECASE)
-            if q_match:
-                quarter = int(q_match.group(1))
-                year = int(q_match.group(2))
-                pub_period = f"Q{quarter} {year}"
-            else:
-                q_match = re.search(r"(\d{4})\s+Quarter\s+(\d)", link_text, re.IGNORECASE)
-                if q_match:
-                    year = int(q_match.group(1))
-                    quarter = int(q_match.group(2))
-                    pub_period = f"Q{quarter} {year}"
-                else:
-                    continue  # Skip if we can't extract period
+            parsed = _parse_publication_period(link_text)
+            if parsed is None:
+                continue  # Skip if we can't extract period
+            year, quarter = parsed
+            pub_period = f"Q{quarter} {year}"
 
             excel_files.append((href, year, quarter, pub_period))
             logger.info(f"Found tourism file: {link_text} -> {pub_period}")

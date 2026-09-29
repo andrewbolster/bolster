@@ -37,6 +37,7 @@ import tempfile
 from pathlib import Path
 
 import openpyxl
+import pandas as pd
 import pytest
 
 from bolster.data_sources.nisra import labour_market
@@ -750,3 +751,38 @@ class TestMonthlyLMRDiscovery:
         """Discovered month must be 1–12."""
         _, _, month = labour_market.get_latest_monthly_lmr_url()
         assert 1 <= month <= 12, f"Month {month} outside 1–12 range"
+
+
+class TestLGDTotalRowAndNaming:
+    """The 2025 LGD release labels the total row "Northern Ireland" and spells Newry with a comma."""
+
+    LGDS = [
+        "Antrim and Newtownabbey",
+        "Ards and North Down",
+        "Armagh City, Banbridge and Craigavon",
+        "Belfast",
+        "Causeway Coast and Glens",
+        "Derry City and Strabane",
+        "Fermanagh and Omagh",
+        "Lisburn and Castlereagh",
+        "Mid and East Antrim",
+        "Mid Ulster",
+        "Newry, Mourne and Down",
+    ]
+
+    @pytest.mark.parametrize("total_label", ["Total", "Northern Ireland"])
+    def test_total_row_is_dropped_and_newry_normalised(self, tmp_path, total_label):
+        header = ["District Council"] + [f"col{i}" for i in range(9)]
+        rows = [[name, 100, 60, 58, 45, 13, 40, 60.0, 58.0, None] for name in self.LGDS]
+        rows.append([total_label, 1000, 600, 580, 450, 130, 400, 60.0, 58.0, None])
+        filler = [["filler"] + [None] * 9 for _ in range(5)]
+        title = [["Table 1.17a: Labour market structure"] + [None] * 9]
+        sheet = pd.DataFrame(filler + title + [header + [None]] + rows)
+        path = tmp_path / "lgd.xlsx"
+        sheet.to_excel(path, sheet_name="2025", header=False, index=False)
+
+        df = labour_market.parse_employment_by_lgd(path, year=2025)
+
+        assert len(df) == 11
+        assert total_label not in set(df["lgd"])
+        assert "Newry Mourne and Down" in set(df["lgd"])
