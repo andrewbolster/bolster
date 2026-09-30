@@ -145,10 +145,6 @@ def _table(label: str, title: str) -> EmbeddedTable:
 class TestHelpers:
     """Unit tests for lookup, parsing and validation edge cases - no network calls needed."""
 
-    def test_school_year_slug(self):
-        assert tva._school_year_slug(2025) == "202526"
-        assert tva._school_year_slug(1999) == "199900"
-
     def test_find_table_respects_kind_and_range(self):
         tables = {
             "Figure 2": _table("Figure 2", "Figure 2: Days lost per teacher, 2024/25"),

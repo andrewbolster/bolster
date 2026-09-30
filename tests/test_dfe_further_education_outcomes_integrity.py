@@ -88,10 +88,6 @@ class TestWorkQuality:
 class TestHelpers:
     """Unit tests for parsing, lookup and validation edge cases - no network calls needed."""
 
-    def test_school_year_slug(self):
-        assert feo._school_year_slug(2024) == "202425"
-        assert feo._school_year_slug(1999) == "199900"
-
     @pytest.mark.parametrize(
         ("text", "href", "expected"),
         [

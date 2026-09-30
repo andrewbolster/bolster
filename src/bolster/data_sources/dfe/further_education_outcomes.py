@@ -30,13 +30,11 @@ Example:
 
 import logging
 import re
-from datetime import date
 
 import pandas as pd
-from bs4 import BeautifulSoup, Tag
 
 from bolster.utils.embedded_downloads import EmbeddedTable, clean_labels, coerce_numeric, read_tables
-from bolster.utils.web import is_url_host, session
+from bolster.utils.web import LinkNotFoundError, find_academic_year_publication_link, is_url_host, session
 
 from ._base import DfEDataNotFoundError, DfEValidationError
 
@@ -45,11 +43,6 @@ logger = logging.getLogger(__name__)
 _PUBLICATION_URL = "https://www.economy-ni.gov.uk/publications/further-education-outcomes-{slug}"
 _ACADEMIC_YEAR_RE = re.compile(r"(\d{4})-(\d{2})")
 _OUTCOMES = ("employed", "learning", "unemployed", "other")
-
-
-def _school_year_slug(start_year: int) -> str:
-    """``2024`` -> ``"202425"``, the suffix of DfE publication URLs."""
-    return f"{start_year}{(start_year + 1) % 100:02d}"
 
 
 def _is_report_link(text: str, href: str) -> bool:
@@ -72,17 +65,10 @@ def get_latest_publication_url(force_refresh: bool = False) -> str:
     Raises:
         DfEDataNotFoundError: If no recent publication page links to the report.
     """
-    for start_year in range(date.today().year, date.today().year - 4, -1):
-        response = session.get(
-            _PUBLICATION_URL.format(slug=_school_year_slug(start_year)), timeout=60, force_refresh=force_refresh
-        )
-        if response.status_code != 200:
-            continue
-        for link in BeautifulSoup(response.text, "html.parser").find_all("a", href=True):
-            href = str(link["href"]) if isinstance(link, Tag) else ""
-            if _is_report_link(link.get_text(" ", strip=True), href):
-                return href
-    raise DfEDataNotFoundError("Could not find a Further Education Outcomes report")
+    try:
+        return find_academic_year_publication_link(_PUBLICATION_URL, _is_report_link, force_refresh=force_refresh)
+    except LinkNotFoundError as exc:
+        raise DfEDataNotFoundError("Could not find a Further Education Outcomes report") from exc
 
 
 def _academic_year(url: str) -> str:

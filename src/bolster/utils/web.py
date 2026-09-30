@@ -21,8 +21,8 @@ import hashlib
 import io
 import logging
 import zipfile
-from collections.abc import Generator
-from datetime import datetime
+from collections.abc import Callable, Generator
+from datetime import date, datetime
 from io import BytesIO
 from pathlib import Path
 from typing import IO, cast
@@ -370,6 +370,60 @@ def find_publication_link(
     raise LinkNotFoundError(
         f"No {file_extension} file found on publication page {pub_link}"
         + (f" (href_contains={file_href_contains!r})" if file_href_contains else "")
+    )
+
+
+def academic_year_slug(start_year: int) -> str:
+    """``2024`` -> ``"202425"``: the academic-year suffix used in several NI publication URLs.
+
+    Example:
+        >>> academic_year_slug(2024)
+        '202425'
+    """
+    return f"{start_year}{(start_year + 1) % 100:02d}"
+
+
+def find_academic_year_publication_link(
+    url_template: str,
+    is_report_link: Callable[[str, str], bool],
+    lookback_years: int = 4,
+    force_refresh: bool = False,
+) -> str:
+    """Walk academic-year publication pages, newest first, for a link matching ``is_report_link``.
+
+    Some publishers don't keep a stable URL for "this year's report" — instead each academic year gets
+    its own publication page, and the report link has to be found on it. Formats ``url_template`` (which
+    must contain a ``{slug}`` placeholder) with :func:`academic_year_slug` for each of the last
+    ``lookback_years`` years, starting from the current year, and returns the first link on the first
+    reachable page that satisfies ``is_report_link(link_text, href)``.
+
+    Args:
+        url_template: Publication-page URL with a ``{slug}`` placeholder, e.g.
+            ``"https://example.org/publications/report-{slug}"``.
+        is_report_link: Predicate over a link's visible text and href, deciding whether it's the report
+            (as opposed to a dashboard, methodology page, or unrelated link on the same publication page).
+        lookback_years: How many academic years back to try before giving up.
+        force_refresh: Bypass the page cache.
+
+    Returns:
+        The matched href.
+
+    Raises:
+        LinkNotFoundError: If no publication page in the lookback window links to a match.
+    """
+    for start_year in range(date.today().year, date.today().year - lookback_years, -1):
+        response = session.get(
+            url_template.format(slug=academic_year_slug(start_year)), timeout=60, force_refresh=force_refresh
+        )
+        if response.status_code != 200:
+            continue
+        for link in BeautifulSoup(response.text, "html.parser").find_all("a", href=True):
+            href = str(link["href"]) if isinstance(link, Tag) else ""
+            if is_report_link(link.get_text(" ", strip=True), href):
+                return href
+
+    raise LinkNotFoundError(
+        f"No publication page in the last {lookback_years} academic years (from {url_template!r}) links to a matching report"
     )
 
 
