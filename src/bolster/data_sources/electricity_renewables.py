@@ -6,11 +6,13 @@ targets (80% of consumption from renewables by 2030 under the Climate Change
 Act (Northern Ireland) 2022).
 
 Data Source:
-    **Interactive report** (data embedded as base64 CSV):
+    **Interactive report** (data embedded as base64 ``.xlsx`` and ``.csv`` files):
     https://datavis.nisra.gov.uk/Economy/electricity-consumption-and-renewable-generation-report.html
 
-    The report embeds ten figures as base64-encoded UTF-16 LE CSV data-URIs.
-    This module extracts and parses the four headline time series:
+    The report embeds ten figures, each as both an ``.xlsx`` and a ``.csv`` data-URI. This module reads
+    the ``.xlsx`` via :mod:`bolster.utils.embedded_downloads`: the ``.csv`` copies are malformed (line terminators
+    are mis-encoded, so every second row is fused into its neighbour) and yield only half the months.
+    It parses the four headline time series:
 
     * **renewable_pct**: Rolling 12-month renewable generation as a
       proportion of gross final electricity consumption (%) and monthly %.
@@ -19,14 +21,14 @@ Data Source:
     * **generation_by_technology**: Rolling 12-month generation (GWh)
       by technology — wind, hydro, bioenergy, landfill gas, solar PV.
     * **generation_monthly**: Monthly renewable and non-renewable
-      generation (GWh) going back to February 2018.
+      generation (GWh) going back to January 2018.
 
 Update Frequency:
     Quarterly (March, June, September, December).
 
 Coverage:
-    Rolling 12-month figures: January 2019 – present.
-    Monthly generation figures: February 2018 – present.
+    Rolling 12-month figures: December 2018 – present.
+    Monthly generation figures: January 2018 – present.
 
 Example:
     >>> from bolster.data_sources import electricity_renewables
@@ -42,15 +44,13 @@ Example:
 
 from __future__ import annotations
 
-import base64
-import csv
-import io
 import logging
-import re
 
 import pandas as pd
 
 from bolster.utils.cache import CachedDownloader, DownloadError
+from bolster.utils.embedded_downloads import EmbeddedTable, coerce_numeric, read_tables
+from bolster.utils.text import clean_column_name
 
 logger = logging.getLogger(__name__)
 
@@ -58,9 +58,7 @@ logger = logging.getLogger(__name__)
 
 _DATAVIS_URL = "https://datavis.nisra.gov.uk/Economy/electricity-consumption-and-renewable-generation-report.html"
 
-_FIGURE_PATTERN = re.compile(r'href="data:text/csv;base64,([^"]+)"[^>]*>([^<]+)')
-
-# Title substrings used to locate figures regardless of their ordinal position
+# Figure labels of the four headline series in the report
 _FIGURE_RENEWABLE_PCT = "Figure 1"
 _FIGURE_CONSUMPTION = "Figure 3"
 _FIGURE_TECHNOLOGY = "Figure 5"
@@ -138,82 +136,38 @@ def _fetch_datavis_html(force_refresh: bool = False) -> str:
         return fh.read()
 
 
-def _extract_figures(html: str) -> dict[str, bytes]:
-    """Extract all base64-encoded CSV figures from the datavis HTML.
-
-    Returns:
-        Mapping of figure title (e.g. ``"Figure 1.CSV (3kB)"``) to raw bytes.
-    """
-    return {title.strip(): base64.b64decode(b64data + "==") for b64data, title in _FIGURE_PATTERN.findall(html)}
-
-
-def _decode_figure_csv(raw: bytes) -> list[list[str]]:
-    """Decode a base64-figure's raw bytes into a list of CSV rows.
-
-    The datavis page embeds each figure as a UTF-16 LE CSV without a BOM.
-    The encoding produces an artifact where each cell's last value has
-    non-ASCII characters appended (the next row's bytes at wrong alignment).
-    Stripping all non-ASCII characters from each cell removes the artifact
-    while preserving dates, numbers, and ASCII punctuation.
+def _table_to_dataframe(table: EmbeddedTable, col_map: dict[str, str]) -> pd.DataFrame:
+    """Convert an embedded figure to a tidy DataFrame with renamed columns.
 
     Args:
-        raw: Raw bytes from ``base64.b64decode``.
+        table: A figure read by :func:`bolster.utils.embedded_downloads.read_tables`.
+        col_map: Mapping from source column header (any casing/punctuation; it is normalised the
+            same way as the table's headers) to clean name. Only columns present are kept.
 
     Returns:
-        List of rows, each a list of clean string values.
-        Empty and all-whitespace rows are omitted.
-    """
-    text = raw.decode("utf-16-le", errors="replace")
-    reader = csv.reader(io.StringIO(text))
-    rows = []
-    for row in reader:
-        # Strip non-ASCII garbage artifacts from each cell value
-        clean = [re.sub(r"[^\x20-\x7E]", "", cell).strip() for cell in row]
-        if any(c for c in clean):
-            rows.append(clean)
-    return rows
-
-
-def _rows_to_dataframe(rows: list[list[str]], col_map: dict[str, str]) -> pd.DataFrame:
-    """Convert decoded CSV rows to a tidy DataFrame with renamed columns.
-
-    Args:
-        rows: Output of :func:`_decode_figure_csv` (header + data rows).
-        col_map: Mapping from lower-cased source column name to clean name.
-            Only columns present in the map are kept.
-
-    Returns:
-        DataFrame with ``date`` column as ``pd.Timestamp`` and numeric
-        columns as ``float``.
+        DataFrame with ``date`` as ``pd.Timestamp``, numeric columns as ``float``, sorted by date,
+        plus ``year`` and ``month`` helper columns.
 
     Raises:
-        ElectricityDataNotFoundError: If rows is empty.
+        ElectricityDataNotFoundError: If the table has no rows.
     """
-    if not rows:
-        raise ElectricityDataNotFoundError("No data rows in figure")
+    if table.data.empty:
+        raise ElectricityDataNotFoundError(f"No data rows in {table.label}")
 
-    header = [c.lower().strip() for c in rows[0]]
-    data_rows = rows[1:]
+    keep = {clean_column_name(src): dst for src, dst in col_map.items()}
+    keep = {src: dst for src, dst in keep.items() if src in table.data.columns}
+    df = table.data[list(keep)].rename(columns=keep)
 
-    df = pd.DataFrame(data_rows, columns=header)
-
-    # Keep only mapped columns and rename
-    keep = {src: dst for src, dst in col_map.items() if src in df.columns}
-    df = df[list(keep.keys())].rename(columns=keep)
-
-    # Parse date
     if "date" in df.columns:
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
         df = df.dropna(subset=["date"])
 
-    # Parse numerics
     for col in df.columns:
         if col != "date":
-            df[col] = pd.to_numeric(df[col], errors="coerce")
+            df[col] = coerce_numeric(df[col])
 
     df = df.sort_values("date").reset_index(drop=True)
 
-    # Add year/quarter helper columns
     df["year"] = df["date"].dt.year
     df["month"] = df["date"].dt.month
 
@@ -243,7 +197,7 @@ def get_latest_data(force_refresh: bool = False) -> dict[str, pd.DataFrame]:
           generation (GWh) by technology: wind, hydro, bioenergy,
           landfill gas, solar PV.
         * ``"generation_monthly"`` — monthly renewable and non-renewable
-          generation (GWh) going back to February 2018.
+          generation (GWh) going back to January 2018.
 
     Raises:
         ElectricityDataNotFoundError: If the datavis page cannot be fetched
@@ -258,19 +212,18 @@ def get_latest_data(force_refresh: bool = False) -> dict[str, pd.DataFrame]:
         True
     """
     html = _fetch_datavis_html(force_refresh=force_refresh)
-    figures = _extract_figures(html)
+    figures = read_tables(html)
 
     if not figures:  # pragma: no cover
-        raise ElectricityDataNotFoundError(f"No figure CSV data found in {_DATAVIS_URL}")
+        raise ElectricityDataNotFoundError(f"No embedded figure data found in {_DATAVIS_URL}")
 
-    logger.info("Found %d figures: %s", len(figures), list(figures.keys()))
+    logger.info("Found %d figures: %s", len(figures), list(figures))
 
-    def _parse(title_substr: str, col_map: dict[str, str]) -> pd.DataFrame:
-        key = next((k for k in figures if title_substr in k), None)
-        if key is None:  # pragma: no cover
-            raise ElectricityDataNotFoundError(f"Figure matching '{title_substr}' not found in page")
-        rows = _decode_figure_csv(figures[key])
-        return _rows_to_dataframe(rows, col_map)
+    def _parse(label: str, col_map: dict[str, str]) -> pd.DataFrame:
+        table = figures.get(label)
+        if table is None:  # pragma: no cover
+            raise ElectricityDataNotFoundError(f"{label} not found in page")
+        return _table_to_dataframe(table, col_map)
 
     data: dict[str, pd.DataFrame] = {
         "renewable_pct": _parse(_FIGURE_RENEWABLE_PCT, _RENEWABLE_PCT_COLS),
@@ -299,7 +252,7 @@ _REQUIRED_COLS: dict[str, set[str]] = {
     "generation_monthly": {"date", "renewable_generation_gwh", "non_renewable_generation_gwh"},
 }
 
-_MIN_ROWS = 10  # at least 2 years of bimonthly or monthly data
+_MIN_ROWS = 10  # at least 10 months of monthly data
 
 
 def validate_data(df: pd.DataFrame, key: str = "renewable_pct") -> bool:

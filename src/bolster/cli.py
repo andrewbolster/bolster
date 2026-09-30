@@ -1980,6 +1980,8 @@ def nisra_feed(limit: int, title_filter: str, days: int, check_coverage: bool):
         "outpatient": "elective-waiting-times",
         "inpatient and day case activity": "hospital-activity",
         "hospital activity": "hospital-activity",
+        "pay in the northern ireland civil service": "nics-pay",
+        "teacher vacancies, sickness absence": "teacher-vacancies-absence",
         "quarterly employment survey": "quarterly-employment-survey",
         "claimant count": "claimant-count",
         "claimant": "claimant-count",
@@ -5917,6 +5919,185 @@ def nisra_hospital_activity_cmd(dataset, output_format, force_refresh, save):
         raise click.Abort() from e
 
 
+@nisra.command(name="nics-pay")
+@click.option(
+    "--dataset",
+    type=click.Choice(
+        ["pay-by-grade", "trend", "history", "gender-gap", "community-gap", "uk-comparison"], case_sensitive=False
+    ),
+    default="pay-by-grade",
+    show_default=True,
+    help="pay-by-grade: median and quartile pay by grade (latest year). trend: overall median pay by year. "
+    "history: median pay by grade and year. gender-gap / community-gap: pay gap by grade. "
+    "uk-comparison: NI median pay against England, Scotland and Wales.",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_nics_pay_cmd(dataset, output_format, force_refresh, save):
+    r"""NI Civil Service pay statistics.
+
+    \b
+    Annual NISRA pay statistics for the Northern Ireland Civil Service at
+    31 March. Published as an interactive datavis report; the data is read from
+    the files embedded in each figure.
+
+    Examples:
+        Median and quartile pay by grade::
+
+            bolster nisra nics-pay
+
+        Gender pay gap by grade, saved as JSON::
+
+            bolster nisra nics-pay --dataset gender-gap --format json --save gender_gap.json
+
+    Source:
+        https://www.nisra.gov.uk/statistics/ni-civil-service-human-resources/pay-statistics
+    """
+    from bolster.data_sources.nisra import nics_pay
+
+    console = Console()
+
+    getters = {
+        "pay-by-grade": nics_pay.get_pay_by_grade,
+        "trend": nics_pay.get_pay_trend,
+        "history": nics_pay.get_pay_history_by_grade,
+        "gender-gap": nics_pay.get_gender_pay_gap_by_grade,
+        "community-gap": nics_pay.get_community_background_pay_gap_by_grade,
+        "uk-comparison": nics_pay.get_uk_pay_comparison,
+    }
+
+    try:
+        with console.status(f"[bold green]Downloading NICS pay data ({dataset})..."):
+            data = getters[dataset](force_refresh=force_refresh)
+
+        console.print("[green]NICS pay data retrieved successfully[/green]")
+        console.print(f"[cyan]Dataset: {dataset} | Rows: {len(data)}[/cyan]")
+
+        if save:
+            if output_format == "json" or save.endswith(".json"):
+                data.to_json(save, orient="records", date_format="iso", indent=2)
+            else:
+                data.to_csv(save, index=False)
+            console.print(f"[green]Saved to: {save}[/green]")
+            return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            click.echo(data.to_csv(index=False), nl=False)
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@nisra.command(name="teacher-vacancies-absence")
+@click.option(
+    "--dataset",
+    type=click.Choice(
+        [
+            "vacancies",
+            "vacancies-by-grade",
+            "vacancies-history",
+            "sickness-by-school-type",
+            "sickness-trend",
+            "sickness-by-duration",
+            "substitution-costs",
+            "substitution-days",
+            "retired-cover",
+        ],
+        case_sensitive=False,
+    ),
+    default="vacancies",
+    show_default=True,
+    help="vacancies: filled/unfilled by school type. vacancies-by-grade / vacancies-history: by grade of teacher "
+    "(latest year / every year). sickness-*: average days lost per teacher. substitution-costs / substitution-days / "
+    "retired-cover: substitute cover cost, share of teaching days, share from retired teachers.",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_teacher_vacancies_absence_cmd(dataset, output_format, force_refresh, save):
+    r"""Teacher vacancies, sickness absence and substitution costs.
+
+    \b
+    Annual Department of Education statistics for grant-aided schools,
+    published as an interactive datavis report; the data is read from the
+    files embedded in each figure. Distinct from teacher-workforce, which
+    counts teachers and pupil:teacher ratios.
+
+    Examples:
+        Filled and unfilled vacancies by school type::
+
+            bolster nisra teacher-vacancies-absence
+
+        Days lost to sickness per teacher over time::
+
+            bolster nisra teacher-vacancies-absence --dataset sickness-trend
+
+    Source:
+        https://www.education-ni.gov.uk/publications/teacher-workforce-statistics-202526
+    """
+    from bolster.data_sources.nisra import teacher_vacancies_absence as tva
+
+    console = Console()
+
+    getters = {
+        "vacancies": tva.get_vacancies_by_school_type,
+        "vacancies-by-grade": tva.get_vacancies_by_grade,
+        "vacancies-history": tva.get_vacancies_history_by_grade,
+        "sickness-by-school-type": tva.get_sickness_absence_by_school_type,
+        "sickness-trend": tva.get_sickness_absence_trend,
+        "sickness-by-duration": tva.get_sickness_absence_by_duration,
+        "substitution-costs": tva.get_substitution_costs,
+        "substitution-days": tva.get_substitution_days_proportion,
+        "retired-cover": tva.get_retired_teacher_cover_proportion,
+    }
+
+    try:
+        with console.status(f"[bold green]Downloading teacher statistics ({dataset})..."):
+            data = getters[dataset](force_refresh=force_refresh)
+
+        console.print("[green]Teacher statistics retrieved successfully[/green]")
+        console.print(f"[cyan]Dataset: {dataset} | Rows: {len(data)}[/cyan]")
+
+        if save:
+            if output_format == "json" or save.endswith(".json"):
+                data.to_json(save, orient="records", date_format="iso", indent=2)
+            else:
+                data.to_csv(save, index=False)
+            console.print(f"[green]Saved to: {save}[/green]")
+            return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            click.echo(data.to_csv(index=False), nl=False)
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
 @nisra.command(name="registrar-general")
 @click.option("--latest", is_flag=True, help="Get the most recent quarterly tables data")
 @click.option("--quarterly", is_flag=True, help="Show full quarterly time series")
@@ -9154,6 +9335,87 @@ def psni_crime_cmd(output_format, save):
         raise click.Abort() from e
 
 
+@dfc.command(name="neighbourhood-renewal")
+@click.option("--area", help="Area name as shown by --list, e.g. 'Andersonstown'; case and punctuation are ignored.")
+@click.option("--list", "list_only", is_flag=True, help="List the Neighbourhood Renewal Areas and their page URLs.")
+@click.option(
+    "--all", "all_areas", is_flag=True, help="Fetch every area (36 pages of about 5 MB each; slow on a cold cache)."
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def dfc_neighbourhood_renewal_cmd(area, list_only, all_areas, output_format, force_refresh, save):
+    r"""Neighbourhood Renewal Area profiles.
+
+    \b
+    Annual Department for Communities statistical profiles of the 36
+    Neighbourhood Renewal Areas (about 60 charts each: population, employment,
+    health, education, crime, census). The pages have no downloadable files, so
+    the data is read from the Plotly JSON embedded in each page.
+
+    Examples:
+        List the areas::
+
+            bolster dfc neighbourhood-renewal --list
+
+        One area, as long-form CSV::
+
+            bolster dfc neighbourhood-renewal --area Andersonstown
+
+        Every area, saved to file::
+
+            bolster dfc neighbourhood-renewal --all --save nra_profiles.csv
+
+    Source:
+        https://www.communities-ni.gov.uk/articles/neighbourhood-renewal-area-profiles-2026
+    """
+    from bolster.data_sources.dfc import neighbourhood_renewal_profiles as nra
+
+    console = Console()
+
+    if sum([bool(area), list_only, all_areas]) != 1:
+        raise click.UsageError("Give exactly one of --area, --list or --all.")
+
+    try:
+        if list_only:
+            areas = nra.list_areas(force_refresh=force_refresh)
+            data = pd.DataFrame({"area": list(areas), "url": list(areas.values())})
+        elif all_areas:
+            with console.status("[bold green]Downloading all 36 profiles (this takes a while)..."):
+                data = nra.get_all_area_profiles(force_refresh=force_refresh)
+        else:
+            with console.status(f"[bold green]Downloading profile for {area}..."):
+                data = nra.get_area_profile(area, force_refresh=force_refresh)
+
+        console.print(f"[cyan]Rows: {len(data)}[/cyan]")
+
+        if save:
+            if output_format == "json" or save.endswith(".json"):
+                data.to_json(save, orient="records", date_format="iso", indent=2)
+            else:
+                data.to_csv(save, index=False)
+            console.print(f"[green]Saved to: {save}[/green]")
+            return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            click.echo(data.to_csv(index=False), nl=False)
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
 @dfc.command(name="child-maintenance")
 @click.option(
     "--table",
@@ -9405,6 +9667,82 @@ def education_suspensions_cmd(year, output_format, force_refresh, save, summary)
 
         if output_format == "json":
             click.echo(data.to_json(orient="records", indent=2))
+        else:
+            click.echo(data.to_csv(index=False), nl=False)
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@dfe.command(name="further-education-outcomes")
+@click.option(
+    "--dataset",
+    type=click.Choice(["outcomes", "lgd", "work-quality"], case_sensitive=False),
+    default="outcomes",
+    show_default=True,
+    help="outcomes: what leavers did next. lgd: where employed leavers work. work-quality: permanent contract, "
+    "guaranteed hours, Real Living Wage.",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def dfe_further_education_outcomes_cmd(dataset, output_format, force_refresh, save):
+    r"""Further Education Outcomes: what college leavers went on to do.
+
+    \b
+    Annual Department for the Economy survey of FE college leavers,
+    published as an interactive datavis report; the data is read from the
+    files embedded in each figure.
+
+    Examples:
+        What leavers did next::
+
+            bolster dfe further-education-outcomes
+
+        Where employed leavers work::
+
+            bolster dfe further-education-outcomes --dataset lgd
+
+    Source:
+        https://www.economy-ni.gov.uk/publications/further-education-outcomes-202425
+    """
+    from bolster.data_sources.dfe import further_education_outcomes as feo
+
+    console = Console()
+
+    getters = {
+        "outcomes": feo.get_leaver_outcomes,
+        "lgd": feo.get_leavers_working_by_lgd,
+        "work-quality": feo.get_work_quality_indicators,
+    }
+
+    try:
+        with console.status(f"[bold green]Downloading FE outcomes ({dataset})..."):
+            data = getters[dataset](force_refresh=force_refresh)
+
+        console.print("[green]FE outcomes retrieved successfully[/green]")
+        console.print(f"[cyan]Dataset: {dataset} | Rows: {len(data)}[/cyan]")
+
+        if save:
+            if output_format == "json" or save.endswith(".json"):
+                data.to_json(save, orient="records", date_format="iso", indent=2)
+            else:
+                data.to_csv(save, index=False)
+            console.print(f"[green]Saved to: {save}[/green]")
+            return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
         else:
             click.echo(data.to_csv(index=False), nl=False)
 

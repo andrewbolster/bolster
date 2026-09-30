@@ -22,11 +22,13 @@ Available modules:
     - marriages: Monthly marriage registrations
     - migration: Official and derived migration estimates (demographic components)
     - neet: Young people (16-24) not in education, employment or training (NEET)
+    - nics_pay: NI Civil Service pay statistics (median/quartile pay, gender and community pay gaps) from the NISRA datavis report
     - population: Annual mid-year population estimates by age, sex, and geography
     - planning_statistics: NI Planning Activity Statistics - quarterly applications, by council
     - population_projections: Population projections by age, sex, and geography (2022-2072)
     - registrar_general: Registrar General Quarterly Tables (quarterly births, deaths, marriages, LGD breakdowns)
     - school_leavers: School Leavers Survey - attainment and destinations by geography and equality group
+    - teacher_vacancies_absence: Teacher vacancies, sickness absence and substitution costs (DE datavis report)
     - teacher_workforce: Teachers in grant-aided schools — headcount, FTE and pupil:teacher ratios by LGD
     - baby_names: Annual baby name registrations (1997–present) by sex and rank
     - tourism: Tourism statistics including occupancy surveys, visitor stats (subpackage)
@@ -154,6 +156,7 @@ from . import (
     marriages,
     migration,
     neet,
+    nics_pay,
     planning_statistics,
     population,
     population_projections,
@@ -162,6 +165,7 @@ from . import (
     registrar_general,
     school_leavers,
     stillbirths,
+    teacher_vacancies_absence,
     teacher_workforce,
     tourism,
     wellbeing,
@@ -188,17 +192,19 @@ __all__ = [
     "index_of_production",
     "index_of_services",
     "labour_market",
-    "quarterly_employment_survey",
     "marriages",
     "migration",
     "neet",
+    "nics_pay",
     "planning_statistics",
     "population",
     "population_projections",
     "public_confidence",
+    "quarterly_employment_survey",
     "registrar_general",
     "school_leavers",
     "stillbirths",
+    "teacher_vacancies_absence",
     "teacher_workforce",
     "tourism",
     "wellbeing",

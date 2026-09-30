@@ -4,6 +4,7 @@ import pandas as pd
 import pytest
 
 from bolster.data_sources import electricity_renewables
+from bolster.utils.embedded_downloads import EmbeddedTable
 
 
 class TestDataIntegrity:
@@ -139,7 +140,7 @@ class TestDataIntegrity:
             assert (generation_monthly[col].dropna() >= 0).all()
 
     def test_monthly_has_more_rows_than_rolling(self, generation_monthly, renewable_pct):
-        # Monthly goes back further (2018) while rolling 12m starts 2019
+        # Monthly goes back further (Jan 2018) than rolling 12m (Dec 2018)
         assert len(generation_monthly) >= len(renewable_pct)
 
     def test_year_month_helper_columns(self, generation_monthly):
@@ -147,6 +148,44 @@ class TestDataIntegrity:
         assert "month" in generation_monthly.columns
         assert generation_monthly["year"].min() <= 2018
         assert generation_monthly["month"].between(1, 12).all()
+
+    @pytest.mark.parametrize(
+        ("key", "min_rows"),
+        [("renewable_pct", 85), ("consumption", 85), ("generation_by_technology", 85), ("generation_monthly", 95)],
+    )
+    def test_series_is_contiguous_monthly(self, latest_data, key, min_rows):
+        """Regression for #2199: reading the embedded .csv silently dropped every second month."""
+        df = latest_data[key]
+        months = df["date"].dt.year * 12 + df["date"].dt.month
+        assert months.diff().dropna().eq(1).all(), f"{key} has gaps or duplicates"
+        assert len(df) >= min_rows
+
+
+class TestTableToDataframe:
+    """Unit tests for the converter - no network calls needed."""
+
+    @staticmethod
+    def _table(rows, columns):
+        return EmbeddedTable("Figure 9", "Figure 9: test", pd.DataFrame(rows, columns=columns))
+
+    def test_maps_headers_with_punctuation_and_keeps_only_mapped_columns(self):
+        table = self._table(
+            [["2020-02-01", "5", "x"], ["2020-01-01", "3", "y"]], ["date", "solar_pv_gwh", "unmapped_column"]
+        )
+        df = electricity_renewables._table_to_dataframe(table, {"date": "date", "solar pv(gwh)": "solar"})
+        assert list(df.columns) == ["date", "solar", "year", "month"]
+        assert df["solar"].tolist() == [3.0, 5.0], "sorted by date, numeric"
+        assert df["month"].tolist() == [1, 2]
+
+    def test_drops_rows_without_a_parseable_date(self):
+        table = self._table([["2020-01-01", "1"], ["not a date", "2"]], ["date", "v"])
+        df = electricity_renewables._table_to_dataframe(table, {"date": "date", "v": "v"})
+        assert len(df) == 1
+
+    def test_empty_table_raises(self):
+        table = self._table([], ["date", "v"])
+        with pytest.raises(electricity_renewables.ElectricityDataNotFoundError):
+            electricity_renewables._table_to_dataframe(table, {"date": "date"})
 
 
 class TestValidation:

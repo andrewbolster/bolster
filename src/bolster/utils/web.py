@@ -240,6 +240,23 @@ def _origin_of(url: str) -> str:
     return f"{parts.scheme}://{parts.netloc}"
 
 
+def is_url_host(url: str, host: str) -> bool:
+    """Whether ``url``'s hostname is exactly ``host`` (case-insensitive).
+
+    Checking ``host in url`` instead is an incomplete substring check: it also matches an
+    attacker-controlled host like ``datavis.nisra.gov.uk.evil.com`` or a path/query containing the
+    string. Use this wherever a scraped link is trusted because it "looks like" it points at a
+    known site.
+
+    Example:
+        >>> is_url_host("https://datavis.nisra.gov.uk/report.html", "datavis.nisra.gov.uk")
+        True
+        >>> is_url_host("https://datavis.nisra.gov.uk.evil.com/report.html", "datavis.nisra.gov.uk")
+        False
+    """
+    return (urlsplit(url).hostname or "").lower() == host.lower()
+
+
 def fetch_soup(url: str, force_refresh: bool = False) -> BeautifulSoup:
     """GET ``url`` through the shared session and parse it into a soup.
 
