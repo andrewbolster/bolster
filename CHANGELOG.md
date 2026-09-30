@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.11.5\] - 2026-09-30
+
+- feat: NISRA datavis embedded-download extractor + 4 new data sources (#2200)
+
 ## \[0.11.4\] - 2026-09-29
 
 Manual release triggered
