@@ -1,4 +1,4 @@
-"""Tests for bolster.utils.datavis using small synthetic datavis pages (no network)."""
+"""Tests for bolster.utils.embedded_downloads using small synthetic datavis pages (no network)."""
 
 import base64
 import io
@@ -6,7 +6,7 @@ import io
 import pandas as pd
 import pytest
 
-from bolster.utils.datavis import (
+from bolster.utils.embedded_downloads import (
     EmbeddedFile,
     clean_labels,
     coerce_numeric,

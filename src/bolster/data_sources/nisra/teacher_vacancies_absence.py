@@ -4,7 +4,7 @@ Annual Department of Education (DE) statistics on teacher vacancies, days lost t
 sickness, and the cost of substitute cover in grant-aided schools. Published as an
 interactive NISRA "datavis" report alongside the teacher workforce bulletin; each
 figure and table embeds its data as a real ``.xlsx`` file, which this module reads
-(see :mod:`bolster.utils.datavis`).
+(see :mod:`bolster.utils.embedded_downloads`).
 
 Data covers:
     - Filled and unfilled vacancies by school type, and by grade of teacher (November collection)
@@ -38,7 +38,7 @@ from datetime import date
 import pandas as pd
 from bs4 import BeautifulSoup, Tag
 
-from bolster.utils.datavis import DatavisTable, clean_labels, coerce_numeric, read_tables
+from bolster.utils.embedded_downloads import EmbeddedTable, clean_labels, coerce_numeric, read_tables
 from bolster.utils.web import session
 
 from ._base import NISRADataNotFoundError, NISRAValidationError
@@ -84,7 +84,7 @@ def get_latest_publication_url(force_refresh: bool = False) -> str:
     raise NISRADataNotFoundError("Could not find a teacher vacancy, sickness absence and substitution report")
 
 
-def get_tables(force_refresh: bool = False) -> dict[str, DatavisTable]:
+def get_tables(force_refresh: bool = False) -> dict[str, EmbeddedTable]:
     """Read every figure and table embedded in the latest report.
 
     ``Figure 1``-``Figure 7`` are the headline series (exposed by the ``get_*`` functions below);
@@ -108,7 +108,9 @@ def get_tables(force_refresh: bool = False) -> dict[str, DatavisTable]:
     return tables
 
 
-def _find_table(tables: dict[str, DatavisTable], *keywords: str, kind: str, ranged: bool | None = None) -> DatavisTable:
+def _find_table(
+    tables: dict[str, EmbeddedTable], *keywords: str, kind: str, ranged: bool | None = None
+) -> EmbeddedTable:
     """Find the ``kind`` ("Figure"/"Table") whose title has every keyword.
 
     ``ranged`` selects between a single-year title (``False``) and a multi-year one (``True``).

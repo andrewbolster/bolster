@@ -8,7 +8,7 @@ import pytest
 
 from bolster.data_sources.dfe import further_education_outcomes as feo
 from bolster.data_sources.dfe._base import DfEDataNotFoundError, DfEValidationError
-from bolster.utils.datavis import DatavisTable
+from bolster.utils.embedded_downloads import EmbeddedTable
 
 LGDS = {
     "Belfast City",
@@ -122,7 +122,7 @@ class TestHelpers:
             feo._academic_year("https://x/no-year.html")
 
     def test_find_table_missing_raises(self):
-        tables = {"Figure 1": DatavisTable("Figure 1", "Figure 1: Something", pd.DataFrame({"a": [1]}))}
+        tables = {"Figure 1": EmbeddedTable("Figure 1", "Figure 1: Something", pd.DataFrame({"a": [1]}))}
         with pytest.raises(DfEDataNotFoundError):
             feo._find_table(tables, "work quality")
 

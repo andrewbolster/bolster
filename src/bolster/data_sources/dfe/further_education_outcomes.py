@@ -5,7 +5,7 @@ college leavers did after finishing: how many were in work, in further learning,
 unemployed or doing something else, where in Northern Ireland the workers are,
 and the quality of that work. Published as an interactive NISRA "datavis" report;
 each figure embeds its data as a real ``.xlsx`` file, which this module reads
-(see :mod:`bolster.utils.datavis`).
+(see :mod:`bolster.utils.embedded_downloads`).
 
 Data covers:
     - Outcome activity of all leavers (employed, learning, unemployed, other)
@@ -35,7 +35,7 @@ from datetime import date
 import pandas as pd
 from bs4 import BeautifulSoup, Tag
 
-from bolster.utils.datavis import DatavisTable, clean_labels, coerce_numeric, read_tables
+from bolster.utils.embedded_downloads import EmbeddedTable, clean_labels, coerce_numeric, read_tables
 from bolster.utils.web import session
 
 from ._base import DfEDataNotFoundError, DfEValidationError
@@ -92,7 +92,7 @@ def _academic_year(url: str) -> str:
     return f"{match.group(1)}/{match.group(2)}"
 
 
-def _load(force_refresh: bool) -> tuple[str, dict[str, DatavisTable]]:
+def _load(force_refresh: bool) -> tuple[str, dict[str, EmbeddedTable]]:
     url = get_latest_publication_url(force_refresh=force_refresh)
     tables = read_tables(session.get(url, timeout=90, force_refresh=force_refresh).text)
     if not tables:
@@ -101,7 +101,7 @@ def _load(force_refresh: bool) -> tuple[str, dict[str, DatavisTable]]:
     return url, tables
 
 
-def get_tables(force_refresh: bool = False) -> dict[str, DatavisTable]:
+def get_tables(force_refresh: bool = False) -> dict[str, EmbeddedTable]:
     """Read every figure embedded in the latest FE Outcomes report.
 
     Args:
@@ -116,7 +116,7 @@ def get_tables(force_refresh: bool = False) -> dict[str, DatavisTable]:
     return _load(force_refresh)[1]
 
 
-def _find_table(tables: dict[str, DatavisTable], *keywords: str) -> DatavisTable:
+def _find_table(tables: dict[str, EmbeddedTable], *keywords: str) -> EmbeddedTable:
     for table in tables.values():
         if all(word in table.title.lower() for word in keywords):
             return table

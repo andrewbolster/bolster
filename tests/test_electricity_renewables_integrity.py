@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from bolster.data_sources import electricity_renewables
-from bolster.utils.datavis import DatavisTable
+from bolster.utils.embedded_downloads import EmbeddedTable
 
 
 class TestDataIntegrity:
@@ -166,7 +166,7 @@ class TestTableToDataframe:
 
     @staticmethod
     def _table(rows, columns):
-        return DatavisTable("Figure 9", "Figure 9: test", pd.DataFrame(rows, columns=columns))
+        return EmbeddedTable("Figure 9", "Figure 9: test", pd.DataFrame(rows, columns=columns))
 
     def test_maps_headers_with_punctuation_and_keeps_only_mapped_columns(self):
         table = self._table(

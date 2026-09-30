@@ -268,7 +268,7 @@ median and quartile pay by analogous grade, the ten-year median pay trend,
 gender and community background pay gaps by grade, and NI pay against England,
 Scotland and Wales. NISRA publishes this as an interactive report rather than a
 spreadsheet, but every figure embeds its data as a real ``.xlsx`` file, which
-the module reads (via ``bolster.utils.datavis``); the report URL changes each
+the module reads (via ``bolster.utils.embedded_downloads``); the report URL changes each
 year and is discovered from the publication page.
 
 .. code-block:: python
@@ -541,7 +541,7 @@ vacancies (by school type and grade), days lost to sickness per teacher
 (by school type, over time and by spell length), and substitute cover costs
 in grant-aided schools. Published as an interactive report whose figures and
 tables each embed a real ``.xlsx`` file; the module reads those via
-``bolster.utils.datavis``. The report URL changes every year and is discovered
+``bolster.utils.embedded_downloads``. The report URL changes every year and is discovered
 from the school-year publication page. The full set of 13 statistical tables
 (substitution costs by management and school type, cover rates, and so on) is
 available as published from ``get_tables()``.
@@ -1238,7 +1238,7 @@ Act (Northern Ireland) 2022.
 
 The source is an interactive NISRA datavis report which embeds each figure as
 base64 ``.xlsx`` and ``.csv`` data-URIs rather than offering a downloadable
-workbook. The module reads the ``.xlsx`` copies (via ``bolster.utils.datavis``);
+workbook. The module reads the ``.xlsx`` copies (via ``bolster.utils.embedded_downloads``);
 the ``.csv`` copies are malformed and lose every second month. Four headline
 series are extracted:
 

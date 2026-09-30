@@ -1,20 +1,15 @@
-"""Read the data files embedded in NISRA "datavis" report pages.
+"""Read data files embedded in a page as base64 ``data:`` download links.
 
-NISRA's datavis tool (``datavis.nisra.gov.uk``) publishes statistical reports as
-single, self-contained HTML pages of Plotly charts. Each chart's download
-buttons are ``<a download="...">`` links whose ``href`` is a base64 ``data:``
-URI holding a real ``.csv`` and/or ``.xlsx`` of that figure's data, so the data
-can be recovered without touching any chart JavaScript.
+Some report pages have no server-side download endpoint: each chart's download button is instead an
+``<a download="...">`` link whose ``href`` is a base64 ``data:`` URI holding a real ``.csv`` and/or
+``.xlsx`` of that chart's data, so the file can be recovered without touching any chart JavaScript. This
+module reads those links; for pages built with R htmlwidgets instead (data in a JSON script block, no
+downloadable files), see :mod:`bolster.utils.htmlwidgets`.
 
-Scope: the mechanism (base64 ``data:`` download links in plain HTML) is general, but this module encodes the
-conventions of NISRA's datavis tool: "Figure N"/"Table N" file naming, the ``.xlsx`` title/blank/header layout,
-UTF-16 ``.csv`` files. It is named for the tool, which other departments (DE, DfE, DfC) also publish through,
-not for NISRA as a provider. A different site using data-URI downloads may need its own label and layout rules.
-For pages built with R htmlwidgets instead, see :mod:`bolster.utils.htmlwidgets`, which is general.
-
-A page can carry both "Figure N" and "Table N" downloads (tables may be lettered,
-``Table 13a``). Each is identified by a label such as ``"Figure 1"`` or
-``"Table 13a"``; a file whose name has neither falls back to its filename, so
+The label and layout rules below are defaults tuned for NISRA's "datavis" tool (``datavis.nisra.gov.uk``,
+also used by DE, DfE and DfC), the only source currently read this way. A page can carry both "Figure N"
+and "Table N" downloads (tables may be lettered, ``Table 13a``); each is identified by a label such as
+``"Figure 1"`` or ``"Table 13a"``, and a file whose name has neither falls back to its filename, so
 nothing on the page is silently skipped.
 
 Two layouts occur:
@@ -32,7 +27,7 @@ Pages that embed no files (their data lives only in Plotly figure JSON) are out
 of scope; :func:`read_tables` returns an empty mapping for them.
 
 Example:
-    >>> from bolster.utils.datavis import read_tables
+    >>> from bolster.utils.embedded_downloads import read_tables
     >>> html = "<html></html>"
     >>> read_tables(html)
     {}
@@ -64,7 +59,7 @@ _NOTE_RE = re.compile(r"\s*\[[^\]]*\]")
 
 @dataclass(frozen=True)
 class EmbeddedFile:
-    """A data file embedded in a datavis page as a base64 ``data:`` URI."""
+    """A data file embedded in a page as a base64 ``data:`` URI."""
 
     filename: str
     kind: Literal["csv", "xlsx"]
@@ -92,7 +87,7 @@ class EmbeddedFile:
 
 
 @dataclass(frozen=True)
-class DatavisTable:
+class EmbeddedTable:
     """One embedded figure or table: its label, title (empty for CSV-only items) and data.
 
     ``data`` has snake_case column names (bracketed footnote markers such as ``[4]`` removed and ``%``
@@ -113,7 +108,7 @@ def extract_embedded_files(html: str) -> list[EmbeddedFile]:
     types (images, scripts, fonts) are ignored.
 
     Args:
-        html: The datavis page's HTML.
+        html: The page's HTML.
 
     Returns:
         The embedded files; empty if the page embeds none.
@@ -128,7 +123,7 @@ def extract_embedded_files(html: str) -> list[EmbeddedFile]:
         >>> [(f.filename, f.label) for f in extract_embedded_files(html)]
         [('Figure 2.CSV (3kB)', 'Figure 2')]
     """
-    files = []
+    files: list[EmbeddedFile] = []
     for anchor in _ANCHOR_RE.finditer(html):
         tag = anchor.group(1)
         href = _HREF_RE.search(tag)
@@ -146,16 +141,16 @@ def extract_embedded_files(html: str) -> list[EmbeddedFile]:
     return files
 
 
-def read_tables(html: str) -> dict[str, DatavisTable]:
-    """Parse every figure and table embedded in a datavis page.
+def read_tables(html: str) -> dict[str, EmbeddedTable]:
+    """Parse every figure and table embedded in the page as a base64 `data:` download link.
 
     An item with both an ``.xlsx`` and a ``.csv`` is read from the ``.xlsx``.
 
     Args:
-        html: The datavis page's HTML.
+        html: The page's HTML.
 
     Returns:
-        Mapping of label (``"Figure 1"``, ``"Table 13a"``, ...) to :class:`DatavisTable`, in page order.
+        Mapping of label (``"Figure 1"``, ``"Table 13a"``, ...) to :class:`EmbeddedTable`, in page order.
     """
     chosen: dict[str, EmbeddedFile] = {}
     for file in extract_embedded_files(html):
@@ -189,13 +184,13 @@ def clean_labels(series: pd.Series) -> pd.Series:
     return series.astype(str).str.replace(_NOTE_RE, "", regex=True).str.replace(r"\s+", " ", regex=True).str.strip()
 
 
-def _parse_table(label: str, file: EmbeddedFile) -> DatavisTable:
+def _parse_table(label: str, file: EmbeddedFile) -> EmbeddedTable:
     if file.kind == "xlsx":
         raw = pd.read_excel(io.BytesIO(file.content), header=None)
         title, header_row = _title_and_header_row(raw)
-        return DatavisTable(label, title, _table_below(raw, header_row))
+        return EmbeddedTable(label, title, _table_below(raw, header_row))
     raw = pd.read_csv(io.StringIO(_decode_csv(file.content)), header=None, dtype=object)
-    return DatavisTable(label, "", _table_below(raw, 0))
+    return EmbeddedTable(label, "", _table_below(raw, 0))
 
 
 def _decode_csv(content: bytes) -> str:

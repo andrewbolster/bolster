@@ -9,7 +9,7 @@ import pytest
 
 from bolster.data_sources.nisra import nics_pay
 from bolster.data_sources.nisra._base import NISRADataNotFoundError, NISRAValidationError
-from bolster.utils.datavis import DatavisTable
+from bolster.utils.embedded_downloads import EmbeddedTable
 
 
 class TestPublicationDiscovery:
@@ -142,8 +142,8 @@ class TestUKComparison:
         assert len(df) >= 5
 
 
-def _table(title: str, rows: dict) -> DatavisTable:
-    return DatavisTable("Figure 1", title, pd.DataFrame(rows))
+def _table(title: str, rows: dict) -> EmbeddedTable:
+    return EmbeddedTable("Figure 1", title, pd.DataFrame(rows))
 
 
 class TestHelpers:

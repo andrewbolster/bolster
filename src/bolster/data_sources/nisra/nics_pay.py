@@ -4,7 +4,7 @@ Annual pay statistics for the Northern Ireland Civil Service (NICS), published b
 the NISRA HR statistics team each year for the position at 31 March. The
 publication is an interactive "datavis" report rather than a spreadsheet, but
 each figure embeds its data as a real ``.xlsx`` file, which is what this module
-reads (see :mod:`bolster.utils.datavis`).
+reads (see :mod:`bolster.utils.embedded_downloads`).
 
 Data covers:
     - Median and quartile pay by analogous grade (latest year)
@@ -34,7 +34,7 @@ import re
 
 import pandas as pd
 
-from bolster.utils.datavis import DatavisTable, clean_labels, coerce_numeric, read_tables
+from bolster.utils.embedded_downloads import EmbeddedTable, clean_labels, coerce_numeric, read_tables
 from bolster.utils.web import LinkNotFoundError, find_publication_link, session
 
 from ._base import NISRADataNotFoundError, NISRAValidationError
@@ -80,7 +80,7 @@ def get_latest_publication_url(force_refresh: bool = False) -> str:
         raise NISRADataNotFoundError(f"Could not find the NICS pay statistics report: {exc}") from exc
 
 
-def get_tables(force_refresh: bool = False) -> dict[str, DatavisTable]:
+def get_tables(force_refresh: bool = False) -> dict[str, EmbeddedTable]:
     """Read every figure embedded in the latest NICS pay report.
 
     Args:
@@ -101,7 +101,7 @@ def get_tables(force_refresh: bool = False) -> dict[str, DatavisTable]:
     return tables
 
 
-def _find_table(tables: dict[str, DatavisTable], key: str) -> DatavisTable:
+def _find_table(tables: dict[str, EmbeddedTable], key: str) -> EmbeddedTable:
     keywords = _TITLE_KEYWORDS[key]
     for table in tables.values():
         title = table.title.lower()
@@ -117,7 +117,7 @@ def _reference_year(title: str) -> int:
     return int(years[-1])
 
 
-def _grade_table(table: DatavisTable) -> pd.DataFrame:
+def _grade_table(table: EmbeddedTable) -> pd.DataFrame:
     """Tidy a one-row-per-grade table: first column becomes ``grade``, the rest numeric, plus ``year``."""
     df = table.data.copy()
     df = df.rename(columns={df.columns[0]: "grade"})

@@ -8,7 +8,7 @@ import pytest
 
 from bolster.data_sources.nisra import teacher_vacancies_absence as tva
 from bolster.data_sources.nisra._base import NISRADataNotFoundError, NISRAValidationError
-from bolster.utils.datavis import DatavisTable
+from bolster.utils.embedded_downloads import EmbeddedTable
 
 
 class TestReport:
@@ -138,8 +138,8 @@ class TestSubstitution:
         assert days["academic_year"].tolist() == retired["academic_year"].tolist()
 
 
-def _table(label: str, title: str) -> DatavisTable:
-    return DatavisTable(label, title, pd.DataFrame({"a": [1]}))
+def _table(label: str, title: str) -> EmbeddedTable:
+    return EmbeddedTable(label, title, pd.DataFrame({"a": [1]}))
 
 
 class TestHelpers:

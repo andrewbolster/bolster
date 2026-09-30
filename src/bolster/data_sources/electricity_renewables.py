@@ -10,7 +10,7 @@ Data Source:
     https://datavis.nisra.gov.uk/Economy/electricity-consumption-and-renewable-generation-report.html
 
     The report embeds ten figures, each as both an ``.xlsx`` and a ``.csv`` data-URI. This module reads
-    the ``.xlsx`` via :mod:`bolster.utils.datavis`: the ``.csv`` copies are malformed (line terminators
+    the ``.xlsx`` via :mod:`bolster.utils.embedded_downloads`: the ``.csv`` copies are malformed (line terminators
     are mis-encoded, so every second row is fused into its neighbour) and yield only half the months.
     It parses the four headline time series:
 
@@ -49,7 +49,7 @@ import logging
 import pandas as pd
 
 from bolster.utils.cache import CachedDownloader, DownloadError
-from bolster.utils.datavis import DatavisTable, coerce_numeric, read_tables
+from bolster.utils.embedded_downloads import EmbeddedTable, coerce_numeric, read_tables
 from bolster.utils.text import clean_column_name
 
 logger = logging.getLogger(__name__)
@@ -136,11 +136,11 @@ def _fetch_datavis_html(force_refresh: bool = False) -> str:
         return fh.read()
 
 
-def _table_to_dataframe(table: DatavisTable, col_map: dict[str, str]) -> pd.DataFrame:
+def _table_to_dataframe(table: EmbeddedTable, col_map: dict[str, str]) -> pd.DataFrame:
     """Convert an embedded figure to a tidy DataFrame with renamed columns.
 
     Args:
-        table: A figure read by :func:`bolster.utils.datavis.read_tables`.
+        table: A figure read by :func:`bolster.utils.embedded_downloads.read_tables`.
         col_map: Mapping from source column header (any casing/punctuation; it is normalised the
             same way as the table's headers) to clean name. Only columns present are kept.
 
