@@ -36,7 +36,7 @@ import pandas as pd
 from bs4 import BeautifulSoup, Tag
 
 from bolster.utils.htmlwidgets import extract_widgets, plotly_frame
-from bolster.utils.web import session
+from bolster.utils.web import is_url_host, session
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +95,7 @@ def list_areas(force_refresh: bool = False) -> dict[str, str]:
         for link in BeautifulSoup(response.text, "html.parser").find_all("a", href=True):
             href = str(link["href"]) if isinstance(link, Tag) else ""
             match = _LINK_NAME_RE.match(link.get_text(" ", strip=True))
-            if match and "datavis.nisra.gov.uk" in href:
+            if match and is_url_host(href, "datavis.nisra.gov.uk"):
                 areas[match.group(1)] = href
         if len(areas) >= _MIN_AREAS:
             return areas

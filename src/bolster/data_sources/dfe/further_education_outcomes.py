@@ -36,7 +36,7 @@ import pandas as pd
 from bs4 import BeautifulSoup, Tag
 
 from bolster.utils.embedded_downloads import EmbeddedTable, clean_labels, coerce_numeric, read_tables
-from bolster.utils.web import session
+from bolster.utils.web import is_url_host, session
 
 from ._base import DfEDataNotFoundError, DfEValidationError
 
@@ -55,7 +55,7 @@ def _school_year_slug(start_year: int) -> str:
 def _is_report_link(text: str, href: str) -> bool:
     """The report page, not the dashboard or methodology page the publication also links."""
     lowered = f"{text} {href}".lower()
-    return "datavis.nisra.gov.uk" in href and "dashboard" not in lowered and "methodology" not in lowered
+    return is_url_host(href, "datavis.nisra.gov.uk") and "dashboard" not in lowered and "methodology" not in lowered
 
 
 def get_latest_publication_url(force_refresh: bool = False) -> str:

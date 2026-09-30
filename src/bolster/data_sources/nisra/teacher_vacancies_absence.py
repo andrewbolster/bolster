@@ -39,7 +39,7 @@ import pandas as pd
 from bs4 import BeautifulSoup, Tag
 
 from bolster.utils.embedded_downloads import EmbeddedTable, clean_labels, coerce_numeric, read_tables
-from bolster.utils.web import session
+from bolster.utils.web import is_url_host, session
 
 from ._base import NISRADataNotFoundError, NISRAValidationError
 
@@ -79,7 +79,7 @@ def get_latest_publication_url(force_refresh: bool = False) -> str:
         soup = BeautifulSoup(response.text, "html.parser")
         for link in soup.find_all("a", href=True):
             href = str(link["href"]) if isinstance(link, Tag) else ""
-            if "datavis.nisra.gov.uk" in href and _LINK_TEXT in link.get_text(" ", strip=True).lower():
+            if is_url_host(href, "datavis.nisra.gov.uk") and _LINK_TEXT in link.get_text(" ", strip=True).lower():
                 return href
     raise NISRADataNotFoundError("Could not find a teacher vacancy, sickness absence and substitution report")
 
