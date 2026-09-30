@@ -1,6 +1,7 @@
 """Tests for bolster.utils.web HTTP session, retry configuration and link scraping."""
 
-from unittest.mock import patch
+from datetime import date
+from unittest.mock import Mock, patch
 
 import pytest
 from bs4 import BeautifulSoup
@@ -10,6 +11,8 @@ from bolster.utils.web import (
     LinkNotFoundError,
     RateLimitAwareRetry,
     _retry_strategy,
+    academic_year_slug,
+    find_academic_year_publication_link,
     find_publication_link,
     make_absolute_url,
     scrape_file_links,
@@ -246,3 +249,68 @@ class TestFindPublicationLink:
 
         with self._hop(hub, pub), pytest.raises(LinkNotFoundError, match="No .xlsx file found"):
             find_publication_link(self.HUB)
+
+
+class TestAcademicYearSlug:
+    def test_formats_two_digit_school_year(self):
+        assert academic_year_slug(2024) == "202425"
+
+    def test_wraps_year_end_into_next_century(self):
+        assert academic_year_slug(1999) == "199900"
+
+
+class TestFindAcademicYearPublicationLink:
+    TEMPLATE = "https://example.org/report-{slug}"
+
+    @staticmethod
+    def _response(status_code: int, html: str = "") -> Mock:
+        response = Mock()
+        response.status_code = status_code
+        response.text = html
+        return response
+
+    def test_returns_link_from_first_reachable_page(self):
+        html = '<a href="https://files.example.org/report.xlsx">The Report</a>'
+        with patch("bolster.utils.web.session") as mock_session:
+            mock_session.get.return_value = self._response(200, html)
+            result = find_academic_year_publication_link(self.TEMPLATE, lambda text, href: "report.xlsx" in href)
+
+        assert result == "https://files.example.org/report.xlsx"
+        mock_session.get.assert_called_once()
+        assert mock_session.get.call_args.args[0] == self.TEMPLATE.format(slug=academic_year_slug(date.today().year))
+
+    def test_skips_non_200_and_non_matching_pages(self):
+        html = '<a href="https://files.example.org/report.xlsx">The Report</a>'
+        with patch("bolster.utils.web.session") as mock_session:
+            mock_session.get.side_effect = [
+                self._response(404),
+                self._response(200, '<a href="/dashboard">Dashboard</a>'),
+                self._response(200, html),
+            ]
+            result = find_academic_year_publication_link(self.TEMPLATE, lambda text, href: "report.xlsx" in href)
+
+        assert result == "https://files.example.org/report.xlsx"
+        assert mock_session.get.call_count == 3
+
+    def test_raises_after_exhausting_lookback_window(self):
+        with patch("bolster.utils.web.session") as mock_session:
+            mock_session.get.return_value = self._response(404)
+            with pytest.raises(LinkNotFoundError, match="No publication page in the last 3 academic years"):
+                find_academic_year_publication_link(self.TEMPLATE, lambda text, href: True, lookback_years=3)
+
+        assert mock_session.get.call_count == 3
+
+    def test_predicate_receives_link_text_and_href(self):
+        html = '<a href="/methodology">Methodology</a><a href="/report-2024.html">2024 Report</a>'
+        seen = []
+
+        def predicate(text: str, href: str) -> bool:
+            seen.append((text, href))
+            return href == "/report-2024.html"
+
+        with patch("bolster.utils.web.session") as mock_session:
+            mock_session.get.return_value = self._response(200, html)
+            result = find_academic_year_publication_link(self.TEMPLATE, predicate)
+
+        assert result == "/report-2024.html"
+        assert ("Methodology", "/methodology") in seen

@@ -33,13 +33,11 @@ Example:
 
 import logging
 import re
-from datetime import date
 
 import pandas as pd
-from bs4 import BeautifulSoup, Tag
 
 from bolster.utils.embedded_downloads import EmbeddedTable, clean_labels, coerce_numeric, read_tables
-from bolster.utils.web import is_url_host, session
+from bolster.utils.web import LinkNotFoundError, find_academic_year_publication_link, is_url_host, session
 
 from ._base import NISRADataNotFoundError, NISRAValidationError
 
@@ -50,11 +48,6 @@ _LINK_TEXT = "vacancy, sickness absence and substitution"
 _YEAR_RANGE_RE = re.compile(r"\d{2,4}(?:/\d{2})?\s*-\s*\d{2,4}")
 _ACADEMIC_YEAR_RE = re.compile(r"\b(\d{4})/(\d{2})\b")
 _HISTORY_COLUMN_RE = re.compile(r"^(pct_filled|filled|unfilled)_(\d{4})$")
-
-
-def _school_year_slug(start_year: int) -> str:
-    """``2025`` -> ``"202526"``, the suffix of DE publication URLs."""
-    return f"{start_year}{(start_year + 1) % 100:02d}"
 
 
 def get_latest_publication_url(force_refresh: bool = False) -> str:
@@ -71,17 +64,16 @@ def get_latest_publication_url(force_refresh: bool = False) -> str:
     Raises:
         NISRADataNotFoundError: If no recent publication page links to the report.
     """
-    for start_year in range(date.today().year, date.today().year - 4, -1):
-        page = _PUBLICATION_URL.format(slug=_school_year_slug(start_year))
-        response = session.get(page, timeout=60, force_refresh=force_refresh)
-        if response.status_code != 200:
-            continue
-        soup = BeautifulSoup(response.text, "html.parser")
-        for link in soup.find_all("a", href=True):
-            href = str(link["href"]) if isinstance(link, Tag) else ""
-            if is_url_host(href, "datavis.nisra.gov.uk") and _LINK_TEXT in link.get_text(" ", strip=True).lower():
-                return href
-    raise NISRADataNotFoundError("Could not find a teacher vacancy, sickness absence and substitution report")
+    try:
+        return find_academic_year_publication_link(
+            _PUBLICATION_URL,
+            lambda text, href: is_url_host(href, "datavis.nisra.gov.uk") and _LINK_TEXT in text.lower(),
+            force_refresh=force_refresh,
+        )
+    except LinkNotFoundError as exc:
+        raise NISRADataNotFoundError(
+            "Could not find a teacher vacancy, sickness absence and substitution report"
+        ) from exc
 
 
 def get_tables(force_refresh: bool = False) -> dict[str, EmbeddedTable]:

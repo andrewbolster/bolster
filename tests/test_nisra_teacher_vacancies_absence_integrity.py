@@ -3,12 +3,15 @@
 Runs against the live publication; the report embeds each figure and table as a real .xlsx file.
 """
 
+from unittest.mock import patch
+
 import pandas as pd
 import pytest
 
 from bolster.data_sources.nisra import teacher_vacancies_absence as tva
 from bolster.data_sources.nisra._base import NISRADataNotFoundError, NISRAValidationError
 from bolster.utils.embedded_downloads import EmbeddedTable
+from bolster.utils.web import LinkNotFoundError
 
 
 class TestReport:
@@ -145,9 +148,15 @@ def _table(label: str, title: str) -> EmbeddedTable:
 class TestHelpers:
     """Unit tests for lookup, parsing and validation edge cases - no network calls needed."""
 
-    def test_school_year_slug(self):
-        assert tva._school_year_slug(2025) == "202526"
-        assert tva._school_year_slug(1999) == "199900"
+    def test_publication_url_wraps_link_not_found(self):
+        with (
+            patch(
+                "bolster.data_sources.nisra.teacher_vacancies_absence.find_academic_year_publication_link",
+                side_effect=LinkNotFoundError("nope"),
+            ),
+            pytest.raises(NISRADataNotFoundError, match="vacancy, sickness absence and substitution"),
+        ):
+            tva.get_latest_publication_url()
 
     def test_find_table_respects_kind_and_range(self):
         tables = {

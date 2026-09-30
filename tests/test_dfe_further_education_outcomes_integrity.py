@@ -3,12 +3,15 @@
 Runs against the live publication; each figure embeds a real .xlsx file.
 """
 
+from unittest.mock import patch
+
 import pandas as pd
 import pytest
 
 from bolster.data_sources.dfe import further_education_outcomes as feo
 from bolster.data_sources.dfe._base import DfEDataNotFoundError, DfEValidationError
 from bolster.utils.embedded_downloads import EmbeddedTable
+from bolster.utils.web import LinkNotFoundError
 
 LGDS = {
     "Belfast City",
@@ -88,9 +91,15 @@ class TestWorkQuality:
 class TestHelpers:
     """Unit tests for parsing, lookup and validation edge cases - no network calls needed."""
 
-    def test_school_year_slug(self):
-        assert feo._school_year_slug(2024) == "202425"
-        assert feo._school_year_slug(1999) == "199900"
+    def test_publication_url_wraps_link_not_found(self):
+        with (
+            patch(
+                "bolster.data_sources.dfe.further_education_outcomes.find_academic_year_publication_link",
+                side_effect=LinkNotFoundError("nope"),
+            ),
+            pytest.raises(DfEDataNotFoundError, match="Further Education Outcomes"),
+        ):
+            feo.get_latest_publication_url()
 
     @pytest.mark.parametrize(
         ("text", "href", "expected"),
