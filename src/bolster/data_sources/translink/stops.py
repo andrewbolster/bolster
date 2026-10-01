@@ -37,6 +37,7 @@ from typing import Any
 
 import pandas as pd
 
+from bolster.utils.fuzzy import fuzzy_match
 from bolster.utils.web import session
 
 from ._base import (
@@ -306,6 +307,52 @@ def find_stop(query: str) -> list[dict[str, Any]]:
         }
         for loc in locs
     ]
+
+
+def find_stop_fuzzy(query: str, n: int = 5, cutoff: float = 0.6) -> list[dict[str, Any]]:
+    """Search locally for stops by name, using fuzzy matching against the CIF stop table.
+
+    Unlike :func:`find_stop` (which forwards the query to Translink's own live search
+    API and inherits whatever matching behaviour their server does — including, in
+    testing, matching a garbage query to an unrelated real stop), this matches entirely
+    locally against :func:`get_stop_dataframe`'s ~10,000+ stop names via
+    :func:`bolster.utils.fuzzy.fuzzy_match`. No live request beyond the (cached) CIF
+    download.
+
+    Ranking happens on unique names first, so a name shared by several physical stops
+    (e.g. both sides of a road) doesn't crowd out other real matches by repeating in
+    the top ``n`` — each matched name then expands to every ATCOCode that carries it.
+
+    Limitation: only finds stops present in the CIF table. Around 15% of stops that
+    appear in the live VMI feed are not in the current CIF zips (newer stops) — a real
+    stop missing here doesn't mean it doesn't exist, only that it isn't in this local
+    table; fall back to :func:`find_stop` for those.
+
+    Args:
+        query: Search term, e.g. ``"cambria"`` or a slightly misspelled name.
+        n: Maximum number of distinct *names* to match (default 5) — the result list
+            can be longer than ``n`` if a matched name has multiple stop codes.
+        cutoff: Minimum similarity score to include, in ``[0, 1]`` (default 0.6,
+            matching :func:`~bolster.utils.fuzzy.fuzzy_match`'s own default).
+
+    Returns:
+        Dicts with ``atco_code``, ``name``, ``score`` (``1.0`` = query is a substring
+        of name; otherwise a difflib similarity ratio), best matches first.
+
+    Example:
+        >>> results = find_stop_fuzzy("victoria sq")
+        >>> any("Victoria Square" in r["name"] for r in results)
+        True
+    """
+    df = get_stop_dataframe()
+    unique_names = df["name"].unique().tolist()
+    matches = fuzzy_match(query, unique_names, n=n, cutoff=cutoff)
+
+    results = []
+    for name, score in matches:
+        for atco_code in df.index[df["name"] == name]:
+            results.append({"atco_code": atco_code, "name": name, "score": round(score, 3)})
+    return results
 
 
 def get_stop_dataframe(force_refresh: bool = False) -> pd.DataFrame:

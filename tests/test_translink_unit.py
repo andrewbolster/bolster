@@ -10,6 +10,7 @@ import zipfile
 import pandas as pd
 import pytest
 
+from bolster.data_sources.translink import stops
 from bolster.data_sources.translink._base import (
     OPERATOR_ALIASES,
     TranslinkValidationError,
@@ -20,7 +21,7 @@ from bolster.data_sources.translink.departures import (
     _parse_departures,
     validate_departures,
 )
-from bolster.data_sources.translink.stops import _ing_to_wgs84, _parse_cif_zip
+from bolster.data_sources.translink.stops import _ing_to_wgs84, _parse_cif_zip, find_stop_fuzzy
 from bolster.data_sources.translink.timetable import (
     Trip,
     TripStop,
@@ -642,3 +643,38 @@ class TestFindDirectTrips:
         self._make_index_with_trip(stops)
         results = find_direct_trips("700000009999", "700000001001")
         assert results == []
+
+
+class TestFindStopFuzzy:
+    """find_stop_fuzzy's own grouping logic — stops.get_stop_dataframe monkeypatched
+    to a small synthetic table, so no network/CIF download is involved."""
+
+    @staticmethod
+    def _stub_dataframe(monkeypatch):
+        df = pd.DataFrame(
+            {"name": ["Victoria Street", "Victoria Street", "Victoria Road", "City Hall"]},
+            index=pd.Index(["700000000001", "700000000002", "700000000003", "700000000004"], name="atco_code"),
+        )
+        monkeypatch.setattr(stops, "get_stop_dataframe", lambda: df)
+
+    def test_expands_a_matched_name_to_every_sharing_atco_code(self, monkeypatch):
+        self._stub_dataframe(monkeypatch)
+
+        results = find_stop_fuzzy("victoria street")
+
+        matching = [r for r in results if r["name"] == "Victoria Street"]
+        assert {r["atco_code"] for r in matching} == {"700000000001", "700000000002"}
+        assert all(r["score"] == 1.0 for r in matching)
+
+    def test_results_sorted_best_first(self, monkeypatch):
+        self._stub_dataframe(monkeypatch)
+
+        results = find_stop_fuzzy("victoria", cutoff=0.0)
+
+        scores = [r["score"] for r in results]
+        assert scores == sorted(scores, reverse=True)
+
+    def test_no_match_returns_empty(self, monkeypatch):
+        self._stub_dataframe(monkeypatch)
+
+        assert find_stop_fuzzy("completely unrelated query") == []

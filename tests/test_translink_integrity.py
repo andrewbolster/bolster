@@ -26,6 +26,7 @@ from bolster.data_sources.translink.departures import (
 )
 from bolster.data_sources.translink.stops import (
     find_stop,
+    find_stop_fuzzy,
     get_stop_dataframe,
     get_stop_lookup,
 )
@@ -85,6 +86,17 @@ class TestStopDataframe:
         # Includes cross-border routes into the Republic (lat as low as ~51.5)
         assert (lats >= 51.0).all() and (lats <= 56.0).all()
         assert (lons >= -10.5).all() and (lons <= -5.0).all()
+
+
+class TestFindStopFuzzyLive:
+    def test_finds_victoria_square(self):
+        results = find_stop_fuzzy("victoria sq")
+
+        assert any("Victoria Square" in r["name"] for r in results)
+        assert all(r["score"] >= 0.6 for r in results)
+
+    def test_garbage_query_returns_empty(self):
+        assert find_stop_fuzzy("xyzabc123nonexistent") == []
 
 
 # ---------------------------------------------------------------------------

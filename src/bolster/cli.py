@@ -89,6 +89,7 @@ from .data_sources.translink.lateness import default_db_path as translink_defaul
 from .data_sources.translink.lateness import lateness_by_journey, lateness_by_line, lateness_by_stop
 from .data_sources.translink.lateness import poll_once as translink_poll_once
 from .data_sources.translink.lateness import read_snapshots as read_translink_snapshots
+from .data_sources.translink.stops import find_stop_fuzzy
 from .data_sources.translink.vehicles import get_live_vehicles
 from .data_sources.wikipedia import get_ni_executive_basic_table
 from .utils.rss import filter_entries, get_nisra_statistics_feed, parse_rss_feed
@@ -11878,6 +11879,92 @@ def translink_board_cmd(stop, n, output_format, save):
 
     if save:
         board.to_csv(save, index=False)
+        console.print(f"[green]Saved to {save}[/green]")
+
+
+@translink.command(name="find-stop")
+@click.argument("query")
+@click.option("--n", default=5, show_default=True, help="Maximum number of distinct stop names to match")
+@click.option(
+    "--cutoff",
+    default=0.6,
+    show_default=True,
+    help="Minimum similarity score (0-1) to include a match",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"]),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--save", help="Save output to file (specify filename)")
+def translink_find_stop_cmd(query, n, cutoff, output_format, save):
+    r"""Fuzzy-search for a Translink stop by name, entirely locally.
+
+    Matches against the local CIF stop table (no live request beyond the cached CIF
+    download) — unlike the stop resolution used by `departures`/`board`/`vehicles`,
+    which forwards to Translink's own live search and inherits whatever matching
+    their server does. Only finds stops present in the CIF table: around 15% of stops
+    seen in the live VMI feed aren't in it (newer stops) and won't show up here even
+    though they're real.
+
+    Examples:
+        bolster translink find-stop "victoria sq"
+        bolster translink find-stop "cambria steet" --cutoff 0.4
+    """
+    console = Console()
+
+    try:
+        with console.status(f"[bold green]Searching stops for '{query}'..."):
+            results = find_stop_fuzzy(query, n=n, cutoff=cutoff)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise SystemExit(1) from e
+
+    if not results:
+        console.print(
+            f"[yellow]No stops matched '{query}' at cutoff {cutoff}[/yellow] "
+            "(try a lower --cutoff, or `bolster translink board` which uses Translink's own live search)"
+        )
+        return
+
+    df = pd.DataFrame(results)
+
+    if output_format == "csv":
+        output = df.to_csv(index=False)
+        if save:
+            with open(save, "w") as f:
+                f.write(output)
+            console.print(f"[green]Saved to {save}[/green]")
+        else:
+            click.echo(output)
+        return
+
+    if output_format == "json":
+        output = df.to_json(orient="records", indent=2)
+        if save:
+            with open(save, "w") as f:
+                f.write(output)
+            console.print(f"[green]Saved to {save}[/green]")
+        else:
+            click.echo(output)
+        return
+
+    from rich.table import Table
+
+    table = Table(title=f"Stop search — '{query}'", show_lines=False)
+    table.add_column("ATCO Code", style="cyan")
+    table.add_column("Name", style="bold")
+    table.add_column("Score", justify="right")
+
+    for _, row in df.iterrows():
+        table.add_row(row["atco_code"], row["name"], f"{row['score']:.2f}")
+
+    console.print(table)
+
+    if save:
+        df.to_csv(save, index=False)
         console.print(f"[green]Saved to {save}[/green]")
 
 
