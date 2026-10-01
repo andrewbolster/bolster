@@ -22,6 +22,7 @@ Example:
 """
 
 import os
+import re
 import sqlite3
 from pathlib import Path
 
@@ -30,6 +31,20 @@ import pandas as pd
 from .cache import CACHE_BASE
 
 _SNAPSHOT_DIR = CACHE_BASE / "snapshots"
+_VALID_TABLE_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _validated_table_name(table: str) -> str:
+    """Return ``table`` unchanged if it's a safe bare SQL identifier, else raise.
+
+    ``table`` ends up interpolated directly into a query string (sqlite3's DBAPI only
+    parameterizes values, not identifiers), so this is a real check, not a formality —
+    it closes the door on a future caller passing something it shouldn't, even though
+    every caller in this codebase today passes a hardcoded constant.
+    """
+    if not _VALID_TABLE_NAME.match(table):
+        raise ValueError(f"Not a valid table name: {table!r}")
+    return table
 
 
 def snapshot_db_path(name: str) -> Path:
@@ -81,6 +96,7 @@ def append_snapshot(
     if df.empty:
         return 0
 
+    table = _validated_table_name(table)
     out = df.copy()
     if "polled_at" not in out.columns:
         out.insert(0, "polled_at", (polled_at or pd.Timestamp.now(tz="UTC")).isoformat())
@@ -121,6 +137,7 @@ def read_snapshots(
         1
         >>> db.unlink()
     """
+    table = _validated_table_name(table)
     db_path = Path(db_path)
     if not db_path.exists():
         return pd.DataFrame()
@@ -131,7 +148,7 @@ def read_snapshots(
         if tables.empty:
             return pd.DataFrame()
 
-        query = f"SELECT * FROM {table}"  # noqa: S608 - table name is this module's own, never user input
+        query = f"SELECT * FROM {table}"  # nosec B608 - table validated as a bare identifier above
         params: tuple = ()
         if since is not None:
             query += " WHERE polled_at >= ?"

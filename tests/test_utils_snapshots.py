@@ -5,6 +5,7 @@ synchronous, local filesystem operations.
 """
 
 import pandas as pd
+import pytest
 
 from bolster.utils.snapshots import append_snapshot, read_snapshots, snapshot_db_path
 
@@ -24,6 +25,23 @@ class TestSnapshotDbPath:
 
         monkeypatch.setattr(snapshots_module, "_SNAPSHOT_DIR", tmp_path)
         assert snapshot_db_path("widgets").name == "widgets.db"
+
+
+class TestTableNameValidation:
+    @pytest.mark.parametrize("bad_table", ["t; DROP TABLE t--", "t t", "1t", "t'; --", ""])
+    def test_append_rejects_unsafe_table_names(self, tmp_path, bad_table):
+        with pytest.raises(ValueError, match="valid table name"):
+            append_snapshot(tmp_path / "store.db", bad_table, pd.DataFrame({"x": [1]}))
+
+    @pytest.mark.parametrize("bad_table", ["t; DROP TABLE t--", "t t", "1t"])
+    def test_read_rejects_unsafe_table_names(self, tmp_path, bad_table):
+        with pytest.raises(ValueError, match="valid table name"):
+            read_snapshots(tmp_path / "store.db", bad_table)
+
+    def test_accepts_underscores_and_leading_underscore(self, tmp_path):
+        db = tmp_path / "store.db"
+        assert append_snapshot(db, "_my_table_1", pd.DataFrame({"x": [1]})) == 1
+        assert len(read_snapshots(db, "_my_table_1")) == 1
 
 
 class TestAppendSnapshot:
