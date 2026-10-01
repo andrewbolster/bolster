@@ -14,6 +14,7 @@ Tests verify:
 import pandas as pd
 import pytest
 
+from bolster.data_sources.translink import lateness
 from bolster.data_sources.translink._base import TranslinkDataNotFoundError
 from bolster.data_sources.translink.departures import (
     find_stop_id,
@@ -335,3 +336,22 @@ class TestGetDeparturesWithVehicles:
 
     def test_at_most_n_rows(self, enriched):
         assert len(enriched) <= 5
+
+
+# ---------------------------------------------------------------------------
+# lateness.poll_once — one real snapshot into a tmp sqlite store
+# ---------------------------------------------------------------------------
+
+
+class TestPollOnceLive:
+    def test_writes_a_real_snapshot_without_raising(self, tmp_path):
+        db = tmp_path / "translink_vmi.db"
+
+        written = lateness.poll_once(db_path=db)
+
+        assert isinstance(written, int)
+        assert written >= 0
+        if written > 0:
+            df = lateness.read_snapshots(db_path=db)
+            assert len(df) == written
+            assert set(lateness._SNAPSHOT_COLUMNS).issubset(df.columns)

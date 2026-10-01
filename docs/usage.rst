@@ -178,6 +178,31 @@ Live bus departures
     df = translink.get_departures_by_name("Europa Buscentre", limit=10)
     print(df[["service", "destination", "aimed_departure", "status"]])
 
+Network-wide lateness tracking
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The Translink VMI feed has no historical API, so lateness tracking means polling it
+yourself and keeping what comes back. ``bolster translink poll`` takes one snapshot of
+every active vehicle network-wide and appends it to a local store; run it repeatedly
+(on a schedule, or with ``--watch`` for a quick interactive session) to build up
+something ``bolster translink lateness`` can report on:
+
+.. code-block:: bash
+
+    # Leave this running in a terminal to accumulate data
+    bolster translink poll --watch
+
+    # In another terminal, once some snapshots have built up
+    bolster translink lateness --group-by line
+
+.. code-block:: python
+
+    from bolster.data_sources.translink import lateness
+
+    lateness.poll_once()                     # one snapshot, appended to the local store
+    df = lateness.read_snapshots()           # everything polled so far
+    print(lateness.lateness_by_line(df))     # per-line delay distribution
+
 ----
 
 Utilities
