@@ -2,7 +2,9 @@
 
 import os
 import sys
+import time
 from datetime import date
+from pathlib import Path
 
 import click
 import pandas as pd
@@ -83,6 +85,10 @@ from .data_sources.ons_cpi import SERIES as ONS_CPI_SERIES
 from .data_sources.ons_cpi import get_latest_data as get_ons_cpi_latest
 from .data_sources.ons_cpi import get_series as get_ons_cpi_series
 from .data_sources.translink.departures import get_departures_by_name, get_departures_with_vehicles, get_direct_journeys
+from .data_sources.translink.lateness import default_db_path as translink_default_db_path
+from .data_sources.translink.lateness import lateness_by_journey, lateness_by_line, lateness_by_stop
+from .data_sources.translink.lateness import poll_once as translink_poll_once
+from .data_sources.translink.lateness import read_snapshots as read_translink_snapshots
 from .data_sources.translink.vehicles import get_live_vehicles
 from .data_sources.wikipedia import get_ni_executive_basic_table
 from .utils.rss import filter_entries, get_nisra_statistics_feed, parse_rss_feed
@@ -11601,6 +11607,171 @@ def translink_route_cmd(origin, destination, n, output_format, save):
 
     if save:
         df.to_csv(save, index=False)
+        console.print(f"[green]Saved to {save}[/green]")
+
+
+@translink.command(name="poll")
+@click.option("--operator", help="Filter by operator (MET, ULB, GDR)")
+@click.option("--enrich-stops", is_flag=True, help="Resolve ATCOCodes to stop names before storing")
+@click.option(
+    "--db-path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    help="Snapshot store location (default: ~/.cache/bolster/snapshots/translink_vmi.db)",
+)
+@click.option("--watch", is_flag=True, help="Keep polling every --interval seconds until Ctrl-C")
+@click.option(
+    "--interval",
+    default=66,
+    show_default=True,
+    help="Seconds between polls with --watch (matches the VMI feed's own refresh cadence)",
+)
+def translink_poll_cmd(operator, enrich_stops, db_path, watch, interval):
+    r"""Take a snapshot of live Translink vehicle positions and store it locally.
+
+    Each invocation makes one VMI request and appends the result to a local sqlite
+    store. There's no historical API for this feed, so building up anything
+    `bolster translink lateness` can report on means calling this repeatedly — on a
+    schedule (cron/systemd timer) for unattended collection, or with --watch to
+    quickly accumulate enough to test against in one terminal session.
+
+    Examples:
+        bolster translink poll
+        bolster translink poll --operator MET --watch
+        bolster translink poll --watch --interval 30
+    """
+    console = Console()
+    path = db_path or translink_default_db_path()
+
+    if not watch:
+        try:
+            written = translink_poll_once(operator=operator, enrich_stops=enrich_stops, db_path=db_path)
+        except Exception as e:
+            console.print(f"[red]Error:[/red] {e}")
+            raise SystemExit(1) from e
+        console.print(f"[green]Wrote {written} rows[/green] to {path}")
+        return
+
+    console.print(f"[bold]Watching[/bold] every {interval}s — writing to {path}. Press Ctrl-C to stop.")
+    total_rows, total_polls = 0, 0
+    started = time.monotonic()
+    try:
+        while True:
+            try:
+                written = translink_poll_once(operator=operator, enrich_stops=enrich_stops, db_path=db_path)
+                total_rows += written
+                total_polls += 1
+                stamp = pd.Timestamp.now(tz="UTC").isoformat(timespec="seconds")
+                console.print(f"[dim]{stamp}[/dim]  wrote {written} rows (total {total_rows})")
+            except Exception as e:
+                console.print(f"[red]Poll failed, continuing:[/red] {e}")
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        elapsed = time.monotonic() - started
+        console.print(f"\n[bold]Stopped.[/bold] {total_polls} polls, {total_rows} rows, {elapsed:.0f}s elapsed.")
+
+
+@translink.command(name="lateness")
+@click.option(
+    "--db-path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    help="Snapshot store location (default: ~/.cache/bolster/snapshots/translink_vmi.db)",
+)
+@click.option(
+    "--group-by",
+    type=click.Choice(["line", "stop", "journey"]),
+    default="line",
+    show_default=True,
+    help="How to aggregate delay samples",
+)
+@click.option("--line", help="Filter to one line before aggregating (case-insensitive)")
+@click.option("--since", help="Only snapshots polled at or after this time (e.g. 2026-06-01)")
+@click.option("--min-samples", default=5, show_default=True, help="Drop groups with fewer samples than this")
+@click.option("--enrich-stops", is_flag=True, help="Resolve ATCOCodes to stop names (with --group-by stop)")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"]),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--save", help="Save output to file (specify filename)")
+def translink_lateness_cmd(db_path, group_by, line, since, min_samples, enrich_stops, output_format, save):
+    r"""Report lateness statistics from locally polled Translink VMI snapshots.
+
+    Reads whatever `bolster translink poll` has accumulated so far — run that first
+    (with --watch for a few minutes, or on a schedule) to have anything to report on.
+    Per-journey grouping is best-effort: journey_id is an HHMM string, not a globally
+    unique trip id, so two distinct journeys departing in the same clock minute can
+    collide into one row.
+
+    Examples:
+        bolster translink lateness
+        bolster translink lateness --group-by stop --enrich-stops
+        bolster translink lateness --line 11E --group-by journey
+    """
+    console = Console()
+
+    try:
+        with console.status("[bold green]Reading snapshot store..."):
+            df = read_translink_snapshots(db_path=db_path, since=since)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise SystemExit(1) from e
+
+    if df.empty:
+        console.print("[yellow]No snapshots found — run `bolster translink poll` first.[/yellow]")
+        return
+
+    if line:
+        df = df[df["line"].str.upper() == line.upper()]
+        if df.empty:
+            console.print(f"[yellow]No snapshots for line {line.upper()}[/yellow]")
+            return
+
+    if group_by == "line":
+        result = lateness_by_line(df, min_samples=min_samples)
+    elif group_by == "stop":
+        result = lateness_by_stop(df, min_samples=min_samples, enrich_stops=enrich_stops)
+    else:
+        result = lateness_by_journey(df, min_samples=min_samples)
+
+    if result.empty:
+        console.print(f"[yellow]No groups with at least {min_samples} samples yet — keep polling.[/yellow]")
+        return
+
+    if output_format == "csv":
+        output = result.to_csv(index=False)
+        if save:
+            with open(save, "w") as f:
+                f.write(output)
+            console.print(f"[green]Saved to {save}[/green]")
+        else:
+            click.echo(output)
+        return
+
+    if output_format == "json":
+        output = result.to_json(orient="records", indent=2)
+        if save:
+            with open(save, "w") as f:
+                f.write(output)
+            console.print(f"[green]Saved to {save}[/green]")
+        else:
+            click.echo(output)
+        return
+
+    from rich.table import Table
+
+    table = Table(title=f"Translink lateness by {group_by}", show_lines=False)
+    for col in result.columns:
+        table.add_column(str(col))
+    for _, row in result.iterrows():
+        table.add_row(*[f"{v:.1f}" if isinstance(v, float) else str(v) for v in row])
+
+    console.print(table)
+    console.print(f"[dim]{len(result)} groups from {len(df)} snapshots[/dim]")
+
+    if save:
+        result.to_csv(save, index=False)
         console.print(f"[green]Saved to {save}[/green]")
 
 
