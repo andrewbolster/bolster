@@ -11604,6 +11604,112 @@ def translink_route_cmd(origin, destination, n, output_format, save):
         console.print(f"[green]Saved to {save}[/green]")
 
 
+@translink.command(name="board")
+@click.argument("stop")
+@click.option("--n", default=5, show_default=True, help="Number of departures to return")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"]),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--save", help="Save output to file (specify filename)")
+def translink_board_cmd(stop, n, output_format, save):
+    r"""Show a simple departure board: Service, Destination, Scheduled, Predicted, Due in.
+
+    STOP can be a stop name, partial name, NaPTAN ATCOCode, or Translink StopId.
+    Times are shown in local time (Europe/London), and Predicted reflects Translink's
+    own real-time estimate (not this package's VMI lateness tracking).
+
+    Examples:
+        bolster translink board "Cambria Street"
+        bolster translink board "Cambria Street" --n 10 --format json
+    """
+    tz = "Europe/London"
+    console = Console()
+
+    try:
+        with console.status(f"[bold green]Fetching departures from '{stop}'..."):
+            now = pd.Timestamp.now(tz="UTC")
+            # Over-fetch slightly: a stale boundary row can otherwise leave fewer than n results.
+            df = get_departures_by_name(stop, n=n + 2)
+            if not df.empty:
+                df = df[df["actual_departure"] >= now].head(n)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise SystemExit(1) from e
+
+    if df.empty:
+        console.print("[yellow]No departures found (outside service hours?)[/yellow]")
+        return
+
+    board = pd.DataFrame(
+        {
+            "service": df["service"],
+            "destination": df["destination"],
+            "scheduled": df["planned_departure"].dt.tz_convert(tz),
+            "predicted": df["actual_departure"].dt.tz_convert(tz),
+            "due_in_minutes": ((df["actual_departure"] - now).dt.total_seconds() / 60).round().astype(int),
+            "delay_minutes": df["delay_minutes"],
+        }
+    ).reset_index(drop=True)
+
+    if output_format == "csv":
+        output = board.to_csv(index=False)
+        if save:
+            with open(save, "w") as f:
+                f.write(output)
+            console.print(f"[green]Saved to {save}[/green]")
+        else:
+            click.echo(output)
+        return
+
+    if output_format == "json":
+        # DataFrame.to_json()'s date_format="iso" always normalises tz-aware timestamps to
+        # UTC ("Z"), discarding the local-time conversion above — format them ourselves instead.
+        json_board = board.copy()
+        json_board["scheduled"] = json_board["scheduled"].apply(lambda ts: ts.isoformat())
+        json_board["predicted"] = json_board["predicted"].apply(lambda ts: ts.isoformat())
+        output = json_board.to_json(orient="records", indent=2)
+        if save:
+            with open(save, "w") as f:
+                f.write(output)
+            console.print(f"[green]Saved to {save}[/green]")
+        else:
+            click.echo(output)
+        return
+
+    from rich.table import Table
+
+    stop_name = df["stop_name"].iloc[0] if "stop_name" in df.columns else stop
+    table = Table(title=f"Departure board — {stop_name} ({tz})", show_lines=False)
+    table.add_column("Service", style="bold")
+    table.add_column("Destination")
+    table.add_column("Scheduled", style="cyan", no_wrap=True)
+    table.add_column("Predicted", style="cyan", no_wrap=True)
+    table.add_column("Due in", justify="right")
+
+    for _, row in board.iterrows():
+        delay = row["delay_minutes"]
+        pred_style = "red" if delay > 0 else ("green" if delay < 0 else "")
+        predicted_str = row["predicted"].strftime("%H:%M")
+        predicted_cell = f"[{pred_style}]{predicted_str}[/{pred_style}]" if pred_style else predicted_str
+        table.add_row(
+            row["service"],
+            row["destination"],
+            row["scheduled"].strftime("%H:%M"),
+            predicted_cell,
+            f"{row['due_in_minutes']} min",
+        )
+
+    console.print(table)
+
+    if save:
+        board.to_csv(save, index=False)
+        console.print(f"[green]Saved to {save}[/green]")
+
+
 _UNCATEGORISED = "OTHER"
 
 _SOURCE_CATEGORIES: tuple[tuple[str, tuple[str, ...]], ...] = (

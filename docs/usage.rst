@@ -178,6 +178,13 @@ Live bus departures
     df = translink.get_departures_by_name("Europa Buscentre", limit=10)
     print(df[["service", "destination", "aimed_departure", "status"]])
 
+Or from the command line, as a simple local-time departure board:
+
+.. code-block:: bash
+
+    bolster translink board "Cambria Street"
+    bolster translink board 700000014482 --n 10 --format json
+
 ----
 
 Utilities
