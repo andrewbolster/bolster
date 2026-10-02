@@ -39,7 +39,7 @@ import pandas as pd
 from bs4 import BeautifulSoup, Tag
 
 from bolster.utils.datatables import DataTablesError, datatables_to_dataframe, fetch_datatables_json
-from bolster.utils.web import session
+from bolster.utils.web import is_url_host, session
 
 from ._base import HEALTH_NI_BASE_URL, NISRADataNotFoundError, NISRAValidationError
 
@@ -108,7 +108,7 @@ def get_latest_url() -> str:
     for a in cast("list[Tag]", pub_soup.find_all("a", href=True)):
         href = cast("str", a["href"])
         if (
-            "datavis.nisra.gov.uk" in href
+            is_url_host(href, "datavis.nisra.gov.uk")
             and href.endswith(".html")
             and "-data-" in href
             and "interactive" not in href.lower()
@@ -119,7 +119,7 @@ def get_latest_url() -> str:
     # Fallback: any datavis link that is not the interactive publication
     for a in cast("list[Tag]", pub_soup.find_all("a", href=True)):
         href = cast("str", a["href"])
-        if "datavis.nisra.gov.uk" in href and href.endswith(".html") and "interactive" not in href.lower():
+        if is_url_host(href, "datavis.nisra.gov.uk") and href.endswith(".html") and "interactive" not in href.lower():
             logger.info(f"Found datavis URL (fallback): {href}")
             return href
 

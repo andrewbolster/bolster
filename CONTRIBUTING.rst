@@ -130,15 +130,11 @@ in ``AGENTS.md``:
 See ``AGENTS.md`` for the full specification of each agent, including
 templates, checklists, and quality gates.
 
-**Key standards** (from ``AGENTS.md``):
-
-* Prefer ``pxstat.read_dataset()`` for NISRA data — no rate limits, no
-  auth, no CI flakiness. Only fall back to Excel scraping when the dataset
-  is not in PxStat.
-* Use ``from bolster.utils.web import session`` for all HTTP — it provides
-  retry logic, a default 30 s timeout, and a 24-hour disk cache.
-* No mocks in tests.
-* Type hints and docstrings on all public functions.
+**Code conventions** (docstrings, naming, comments, HTTP/hostname checks,
+exceptions, testing) are in ``.claude/constitution.md`` — the project's style
+guide. For NISRA data specifically, prefer ``pxstat.read_dataset()`` (no
+rate limits, no auth, no CI flakiness) and only fall back to Excel scraping
+when the dataset isn't in PxStat.
 
 Tips
 ----

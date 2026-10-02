@@ -139,10 +139,9 @@ some are real breakage. Decide before rerunning:
 
 ## Standards
 
-- **No mocks** - tests use real data with `scope="class"` fixtures
-- **Pre-commit required** - ruff linting/formatting enforced
-- **Type hints** - required for public functions
-- **Docstrings** - Args, Returns, Example sections
+Code conventions (docstrings, naming, comments, HTTP/hostname checks,
+exceptions, testing) are in `.claude/constitution.md` — the project's style
+guide.
 
 ## Shared Utilities
 

@@ -10,6 +10,6 @@ Project guidance for all coding agents lives in @AGENTS.md — structure, comman
   - `data-review` — review open data-source PRs
   - `data-maintenance` — weekly review of merged PRs for doc gaps and shared-utility candidates
 - `commands/nisra-feed-review.md` — `/nisra-feed-review`: scan the NISRA RSS feed and open `data-source-candidate` issues
-- `constitution.md` — conventions distilled from the existing modules
+- `constitution.md` — the project's style guide (code conventions, comments/docstrings, URL validation)
 
 The agent definitions themselves are specified in AGENTS.md; the files in `.claude/agents/` are the Claude Code wrappers.
