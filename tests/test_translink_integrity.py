@@ -14,8 +14,11 @@ Tests verify:
 import pandas as pd
 import pytest
 
+from bolster.data_sources.translink import lateness
 from bolster.data_sources.translink._base import TranslinkDataNotFoundError
 from bolster.data_sources.translink.departures import (
+    _extract_line,
+    _resolve_target_atcos,
     find_stop_id,
     get_departures,
     get_departures_by_name,
@@ -25,9 +28,11 @@ from bolster.data_sources.translink.departures import (
 )
 from bolster.data_sources.translink.stops import (
     find_stop,
+    find_stop_fuzzy,
     get_stop_dataframe,
     get_stop_lookup,
 )
+from bolster.data_sources.translink.timetable import find_trip_for_vehicle
 from bolster.data_sources.translink.vehicles import get_live_vehicles, validate_vehicles
 
 # ---------------------------------------------------------------------------
@@ -84,6 +89,17 @@ class TestStopDataframe:
         # Includes cross-border routes into the Republic (lat as low as ~51.5)
         assert (lats >= 51.0).all() and (lats <= 56.0).all()
         assert (lons >= -10.5).all() and (lons <= -5.0).all()
+
+
+class TestFindStopFuzzyLive:
+    def test_finds_victoria_square(self):
+        results = find_stop_fuzzy("victoria sq")
+
+        assert any("Victoria Square" in r["name"] for r in results)
+        assert all(r["score"] >= 0.6 for r in results)
+
+    def test_garbage_query_returns_empty(self):
+        assert find_stop_fuzzy("xyzabc123nonexistent") == []
 
 
 # ---------------------------------------------------------------------------
@@ -335,3 +351,81 @@ class TestGetDeparturesWithVehicles:
 
     def test_at_most_n_rows(self, enriched):
         assert len(enriched) <= 5
+
+
+# ---------------------------------------------------------------------------
+# lateness.poll_once — one real snapshot into a tmp sqlite store
+# ---------------------------------------------------------------------------
+
+
+class TestPollOnceLive:
+    def test_writes_a_real_snapshot_without_raising(self, tmp_path):
+        db = tmp_path / "translink_vmi.db"
+
+        written = lateness.poll_once(db_path=db)
+
+        assert isinstance(written, int)
+        assert written >= 0
+        if written > 0:
+            df = lateness.read_snapshots(db_path=db)
+            assert len(df) == written
+            assert set(lateness._SNAPSHOT_COLUMNS).issubset(df.columns)
+
+
+# ---------------------------------------------------------------------------
+# get_departures_with_vehicles — stop-sequence regression (the Ardoyne case)
+# ---------------------------------------------------------------------------
+
+
+class TestVehicleMatchRespectsStopSequence:
+    """Regression test for a real false positive found live: a vehicle at
+    "Ardoyne Shops" (two stops before Cambria Street) was matched to an imminent
+    Cambria Street departure purely by line+direction+time coincidence, despite
+    not having reached the stop yet. Any vehicle match returned here must be
+    verifiable via the CIF timetable as being at or before the target stop.
+    """
+
+    @pytest.fixture(scope="class")
+    def enriched(self):
+        return get_departures_with_vehicles("Shankill, Cambria Street", n=8)
+
+    def test_every_matched_vehicle_is_at_or_before_target(self, enriched):
+        target_atcos = _resolve_target_atcos("Shankill, Cambria Street")
+        assert target_atcos, "expected a confident CIF crosswalk for this stop"
+
+        matched = enriched[enriched["vehicle_id"].notna()]
+        for _, row in matched.iterrows():
+            vehicle_atco = row["current_stop"] if pd.notna(row["current_stop"]) else row["next_stop"]
+            assert pd.notna(vehicle_atco), "a matched vehicle must have a known position"
+
+            line = _extract_line(row["service"])
+            live = get_live_vehicles(line=line)
+            live_match = live[live["vehicle_id"] == row["vehicle_id"]]
+            if live_match.empty:
+                continue  # vehicle moved on between the two live calls; not this test's concern
+            fresh = live_match.iloc[0]
+            if fresh.get("current_stop") != row.get("current_stop") or fresh.get("next_stop") != row.get("next_stop"):
+                # Vehicle has advanced to a new position (or a new trip entirely --
+                # VMI journey_id can change) between the production fetch and this
+                # re-fetch, moments later. Re-checking a stale position against a
+                # fresh journey_id (or vice versa) isn't a real inconsistency, just
+                # two different points in time for the same vehicle_id -- skip.
+                continue
+            journey_id = fresh["journey_id"]
+            trips = find_trip_for_vehicle(line, journey_id)
+
+            verified = False
+            for trip in trips:
+                stop_seqs = {ts.atco: ts.seq for ts in trip.stops}
+                target_seq = next((stop_seqs[a] for a in target_atcos if a in stop_seqs), None)
+                if target_seq is None:
+                    continue
+                vehicle_seq = stop_seqs.get(vehicle_atco)
+                if vehicle_seq is not None and vehicle_seq <= target_seq:
+                    verified = True
+                    break
+            assert verified, (
+                f"vehicle {row['vehicle_id']} matched to a Cambria Street departure "
+                f"but its position ({vehicle_atco}) isn't verifiably at or before the "
+                f"target stop in any matching CIF trip"
+            )

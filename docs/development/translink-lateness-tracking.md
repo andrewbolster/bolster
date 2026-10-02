@@ -27,25 +27,32 @@ Sample lateness snapshot (Metro, evening peak):
 | 10K  | 2        | -9             | -9               |
 | 3A   | 2        | -22            | -22              |
 
-## Proposed persistence approach
+## Persistence approach (implemented)
+
+Built in #1918 as a one-shot snapshot-and-append primitive, not an internal poll loop:
+bolster "isn't a service yet", so the responsibility for calling it repeatedly belongs
+to whatever's doing the scheduling — a cron entry, a systemd timer, or a person running
+`bolster translink poll --watch` in a terminal — not to the library itself.
 
 ```
-Every 66 seconds (VMI refresh interval):
-    GET /velocmap/vmi/VMI
-    append rows to store:
-        timestamp, vehicle_id, line, direction, journey_id,
-        delay_seconds, current_stop, next_stop, latitude, longitude
+bolster.data_sources.translink.lateness.poll_once():
+    GET /velocmap/vmi/VMI (via get_live_vehicles())
+    append one snapshot to a generic sqlite store (bolster.utils.snapshots)
 ```
 
-Volume estimate (Metro only, ~185 vehicles):
+`bolster translink poll --watch --interval 66` wraps this in a simple loop at the CLI
+layer only (graceful Ctrl-C, prints a running total) — a convenience for interactive
+use and for quickly accumulating enough data to exercise `bolster translink lateness`
+against, not a production scheduler. Unattended collection is a cron/systemd-timer
+calling the non-`--watch` form every ~66s.
 
-- ~185 rows per snapshot
-- ~2,700 rows/hour
-- ~65,000 rows/day
-- ~24M rows/year
+Volume observed in testing (unfiltered — all operators, not just Metro): **360 rows per
+snapshot**, well above the original ~185-vehicle Metro-only estimate below, which undercounted
+by excluding Ulsterbus and Glider. At 360 rows/snapshot and a 66s cadence that's
+~5,200 rows/hour, ~125,000 rows/day — still trivial for sqlite.
 
-Parquet partitioned by `date` would be trivially small (\<500 MB/year uncompressed).
-SQLite is simpler for a single-machine poller.
+Stored under `~/.cache/bolster/snapshots/translink_vmi.db` (generic per-name sqlite
+stores, reusable by any future polling need — not translink-specific).
 
 ## What you could answer with this data
 
@@ -69,58 +76,38 @@ SQLite is simpler for a single-machine poller.
   via `get_stop_lookup()`, but ~15% of VMI ATCOCodes are not in the current CIF zips
   (newer stops); these fall back to the live `locationApi/find` endpoint
 
-## Implementation sketch
+## Implementation
 
 ```python
-import time
-import sqlite3
-from datetime import datetime, timezone
-from bolster.data_sources.translink.vehicles import get_live_vehicles
+from bolster.data_sources.translink import lateness
 
+lateness.poll_once()  # one GET, appends one snapshot, returns rows written
+lateness.poll_once(db_path=custom_path)  # non-default store location
 
-def poll_loop(db_path="translink_lateness.db", operator="MET"):
-    con = sqlite3.connect(db_path)
-    con.execute("""
-        CREATE TABLE IF NOT EXISTS snapshots (
-            polled_at TEXT,
-            vehicle_id TEXT,
-            line TEXT,
-            direction TEXT,
-            journey_id TEXT,
-            delay_seconds INTEGER,
-            current_stop TEXT,
-            next_stop TEXT,
-            latitude REAL,
-            longitude REAL
-        )
-    """)
-    while True:
-        polled_at = datetime.now(timezone.utc).isoformat()
-        df = get_live_vehicles(operator=operator)
-        df["polled_at"] = polled_at
-        df[
-            [
-                "polled_at",
-                "vehicle_id",
-                "line",
-                "direction",
-                "journey_id",
-                "delay_seconds",
-                "current_stop",
-                "next_stop",
-                "latitude",
-                "longitude",
-            ]
-        ].to_sql("snapshots", con, if_exists="append", index=False)
-        con.commit()
-        time.sleep(66)
+df = lateness.read_snapshots()  # everything polled so far
+lateness.lateness_by_line(df)  # per-line delay distribution
+lateness.lateness_by_stop(df, enrich_stops=True)
+lateness.lateness_by_journey(df)  # best-effort — see journey_id caveat below
 ```
 
-A CLI command `bolster translink poll` wrapping this would be a natural extension
-of the existing `translink` group in `cli.py`.
+CLI:
+
+```
+bolster translink poll [--operator MET] [--enrich-stops] [--db-path PATH] [--watch] [--interval 66]
+bolster translink lateness [--group-by line|stop|journey] [--line X] [--since DATE] [--min-samples N]
+```
+
+Not done (explicitly deferred, see the issue): exposing this as a `data_sources`
+`get_*` accessor / README coverage table entry — that needs real accumulated data to
+validate the shape against first; the #1919 FastAPI/webapp integration; any actual
+scheduler setup (deployment, not library code).
 
 ## Related
 
+- #1918 — this feature
+- #1919 — FastAPI/webapp integration (expects #1918's one-shot primitive to be
+  scheduled externally — *"that needs a persistent process, see #1918"*)
 - PR #1917 — initial `translink` module (departures, vehicles, stops)
 - `src/bolster/data_sources/translink/vehicles.py` — `get_live_vehicles()`
 - `src/bolster/data_sources/translink/stops.py` — `get_stop_lookup()` for ATCOCode resolution
+- `src/bolster/utils/snapshots.py` — the generic snapshot-to-sqlite utility

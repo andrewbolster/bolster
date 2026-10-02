@@ -30,6 +30,14 @@ from .departures import (
     get_direct_journeys,
     validate_departures,
 )
+from .lateness import (
+    default_db_path,
+    lateness_by_journey,
+    lateness_by_line,
+    lateness_by_stop,
+    poll_once,
+    read_snapshots,
+)
 from .stops import (
     find_stop,
     get_stop_dataframe,
@@ -66,4 +74,10 @@ __all__ = [
     "find_direct_trips",
     "find_services_at_stop",
     "get_trip_index",
+    "default_db_path",
+    "lateness_by_journey",
+    "lateness_by_line",
+    "lateness_by_stop",
+    "poll_once",
+    "read_snapshots",
 ]
