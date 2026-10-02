@@ -11791,8 +11791,13 @@ def translink_board_cmd(stop, n, output_format, save):
     r"""Show a simple departure board: Service, Destination, Scheduled, Predicted, Due in.
 
     STOP can be a stop name, partial name, NaPTAN ATCOCode, or Translink StopId.
-    Times are shown in local time (Europe/London), and Predicted reflects Translink's
-    own real-time estimate (not this package's VMI lateness tracking).
+    Times are shown in local time (Europe/London). Predicted is Translink's own
+    real-time estimate and can differ from Scheduled even with no live vehicle
+    confirming it (their journey-planner API's own ``is_real_time`` flag was found
+    to be True on essentially every departure regardless, so it isn't shown here as
+    it's not a meaningful signal) — the Live column instead reports whether a VMI
+    vehicle is actually currently matched to that departure, which is the real
+    "is this backed by a live bus right now" answer.
 
     Examples:
         bolster translink board "Cambria Street"
@@ -11805,7 +11810,7 @@ def translink_board_cmd(stop, n, output_format, save):
         with console.status(f"[bold green]Fetching departures from '{stop}'..."):
             now = pd.Timestamp.now(tz="UTC")
             # Over-fetch slightly: a stale boundary row can otherwise leave fewer than n results.
-            df = get_departures_by_name(stop, n=n + 2)
+            df = get_departures_with_vehicles(stop, n=n + 2)
             if not df.empty:
                 df = df[df["actual_departure"] >= now].head(n)
     except Exception as e:
@@ -11824,6 +11829,7 @@ def translink_board_cmd(stop, n, output_format, save):
             "predicted": df["actual_departure"].dt.tz_convert(tz),
             "due_in_minutes": ((df["actual_departure"] - now).dt.total_seconds() / 60).round().astype(int),
             "delay_minutes": df["delay_minutes"],
+            "live": df["vehicle_id"].notna(),
         }
     ).reset_index(drop=True)
 
@@ -11861,21 +11867,27 @@ def translink_board_cmd(stop, n, output_format, save):
     table.add_column("Scheduled", style="cyan", no_wrap=True)
     table.add_column("Predicted", style="cyan", no_wrap=True)
     table.add_column("Due in", justify="right")
+    table.add_column("Live", justify="center")
 
     for _, row in board.iterrows():
         delay = row["delay_minutes"]
         pred_style = "red" if delay > 0 else ("green" if delay < 0 else "")
         predicted_str = row["predicted"].strftime("%H:%M")
         predicted_cell = f"[{pred_style}]{predicted_str}[/{pred_style}]" if pred_style else predicted_str
+        live_cell = "[green]●[/green]" if row["live"] else "[dim]○[/dim]"
         table.add_row(
             row["service"],
             row["destination"],
             row["scheduled"].strftime("%H:%M"),
             predicted_cell,
             f"{row['due_in_minutes']} min",
+            live_cell,
         )
 
     console.print(table)
+    console.print(
+        "[dim]● = a live VMI vehicle is currently matched to this departure, ○ = not yet (schedule only)[/dim]"
+    )
 
     if save:
         board.to_csv(save, index=False)
