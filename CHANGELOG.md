@@ -1,5 +1,23 @@
 # Changelog
 
+## \[0.11.6\] - 2026-10-02
+
+- refactor(translink): minimize departure-board implementation, no behavior change
+- fix(translink): fall back to CIF terminus name for a synthesized row's destination
+- fix(translink): synthesize a row for a verified vehicle with no matching departure
+- fix(translink): pagination duplicate bug, and match on scheduled time not delayed time
+- fix(translink): use vehicle-derived delay for predicted times, not the journey-planner's
+- fix(translink): revert HHMM-as-UTC-direct; CIF/VMI times are Europe/London local
+- fix(translink): verify vehicle-to-departure matches against the CIF stop sequence
+- fix(translink): bypass page cache for VMI live-vehicle feed
+- fix(translink): board's Predicted column implied live tracking that wasn't there
+- feat(translink): local fuzzy stop search, backed by a new shared utility
+- Merge translink lateness tracking (#2206) into the departure-board branch
+- feat(translink): add departure board CLI command in local time
+- fix(security): validate table name as a bare SQL identifier
+- feat(translink): network-wide lateness tracking via VMI snapshot polling
+- refactor: extract shared academic-year publication-link discovery (#2204)
+
 ## \[0.11.5\] - 2026-09-30
 
 - feat: NISRA datavis embedded-download extractor + 4 new data sources (#2200)
