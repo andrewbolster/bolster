@@ -11788,21 +11788,27 @@ def translink_lateness_cmd(db_path, group_by, line, since, min_samples, enrich_s
 )
 @click.option("--save", help="Save output to file (specify filename)")
 def translink_board_cmd(stop, n, output_format, save):
-    r"""Show a simple departure board: Service, Destination, Scheduled, Predicted, Due in.
+    r"""Show a simple departure board: Service, Destination, Scheduled, Predicted, Due in, Vehicle.
 
     STOP can be a stop name, partial name, NaPTAN ATCOCode, or Translink StopId.
-    Times are shown in local time (Europe/London). Predicted prefers the
-    vehicle-derived prediction (CIF schedule at this stop, adjusted by a verified
-    vehicle's own live delay) whenever one is available — found live that
-    Translink's own journey-planner estimate is not reliable for a significantly
-    late bus (confirmed against a third-party source: a bus running ~22 min late
-    was reported by the journey-planner as exactly on time, and dropped from the
-    results entirely once its *scheduled* slot passed, even though it was still
-    genuinely inbound). Falls back to the journey-planner's own estimate only when
-    no vehicle is verified for that departure; blank ("-" in the table, null in
-    JSON/CSV) when there's no delay to report either way. The Live column reports
-    whether a VMI vehicle is actually currently matched to that departure, which
-    is the real "is this backed by a live bus right now" answer.
+    Times are shown in local time (Europe/London). Scheduled and Predicted
+    prefer the CIF-derived values from a verified vehicle's own trip, together
+    as a pair, whenever one is available — found live that Translink's own
+    journey-planner estimate is not reliable for a significantly late bus
+    (confirmed against a third-party source: a bus running ~22 min late was
+    reported by the journey-planner as exactly on time), and that mixing one
+    vehicle-derived time with one journey-planner-derived time can show a
+    "Predicted" earlier than its own "Scheduled" once the journey-planner's own
+    row for that vehicle is no longer retrievable. Falls back to the
+    journey-planner's own estimate (both fields together) only when no vehicle
+    is verified for that departure; Predicted is blank ("-" in the table, null
+    in JSON/CSV) when there's no delay to report either way.
+
+    Vehicle is the matched VMI vehicle's fleet number (e.g. "TM-3562"), blank when
+    none is verified — shown instead of a plain live/not-live indicator so the
+    specific bus behind a prediction can be checked against another source
+    (e.g. bustimes.org) rather than just trusted. This is a fleet number, not a
+    registration/numberplate — the VMI feed doesn't carry one.
 
     Examples:
         bolster translink board "Cambria Street"
@@ -11817,21 +11823,25 @@ def translink_board_cmd(stop, n, output_format, save):
             # Over-fetch slightly: a stale boundary row can otherwise leave fewer than n results.
             df = get_departures_with_vehicles(stop, n=n + 2)
             if not df.empty:
-                # Prefer the vehicle-derived prediction over the journey-planner's own
-                # estimate when a vehicle is verified — the latter was found live to not
-                # reliably reflect real delay for a significantly late bus.
+                # Prefer the vehicle-derived Scheduled/Predicted pair together over the
+                # journey-planner's own planned/actual pair when a vehicle is verified —
+                # never mix one vehicle-derived value with one journey-planner value,
+                # which can show a "Predicted" earlier than its own "Scheduled" (found
+                # live, once the journey-planner's own row for that vehicle was no
+                # longer retrievable and it got greedily paired with an unrelated one).
+                effective_scheduled = df["vehicle_scheduled_departure"].where(
+                    df["vehicle_scheduled_departure"].notna(), df["planned_departure"]
+                )
                 effective_predicted = df["vehicle_predicted_departure"].where(
                     df["vehicle_predicted_departure"].notna(), df["actual_departure"]
                 )
                 upcoming = effective_predicted >= now
                 df = df[upcoming].copy()
+                effective_scheduled = effective_scheduled[upcoming]
                 effective_predicted = effective_predicted[upcoming]
-                # Widening the query window (to catch late-but-still-inbound buses)
-                # means rows are no longer guaranteed sorted by true arrival order —
-                # a delayed earlier-scheduled bus can now sort after one originally
-                # scheduled later. Sort by the same effective time used to filter.
                 order = effective_predicted.sort_values().index
                 df = df.loc[order]
+                effective_scheduled = effective_scheduled.loc[order]
                 effective_predicted = effective_predicted.loc[order]
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
@@ -11842,20 +11852,26 @@ def translink_board_cmd(stop, n, output_format, save):
         return
 
     df = df.head(n)
+    effective_scheduled = effective_scheduled.loc[df.index]
     effective_predicted = effective_predicted.loc[df.index]
-    delay_minutes = (effective_predicted - df["planned_departure"]).dt.total_seconds() / 60
+    delay_minutes = (effective_predicted - effective_scheduled).dt.total_seconds() / 60
 
     board = pd.DataFrame(
         {
             "service": df["service"],
             "destination": df["destination"],
-            "scheduled": df["planned_departure"].dt.tz_convert(tz),
+            "scheduled": effective_scheduled.dt.tz_convert(tz),
             # No delay means no prediction to show — leave it blank rather than
             # repeating the Scheduled value under a different column heading.
             "predicted": effective_predicted.dt.tz_convert(tz).where(delay_minutes.round(1) != 0),
             "due_in_minutes": ((effective_predicted - now).dt.total_seconds() / 60).round().astype(int),
             "delay_minutes": delay_minutes,
-            "live": df["vehicle_id"].notna(),
+            # Fleet number (e.g. "TM-3562") of the matched vehicle, not a binary dot —
+            # shows which specific bus is backing this prediction, so it can be checked
+            # against another source instead of just trusted. The VMI feed only gives a
+            # fleet number, not a registration/numberplate (bustimes.org, which shows a
+            # plate, must cross-reference its own separate fleet database for that).
+            "vehicle": df["vehicle_id"],
         }
     ).reset_index(drop=True)
 
@@ -11893,7 +11909,7 @@ def translink_board_cmd(stop, n, output_format, save):
     table.add_column("Scheduled", style="cyan", no_wrap=True)
     table.add_column("Predicted", style="cyan", no_wrap=True)
     table.add_column("Due in", justify="right")
-    table.add_column("Live", justify="center")
+    table.add_column("Vehicle", style="dim")
 
     for _, row in board.iterrows():
         delay = row["delay_minutes"]
@@ -11903,14 +11919,14 @@ def translink_board_cmd(stop, n, output_format, save):
             pred_style = "red" if delay > 0 else ("green" if delay < 0 else "")
             predicted_str = row["predicted"].strftime("%H:%M")
             predicted_cell = f"[{pred_style}]{predicted_str}[/{pred_style}]" if pred_style else predicted_str
-        live_cell = "[green]●[/green]" if row["live"] else "[dim]○[/dim]"
+        vehicle_cell = row["vehicle"] if pd.notna(row["vehicle"]) else "[dim]-[/dim]"
         table.add_row(
             row["service"],
             row["destination"],
             row["scheduled"].strftime("%H:%M"),
             predicted_cell,
             f"{row['due_in_minutes']} min",
-            live_cell,
+            vehicle_cell,
         )
 
     console.print(table)

@@ -403,7 +403,15 @@ class TestVehicleMatchRespectsStopSequence:
             live_match = live[live["vehicle_id"] == row["vehicle_id"]]
             if live_match.empty:
                 continue  # vehicle moved on between the two live calls; not this test's concern
-            journey_id = live_match.iloc[0]["journey_id"]
+            fresh = live_match.iloc[0]
+            if fresh.get("current_stop") != row.get("current_stop") or fresh.get("next_stop") != row.get("next_stop"):
+                # Vehicle has advanced to a new position (or a new trip entirely --
+                # VMI journey_id can change) between the production fetch and this
+                # re-fetch, moments later. Re-checking a stale position against a
+                # fresh journey_id (or vice versa) isn't a real inconsistency, just
+                # two different points in time for the same vehicle_id -- skip.
+                continue
+            journey_id = fresh["journey_id"]
             trips = find_trip_for_vehicle(line, journey_id)
 
             verified = False

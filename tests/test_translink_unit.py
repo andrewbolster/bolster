@@ -23,6 +23,7 @@ from bolster.data_sources.translink.departures import (
     _parse_departures,
     _resolve_target_atcos,
     _verified_passing_time,
+    get_departures,
     validate_departures,
 )
 from bolster.data_sources.translink.stops import _ing_to_wgs84, _parse_cif_zip, find_stop_fuzzy
@@ -324,6 +325,74 @@ class TestParseDepartures:
         df = _parse_departures([_make_departure()])
         assert df["is_real_time"].dtype == bool
         assert df["is_cancelled"].dtype == bool
+
+
+# ---------------------------------------------------------------------------
+# departures: get_departures -- pagination boundary
+# ---------------------------------------------------------------------------
+
+
+class TestGetDeparturesPaginationBoundary:
+    """The real API treats DepartureOrArrivalDate as an inclusive lower bound:
+    requesting exactly a prior page's last departure time returns that same
+    departure again (confirmed live), under a freshly-minted UniqueId each time
+    -- so dedup can't rely on UniqueId alone, and naively re-requesting the exact
+    boundary wastes a round trip re-fetching a row we already have."""
+
+    _TICKS_PER_MINUTE = 60 * 10_000_000
+    _BASE_TICKS = 638_529_990_000_000_000  # 2024-06-03 08:10:00 UTC
+
+    def _departure_at(self, minutes_from_base: int, unique_id: str) -> dict:
+        ticks = self._BASE_TICKS + minutes_from_base * self._TICKS_PER_MINUTE
+        return _make_departure(SysPlannedDepartureDate=ticks, SysActualDepartureDate=ticks, UniqueId=unique_id)
+
+    def test_boundary_row_not_duplicated_and_request_advances_past_it(self, monkeypatch):
+        from datetime import UTC, datetime
+
+        from bolster.data_sources.translink import departures
+
+        # Page 1: 8 departures 20 min apart (minutes 0, 20, ..., 140).
+        page1 = [self._departure_at(i * 20, f"page1-{i}") for i in range(8)]
+        # Page 2: the API re-returns the page-1 boundary (minute 140) under a new
+        # id, then continues with genuinely new departures.
+        page2 = [self._departure_at(140, "page2-boundary")] + [
+            self._departure_at(160 + i * 20, f"page2-{i}") for i in range(2)
+        ]
+
+        requested_dts: list[str] = []
+        responses = [page1, page2]
+
+        class _FakeResponse:
+            def __init__(self, deps):
+                self._deps = deps
+
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return {"ResponseCode": 200, "Result": {"Departures": self._deps}}
+
+        def fake_post(url, json, timeout):
+            requested_dts.append(json["DepartureOrArrivalDate"])
+            return _FakeResponse(responses[len(requested_dts) - 1] if len(requested_dts) <= len(responses) else [])
+
+        monkeypatch.setattr(departures.session, "post", fake_post)
+
+        result = get_departures("dummy-stop", n=10, dt=datetime(2024, 6, 3, 8, 0, tzinfo=UTC))
+
+        assert len(result) == 10
+        assert not result["planned_departure"].duplicated().any()
+
+        # Second request must advance exactly one second past page 1's last
+        # departure time (minute 140), not land exactly on it.
+        assert len(requested_dts) >= 2
+        second_dt = datetime.fromisoformat(requested_dts[1])
+        page1_boundary = (
+            net_ticks_to_timestamp(self._departure_at(140, "x")["SysActualDepartureDate"])
+            .to_pydatetime()
+            .replace(tzinfo=None)
+        )
+        assert second_dt == page1_boundary + pd.Timedelta(seconds=1)
 
 
 # ---------------------------------------------------------------------------
@@ -876,7 +945,8 @@ class TestVerifiedPassingTime:
         ref_dt = pd.Timestamp("2026-10-02 08:50:00", tz="UTC")
         result = _verified_passing_time("11E", "0846", "700000001006", "700000001036", ["700000001038"], ref_dt)
         # "0904" is Europe/London local; during BST that's UTC 08:04, not 09:04.
-        assert result == pd.Timestamp("2026-10-02 08:04:00", tz="UTC")
+        # No delay given -> scheduled and predicted are the same CIF time.
+        assert result == (pd.Timestamp("2026-10-02 08:04:00", tz="UTC"), pd.Timestamp("2026-10-02 08:04:00", tz="UTC"))
 
     def test_vehicle_after_target_is_rejected(self, monkeypatch):
         # The real Ardoyne/Cambria regression case, inverted: vehicle already past
@@ -921,7 +991,8 @@ class TestVerifiedPassingTime:
         result = _verified_passing_time(
             "11E", "0846", "700000001006", "700000001036", ["700000001038"], ref_dt, vehicle_delay_seconds=300
         )
-        assert result == pd.Timestamp("2026-10-02 08:09:00", tz="UTC")  # 08:04 + 5 min
+        # Scheduled stays the unadjusted CIF time; predicted is +5 min.
+        assert result == (pd.Timestamp("2026-10-02 08:04:00", tz="UTC"), pd.Timestamp("2026-10-02 08:09:00", tz="UTC"))
 
     def test_negative_delay_shifts_predicted_time_earlier(self, monkeypatch):
         trip = self._trip_with_stops()
@@ -930,7 +1001,7 @@ class TestVerifiedPassingTime:
         result = _verified_passing_time(
             "11E", "0846", "700000001006", "700000001036", ["700000001038"], ref_dt, vehicle_delay_seconds=-60
         )
-        assert result == pd.Timestamp("2026-10-02 08:03:00", tz="UTC")  # 08:04 - 1 min
+        assert result == (pd.Timestamp("2026-10-02 08:04:00", tz="UTC"), pd.Timestamp("2026-10-02 08:03:00", tz="UTC"))
 
     def test_missing_delay_falls_back_to_unadjusted_cif_time(self, monkeypatch):
         # VMI's realtime_available=False case: delay_seconds is NA, not 0 -- must
@@ -941,7 +1012,7 @@ class TestVerifiedPassingTime:
         result = _verified_passing_time(
             "11E", "0846", "700000001006", "700000001036", ["700000001038"], ref_dt, vehicle_delay_seconds=pd.NA
         )
-        assert result == pd.Timestamp("2026-10-02 08:04:00", tz="UTC")
+        assert result == (pd.Timestamp("2026-10-02 08:04:00", tz="UTC"), pd.Timestamp("2026-10-02 08:04:00", tz="UTC"))
 
 
 # ---------------------------------------------------------------------------
