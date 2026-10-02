@@ -30,7 +30,9 @@ import io
 import logging
 import zipfile
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from ._base import (
     OPENDATANI_METRO_GLIDER_URL,
@@ -68,6 +70,10 @@ class Trip:
 
 # In-process cache: stop_atco → list[Trip] where that stop appears
 _TRIP_INDEX: dict[str, list[tuple[Trip, TripStop]]] | None = None
+
+# In-process cache: (LINE, origin depart_hhmm) → list[Trip]. Built from the same CIF
+# parse pass as _TRIP_INDEX (see _build_indices) so there's only one parse/download.
+_TRIPS_BY_LINE_DEPARTURE: dict[tuple[str, str], list[Trip]] | None = None
 
 
 def _parse_time_at(s: str, pos: int) -> tuple[str, int]:
@@ -185,18 +191,22 @@ def _parse_cif_trips(zip_bytes: bytes) -> list[Trip]:
     return [t for t in trips if t.stops]
 
 
-def _build_trip_index(force_refresh: bool = False) -> dict[str, list[tuple[Trip, TripStop]]]:
-    """Build an inverted index: stop_atco → [(Trip, TripStop), ...].
+def _build_indices(
+    force_refresh: bool = False,
+) -> tuple[dict[str, list[tuple[Trip, TripStop]]], dict[tuple[str, str], list[Trip]]]:
+    """Build both trip indices from one CIF parse pass.
 
-    Downloads both CIF zips, parses all trips, then inverts into a lookup
-    keyed by ATCOCode so callers can find all services at a given stop.
+    Downloads both CIF zips and parses all trips once, then builds two
+    independent views over the same trip list: by stop (for "what calls
+    here") and by (line, origin departure time) (for "which scheduled trip
+    is this specific live vehicle on").
 
     Args:
         force_refresh: Re-download and reparse even if cached.
 
     Returns:
-        Dict mapping each ATCOCode to a list of (Trip, TripStop) tuples
-        for every trip that calls at that stop.
+        ``(stop_index, line_departure_index)`` — see :func:`get_trip_index`
+        and :func:`get_trips_by_line_and_departure` for their shapes.
     """
     all_trips: list[Trip] = []
     for label, url in [
@@ -209,15 +219,20 @@ def _build_trip_index(force_refresh: bool = False) -> dict[str, list[tuple[Trip,
         logger.info("%s: parsed %d trips", label, len(trips))
         all_trips.extend(trips)
 
-    index: dict[str, list[tuple[Trip, TripStop]]] = {}
+    stop_index: dict[str, list[tuple[Trip, TripStop]]] = {}
+    line_departure_index: dict[tuple[str, str], list[Trip]] = {}
     for trip in all_trips:
         for ts in trip.stops:
-            index.setdefault(ts.atco, []).append((trip, ts))
+            stop_index.setdefault(ts.atco, []).append((trip, ts))
+        line_departure_index.setdefault((trip.line.upper(), trip.depart_hhmm), []).append(trip)
 
     logger.info(
-        "Trip index built: %d stops, %d total trip-stop entries", len(index), sum(len(v) for v in index.values())
+        "Trip indices built: %d stops, %d total trip-stop entries, %d (line, departure) keys",
+        len(stop_index),
+        sum(len(v) for v in stop_index.values()),
+        len(line_departure_index),
     )
-    return index
+    return stop_index, line_departure_index
 
 
 def get_trip_index(force_refresh: bool = False) -> dict[str, list[tuple[Any, Any]]]:
@@ -233,10 +248,32 @@ def get_trip_index(force_refresh: bool = False) -> dict[str, list[tuple[Any, Any
         Dict mapping ATCOCode → list of ``(Trip, TripStop)`` tuples for
         every scheduled trip that calls at that stop.
     """
-    global _TRIP_INDEX
+    global _TRIP_INDEX, _TRIPS_BY_LINE_DEPARTURE
     if _TRIP_INDEX is None or force_refresh:
-        _TRIP_INDEX = _build_trip_index(force_refresh=force_refresh)
+        _TRIP_INDEX, _TRIPS_BY_LINE_DEPARTURE = _build_indices(force_refresh=force_refresh)
     return _TRIP_INDEX
+
+
+def get_trips_by_line_and_departure(force_refresh: bool = False) -> dict[tuple[str, str], list[Trip]]:
+    """Return the (line, origin depart_hhmm) → [Trip] index.
+
+    Built from the same CIF parse pass as :func:`get_trip_index` (calling
+    either one populates both caches) — there is only ever one parse/download
+    per process unless ``force_refresh`` is set.
+
+    Args:
+        force_refresh: Re-download CIF zips and rebuild the index.
+
+    Returns:
+        Dict mapping ``(line.upper(), depart_hhmm)`` to every :class:`Trip`
+        with that origin line and departure time, across all day-patterns
+        (weekday/Saturday/Sunday variants included together — filter by
+        ``Trip.days``/``date_from``/``date_to`` for a specific date).
+    """
+    global _TRIP_INDEX, _TRIPS_BY_LINE_DEPARTURE
+    if _TRIPS_BY_LINE_DEPARTURE is None or force_refresh:
+        _TRIP_INDEX, _TRIPS_BY_LINE_DEPARTURE = _build_indices(force_refresh=force_refresh)
+    return _TRIPS_BY_LINE_DEPARTURE
 
 
 def find_services_at_stop(stop_atco: str, force_refresh: bool = False) -> list[Trip]:
@@ -295,3 +332,62 @@ def find_direct_trips(
             results.append((trip, orig_ts, dest_ts))
 
     return sorted(results, key=lambda x: x[1].depart or x[0].depart_hhmm)
+
+
+def find_trip_for_vehicle(
+    line: str,
+    journey_hhmm: str,
+    ref_dt: datetime | None = None,
+    force_refresh: bool = False,
+) -> list[Trip]:
+    """Resolve a VMI vehicle's (line, journey_id) to its scheduled Trip(s).
+
+    A VMI vehicle's ``journey_id`` and a CIF ``Trip.depart_hhmm`` are both
+    already HHMM strings for the same thing — the trip's origin departure
+    time — so they're matched directly here with no timezone conversion.
+    This is the identifier that pins a live vehicle to one scheduled trip;
+    it is deliberately *not* matched against a stop's own scheduled passing
+    time (which varies by how far into the route that stop is).
+
+    Filtered to trips valid for ``ref_dt``'s weekday and date range, using
+    the same convention :func:`get_direct_journeys` already applies: the
+    ``days`` string is ``MTWTFSS`` (index 0 = Monday), matching
+    ``datetime.weekday()``.
+
+    Args:
+        line: Line identifier, e.g. ``"11E"`` (case-insensitive).
+        journey_hhmm: Origin departure time as HHMM, e.g. ``"0846"`` — a VMI
+                      vehicle's raw ``journey_id`` after stripping any
+                      ``#...`` suffix.
+        ref_dt: Reference datetime for weekday/date-range filtering
+                (default: now, UTC). Naive datetimes are treated as UTC.
+        force_refresh: Rebuild the trip indices from source.
+
+    Returns:
+        Every :class:`Trip` matching this line and departure time that runs
+        on ``ref_dt``'s date — there can be more than one same-time variant
+        (e.g. a weekday and a Saturday pattern don't collide, but two
+        distinct routes sharing a line+time coincidentally could). Empty
+        list if the vehicle's journey isn't in the current CIF data at all
+        (e.g. a short-notice change) or doesn't run on this date.
+    """
+    if ref_dt is None:
+        ref_dt = datetime.now(tz=UTC)
+    ref_local = (
+        ref_dt.astimezone(ZoneInfo("Europe/London"))
+        if ref_dt.tzinfo
+        else ref_dt.replace(tzinfo=UTC).astimezone(ZoneInfo("Europe/London"))
+    )
+    weekday_idx = ref_local.weekday()
+    date_str = ref_local.strftime("%Y%m%d")
+
+    candidates = get_trips_by_line_and_departure(force_refresh=force_refresh).get((line.upper(), journey_hhmm), [])
+
+    def _runs_today(trip: Trip) -> bool:
+        if len(trip.days) <= weekday_idx or trip.days[weekday_idx] != "1":
+            return False
+        if trip.date_from and date_str < trip.date_from:
+            return False
+        return not (trip.date_to and date_str > trip.date_to)
+
+    return [t for t in candidates if _runs_today(t)]

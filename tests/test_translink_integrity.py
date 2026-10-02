@@ -16,6 +16,8 @@ import pytest
 
 from bolster.data_sources.translink._base import TranslinkDataNotFoundError
 from bolster.data_sources.translink.departures import (
+    _extract_line,
+    _resolve_target_atcos,
     find_stop_id,
     get_departures,
     get_departures_by_name,
@@ -28,6 +30,7 @@ from bolster.data_sources.translink.stops import (
     get_stop_dataframe,
     get_stop_lookup,
 )
+from bolster.data_sources.translink.timetable import find_trip_for_vehicle
 from bolster.data_sources.translink.vehicles import get_live_vehicles, validate_vehicles
 
 # ---------------------------------------------------------------------------
@@ -335,3 +338,54 @@ class TestGetDeparturesWithVehicles:
 
     def test_at_most_n_rows(self, enriched):
         assert len(enriched) <= 5
+
+
+# ---------------------------------------------------------------------------
+# get_departures_with_vehicles — stop-sequence regression (the Ardoyne case)
+# ---------------------------------------------------------------------------
+
+
+class TestVehicleMatchRespectsStopSequence:
+    """Regression test for a real false positive found live: a vehicle at
+    "Ardoyne Shops" (two stops before Cambria Street) was matched to an imminent
+    Cambria Street departure purely by line+direction+time coincidence, despite
+    not having reached the stop yet. Any vehicle match returned here must be
+    verifiable via the CIF timetable as being at or before the target stop.
+    """
+
+    @pytest.fixture(scope="class")
+    def enriched(self):
+        return get_departures_with_vehicles("Shankill, Cambria Street", n=8)
+
+    def test_every_matched_vehicle_is_at_or_before_target(self, enriched):
+        target_atcos = _resolve_target_atcos("Shankill, Cambria Street")
+        assert target_atcos, "expected a confident CIF crosswalk for this stop"
+
+        matched = enriched[enriched["vehicle_id"].notna()]
+        for _, row in matched.iterrows():
+            vehicle_atco = row["current_stop"] if pd.notna(row["current_stop"]) else row["next_stop"]
+            assert pd.notna(vehicle_atco), "a matched vehicle must have a known position"
+
+            line = _extract_line(row["service"])
+            live = get_live_vehicles(line=line)
+            live_match = live[live["vehicle_id"] == row["vehicle_id"]]
+            if live_match.empty:
+                continue  # vehicle moved on between the two live calls; not this test's concern
+            journey_id = live_match.iloc[0]["journey_id"]
+            trips = find_trip_for_vehicle(line, journey_id)
+
+            verified = False
+            for trip in trips:
+                stop_seqs = {ts.atco: ts.seq for ts in trip.stops}
+                target_seq = next((stop_seqs[a] for a in target_atcos if a in stop_seqs), None)
+                if target_seq is None:
+                    continue
+                vehicle_seq = stop_seqs.get(vehicle_atco)
+                if vehicle_seq is not None and vehicle_seq <= target_seq:
+                    verified = True
+                    break
+            assert verified, (
+                f"vehicle {row['vehicle_id']} matched to a Cambria Street departure "
+                f"but its position ({vehicle_atco}) isn't verifiably at or before the "
+                f"target stop in any matching CIF trip"
+            )
