@@ -11795,9 +11795,11 @@ def translink_board_cmd(stop, n, output_format, save):
     real-time estimate and can differ from Scheduled even with no live vehicle
     confirming it (their journey-planner API's own ``is_real_time`` flag was found
     to be True on essentially every departure regardless, so it isn't shown here as
-    it's not a meaningful signal) — the Live column instead reports whether a VMI
-    vehicle is actually currently matched to that departure, which is the real
-    "is this backed by a live bus right now" answer.
+    it's not a meaningful signal) — shown only when it actually differs from
+    Scheduled; blank ("-" in the table, null in JSON/CSV) when there's no delay to
+    report. The Live column instead reports whether a VMI vehicle is actually
+    currently matched to that departure, which is the real "is this backed by a
+    live bus right now" answer.
 
     Examples:
         bolster translink board "Cambria Street"
@@ -11826,7 +11828,9 @@ def translink_board_cmd(stop, n, output_format, save):
             "service": df["service"],
             "destination": df["destination"],
             "scheduled": df["planned_departure"].dt.tz_convert(tz),
-            "predicted": df["actual_departure"].dt.tz_convert(tz),
+            # No delay means no prediction to show — leave it blank rather than
+            # repeating the Scheduled value under a different column heading.
+            "predicted": df["actual_departure"].dt.tz_convert(tz).where(df["delay_minutes"] != 0),
             "due_in_minutes": ((df["actual_departure"] - now).dt.total_seconds() / 60).round().astype(int),
             "delay_minutes": df["delay_minutes"],
             "live": df["vehicle_id"].notna(),
@@ -11848,7 +11852,7 @@ def translink_board_cmd(stop, n, output_format, save):
         # UTC ("Z"), discarding the local-time conversion above — format them ourselves instead.
         json_board = board.copy()
         json_board["scheduled"] = json_board["scheduled"].apply(lambda ts: ts.isoformat())
-        json_board["predicted"] = json_board["predicted"].apply(lambda ts: ts.isoformat())
+        json_board["predicted"] = json_board["predicted"].apply(lambda ts: ts.isoformat() if pd.notna(ts) else None)
         output = json_board.to_json(orient="records", indent=2)
         if save:
             with open(save, "w") as f:
@@ -11871,9 +11875,12 @@ def translink_board_cmd(stop, n, output_format, save):
 
     for _, row in board.iterrows():
         delay = row["delay_minutes"]
-        pred_style = "red" if delay > 0 else ("green" if delay < 0 else "")
-        predicted_str = row["predicted"].strftime("%H:%M")
-        predicted_cell = f"[{pred_style}]{predicted_str}[/{pred_style}]" if pred_style else predicted_str
+        if pd.isna(row["predicted"]):
+            predicted_cell = "[dim]-[/dim]"
+        else:
+            pred_style = "red" if delay > 0 else ("green" if delay < 0 else "")
+            predicted_str = row["predicted"].strftime("%H:%M")
+            predicted_cell = f"[{pred_style}]{predicted_str}[/{pred_style}]" if pred_style else predicted_str
         live_cell = "[green]●[/green]" if row["live"] else "[dim]○[/dim]"
         table.add_row(
             row["service"],
