@@ -911,6 +911,38 @@ class TestVerifiedPassingTime:
         result = _verified_passing_time("11E", "0846", "700000001006", "700000001036", ["700000099999"], ref_dt)
         assert result is None
 
+    def test_positive_delay_shifts_predicted_time_later(self, monkeypatch):
+        # Found live: the journey-planner's own delay field doesn't reliably
+        # reflect a significantly late bus, but the vehicle's own VMI
+        # delay_seconds does -- this is what makes that usable.
+        trip = self._trip_with_stops()
+        self._inject_trip(monkeypatch, trip)
+        ref_dt = pd.Timestamp("2026-10-02 08:50:00", tz="UTC")
+        result = _verified_passing_time(
+            "11E", "0846", "700000001006", "700000001036", ["700000001038"], ref_dt, vehicle_delay_seconds=300
+        )
+        assert result == pd.Timestamp("2026-10-02 08:09:00", tz="UTC")  # 08:04 + 5 min
+
+    def test_negative_delay_shifts_predicted_time_earlier(self, monkeypatch):
+        trip = self._trip_with_stops()
+        self._inject_trip(monkeypatch, trip)
+        ref_dt = pd.Timestamp("2026-10-02 08:50:00", tz="UTC")
+        result = _verified_passing_time(
+            "11E", "0846", "700000001006", "700000001036", ["700000001038"], ref_dt, vehicle_delay_seconds=-60
+        )
+        assert result == pd.Timestamp("2026-10-02 08:03:00", tz="UTC")  # 08:04 - 1 min
+
+    def test_missing_delay_falls_back_to_unadjusted_cif_time(self, monkeypatch):
+        # VMI's realtime_available=False case: delay_seconds is NA, not 0 -- must
+        # not error, and must not be treated as a real zero-delay measurement.
+        trip = self._trip_with_stops()
+        self._inject_trip(monkeypatch, trip)
+        ref_dt = pd.Timestamp("2026-10-02 08:50:00", tz="UTC")
+        result = _verified_passing_time(
+            "11E", "0846", "700000001006", "700000001036", ["700000001038"], ref_dt, vehicle_delay_seconds=pd.NA
+        )
+        assert result == pd.Timestamp("2026-10-02 08:04:00", tz="UTC")
+
 
 # ---------------------------------------------------------------------------
 # departures: _greedy_assign_vehicles
