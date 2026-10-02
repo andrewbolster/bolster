@@ -63,6 +63,13 @@ def _normalise_operator(raw: str) -> str:
 def _fetch_vmi() -> list[dict]:
     """Fetch the raw VMI JSON feed.
 
+    Always bypasses ``session``'s generic page cache (``force_refresh=True``): that
+    cache has a 24h TTL meant for static publisher pages, but VMI is an inherently
+    live feed that refreshes every ~66s. Without this, every call within the same 24h
+    silently returns the exact same frozen snapshot — discovered when a real bus
+    confirmed present at a stop did not appear anywhere in ``get_live_vehicles()``,
+    traced to a page-cache hit on a response written over 13 hours earlier.
+
     Returns:
         List of vehicle dicts as returned by the feed.
 
@@ -71,7 +78,7 @@ def _fetch_vmi() -> list[dict]:
         TranslinkValidationError: If the response is not a JSON list.
     """
     try:
-        resp = session.get(VMI_URL, timeout=20)
+        resp = session.get(VMI_URL, timeout=20, force_refresh=True)
         resp.raise_for_status()
     except Exception as e:
         raise TranslinkDataNotFoundError(f"VMI feed request failed: {e}") from e

@@ -2,7 +2,9 @@
 
 import os
 import sys
+import time
 from datetime import date
+from pathlib import Path
 
 import click
 import pandas as pd
@@ -83,6 +85,11 @@ from .data_sources.ons_cpi import SERIES as ONS_CPI_SERIES
 from .data_sources.ons_cpi import get_latest_data as get_ons_cpi_latest
 from .data_sources.ons_cpi import get_series as get_ons_cpi_series
 from .data_sources.translink.departures import get_departures_by_name, get_departures_with_vehicles, get_direct_journeys
+from .data_sources.translink.lateness import default_db_path as translink_default_db_path
+from .data_sources.translink.lateness import lateness_by_journey, lateness_by_line, lateness_by_stop
+from .data_sources.translink.lateness import poll_once as translink_poll_once
+from .data_sources.translink.lateness import read_snapshots as read_translink_snapshots
+from .data_sources.translink.stops import find_stop_fuzzy
 from .data_sources.translink.vehicles import get_live_vehicles
 from .data_sources.wikipedia import get_ni_executive_basic_table
 from .utils.rss import filter_entries, get_nisra_statistics_feed, parse_rss_feed
@@ -11596,6 +11603,399 @@ def translink_route_cmd(origin, destination, n, output_format, save):
         days_map = "MTWTFSS"
         days_str = "".join(d if row["days"][i] == "1" else "·" for i, d in enumerate(days_map))
         table.add_row(row["service"], dep_fmt, arr_fmt, days_str)
+
+    console.print(table)
+
+    if save:
+        df.to_csv(save, index=False)
+        console.print(f"[green]Saved to {save}[/green]")
+
+
+@translink.command(name="poll")
+@click.option("--operator", help="Filter by operator (MET, ULB, GDR)")
+@click.option("--enrich-stops", is_flag=True, help="Resolve ATCOCodes to stop names before storing")
+@click.option(
+    "--db-path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    help="Snapshot store location (default: ~/.cache/bolster/snapshots/translink_vmi.db)",
+)
+@click.option("--watch", is_flag=True, help="Keep polling every --interval seconds until Ctrl-C")
+@click.option(
+    "--interval",
+    default=66,
+    show_default=True,
+    help="Seconds between polls with --watch (matches the VMI feed's own refresh cadence)",
+)
+def translink_poll_cmd(operator, enrich_stops, db_path, watch, interval):
+    r"""Take a snapshot of live Translink vehicle positions and store it locally.
+
+    Each invocation makes one VMI request and appends the result to a local sqlite
+    store. There's no historical API for this feed, so building up anything
+    `bolster translink lateness` can report on means calling this repeatedly — on a
+    schedule (cron/systemd timer) for unattended collection, or with --watch to
+    quickly accumulate enough to test against in one terminal session.
+
+    Examples:
+        bolster translink poll
+        bolster translink poll --operator MET --watch
+        bolster translink poll --watch --interval 30
+    """
+    console = Console()
+    path = db_path or translink_default_db_path()
+
+    if not watch:
+        try:
+            written = translink_poll_once(operator=operator, enrich_stops=enrich_stops, db_path=db_path)
+        except Exception as e:
+            console.print(f"[red]Error:[/red] {e}")
+            raise SystemExit(1) from e
+        console.print(f"[green]Wrote {written} rows[/green] to {path}")
+        return
+
+    console.print(f"[bold]Watching[/bold] every {interval}s — writing to {path}. Press Ctrl-C to stop.")
+    total_rows, total_polls = 0, 0
+    started = time.monotonic()
+    try:
+        while True:
+            try:
+                written = translink_poll_once(operator=operator, enrich_stops=enrich_stops, db_path=db_path)
+                total_rows += written
+                total_polls += 1
+                stamp = pd.Timestamp.now(tz="UTC").isoformat(timespec="seconds")
+                console.print(f"[dim]{stamp}[/dim]  wrote {written} rows (total {total_rows})")
+            except Exception as e:
+                console.print(f"[red]Poll failed, continuing:[/red] {e}")
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        elapsed = time.monotonic() - started
+        console.print(f"\n[bold]Stopped.[/bold] {total_polls} polls, {total_rows} rows, {elapsed:.0f}s elapsed.")
+
+
+@translink.command(name="lateness")
+@click.option(
+    "--db-path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    help="Snapshot store location (default: ~/.cache/bolster/snapshots/translink_vmi.db)",
+)
+@click.option(
+    "--group-by",
+    type=click.Choice(["line", "stop", "journey"]),
+    default="line",
+    show_default=True,
+    help="How to aggregate delay samples",
+)
+@click.option("--line", help="Filter to one line before aggregating (case-insensitive)")
+@click.option("--since", help="Only snapshots polled at or after this time (e.g. 2026-06-01)")
+@click.option("--min-samples", default=5, show_default=True, help="Drop groups with fewer samples than this")
+@click.option("--enrich-stops", is_flag=True, help="Resolve ATCOCodes to stop names (with --group-by stop)")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"]),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--save", help="Save output to file (specify filename)")
+def translink_lateness_cmd(db_path, group_by, line, since, min_samples, enrich_stops, output_format, save):
+    r"""Report lateness statistics from locally polled Translink VMI snapshots.
+
+    Reads whatever `bolster translink poll` has accumulated so far — run that first
+    (with --watch for a few minutes, or on a schedule) to have anything to report on.
+    Per-journey grouping is best-effort: journey_id is an HHMM string, not a globally
+    unique trip id, so two distinct journeys departing in the same clock minute can
+    collide into one row.
+
+    Examples:
+        bolster translink lateness
+        bolster translink lateness --group-by stop --enrich-stops
+        bolster translink lateness --line 11E --group-by journey
+    """
+    console = Console()
+
+    try:
+        with console.status("[bold green]Reading snapshot store..."):
+            df = read_translink_snapshots(db_path=db_path, since=since)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise SystemExit(1) from e
+
+    if df.empty:
+        console.print("[yellow]No snapshots found — run `bolster translink poll` first.[/yellow]")
+        return
+
+    if line:
+        df = df[df["line"].str.upper() == line.upper()]
+        if df.empty:
+            console.print(f"[yellow]No snapshots for line {line.upper()}[/yellow]")
+            return
+
+    if group_by == "line":
+        result = lateness_by_line(df, min_samples=min_samples)
+    elif group_by == "stop":
+        result = lateness_by_stop(df, min_samples=min_samples, enrich_stops=enrich_stops)
+    else:
+        result = lateness_by_journey(df, min_samples=min_samples)
+
+    if result.empty:
+        console.print(f"[yellow]No groups with at least {min_samples} samples yet — keep polling.[/yellow]")
+        return
+
+    if output_format == "csv":
+        output = result.to_csv(index=False)
+        if save:
+            with open(save, "w") as f:
+                f.write(output)
+            console.print(f"[green]Saved to {save}[/green]")
+        else:
+            click.echo(output)
+        return
+
+    if output_format == "json":
+        output = result.to_json(orient="records", indent=2)
+        if save:
+            with open(save, "w") as f:
+                f.write(output)
+            console.print(f"[green]Saved to {save}[/green]")
+        else:
+            click.echo(output)
+        return
+
+    from rich.table import Table
+
+    table = Table(title=f"Translink lateness by {group_by}", show_lines=False)
+    for col in result.columns:
+        table.add_column(str(col))
+    for _, row in result.iterrows():
+        table.add_row(*[f"{v:.1f}" if isinstance(v, float) else str(v) for v in row])
+
+    console.print(table)
+    console.print(f"[dim]{len(result)} groups from {len(df)} snapshots[/dim]")
+
+    if save:
+        result.to_csv(save, index=False)
+        console.print(f"[green]Saved to {save}[/green]")
+
+
+@translink.command(name="board")
+@click.argument("stop")
+@click.option("--n", default=5, show_default=True, help="Number of departures to return")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"]),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--save", help="Save output to file (specify filename)")
+def translink_board_cmd(stop, n, output_format, save):
+    r"""Show a simple departure board: Service, Destination, Scheduled, Predicted, Due in, Vehicle.
+
+    STOP can be a stop name, partial name, NaPTAN ATCOCode, or Translink StopId.
+    Times are shown in local time (Europe/London). Scheduled and Predicted
+    prefer the CIF-derived values from a verified vehicle's own trip, together
+    as a pair (see :func:`get_departures_with_vehicles`), falling back to the
+    journey-planner's own estimate only when no vehicle is verified for that
+    departure. Predicted is blank when there's no delay to report either way.
+
+    Vehicle is the matched VMI vehicle's fleet number (e.g. "TM-3562"), not a
+    registration/numberplate (the VMI feed doesn't carry one) — blank when none
+    is verified.
+
+    Examples:
+        bolster translink board "Cambria Street"
+        bolster translink board "Cambria Street" --n 10 --format json
+    """
+    tz = "Europe/London"
+    console = Console()
+
+    try:
+        with console.status(f"[bold green]Fetching departures from '{stop}'..."):
+            now = pd.Timestamp.now(tz="UTC")
+            # Over-fetch slightly: a stale boundary row can otherwise leave fewer than n results.
+            df = get_departures_with_vehicles(stop, n=n + 2)
+            if not df.empty:
+                # Prefer the vehicle-derived pair together over the journey-planner's
+                # own pair, never one field from each (see get_departures_with_vehicles).
+                effective_scheduled = df["vehicle_scheduled_departure"].where(
+                    df["vehicle_scheduled_departure"].notna(), df["planned_departure"]
+                )
+                effective_predicted = df["vehicle_predicted_departure"].where(
+                    df["vehicle_predicted_departure"].notna(), df["actual_departure"]
+                )
+                upcoming = effective_predicted >= now
+                df = df[upcoming].copy()
+                effective_scheduled = effective_scheduled[upcoming]
+                effective_predicted = effective_predicted[upcoming]
+                order = effective_predicted.sort_values().index
+                df = df.loc[order]
+                effective_scheduled = effective_scheduled.loc[order]
+                effective_predicted = effective_predicted.loc[order]
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise SystemExit(1) from e
+
+    if df.empty:
+        console.print("[yellow]No departures found (outside service hours?)[/yellow]")
+        return
+
+    df = df.head(n)
+    effective_scheduled = effective_scheduled.loc[df.index]
+    effective_predicted = effective_predicted.loc[df.index]
+    delay_minutes = (effective_predicted - effective_scheduled).dt.total_seconds() / 60
+
+    board = pd.DataFrame(
+        {
+            "service": df["service"],
+            "destination": df["destination"],
+            "scheduled": effective_scheduled.dt.tz_convert(tz),
+            # No delay means no prediction to show — leave it blank rather than
+            # repeating the Scheduled value under a different column heading.
+            "predicted": effective_predicted.dt.tz_convert(tz).where(delay_minutes.round(1) != 0),
+            "due_in_minutes": ((effective_predicted - now).dt.total_seconds() / 60).round().astype(int),
+            "delay_minutes": delay_minutes,
+            "vehicle": df["vehicle_id"],
+        }
+    ).reset_index(drop=True)
+
+    if output_format == "csv":
+        output = board.to_csv(index=False)
+        if save:
+            with open(save, "w") as f:
+                f.write(output)
+            console.print(f"[green]Saved to {save}[/green]")
+        else:
+            click.echo(output)
+        return
+
+    if output_format == "json":
+        # DataFrame.to_json()'s date_format="iso" always normalises tz-aware timestamps to
+        # UTC ("Z"), discarding the local-time conversion above — format them ourselves instead.
+        json_board = board.copy()
+        json_board["scheduled"] = json_board["scheduled"].apply(lambda ts: ts.isoformat())
+        json_board["predicted"] = json_board["predicted"].apply(lambda ts: ts.isoformat() if pd.notna(ts) else None)
+        output = json_board.to_json(orient="records", indent=2)
+        if save:
+            with open(save, "w") as f:
+                f.write(output)
+            console.print(f"[green]Saved to {save}[/green]")
+        else:
+            click.echo(output)
+        return
+
+    from rich.table import Table
+
+    stop_name = df["stop_name"].iloc[0] if "stop_name" in df.columns else stop
+    table = Table(title=f"Departure board — {stop_name} ({tz})", show_lines=False)
+    table.add_column("Service", style="bold")
+    table.add_column("Destination")
+    table.add_column("Scheduled", style="cyan", no_wrap=True)
+    table.add_column("Predicted", style="cyan", no_wrap=True)
+    table.add_column("Due in", justify="right")
+    table.add_column("Vehicle", style="dim")
+
+    for _, row in board.iterrows():
+        delay = row["delay_minutes"]
+        if pd.isna(row["predicted"]):
+            predicted_cell = "[dim]-[/dim]"
+        else:
+            pred_style = "red" if delay > 0 else ("green" if delay < 0 else "")
+            predicted_str = row["predicted"].strftime("%H:%M")
+            predicted_cell = f"[{pred_style}]{predicted_str}[/{pred_style}]" if pred_style else predicted_str
+        vehicle_cell = row["vehicle"] if pd.notna(row["vehicle"]) else "[dim]-[/dim]"
+        table.add_row(
+            row["service"],
+            row["destination"],
+            row["scheduled"].strftime("%H:%M"),
+            predicted_cell,
+            f"{row['due_in_minutes']} min",
+            vehicle_cell,
+        )
+
+    console.print(table)
+
+    if save:
+        board.to_csv(save, index=False)
+        console.print(f"[green]Saved to {save}[/green]")
+
+
+@translink.command(name="find-stop")
+@click.argument("query")
+@click.option("--n", default=5, show_default=True, help="Maximum number of distinct stop names to match")
+@click.option(
+    "--cutoff",
+    default=0.6,
+    show_default=True,
+    help="Minimum similarity score (0-1) to include a match",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"]),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--save", help="Save output to file (specify filename)")
+def translink_find_stop_cmd(query, n, cutoff, output_format, save):
+    r"""Fuzzy-search for a Translink stop by name, entirely locally.
+
+    Matches against the local CIF stop table (no live request beyond the cached CIF
+    download) — unlike the stop resolution used by `departures`/`board`/`vehicles`,
+    which forwards to Translink's own live search and inherits whatever matching
+    their server does. Only finds stops present in the CIF table: around 15% of stops
+    seen in the live VMI feed aren't in it (newer stops) and won't show up here even
+    though they're real.
+
+    Examples:
+        bolster translink find-stop "victoria sq"
+        bolster translink find-stop "cambria steet" --cutoff 0.4
+    """
+    console = Console()
+
+    try:
+        with console.status(f"[bold green]Searching stops for '{query}'..."):
+            results = find_stop_fuzzy(query, n=n, cutoff=cutoff)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise SystemExit(1) from e
+
+    if not results:
+        console.print(
+            f"[yellow]No stops matched '{query}' at cutoff {cutoff}[/yellow] "
+            "(try a lower --cutoff, or `bolster translink board` which uses Translink's own live search)"
+        )
+        return
+
+    df = pd.DataFrame(results)
+
+    if output_format == "csv":
+        output = df.to_csv(index=False)
+        if save:
+            with open(save, "w") as f:
+                f.write(output)
+            console.print(f"[green]Saved to {save}[/green]")
+        else:
+            click.echo(output)
+        return
+
+    if output_format == "json":
+        output = df.to_json(orient="records", indent=2)
+        if save:
+            with open(save, "w") as f:
+                f.write(output)
+            console.print(f"[green]Saved to {save}[/green]")
+        else:
+            click.echo(output)
+        return
+
+    from rich.table import Table
+
+    table = Table(title=f"Stop search — '{query}'", show_lines=False)
+    table.add_column("ATCO Code", style="cyan")
+    table.add_column("Name", style="bold")
+    table.add_column("Score", justify="right")
+
+    for _, row in df.iterrows():
+        table.add_row(row["atco_code"], row["name"], f"{row['score']:.2f}")
 
     console.print(table)
 

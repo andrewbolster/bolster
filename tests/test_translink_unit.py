@@ -10,6 +10,7 @@ import zipfile
 import pandas as pd
 import pytest
 
+from bolster.data_sources.translink import stops
 from bolster.data_sources.translink._base import (
     OPERATOR_ALIASES,
     TranslinkValidationError,
@@ -17,10 +18,15 @@ from bolster.data_sources.translink._base import (
 )
 from bolster.data_sources.translink.departures import (
     _extract_line,
+    _greedy_assign_vehicles,
+    _hhmm_to_timestamp,
     _parse_departures,
+    _resolve_target_atcos,
+    _verified_passing_time,
+    get_departures,
     validate_departures,
 )
-from bolster.data_sources.translink.stops import _ing_to_wgs84, _parse_cif_zip
+from bolster.data_sources.translink.stops import _ing_to_wgs84, _parse_cif_zip, find_stop_fuzzy
 from bolster.data_sources.translink.timetable import (
     Trip,
     TripStop,
@@ -28,6 +34,7 @@ from bolster.data_sources.translink.timetable import (
     _parse_time_at,
     _trip_atco_to_stop_atco,
     find_direct_trips,
+    find_trip_for_vehicle,
 )
 from bolster.data_sources.translink.vehicles import (
     _normalise_operator,
@@ -318,6 +325,74 @@ class TestParseDepartures:
         df = _parse_departures([_make_departure()])
         assert df["is_real_time"].dtype == bool
         assert df["is_cancelled"].dtype == bool
+
+
+# ---------------------------------------------------------------------------
+# departures: get_departures -- pagination boundary
+# ---------------------------------------------------------------------------
+
+
+class TestGetDeparturesPaginationBoundary:
+    """The real API treats DepartureOrArrivalDate as an inclusive lower bound:
+    requesting exactly a prior page's last departure time returns that same
+    departure again (confirmed live), under a freshly-minted UniqueId each time
+    -- so dedup can't rely on UniqueId alone, and naively re-requesting the exact
+    boundary wastes a round trip re-fetching a row we already have."""
+
+    _TICKS_PER_MINUTE = 60 * 10_000_000
+    _BASE_TICKS = 638_529_990_000_000_000  # 2024-06-03 08:10:00 UTC
+
+    def _departure_at(self, minutes_from_base: int, unique_id: str) -> dict:
+        ticks = self._BASE_TICKS + minutes_from_base * self._TICKS_PER_MINUTE
+        return _make_departure(SysPlannedDepartureDate=ticks, SysActualDepartureDate=ticks, UniqueId=unique_id)
+
+    def test_boundary_row_not_duplicated_and_request_advances_past_it(self, monkeypatch):
+        from datetime import UTC, datetime
+
+        from bolster.data_sources.translink import departures
+
+        # Page 1: 8 departures 20 min apart (minutes 0, 20, ..., 140).
+        page1 = [self._departure_at(i * 20, f"page1-{i}") for i in range(8)]
+        # Page 2: the API re-returns the page-1 boundary (minute 140) under a new
+        # id, then continues with genuinely new departures.
+        page2 = [self._departure_at(140, "page2-boundary")] + [
+            self._departure_at(160 + i * 20, f"page2-{i}") for i in range(2)
+        ]
+
+        requested_dts: list[str] = []
+        responses = [page1, page2]
+
+        class _FakeResponse:
+            def __init__(self, deps):
+                self._deps = deps
+
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return {"ResponseCode": 200, "Result": {"Departures": self._deps}}
+
+        def fake_post(url, json, timeout):
+            requested_dts.append(json["DepartureOrArrivalDate"])
+            return _FakeResponse(responses[len(requested_dts) - 1] if len(requested_dts) <= len(responses) else [])
+
+        monkeypatch.setattr(departures.session, "post", fake_post)
+
+        result = get_departures("dummy-stop", n=10, dt=datetime(2024, 6, 3, 8, 0, tzinfo=UTC))
+
+        assert len(result) == 10
+        assert not result["planned_departure"].duplicated().any()
+
+        # Second request must advance exactly one second past page 1's last
+        # departure time (minute 140), not land exactly on it.
+        assert len(requested_dts) >= 2
+        second_dt = datetime.fromisoformat(requested_dts[1])
+        page1_boundary = (
+            net_ticks_to_timestamp(self._departure_at(140, "x")["SysActualDepartureDate"])
+            .to_pydatetime()
+            .replace(tzinfo=None)
+        )
+        assert second_dt == page1_boundary + pd.Timedelta(seconds=1)
 
 
 # ---------------------------------------------------------------------------
@@ -642,3 +717,528 @@ class TestFindDirectTrips:
         self._make_index_with_trip(stops)
         results = find_direct_trips("700000009999", "700000001001")
         assert results == []
+
+
+class TestFindStopFuzzy:
+    """find_stop_fuzzy's own grouping logic — stops.get_stop_dataframe monkeypatched
+    to a small synthetic table, so no network/CIF download is involved."""
+
+    @staticmethod
+    def _stub_dataframe(monkeypatch):
+        df = pd.DataFrame(
+            {"name": ["Victoria Street", "Victoria Street", "Victoria Road", "City Hall"]},
+            index=pd.Index(["700000000001", "700000000002", "700000000003", "700000000004"], name="atco_code"),
+        )
+        monkeypatch.setattr(stops, "get_stop_dataframe", lambda: df)
+
+    def test_expands_a_matched_name_to_every_sharing_atco_code(self, monkeypatch):
+        self._stub_dataframe(monkeypatch)
+
+        results = find_stop_fuzzy("victoria street")
+
+        matching = [r for r in results if r["name"] == "Victoria Street"]
+        assert {r["atco_code"] for r in matching} == {"700000000001", "700000000002"}
+        assert all(r["score"] == 1.0 for r in matching)
+
+    def test_results_sorted_best_first(self, monkeypatch):
+        self._stub_dataframe(monkeypatch)
+
+        results = find_stop_fuzzy("victoria", cutoff=0.0)
+
+        scores = [r["score"] for r in results]
+        assert scores == sorted(scores, reverse=True)
+
+    def test_no_match_returns_empty(self, monkeypatch):
+        self._stub_dataframe(monkeypatch)
+
+        assert find_stop_fuzzy("completely unrelated query") == []
+
+
+# ---------------------------------------------------------------------------
+# timetable: find_trip_for_vehicle
+# ---------------------------------------------------------------------------
+
+
+class TestFindTripForVehicle:
+    def _inject(self, monkeypatch, trips: list[Trip]) -> None:
+        from bolster.data_sources.translink import timetable
+
+        index: dict[tuple[str, str], list[Trip]] = {}
+        for trip in trips:
+            index.setdefault((trip.line.upper(), trip.depart_hhmm), []).append(trip)
+        monkeypatch.setattr(timetable, "_TRIPS_BY_LINE_DEPARTURE", index)
+
+    def _trip(self, **overrides) -> Trip:
+        defaults = {
+            "operator": "MET",
+            "line": "11E",
+            "description": "Test",
+            "depart_hhmm": "0846",
+            "date_from": "20260101",
+            "date_to": "99999999",
+            "days": "1111111",  # valid every day, to avoid weekday flakiness
+            "direction": "I",
+        }
+        defaults.update(overrides)
+        return Trip(**defaults)
+
+    def test_exact_line_and_time_match(self, monkeypatch):
+        from datetime import UTC, datetime
+
+        trip = self._trip()
+        self._inject(monkeypatch, [trip])
+        results = find_trip_for_vehicle("11E", "0846", ref_dt=datetime.now(tz=UTC))
+        assert results == [trip]
+
+    def test_case_insensitive_line(self, monkeypatch):
+        from datetime import UTC, datetime
+
+        trip = self._trip(line="11E")
+        self._inject(monkeypatch, [trip])
+        results = find_trip_for_vehicle("11e", "0846", ref_dt=datetime.now(tz=UTC))
+        assert results == [trip]
+
+    def test_no_match_for_different_time(self, monkeypatch):
+        from datetime import UTC, datetime
+
+        self._inject(monkeypatch, [self._trip(depart_hhmm="0846")])
+        results = find_trip_for_vehicle("11E", "0900", ref_dt=datetime.now(tz=UTC))
+        assert results == []
+
+    def test_excludes_trip_not_running_today(self, monkeypatch):
+        from datetime import UTC, datetime
+
+        # Saturday-only trip (index 5), checked against a Monday reference.
+        sat_only = self._trip(days="0000010")
+        self._inject(monkeypatch, [sat_only])
+        monday = datetime(2026, 10, 5, 8, 0, tzinfo=UTC)  # a real Monday
+        assert monday.weekday() == 0
+        results = find_trip_for_vehicle("11E", "0846", ref_dt=monday)
+        assert results == []
+
+    def test_excludes_trip_outside_date_range(self, monkeypatch):
+        from datetime import UTC, datetime
+
+        expired = self._trip(date_from="20200101", date_to="20200201")
+        self._inject(monkeypatch, [expired])
+        results = find_trip_for_vehicle("11E", "0846", ref_dt=datetime.now(tz=UTC))
+        assert results == []
+
+    def test_multiple_same_time_variants_both_returned(self, monkeypatch):
+        from datetime import UTC, datetime
+
+        a = self._trip(description="Variant A")
+        b = self._trip(description="Variant B")
+        self._inject(monkeypatch, [a, b])
+        results = find_trip_for_vehicle("11E", "0846", ref_dt=datetime.now(tz=UTC))
+        assert len(results) == 2
+
+    def test_unknown_line_returns_empty(self, monkeypatch):
+        from datetime import UTC, datetime
+
+        self._inject(monkeypatch, [self._trip()])
+        results = find_trip_for_vehicle("99Z", "0846", ref_dt=datetime.now(tz=UTC))
+        assert results == []
+
+
+# ---------------------------------------------------------------------------
+# departures: _resolve_target_atcos
+# ---------------------------------------------------------------------------
+
+
+class TestResolveTargetAtcos:
+    def _patch_stop_df(self, monkeypatch, rows: dict[str, str]) -> None:
+        from bolster.data_sources.translink import departures
+
+        df = pd.DataFrame({"name": list(rows.values())}, index=pd.Index(list(rows.keys()), name="atco_code"))
+        monkeypatch.setattr(departures, "get_stop_dataframe", lambda: df)
+
+    def test_strips_locality_prefix_for_confident_match(self, monkeypatch):
+        self._patch_stop_df(
+            monkeypatch,
+            {"700000001038": "Cambrai Street", "700000000001": "Clara Street", "700000000002": "Agra Street"},
+        )
+        result = _resolve_target_atcos("Shankill, Cambria Street")
+        assert result == ["700000001038"]
+
+    def test_exact_match_without_locality_prefix(self, monkeypatch):
+        self._patch_stop_df(monkeypatch, {"700000000003": "Castle Street"})
+        result = _resolve_target_atcos("Castle Street")
+        assert result == ["700000000003"]
+
+    def test_ties_at_top_score_all_included(self, monkeypatch):
+        # Both genuinely contain "Agnes Street" as a substring -> both score 1.0.
+        self._patch_stop_df(
+            monkeypatch,
+            {"700000000004": "Agnes Street", "700000000005": "Crumlin Road (Agnes Street)"},
+        )
+        result = _resolve_target_atcos("Oldpark, Agnes Street")
+        assert set(result) == {"700000000004", "700000000005"}
+
+    def test_no_confident_match_returns_empty(self, monkeypatch):
+        self._patch_stop_df(monkeypatch, {"700000000006": "Completely Unrelated Road"})
+        result = _resolve_target_atcos("Some Other Place, Nonexistent Street")
+        assert result == []
+
+
+# ---------------------------------------------------------------------------
+# departures: _hhmm_to_timestamp
+# ---------------------------------------------------------------------------
+
+
+class TestHhmmToTimestamp:
+    def test_applies_bst_offset_during_bst(self):
+        # CIF/VMI HHMM is genuine Europe/London local time -- confirmed against a
+        # vehicle whose live current_stop was the target stop itself (so its CIF
+        # passing time must be close to real "now"). During BST, local "09:04"
+        # must land on UTC 08:04, not 09:04 (a since-reverted version of this
+        # function wrongly treated HHMM as already-UTC, off by exactly one DST
+        # hour -- a bug masked for a while by 20-minute-interval schedules, where
+        # a 60-minute error still coincidentally lines up with some real row).
+        ref = pd.Timestamp("2026-10-02 08:26:00", tz="UTC")  # a BST-era date
+        result = _hhmm_to_timestamp("0904", ref)
+        assert result == pd.Timestamp("2026-10-02 08:04:00", tz="UTC")
+
+    def test_same_calendar_date_as_ref(self):
+        ref = pd.Timestamp("2026-10-02 23:50:00", tz="UTC")
+        result = _hhmm_to_timestamp("0100", ref)
+        assert result.tz_convert("Europe/London").date() == ref.tz_convert("Europe/London").date()
+
+    def test_invalid_hhmm_returns_none(self):
+        ref = pd.Timestamp("2026-10-02 08:00:00", tz="UTC")
+        assert _hhmm_to_timestamp("not-a-time", ref) is None
+
+
+# ---------------------------------------------------------------------------
+# departures: _verified_passing_time
+# ---------------------------------------------------------------------------
+
+
+class TestVerifiedPassingTime:
+    def _inject_trip(self, monkeypatch, trip: Trip) -> None:
+        from bolster.data_sources.translink import timetable
+
+        monkeypatch.setattr(timetable, "_TRIPS_BY_LINE_DEPARTURE", {(trip.line.upper(), trip.depart_hhmm): [trip]})
+
+    def _trip_with_stops(self) -> Trip:
+        trip = Trip(
+            operator="MET",
+            line="11E",
+            description="Test",
+            depart_hhmm="0846",
+            date_from="20260101",
+            date_to="99999999",
+            days="1111111",
+            direction="I",
+        )
+        trip.stops = [
+            TripStop(atco="700000000001", arrive="", depart="0846", seq=0),
+            TripStop(atco="700000001006", arrive="0903", depart="0903", seq=12),  # Ardoyne Shops
+            TripStop(atco="700000001036", arrive="0903", depart="0903", seq=13),  # Ardoyne
+            TripStop(atco="700000001038", arrive="0904", depart="0904", seq=14),  # Cambrai Street
+        ]
+        return trip
+
+    def test_vehicle_before_target_is_verified(self, monkeypatch):
+        trip = self._trip_with_stops()
+        self._inject_trip(monkeypatch, trip)
+        ref_dt = pd.Timestamp("2026-10-02 08:50:00", tz="UTC")
+        result = _verified_passing_time("11E", "0846", "700000001006", "700000001036", ["700000001038"], ref_dt)
+        # "0904" is Europe/London local; during BST that's UTC 08:04, not 09:04.
+        # No delay given -> scheduled and predicted are the same CIF time. The
+        # trip's terminus (also 700000001038, a single-stop fixture trip) names
+        # the destination hint.
+        assert result == (
+            pd.Timestamp("2026-10-02 08:04:00", tz="UTC"),
+            pd.Timestamp("2026-10-02 08:04:00", tz="UTC"),
+            "Cambrai Street",
+        )
+
+    def test_vehicle_after_target_is_rejected(self, monkeypatch):
+        # The real Ardoyne/Cambria regression case, inverted: vehicle already past
+        # the target stop (seq 14) must not be verified, even though line/direction
+        # and timing proximity would otherwise look plausible.
+        trip = self._trip_with_stops()
+        self._inject_trip(monkeypatch, trip)
+        ref_dt = pd.Timestamp("2026-10-02 08:50:00", tz="UTC")
+        # Vehicle at seq 14 (the target itself) or beyond has already passed/reached it
+        # going further; simulate "beyond" with a stop not before the target.
+        result = _verified_passing_time(
+            "11E",
+            "0846",
+            None,
+            "700000000999",  # unknown stop, not in this trip -> can't verify as "before"
+            ["700000001038"],
+            ref_dt,
+        )
+        assert result is None
+
+    def test_no_target_atcos_returns_none(self, monkeypatch):
+        trip = self._trip_with_stops()
+        self._inject_trip(monkeypatch, trip)
+        ref_dt = pd.Timestamp("2026-10-02 08:50:00", tz="UTC")
+        result = _verified_passing_time("11E", "0846", "700000001006", "700000001036", [], ref_dt)
+        assert result is None
+
+    def test_trip_not_calling_at_target_returns_none(self, monkeypatch):
+        trip = self._trip_with_stops()
+        self._inject_trip(monkeypatch, trip)
+        ref_dt = pd.Timestamp("2026-10-02 08:50:00", tz="UTC")
+        result = _verified_passing_time("11E", "0846", "700000001006", "700000001036", ["700000099999"], ref_dt)
+        assert result is None
+
+    def test_positive_delay_shifts_predicted_time_later(self, monkeypatch):
+        # Found live: the journey-planner's own delay field doesn't reliably
+        # reflect a significantly late bus, but the vehicle's own VMI
+        # delay_seconds does -- this is what makes that usable.
+        trip = self._trip_with_stops()
+        self._inject_trip(monkeypatch, trip)
+        ref_dt = pd.Timestamp("2026-10-02 08:50:00", tz="UTC")
+        result = _verified_passing_time(
+            "11E", "0846", "700000001006", "700000001036", ["700000001038"], ref_dt, vehicle_delay_seconds=300
+        )
+        # Scheduled stays the unadjusted CIF time; predicted is +5 min.
+        assert result == (
+            pd.Timestamp("2026-10-02 08:04:00", tz="UTC"),
+            pd.Timestamp("2026-10-02 08:09:00", tz="UTC"),
+            "Cambrai Street",
+        )
+
+    def test_negative_delay_shifts_predicted_time_earlier(self, monkeypatch):
+        trip = self._trip_with_stops()
+        self._inject_trip(monkeypatch, trip)
+        ref_dt = pd.Timestamp("2026-10-02 08:50:00", tz="UTC")
+        result = _verified_passing_time(
+            "11E", "0846", "700000001006", "700000001036", ["700000001038"], ref_dt, vehicle_delay_seconds=-60
+        )
+        assert result == (
+            pd.Timestamp("2026-10-02 08:04:00", tz="UTC"),
+            pd.Timestamp("2026-10-02 08:03:00", tz="UTC"),
+            "Cambrai Street",
+        )
+
+    def test_missing_delay_falls_back_to_unadjusted_cif_time(self, monkeypatch):
+        # VMI's realtime_available=False case: delay_seconds is NA, not 0 -- must
+        # not error, and must not be treated as a real zero-delay measurement.
+        trip = self._trip_with_stops()
+        self._inject_trip(monkeypatch, trip)
+        ref_dt = pd.Timestamp("2026-10-02 08:50:00", tz="UTC")
+        result = _verified_passing_time(
+            "11E", "0846", "700000001006", "700000001036", ["700000001038"], ref_dt, vehicle_delay_seconds=pd.NA
+        )
+        assert result == (
+            pd.Timestamp("2026-10-02 08:04:00", tz="UTC"),
+            pd.Timestamp("2026-10-02 08:04:00", tz="UTC"),
+            "Cambrai Street",
+        )
+
+
+# ---------------------------------------------------------------------------
+# departures: _greedy_assign_vehicles
+# ---------------------------------------------------------------------------
+
+
+class TestGreedyAssignVehicles:
+    def test_closest_pair_wins(self):
+        pairs = [
+            (0, 10, pd.Timedelta(minutes=5)),
+            (0, 11, pd.Timedelta(minutes=1)),
+        ]
+        assert _greedy_assign_vehicles(pairs) == {0: 11}
+
+    def test_vehicle_not_reused_across_departures(self):
+        # The exact bug found live: TM-3587 within 60 min of two adjacent
+        # departures must only be assigned to the closer one.
+        pairs = [
+            (0, 99, pd.Timedelta(minutes=2)),
+            (1, 99, pd.Timedelta(minutes=20)),
+        ]
+        result = _greedy_assign_vehicles(pairs)
+        assert result == {0: 99}
+        assert 1 not in result
+
+    def test_departure_not_matched_twice(self):
+        pairs = [
+            (0, 1, pd.Timedelta(minutes=10)),
+            (0, 2, pd.Timedelta(minutes=5)),
+        ]
+        result = _greedy_assign_vehicles(pairs)
+        assert len(result) == 1
+        assert result[0] == 2
+
+    def test_empty_pairs_returns_empty(self):
+        assert _greedy_assign_vehicles([]) == {}
+
+
+# ---------------------------------------------------------------------------
+# departures: get_departures_with_vehicles -- synthesized row for an
+# unmatched-but-verified vehicle
+# ---------------------------------------------------------------------------
+
+
+class TestGetDeparturesWithVehiclesSynthesizesUnmatchedVehicle:
+    """A verified vehicle whose own row has rolled out of the journey-planner's
+    fetchable range must get its own row, not be dropped or cannibalize an
+    unrelated departure (the TM-3668 case, and the user's correction that
+    dropping exactly these buses is not an acceptable trade-off)."""
+
+    def test_unmatched_verified_vehicle_gets_own_row_without_touching_others(self, monkeypatch):
+        from datetime import UTC, datetime
+
+        from bolster.data_sources.translink import departures
+
+        dt = datetime(2026, 10, 2, 15, 0, tzinfo=UTC)
+        dt_aware = pd.Timestamp(dt)
+
+        # One real, unrelated departure far outside any 5-minute match window --
+        # must survive untouched, with no vehicle attached.
+        unrelated_planned = dt_aware + pd.Timedelta(minutes=30)
+        deps = pd.DataFrame(
+            [
+                {
+                    "stop_name": "Fake Stop",
+                    "planned_departure": unrelated_planned,
+                    "actual_departure": unrelated_planned,
+                    "service": "11A",
+                    "destination": "Belfast, CastleCourt",
+                    "transport_mode": "Bus",
+                    "is_real_time": False,
+                    "is_cancelled": False,
+                    "delay_minutes": 0.0,
+                    "unique_id": "real-row-1",
+                }
+            ]
+        )
+        monkeypatch.setattr(departures, "get_departures_by_name", lambda stop_name, n, dt: deps)
+
+        vehicles = pd.DataFrame(
+            [
+                {
+                    "vehicle_id": "TM-9999",
+                    "line": "11A",
+                    "direction": "City Centre",
+                    "latitude": 54.6,
+                    "longitude": -5.95,
+                    "delay_seconds": 300,
+                    "journey_id": "1234",
+                    "current_stop": "700000000001",
+                    "next_stop": "700000000002",
+                }
+            ]
+        )
+        monkeypatch.setattr(
+            "bolster.data_sources.translink.vehicles.get_live_vehicles",
+            lambda line, enrich_stops=False: vehicles,
+        )
+
+        # This vehicle's true CIF-scheduled slot has already rolled into the
+        # past -- nowhere near the one (unrelated) departure row above -- but
+        # it's running late enough that it's still genuinely inbound (its own
+        # delay-adjusted predicted time is still ahead of "now").
+        verified_scheduled = dt_aware - pd.Timedelta(minutes=10)
+        verified_predicted = verified_scheduled + pd.Timedelta(minutes=15)
+
+        def fake_verified(
+            vehicle_line,
+            vehicle_journey_id,
+            vehicle_current_stop,
+            vehicle_next_stop,
+            target_atcos,
+            ref_dt,
+            vehicle_delay_seconds=None,
+        ):
+            # A sibling departure shares this vehicle's line+direction (see
+            # `deps` above), so the destination hint below is unused here --
+            # covered separately by
+            # test_destination_falls_back_to_cif_terminus_hint_when_no_sibling.
+            return verified_scheduled, verified_predicted, "Unused Hint"
+
+        monkeypatch.setattr(departures, "_verified_passing_time", fake_verified)
+
+        result = departures.get_departures_with_vehicles("Fake Stop", n=5, dt=dt)
+
+        assert len(result) == 2
+
+        unrelated_row = result[result["unique_id"] == "real-row-1"].iloc[0]
+        assert pd.isna(unrelated_row["vehicle_id"])
+        assert unrelated_row["planned_departure"] == unrelated_planned
+
+        synthesized = result[result["unique_id"] != "real-row-1"].iloc[0]
+        assert synthesized["vehicle_id"] == "TM-9999"
+        assert synthesized["service"] == "Bus 11A"
+        assert synthesized["destination"] == "Belfast, CastleCourt"
+        assert synthesized["planned_departure"] == verified_scheduled
+        assert synthesized["vehicle_scheduled_departure"] == verified_scheduled
+        assert synthesized["vehicle_predicted_departure"] == verified_predicted
+
+    def test_destination_falls_back_to_cif_terminus_hint_when_no_sibling(self, monkeypatch):
+        """Found live at Donegall Place: a low-frequency line (e.g. "14") with no
+        other same-line departure in the fetched window left Destination blank.
+        It should fall back to the verified trip's own CIF terminus name instead."""
+        from datetime import UTC, datetime
+
+        from bolster.data_sources.translink import departures
+
+        dt = datetime(2026, 10, 2, 15, 0, tzinfo=UTC)
+        dt_aware = pd.Timestamp(dt)
+
+        # No "14" departure at all in the schedule pool -- nothing to borrow
+        # destination text from.
+        deps = pd.DataFrame(
+            [
+                {
+                    "stop_name": "Fake Hub",
+                    "planned_departure": dt_aware + pd.Timedelta(minutes=30),
+                    "actual_departure": dt_aware + pd.Timedelta(minutes=30),
+                    "service": "11A",
+                    "destination": "Belfast, CastleCourt",
+                    "transport_mode": "Bus",
+                    "is_real_time": False,
+                    "is_cancelled": False,
+                    "delay_minutes": 0.0,
+                    "unique_id": "real-row-1",
+                }
+            ]
+        )
+        monkeypatch.setattr(departures, "get_departures_by_name", lambda stop_name, n, dt: deps)
+
+        vehicles = pd.DataFrame(
+            [
+                {
+                    "vehicle_id": "TM-0001",
+                    "line": "14",
+                    "direction": "City Express",
+                    "latitude": 54.6,
+                    "longitude": -5.95,
+                    "delay_seconds": 34,
+                    "journey_id": "1750",
+                    "current_stop": "700000001786",
+                    "next_stop": "700000001661",
+                }
+            ]
+        )
+        monkeypatch.setattr(
+            "bolster.data_sources.translink.vehicles.get_live_vehicles",
+            lambda line, enrich_stops=False: vehicles,
+        )
+
+        verified_scheduled = dt_aware - pd.Timedelta(minutes=5)
+        verified_predicted = verified_scheduled + pd.Timedelta(minutes=10)
+
+        def fake_verified(
+            vehicle_line,
+            vehicle_journey_id,
+            vehicle_current_stop,
+            vehicle_next_stop,
+            target_atcos,
+            ref_dt,
+            vehicle_delay_seconds=None,
+        ):
+            return verified_scheduled, verified_predicted, "Glebe Road"
+
+        monkeypatch.setattr(departures, "_verified_passing_time", fake_verified)
+
+        result = departures.get_departures_with_vehicles("Fake Hub", n=5, dt=dt)
+
+        synthesized = result[result["service"] == "Bus 14"].iloc[0]
+        assert synthesized["destination"] == "Glebe Road"
