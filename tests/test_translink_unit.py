@@ -818,18 +818,22 @@ class TestResolveTargetAtcos:
 
 
 class TestHhmmToTimestamp:
-    def test_maps_directly_to_utc_no_dst_shift(self):
-        # The whole point of this function: during BST, "0904" must land on UTC
-        # 09:04, not 08:04 -- confirmed empirically against real departure data
-        # (an earlier version wrongly round-tripped through Europe/London).
+    def test_applies_bst_offset_during_bst(self):
+        # CIF/VMI HHMM is genuine Europe/London local time -- confirmed against a
+        # vehicle whose live current_stop was the target stop itself (so its CIF
+        # passing time must be close to real "now"). During BST, local "09:04"
+        # must land on UTC 08:04, not 09:04 (a since-reverted version of this
+        # function wrongly treated HHMM as already-UTC, off by exactly one DST
+        # hour -- a bug masked for a while by 20-minute-interval schedules, where
+        # a 60-minute error still coincidentally lines up with some real row).
         ref = pd.Timestamp("2026-10-02 08:26:00", tz="UTC")  # a BST-era date
         result = _hhmm_to_timestamp("0904", ref)
-        assert result == pd.Timestamp("2026-10-02 09:04:00", tz="UTC")
+        assert result == pd.Timestamp("2026-10-02 08:04:00", tz="UTC")
 
     def test_same_calendar_date_as_ref(self):
         ref = pd.Timestamp("2026-10-02 23:50:00", tz="UTC")
         result = _hhmm_to_timestamp("0100", ref)
-        assert result.date() == ref.date()
+        assert result.tz_convert("Europe/London").date() == ref.tz_convert("Europe/London").date()
 
     def test_invalid_hhmm_returns_none(self):
         ref = pd.Timestamp("2026-10-02 08:00:00", tz="UTC")
@@ -871,7 +875,8 @@ class TestVerifiedPassingTime:
         self._inject_trip(monkeypatch, trip)
         ref_dt = pd.Timestamp("2026-10-02 08:50:00", tz="UTC")
         result = _verified_passing_time("11E", "0846", "700000001006", "700000001036", ["700000001038"], ref_dt)
-        assert result == pd.Timestamp("2026-10-02 09:04:00", tz="UTC")
+        # "0904" is Europe/London local; during BST that's UTC 08:04, not 09:04.
+        assert result == pd.Timestamp("2026-10-02 08:04:00", tz="UTC")
 
     def test_vehicle_after_target_is_rejected(self, monkeypatch):
         # The real Ardoyne/Cambria regression case, inverted: vehicle already past

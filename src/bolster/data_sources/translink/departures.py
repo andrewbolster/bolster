@@ -312,20 +312,27 @@ def _vmi_direction(direction_text: str) -> str:
 
 
 def _hhmm_to_timestamp(hhmm: str, ref: "pd.Timestamp") -> "pd.Timestamp | None":
-    """Convert a CIF-nominal HHMM time to a UTC Timestamp on ref's date.
+    """Convert an HHMM Europe/London local time to a UTC Timestamp on ref's date.
 
-    CIF (and VMI journey_id) HHMM values are nominal schedule minutes, not
-    seasonally DST-adjusted — confirmed empirically against 8 independent live
-    vehicles across two stops: every one of their CIF-predicted passing times
-    matched a real departure-board UTC timestamp to the exact minute, a full hour
-    "early" versus true Europe/London local time during BST. An earlier version of
-    this function wrongly treated the HHMM as genuine Europe/London local time,
-    producing passing times exactly one hour off during BST and misattributing
-    vehicles to the nearest-available-but-wrong departure row. So: map the HHMM
-    directly onto ref's UTC calendar date, no DST conversion.
+    CIF (and VMI journey_id) HHMM values are genuine Europe/London local civil
+    time, DST included — confirmed by the cleanest possible test: a vehicle whose
+    live current_stop *is* the target stop itself (so it's there right now) must
+    have a CIF-predicted passing time close to the real "now". For TM-3562 at
+    Berlin Street, CIF said "1305"; treating that as local gave 13:05 BST, ~5 min
+    before a real "now" of 13:09 BST — right. Treating it as nominal/UTC-direct
+    (an earlier, wrong version of this function) gave 14:05 BST, nearly an hour in
+    the future for a vehicle already standing at the stop.
+
+    An earlier "confirmation" that HHMM was nominal/non-DST, checked across 8
+    vehicles, turned out to be a measurement artifact: Metro services commonly run
+    every 20 minutes, and a 60-minute (one full DST hour) error is an exact
+    multiple of 20 — so a wrong interpretation still lands exactly on *some* real
+    departure row three slots over, by schedule periodicity alone, not because
+    it's actually correct. Checking against a vehicle's own live position (not
+    just "does some nearby timestamp happen to line up") is what caught it.
 
     Args:
-        hhmm: Four-digit nominal time, e.g. ``"0904"``.
+        hhmm: Four-digit local time, e.g. ``"0904"``.
         ref: Any UTC timestamp on the intended calendar date.
 
     Returns:
@@ -333,8 +340,9 @@ def _hhmm_to_timestamp(hhmm: str, ref: "pd.Timestamp") -> "pd.Timestamp | None":
     """
     try:
         h, m = int(hhmm[:2]), int(hhmm[2:])
-        ref_utc = ref.tz_convert("UTC")
-        return ref_utc.normalize() + pd.Timedelta(hours=h, minutes=m)
+        ref_local = ref.tz_convert("Europe/London")
+        local_dt = ref_local.normalize() + pd.Timedelta(hours=h, minutes=m)
+        return local_dt.tz_localize(None).tz_localize("Europe/London").tz_convert("UTC")
     except (ValueError, IndexError, Exception):
         return None
 
