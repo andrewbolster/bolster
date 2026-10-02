@@ -945,8 +945,14 @@ class TestVerifiedPassingTime:
         ref_dt = pd.Timestamp("2026-10-02 08:50:00", tz="UTC")
         result = _verified_passing_time("11E", "0846", "700000001006", "700000001036", ["700000001038"], ref_dt)
         # "0904" is Europe/London local; during BST that's UTC 08:04, not 09:04.
-        # No delay given -> scheduled and predicted are the same CIF time.
-        assert result == (pd.Timestamp("2026-10-02 08:04:00", tz="UTC"), pd.Timestamp("2026-10-02 08:04:00", tz="UTC"))
+        # No delay given -> scheduled and predicted are the same CIF time. The
+        # trip's terminus (also 700000001038, a single-stop fixture trip) names
+        # the destination hint.
+        assert result == (
+            pd.Timestamp("2026-10-02 08:04:00", tz="UTC"),
+            pd.Timestamp("2026-10-02 08:04:00", tz="UTC"),
+            "Cambrai Street",
+        )
 
     def test_vehicle_after_target_is_rejected(self, monkeypatch):
         # The real Ardoyne/Cambria regression case, inverted: vehicle already past
@@ -992,7 +998,11 @@ class TestVerifiedPassingTime:
             "11E", "0846", "700000001006", "700000001036", ["700000001038"], ref_dt, vehicle_delay_seconds=300
         )
         # Scheduled stays the unadjusted CIF time; predicted is +5 min.
-        assert result == (pd.Timestamp("2026-10-02 08:04:00", tz="UTC"), pd.Timestamp("2026-10-02 08:09:00", tz="UTC"))
+        assert result == (
+            pd.Timestamp("2026-10-02 08:04:00", tz="UTC"),
+            pd.Timestamp("2026-10-02 08:09:00", tz="UTC"),
+            "Cambrai Street",
+        )
 
     def test_negative_delay_shifts_predicted_time_earlier(self, monkeypatch):
         trip = self._trip_with_stops()
@@ -1001,7 +1011,11 @@ class TestVerifiedPassingTime:
         result = _verified_passing_time(
             "11E", "0846", "700000001006", "700000001036", ["700000001038"], ref_dt, vehicle_delay_seconds=-60
         )
-        assert result == (pd.Timestamp("2026-10-02 08:04:00", tz="UTC"), pd.Timestamp("2026-10-02 08:03:00", tz="UTC"))
+        assert result == (
+            pd.Timestamp("2026-10-02 08:04:00", tz="UTC"),
+            pd.Timestamp("2026-10-02 08:03:00", tz="UTC"),
+            "Cambrai Street",
+        )
 
     def test_missing_delay_falls_back_to_unadjusted_cif_time(self, monkeypatch):
         # VMI's realtime_available=False case: delay_seconds is NA, not 0 -- must
@@ -1012,7 +1026,11 @@ class TestVerifiedPassingTime:
         result = _verified_passing_time(
             "11E", "0846", "700000001006", "700000001036", ["700000001038"], ref_dt, vehicle_delay_seconds=pd.NA
         )
-        assert result == (pd.Timestamp("2026-10-02 08:04:00", tz="UTC"), pd.Timestamp("2026-10-02 08:04:00", tz="UTC"))
+        assert result == (
+            pd.Timestamp("2026-10-02 08:04:00", tz="UTC"),
+            pd.Timestamp("2026-10-02 08:04:00", tz="UTC"),
+            "Cambrai Street",
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -1129,7 +1147,11 @@ class TestGetDeparturesWithVehiclesSynthesizesUnmatchedVehicle:
             ref_dt,
             vehicle_delay_seconds=None,
         ):
-            return verified_scheduled, verified_predicted
+            # A sibling departure shares this vehicle's line+direction (see
+            # `deps` above), so the destination hint below is unused here --
+            # covered separately by
+            # test_destination_falls_back_to_cif_terminus_hint_when_no_sibling.
+            return verified_scheduled, verified_predicted, "Unused Hint"
 
         monkeypatch.setattr(departures, "_verified_passing_time", fake_verified)
 
@@ -1148,3 +1170,75 @@ class TestGetDeparturesWithVehiclesSynthesizesUnmatchedVehicle:
         assert synthesized["planned_departure"] == verified_scheduled
         assert synthesized["vehicle_scheduled_departure"] == verified_scheduled
         assert synthesized["vehicle_predicted_departure"] == verified_predicted
+
+    def test_destination_falls_back_to_cif_terminus_hint_when_no_sibling(self, monkeypatch):
+        """Found live at Donegall Place: a low-frequency line (e.g. "14") with no
+        other same-line departure in the fetched window left Destination blank.
+        It should fall back to the verified trip's own CIF terminus name instead."""
+        from datetime import UTC, datetime
+
+        from bolster.data_sources.translink import departures
+
+        dt = datetime(2026, 10, 2, 15, 0, tzinfo=UTC)
+        dt_aware = pd.Timestamp(dt)
+
+        # No "14" departure at all in the schedule pool -- nothing to borrow
+        # destination text from.
+        deps = pd.DataFrame(
+            [
+                {
+                    "stop_name": "Fake Hub",
+                    "planned_departure": dt_aware + pd.Timedelta(minutes=30),
+                    "actual_departure": dt_aware + pd.Timedelta(minutes=30),
+                    "service": "11A",
+                    "destination": "Belfast, CastleCourt",
+                    "transport_mode": "Bus",
+                    "is_real_time": False,
+                    "is_cancelled": False,
+                    "delay_minutes": 0.0,
+                    "unique_id": "real-row-1",
+                }
+            ]
+        )
+        monkeypatch.setattr(departures, "get_departures_by_name", lambda stop_name, n, dt: deps)
+
+        vehicles = pd.DataFrame(
+            [
+                {
+                    "vehicle_id": "TM-0001",
+                    "line": "14",
+                    "direction": "City Express",
+                    "latitude": 54.6,
+                    "longitude": -5.95,
+                    "delay_seconds": 34,
+                    "journey_id": "1750",
+                    "current_stop": "700000001786",
+                    "next_stop": "700000001661",
+                }
+            ]
+        )
+        monkeypatch.setattr(
+            "bolster.data_sources.translink.vehicles.get_live_vehicles",
+            lambda line, enrich_stops=False: vehicles,
+        )
+
+        verified_scheduled = dt_aware - pd.Timedelta(minutes=5)
+        verified_predicted = verified_scheduled + pd.Timedelta(minutes=10)
+
+        def fake_verified(
+            vehicle_line,
+            vehicle_journey_id,
+            vehicle_current_stop,
+            vehicle_next_stop,
+            target_atcos,
+            ref_dt,
+            vehicle_delay_seconds=None,
+        ):
+            return verified_scheduled, verified_predicted, "Glebe Road"
+
+        monkeypatch.setattr(departures, "_verified_passing_time", fake_verified)
+
+        result = departures.get_departures_with_vehicles("Fake Hub", n=5, dt=dt)
+
+        synthesized = result[result["service"] == "Bus 14"].iloc[0]
+        assert synthesized["destination"] == "Glebe Road"

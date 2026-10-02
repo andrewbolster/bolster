@@ -39,7 +39,7 @@ from ._base import (
     TranslinkValidationError,
     net_ticks_to_timestamp,
 )
-from .stops import find_stop, get_stop_dataframe
+from .stops import find_stop, get_stop_dataframe, resolve_stop_name
 from .timetable import find_trip_for_vehicle
 
 logger = logging.getLogger(__name__)
@@ -365,22 +365,33 @@ def _verified_passing_time(
     target_atcos: list[str],
     ref_dt: "pd.Timestamp",
     vehicle_delay_seconds: Any = None,
-) -> "tuple[pd.Timestamp, pd.Timestamp] | None":
-    """CIF-scheduled and vehicle-predicted time a verified vehicle passes one of ``target_atcos``.
+) -> "tuple[pd.Timestamp, pd.Timestamp, str | None] | None":
+    """CIF-scheduled/predicted passing time (and a destination hint) for a verified vehicle.
 
     None if the vehicle's trip can't be verified (via the CIF timetable) as calling
     at any of ``target_atcos``, or as not yet having passed it.
 
-    Returns both the unadjusted CIF-scheduled passing time and that same time
-    adjusted by the vehicle's own live ``delay_seconds`` (when available) — always
-    as a pair, from the one trip that was actually verified, so a caller never ends
-    up pairing one of these with an unrelated schedule/prediction sourced elsewhere
-    (found live: a vehicle whose true departure row had already rolled out of the
-    journey-planner's retrievable window — confirmed separately that the API
-    silently ignores a `DepartureOrArrivalDate` in the past rather than genuinely
-    looking back — got greedily paired with the nearest *available* but wrong row,
+    Returns the unadjusted CIF-scheduled passing time, that same time adjusted by
+    the vehicle's own live ``delay_seconds`` (when available), and the verified
+    trip's own terminus stop name as a destination hint (``None`` if that stop
+    isn't in the local CIF lookup) — always together, from the one trip that was
+    actually verified, so a caller never ends up pairing one of these with an
+    unrelated schedule/prediction/destination sourced elsewhere (found live: a
+    vehicle whose true departure row had already rolled out of the journey-
+    planner's retrievable window — confirmed separately that the API silently
+    ignores a `DepartureOrArrivalDate` in the past rather than genuinely looking
+    back — got greedily paired with the nearest *available* but wrong row,
     producing a "Predicted" time earlier than the "Scheduled" time it was shown
     next to, because the two numbers came from different, unrelated sources).
+
+    The destination hint exists only for a vehicle that ends up with no matching
+    departure row to borrow display text from (see
+    :func:`get_departures_with_vehicles`) — it's a CIF stop name (e.g. "Donegall
+    Place"), not the journey-planner's own "Belfast, Donegall Place" style text,
+    and for a circular route the trip's technical terminus isn't a meaningful
+    "where's this bus going" answer at all (e.g. route 14's CIF terminus is
+    "Glebe Road", a stop on its way back round, not a rider-facing destination) —
+    so it's a best-effort fallback, not a guaranteed-accurate one.
 
     The predicted value is more accurate than both the vehicle's origin-departure
     journey_id alone (travel time to this particular stop varies by how far into
@@ -403,7 +414,8 @@ def _verified_passing_time(
                                adjustment (VMI's ``realtime_available=False`` case).
 
     Returns:
-        ``(cif_scheduled, predicted)``, both UTC, or ``None``.
+        ``(cif_scheduled, predicted, destination_hint)``; the first two UTC, the
+        third a stop name or ``None``. Or ``None`` if unverified.
     """
     if not target_atcos:
         return None
@@ -425,7 +437,8 @@ def _verified_passing_time(
         if scheduled is None:
             continue
         delay = vehicle_delay_seconds if pd.notna(vehicle_delay_seconds) else 0
-        return scheduled, scheduled + pd.Timedelta(seconds=float(delay))
+        destination_hint = resolve_stop_name(trip.stops[-1].atco, fallback=False)
+        return scheduled, scheduled + pd.Timedelta(seconds=float(delay)), destination_hint
     return None
 
 
@@ -503,7 +516,14 @@ def get_departures_with_vehicles(
     to show, not a case to drop) — so it gets a row of its own instead:
     ``service``/``destination`` borrowed from any other departure sharing its
     line+direction (for consistent display text; never used for timing), with its
-    own CIF-derived schedule/prediction.
+    own CIF-derived schedule/prediction. When no such sibling departure exists
+    (a low-frequency line at a busy, many-line hub — found live at Donegall
+    Place: routes 14/1E/2A had no other same-line departure in the fetched
+    window to borrow from), ``destination`` falls back to the verified trip's
+    own CIF terminus stop name instead of being left blank; this fallback uses a
+    different naming style than the journey-planner's own text and, for a
+    circular route, isn't always a meaningful destination — better than blank,
+    not guaranteed polished.
 
     Assignment across departures is a greedy nearest-match: pairs are sorted by
     schedule-time delta and assigned closest-first, each departure and each
@@ -591,7 +611,7 @@ def get_departures_with_vehicles(
     # Verify every candidate vehicle once (not once per departure row sharing its
     # line+direction -- that was redundant work and made it awkward to tell
     # whether a verified vehicle ended up used anywhere at all).
-    verified: dict[int, tuple[pd.Timestamp, pd.Timestamp]] = {}
+    verified: dict[int, tuple[pd.Timestamp, pd.Timestamp, str | None]] = {}
     for v_idx, v in vehicles.iterrows():
         result_v = _verified_passing_time(
             v["line"],
@@ -626,7 +646,7 @@ def get_departures_with_vehicles(
         for v_idx in candidates.index:
             if v_idx not in verified:
                 continue
-            scheduled, _ = verified[v_idx]
+            scheduled, _, _ = verified[v_idx]
             delta = abs(dep["planned_departure"] - scheduled)
             if delta < pd.Timedelta(minutes=5):
                 pairs.append((dep_idx, v_idx, delta))
@@ -635,7 +655,7 @@ def get_departures_with_vehicles(
 
     def _apply_vehicle_cols(row: dict[str, Any], v_idx: int) -> None:
         best_match = vehicles.loc[v_idx]
-        scheduled, predicted = verified[v_idx]
+        scheduled, predicted, _ = verified[v_idx]
         row["vehicle_id"] = best_match["vehicle_id"]
         row["vehicle_lat"] = best_match["latitude"]
         row["vehicle_lon"] = best_match["longitude"]
@@ -677,12 +697,19 @@ def get_departures_with_vehicles(
             (deps["service"].apply(_extract_line).str.upper() == line.upper())
             & (deps["destination"].apply(_dep_direction) == direction)
         ]
-        scheduled, predicted = verified[v_idx]
+        scheduled, predicted, destination_hint = verified[v_idx]
+        # Prefer a sibling departure's own text (matches the journey-planner's
+        # "Belfast, Donegall Place" style used elsewhere on the board); fall back
+        # to the verified trip's own CIF terminus name only when no sibling
+        # exists to borrow from -- that CIF name uses a different style and, for
+        # a circular route, isn't necessarily a meaningful destination at all, so
+        # it's a best-effort fallback rather than something to prefer.
+        destination = same_line["destination"].iloc[0] if not same_line.empty else (destination_hint or "")
         row = {
             "planned_departure": scheduled,
             "actual_departure": predicted,
             "service": f"Bus {line}",
-            "destination": same_line["destination"].iloc[0] if not same_line.empty else "",
+            "destination": destination,
             "transport_mode": same_line["transport_mode"].iloc[0] if not same_line.empty else "Bus",
             "is_real_time": True,
             "is_cancelled": False,
