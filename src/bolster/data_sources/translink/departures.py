@@ -26,9 +26,11 @@ Example:
 
 import logging
 from datetime import UTC, datetime
+from typing import Any
 
 import pandas as pd
 
+from bolster.utils.fuzzy import fuzzy_match
 from bolster.utils.web import session
 
 from ._base import (
@@ -37,7 +39,8 @@ from ._base import (
     TranslinkValidationError,
     net_ticks_to_timestamp,
 )
-from .stops import find_stop
+from .stops import find_stop, get_stop_dataframe
+from .timetable import find_trip_for_vehicle
 
 logger = logging.getLogger(__name__)
 
@@ -249,6 +252,168 @@ def validate_departures(df: pd.DataFrame) -> bool:
     return True
 
 
+def _resolve_target_atcos(stop_display_name: str) -> list[str]:
+    """Best-effort, high-confidence crosswalk from a journey-planner display name.
+
+    Resolves to NaPTAN ATCOCode(s) in the local CIF stop table. Translink's live display names and NaPTAN's canonical names can diverge in ways
+    plain fuzzy-matching on the full name doesn't reliably catch — e.g. the live name
+    "Shankill, Cambria Street" only scores 0.68 against its real NaPTAN match
+    ("Cambrai Street"), with an unrelated street right behind it at 0.67. Stripping
+    the "Locality, " prefix first (everything before the first comma) and matching
+    just "Cambria Street" scores 0.93 against the same real match, clearly separated
+    from the next-best candidate at 0.85.
+
+    This is identity resolution for a correctness check (see
+    :func:`get_departures_with_vehicles`), not a search suggestion, so it fails
+    closed: returns an empty list rather than a low-confidence guess whenever
+    nothing clears a high cutoff.
+
+    Ties at the top score are all accepted, not just the first — exact-substring
+    containment (:func:`~bolster.utils.fuzzy.fuzzy_match`'s score of 1.0) routinely
+    ties across several legitimately related names for a short query (e.g.
+    ``"Agnes Street"`` ties ``"Agnes Street"`` itself with ``"Crumlin Road (Agnes
+    Street)"`` — both real, both worth including, not a sign of ambiguity). Rejecting
+    on a runner-up-score margin instead was tried and measured wrong: it rejected the
+    genuinely correct, well-separated "Cambria Street" → "Cambrai Street" match
+    (0.93 vs. the next candidate's 0.85) as "too close."
+
+    Args:
+        stop_display_name: Display name as returned by the journey-planner API,
+                            e.g. ``"Shankill, Cambria Street"``.
+
+    Returns:
+        Every ATCOCode in the local CIF stop table whose name ties for the top
+        fuzzy-match score, when that score clears a high cutoff (0.8). Empty list
+        if nothing scores that high.
+    """
+    bare_name = stop_display_name.split(",", 1)[-1].strip() if "," in stop_display_name else stop_display_name
+
+    df = get_stop_dataframe()
+    matches = fuzzy_match(bare_name, df["name"].unique().tolist(), n=len(df), cutoff=0.8)
+    if not matches:
+        return []
+
+    top_score = matches[0][1]
+    top_names = [name for name, score in matches if score >= top_score - 1e-9]
+    return df.index[df["name"].isin(top_names)].tolist()
+
+
+_INBOUND_KEYWORDS = {"belfast", "castlecourt", "royal avenue", "city centre", "great victoria"}
+
+
+def _dep_direction(destination: str) -> str:
+    """Infer a departure's direction from its destination name."""
+    return "inbound" if any(kw in destination.lower() for kw in _INBOUND_KEYWORDS) else "outbound"
+
+
+def _vmi_direction(direction_text: str) -> str:
+    """Infer a VMI vehicle's direction from its raw ``direction`` text."""
+    return "inbound" if any(kw in direction_text.lower() for kw in _INBOUND_KEYWORDS) else "outbound"
+
+
+def _hhmm_to_timestamp(hhmm: str, ref: "pd.Timestamp") -> "pd.Timestamp | None":
+    """Convert a CIF-nominal HHMM time to a UTC Timestamp on ref's date.
+
+    CIF (and VMI journey_id) HHMM values are nominal schedule minutes, not
+    seasonally DST-adjusted — confirmed empirically against 8 independent live
+    vehicles across two stops: every one of their CIF-predicted passing times
+    matched a real departure-board UTC timestamp to the exact minute, a full hour
+    "early" versus true Europe/London local time during BST. An earlier version of
+    this function wrongly treated the HHMM as genuine Europe/London local time,
+    producing passing times exactly one hour off during BST and misattributing
+    vehicles to the nearest-available-but-wrong departure row. So: map the HHMM
+    directly onto ref's UTC calendar date, no DST conversion.
+
+    Args:
+        hhmm: Four-digit nominal time, e.g. ``"0904"``.
+        ref: Any UTC timestamp on the intended calendar date.
+
+    Returns:
+        A UTC Timestamp, or ``None`` if ``hhmm`` isn't parseable.
+    """
+    try:
+        h, m = int(hhmm[:2]), int(hhmm[2:])
+        ref_utc = ref.tz_convert("UTC")
+        return ref_utc.normalize() + pd.Timedelta(hours=h, minutes=m)
+    except (ValueError, IndexError, Exception):
+        return None
+
+
+def _verified_passing_time(
+    vehicle_line: str,
+    vehicle_journey_id: str,
+    vehicle_current_stop: Any,
+    vehicle_next_stop: Any,
+    target_atcos: list[str],
+    ref_dt: "pd.Timestamp",
+) -> "pd.Timestamp | None":
+    """CIF-scheduled time a vehicle's own trip passes one of ``target_atcos``.
+
+    None if the vehicle's trip can't be verified (via the CIF timetable) as calling
+    at any of ``target_atcos``, or as not yet having passed it. This is the
+    authoritative, stop-specific time — more accurate than the vehicle's
+    origin-departure journey_id alone, since travel time from origin to this
+    particular stop varies by how far into the route it is.
+
+    Args:
+        vehicle_line: VMI vehicle's line, e.g. ``"11E"``.
+        vehicle_journey_id: VMI vehicle's journey_id (HHMM origin departure).
+        vehicle_current_stop: VMI vehicle's ``current_stop`` ATCOCode (may be NaN).
+        vehicle_next_stop: VMI vehicle's ``next_stop`` ATCOCode (may be NaN).
+        target_atcos: Candidate ATCOCode(s) for the stop being checked against —
+                      see :func:`_resolve_target_atcos`. Empty means "can't verify".
+        ref_dt: Reference timestamp (e.g. the departure's own time) for picking the
+                correct calendar date/day-of-week.
+
+    Returns:
+        The verified passing time (UTC), or ``None``.
+    """
+    if not target_atcos:
+        return None
+    trips = find_trip_for_vehicle(vehicle_line, vehicle_journey_id, ref_dt=ref_dt.to_pydatetime())
+    for trip in trips:
+        stop_seqs = {ts.atco: ts.seq for ts in trip.stops}
+        target_atco = next((a for a in target_atcos if a in stop_seqs), None)
+        if target_atco is None:
+            continue  # this trip variant doesn't actually call at the target stop
+        vehicle_atco = vehicle_current_stop if pd.notna(vehicle_current_stop) else vehicle_next_stop
+        vehicle_seq = stop_seqs.get(vehicle_atco)
+        if vehicle_seq is None or vehicle_seq > stop_seqs[target_atco]:
+            continue  # vehicle has already passed this stop, or position unknown
+        target_ts = next(ts for ts in trip.stops if ts.atco == target_atco)
+        hhmm = target_ts.depart or target_ts.arrive
+        if hhmm:
+            return _hhmm_to_timestamp(hhmm, ref_dt)
+    return None
+
+
+def _greedy_assign_vehicles(pairs: list[tuple[int, int, "pd.Timedelta"]]) -> dict[int, int]:
+    """Assign departures to vehicles, closest-match first, each used at most once.
+
+    A single real vehicle must never be reported as the live match for two
+    different departures just because its passing time happened to be close to
+    both — found live: a precise per-stop match makes near-ties across adjacent
+    departures more likely than a cruder time-only heuristic did.
+
+    Args:
+        pairs: ``(departure_index, vehicle_index, time_delta)`` triples for every
+               candidate pairing within the acceptance window.
+
+    Returns:
+        ``{departure_index: vehicle_index}`` for each departure that got a match.
+    """
+    dep_to_vehicle: dict[int, int] = {}
+    assigned_deps: set[int] = set()
+    assigned_vehicles: set[int] = set()
+    for dep_idx, v_idx, _ in sorted(pairs, key=lambda p: p[2]):
+        if dep_idx in assigned_deps or v_idx in assigned_vehicles:
+            continue
+        dep_to_vehicle[dep_idx] = v_idx
+        assigned_deps.add(dep_idx)
+        assigned_vehicles.add(v_idx)
+    return dep_to_vehicle
+
+
 def get_departures_with_vehicles(
     stop_name: str,
     n: int = 5,
@@ -258,13 +423,36 @@ def get_departures_with_vehicles(
     """Return next-N departures enriched with live vehicle positions where available.
 
     Fetches departures and live VMI vehicles in parallel (two API calls), then
-    joins on line + direction + journey time proximity (±60 minute window).
+    joins on line + direction + journey time proximity (±60 minute window) as a
+    first-pass filter, narrowed by a stop-sequence check: a vehicle only counts as
+    a match for a departure if the local CIF timetable confirms the vehicle's own
+    scheduled trip actually calls at this stop *and* the vehicle's live position
+    (current_stop/next_stop) is at or before that stop in the trip's sequence.
+
+    Without this, a vehicle running on-time elsewhere on a branching route (routes
+    like 11/11A/11B/11C/11E diverge and reconverge) could be picked purely by line +
+    direction + time coincidence despite not having reached this stop yet — found
+    live: a vehicle at "Ardoyne Shops" (two stops before Cambria Street) was matched
+    to an imminent Cambria Street departure before this check existed.
+
+    When the stop can't be confidently crosswalked to a CIF ATCOCode (see
+    :func:`_resolve_target_atcos`) or its scheduled trip isn't found in the CIF data,
+    this fails closed: no vehicle is matched for that departure, rather than
+    silently falling back to the old, weaker time-only heuristic.
 
     VMI vehicles are matched to departures by:
     1. Line number (case-insensitive).
     2. Inferred direction (inbound = destination contains "Belfast"/"CastleCourt"/
        "Royal Avenue"/"City Centre"; outbound = everything else).
-    3. Journey ID (HHMM) within ±60 minutes of the actual departure time.
+    3. Passing the stop-sequence check above, within ±60 minutes of the CIF-scheduled
+       passing time at the target stop (not the departure's own API time, which can
+       differ slightly — e.g. a delay reported by the journey planner vs. the CIF
+       timetable's schedule).
+
+    Assignment across departures is a greedy nearest-match: pairs are sorted by time
+    delta and assigned closest-first, each departure and each vehicle used at most
+    once, so one real vehicle is never reported as the live match for two different
+    departures just because its passing time happened to be within 60 min of both.
 
     Not all departures will have a matched vehicle — buses that have not yet
     started their journey are not yet in the VMI feed.
@@ -304,30 +492,6 @@ def get_departures_with_vehicles(
 
     vehicles = pd.concat([v for v in all_vehicles if not v.empty], ignore_index=True)
 
-    _INBOUND_KEYWORDS = {"belfast", "castlecourt", "royal avenue", "city centre", "great victoria"}
-
-    def _dep_direction(destination: str) -> str:
-        return "inbound" if any(kw in destination.lower() for kw in _INBOUND_KEYWORDS) else "outbound"
-
-    def _vmi_direction(direction_text: str) -> str:
-        return "inbound" if any(kw in direction_text.lower() for kw in _INBOUND_KEYWORDS) else "outbound"
-
-    def _journey_dt(hhmm: str, ref: "pd.Timestamp") -> "pd.Timestamp | None":
-        """Convert a VMI HHMM journey ID to a UTC Timestamp comparable to ref.
-
-        VMI journey IDs are in local Belfast time (Europe/London).  Convert to
-        UTC before comparing against departure times (which are in UTC).
-        """
-        try:
-            h, m = int(hhmm[:2]), int(hhmm[2:])
-            # Build naive local datetime on same calendar date as ref (in local tz)
-            ref_local = ref.tz_convert("Europe/London")
-            local_dt = ref_local.normalize() + pd.Timedelta(hours=h, minutes=m)
-            # localise and convert to UTC
-            return local_dt.tz_localize(None).tz_localize("Europe/London").tz_convert("UTC")
-        except (ValueError, IndexError, Exception):
-            return None
-
     vehicle_cols = {
         "vehicle_id": None,
         "vehicle_lat": None,
@@ -340,8 +504,14 @@ def get_departures_with_vehicles(
         vehicle_cols["current_stop_name"] = None
         vehicle_cols["next_stop_name"] = None
 
-    matched_rows = []
-    for _, dep in deps.iterrows():
+    target_atcos = _resolve_target_atcos(deps["stop_name"].iloc[0]) if "stop_name" in deps.columns else []
+
+    # Build every (departure, vehicle) pair within 60 min of a verified passing time,
+    # then greedily assign closest-first (see _greedy_assign_vehicles) so one real
+    # vehicle is never reported as the live match for two different departures.
+    deps_list = list(deps.iterrows())
+    pairs: list[tuple[int, int, pd.Timedelta]] = []
+    for dep_idx, (_, dep) in enumerate(deps_list):
         line = _extract_line(dep["service"])
         direction = _dep_direction(dep["destination"])
         dep_dt = dep["actual_departure"]
@@ -349,23 +519,24 @@ def get_departures_with_vehicles(
         candidates = vehicles[
             (vehicles["line"].str.upper() == line.upper()) & (vehicles["direction"].apply(_vmi_direction) == direction)
         ]
-
-        best_match = None
-        best_delta = pd.Timedelta(minutes=60)
-
-        for _, v in candidates.iterrows():
-            jdt = _journey_dt(v["journey_id"], dep_dt)
-            if jdt is None:
+        for v_idx, v in candidates.iterrows():
+            passing_time = _verified_passing_time(
+                v["line"], v["journey_id"], v.get("current_stop"), v.get("next_stop"), target_atcos, dep_dt
+            )
+            if passing_time is None:
                 continue
-            if jdt.tzinfo is None:
-                jdt = jdt.tz_localize("UTC")
-            delta = abs(dep_dt - jdt)
-            if delta < best_delta:
-                best_delta = delta
-                best_match = v
+            delta = abs(dep_dt - passing_time)
+            if delta < pd.Timedelta(minutes=60):
+                pairs.append((dep_idx, v_idx, delta))
 
+    dep_to_vehicle = _greedy_assign_vehicles(pairs)
+
+    matched_rows = []
+    for dep_idx, (_, dep) in enumerate(deps_list):
         row = dep.to_dict()
-        if best_match is not None:
+        v_idx = dep_to_vehicle.get(dep_idx)
+        if v_idx is not None:
+            best_match = vehicles.loc[v_idx]
             row["vehicle_id"] = best_match["vehicle_id"]
             row["vehicle_lat"] = best_match["latitude"]
             row["vehicle_lon"] = best_match["longitude"]
