@@ -11885,9 +11885,6 @@ def translink_board_cmd(stop, n, output_format, save):
         )
 
     console.print(table)
-    console.print(
-        "[dim]● = a live VMI vehicle is currently matched to this departure, ○ = not yet (schedule only)[/dim]"
-    )
 
     if save:
         board.to_csv(save, index=False)
