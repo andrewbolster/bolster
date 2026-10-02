@@ -11793,22 +11793,13 @@ def translink_board_cmd(stop, n, output_format, save):
     STOP can be a stop name, partial name, NaPTAN ATCOCode, or Translink StopId.
     Times are shown in local time (Europe/London). Scheduled and Predicted
     prefer the CIF-derived values from a verified vehicle's own trip, together
-    as a pair, whenever one is available — found live that Translink's own
-    journey-planner estimate is not reliable for a significantly late bus
-    (confirmed against a third-party source: a bus running ~22 min late was
-    reported by the journey-planner as exactly on time), and that mixing one
-    vehicle-derived time with one journey-planner-derived time can show a
-    "Predicted" earlier than its own "Scheduled" once the journey-planner's own
-    row for that vehicle is no longer retrievable. Falls back to the
-    journey-planner's own estimate (both fields together) only when no vehicle
-    is verified for that departure; Predicted is blank ("-" in the table, null
-    in JSON/CSV) when there's no delay to report either way.
+    as a pair (see :func:`get_departures_with_vehicles`), falling back to the
+    journey-planner's own estimate only when no vehicle is verified for that
+    departure. Predicted is blank when there's no delay to report either way.
 
-    Vehicle is the matched VMI vehicle's fleet number (e.g. "TM-3562"), blank when
-    none is verified — shown instead of a plain live/not-live indicator so the
-    specific bus behind a prediction can be checked against another source
-    (e.g. bustimes.org) rather than just trusted. This is a fleet number, not a
-    registration/numberplate — the VMI feed doesn't carry one.
+    Vehicle is the matched VMI vehicle's fleet number (e.g. "TM-3562"), not a
+    registration/numberplate (the VMI feed doesn't carry one) — blank when none
+    is verified.
 
     Examples:
         bolster translink board "Cambria Street"
@@ -11823,12 +11814,8 @@ def translink_board_cmd(stop, n, output_format, save):
             # Over-fetch slightly: a stale boundary row can otherwise leave fewer than n results.
             df = get_departures_with_vehicles(stop, n=n + 2)
             if not df.empty:
-                # Prefer the vehicle-derived Scheduled/Predicted pair together over the
-                # journey-planner's own planned/actual pair when a vehicle is verified —
-                # never mix one vehicle-derived value with one journey-planner value,
-                # which can show a "Predicted" earlier than its own "Scheduled" (found
-                # live, once the journey-planner's own row for that vehicle was no
-                # longer retrievable and it got greedily paired with an unrelated one).
+                # Prefer the vehicle-derived pair together over the journey-planner's
+                # own pair, never one field from each (see get_departures_with_vehicles).
                 effective_scheduled = df["vehicle_scheduled_departure"].where(
                     df["vehicle_scheduled_departure"].notna(), df["planned_departure"]
                 )
@@ -11866,11 +11853,6 @@ def translink_board_cmd(stop, n, output_format, save):
             "predicted": effective_predicted.dt.tz_convert(tz).where(delay_minutes.round(1) != 0),
             "due_in_minutes": ((effective_predicted - now).dt.total_seconds() / 60).round().astype(int),
             "delay_minutes": delay_minutes,
-            # Fleet number (e.g. "TM-3562") of the matched vehicle, not a binary dot —
-            # shows which specific bus is backing this prediction, so it can be checked
-            # against another source instead of just trusted. The VMI feed only gives a
-            # fleet number, not a registration/numberplate (bustimes.org, which shows a
-            # plate, must cross-reference its own separate fleet database for that).
             "vehicle": df["vehicle_id"],
         }
     ).reset_index(drop=True)

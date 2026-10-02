@@ -175,12 +175,10 @@ def get_departures(
         batch = _parse_departures(raw_deps)
         all_deps.append(batch)
 
-        # Advance past the last departure in this batch for the next page. The API
-        # treats DepartureOrArrivalDate as an inclusive lower bound (confirmed
-        # directly: requesting exactly a prior page's last departure time returns
-        # that same departure again, as its first row, under a freshly-minted
-        # unique_id) -- step one second past it so the next page doesn't start by
-        # re-fetching the boundary row.
+        # The API treats DepartureOrArrivalDate as an inclusive lower bound, so
+        # advance one second past the last departure in this batch -- otherwise
+        # the next page starts by re-fetching this one as its first row, under
+        # a freshly-minted unique_id.
         last_dt = batch["actual_departure"].max()
         if last_dt <= current_dt:
             break
@@ -190,10 +188,8 @@ def get_departures(
         return _parse_departures([])
 
     combined = pd.concat(all_deps, ignore_index=True)
-    # Not unique_id: the API mints a fresh one per request, so the same real
-    # departure fetched on two different pages (the inclusive-boundary case above,
-    # before the +1s advance was added; kept as a safety net either way) doesn't
-    # dedupe by id alone.
+    # Not unique_id: the API mints a fresh one per request, so it can't dedupe a
+    # real departure that appears on two pages.
     combined = combined.drop_duplicates(["service", "destination", "planned_departure"])
     combined = combined.sort_values("actual_departure").reset_index(drop=True)
     return combined.head(n)
@@ -265,27 +261,21 @@ def validate_departures(df: pd.DataFrame) -> bool:
 def _resolve_target_atcos(stop_display_name: str) -> list[str]:
     """Best-effort, high-confidence crosswalk from a journey-planner display name.
 
-    Resolves to NaPTAN ATCOCode(s) in the local CIF stop table. Translink's live display names and NaPTAN's canonical names can diverge in ways
-    plain fuzzy-matching on the full name doesn't reliably catch — e.g. the live name
-    "Shankill, Cambria Street" only scores 0.68 against its real NaPTAN match
-    ("Cambrai Street"), with an unrelated street right behind it at 0.67. Stripping
-    the "Locality, " prefix first (everything before the first comma) and matching
-    just "Cambria Street" scores 0.93 against the same real match, clearly separated
-    from the next-best candidate at 0.85.
+    Resolves to NaPTAN ATCOCode(s) in the local CIF stop table. Translink's live
+    display names and NaPTAN's canonical names can diverge (e.g. "Shankill,
+    Cambria Street" vs. NaPTAN's "Cambrai Street"), so the "Locality, " prefix
+    (everything before the first comma) is stripped before fuzzy-matching just
+    the bare street name against the CIF table.
 
     This is identity resolution for a correctness check (see
     :func:`get_departures_with_vehicles`), not a search suggestion, so it fails
     closed: returns an empty list rather than a low-confidence guess whenever
     nothing clears a high cutoff.
 
-    Ties at the top score are all accepted, not just the first — exact-substring
-    containment (:func:`~bolster.utils.fuzzy.fuzzy_match`'s score of 1.0) routinely
-    ties across several legitimately related names for a short query (e.g.
-    ``"Agnes Street"`` ties ``"Agnes Street"`` itself with ``"Crumlin Road (Agnes
-    Street)"`` — both real, both worth including, not a sign of ambiguity). Rejecting
-    on a runner-up-score margin instead was tried and measured wrong: it rejected the
-    genuinely correct, well-separated "Cambria Street" → "Cambrai Street" match
-    (0.93 vs. the next candidate's 0.85) as "too close."
+    Ties at the top score are all accepted, not just the first — several
+    legitimately related names can tie for a short query (e.g. ``"Agnes
+    Street"`` ties both itself and ``"Crumlin Road (Agnes Street)"``), and both
+    are worth including rather than picking one arbitrarily.
 
     Args:
         stop_display_name: Display name as returned by the journey-planner API,
@@ -311,35 +301,16 @@ def _resolve_target_atcos(stop_display_name: str) -> list[str]:
 _INBOUND_KEYWORDS = {"belfast", "castlecourt", "royal avenue", "city centre", "great victoria"}
 
 
-def _dep_direction(destination: str) -> str:
-    """Infer a departure's direction from its destination name."""
-    return "inbound" if any(kw in destination.lower() for kw in _INBOUND_KEYWORDS) else "outbound"
-
-
-def _vmi_direction(direction_text: str) -> str:
-    """Infer a VMI vehicle's direction from its raw ``direction`` text."""
-    return "inbound" if any(kw in direction_text.lower() for kw in _INBOUND_KEYWORDS) else "outbound"
+def _infer_direction(text: str) -> str:
+    """Infer inbound/outbound from a departure's destination or a VMI vehicle's direction text."""
+    return "inbound" if any(kw in text.lower() for kw in _INBOUND_KEYWORDS) else "outbound"
 
 
 def _hhmm_to_timestamp(hhmm: str, ref: "pd.Timestamp") -> "pd.Timestamp | None":
     """Convert an HHMM Europe/London local time to a UTC Timestamp on ref's date.
 
     CIF (and VMI journey_id) HHMM values are genuine Europe/London local civil
-    time, DST included — confirmed by the cleanest possible test: a vehicle whose
-    live current_stop *is* the target stop itself (so it's there right now) must
-    have a CIF-predicted passing time close to the real "now". For TM-3562 at
-    Berlin Street, CIF said "1305"; treating that as local gave 13:05 BST, ~5 min
-    before a real "now" of 13:09 BST — right. Treating it as nominal/UTC-direct
-    (an earlier, wrong version of this function) gave 14:05 BST, nearly an hour in
-    the future for a vehicle already standing at the stop.
-
-    An earlier "confirmation" that HHMM was nominal/non-DST, checked across 8
-    vehicles, turned out to be a measurement artifact: Metro services commonly run
-    every 20 minutes, and a 60-minute (one full DST hour) error is an exact
-    multiple of 20 — so a wrong interpretation still lands exactly on *some* real
-    departure row three slots over, by schedule periodicity alone, not because
-    it's actually correct. Checking against a vehicle's own live position (not
-    just "does some nearby timestamp happen to line up") is what caught it.
+    time, DST included — not a nominal/UTC-direct value.
 
     Args:
         hhmm: Four-digit local time, e.g. ``"0904"``.
@@ -374,31 +345,20 @@ def _verified_passing_time(
     Returns the unadjusted CIF-scheduled passing time, that same time adjusted by
     the vehicle's own live ``delay_seconds`` (when available), and the verified
     trip's own terminus stop name as a destination hint (``None`` if that stop
-    isn't in the local CIF lookup) — always together, from the one trip that was
-    actually verified, so a caller never ends up pairing one of these with an
-    unrelated schedule/prediction/destination sourced elsewhere (found live: a
-    vehicle whose true departure row had already rolled out of the journey-
-    planner's retrievable window — confirmed separately that the API silently
-    ignores a `DepartureOrArrivalDate` in the past rather than genuinely looking
-    back — got greedily paired with the nearest *available* but wrong row,
-    producing a "Predicted" time earlier than the "Scheduled" time it was shown
-    next to, because the two numbers came from different, unrelated sources).
+    isn't in the local CIF lookup) — always together, from the one verified
+    trip, so a caller never pairs one of these with an unrelated schedule/
+    prediction/destination sourced elsewhere.
 
-    The destination hint exists only for a vehicle that ends up with no matching
-    departure row to borrow display text from (see
-    :func:`get_departures_with_vehicles`) — it's a CIF stop name (e.g. "Donegall
-    Place"), not the journey-planner's own "Belfast, Donegall Place" style text,
-    and for a circular route the trip's technical terminus isn't a meaningful
-    "where's this bus going" answer at all (e.g. route 14's CIF terminus is
-    "Glebe Road", a stop on its way back round, not a rider-facing destination) —
-    so it's a best-effort fallback, not a guaranteed-accurate one.
+    The destination hint is a CIF stop name (e.g. "Donegall Place"), not the
+    journey-planner's own "Belfast, Donegall Place" style text, and for a
+    circular route the trip's technical terminus isn't necessarily a meaningful
+    "where's this bus going" answer — a best-effort fallback for a vehicle with
+    no matching departure row to borrow display text from (see
+    :func:`get_departures_with_vehicles`), not a guaranteed-accurate one.
 
-    The predicted value is more accurate than both the vehicle's origin-departure
-    journey_id alone (travel time to this particular stop varies by how far into
-    the route it is) and the journey-planner's own ``actual_departure``/
-    ``delay_minutes``, which was found live to not reliably reflect real delay for
-    a sufficiently late bus (confirmed against bustimes.org: a bus running ~22 min
-    late was reported by the journey-planner as exactly on time).
+    The predicted value (CIF-scheduled + VMI's live delay) is preferred over the
+    journey-planner's own ``actual_departure``/``delay_minutes``, which doesn't
+    reliably reflect delay for a significantly late bus.
 
     Args:
         vehicle_line: VMI vehicle's line, e.g. ``"11E"``.
@@ -445,10 +405,8 @@ def _verified_passing_time(
 def _greedy_assign_vehicles(pairs: list[tuple[int, int, "pd.Timedelta"]]) -> dict[int, int]:
     """Assign departures to vehicles, closest-match first, each used at most once.
 
-    A single real vehicle must never be reported as the live match for two
-    different departures just because its passing time happened to be close to
-    both — found live: a precise per-stop match makes near-ties across adjacent
-    departures more likely than a cruder time-only heuristic did.
+    A single vehicle must never be reported as the live match for two different
+    departures just because its passing time happened to be close to both.
 
     Args:
         pairs: ``(departure_index, vehicle_index, time_delta)`` triples for every
@@ -478,56 +436,31 @@ def get_departures_with_vehicles(
     """Return next-N departures enriched with live vehicle positions where available.
 
     Fetches departures and live VMI vehicles in parallel (two API calls), then
-    joins on line + direction, narrowed by a stop-sequence check: a vehicle only
-    counts as a match for a departure if the local CIF timetable confirms the
-    vehicle's own scheduled trip actually calls at this stop *and* the vehicle's
-    live position (current_stop/next_stop) is at or before that stop in the
-    trip's sequence.
+    matches them in two stages:
 
-    Without the stop-sequence check, a vehicle running on-time elsewhere on a
-    branching route (routes like 11/11A/11B/11C/11E diverge and reconverge) could
-    be picked purely by line + direction + time coincidence despite not having
-    reached this stop yet — found live: a vehicle at "Ardoyne Shops" (two stops
-    before Cambria Street) was matched to an imminent Cambria Street departure
-    before this check existed.
-
-    The remaining match is on each side's own *scheduled* time — the vehicle's
-    CIF-derived schedule at this stop vs. the departure row's own
-    ``planned_departure`` — within a tight 5-minute window, not the delay-adjusted
-    side. Both scheduled values are static and only drift by ~1-2 minutes between
-    the CIF timetable and the journey-planner regardless of how late the bus
-    actually is, so this reliably finds the vehicle's own row without ever
-    reaching far enough to land on a *different* real journey's slot. (A wider,
-    delay-chasing window was tried and found live to do exactly that: once a
-    vehicle's own row had rolled past "now" and out of the journey-planner's
-    retrievable range, it grabbed the nearest available row instead — a
-    different, unrelated departure 20 minutes away — silently erasing that
-    other, real, not-yet-live departure from the board.)
+    1. Candidates share line + inferred direction, and the local CIF timetable
+       confirms the vehicle's own scheduled trip actually calls at this stop
+       *and* its live position (current_stop/next_stop) is at or before that
+       stop in the trip's sequence — this rules out a vehicle still elsewhere on
+       a branching route (e.g. 11/11A/11B/11C/11E) that hasn't reached this stop
+       yet. Candidates are then matched on each side's own *scheduled* time
+       (the vehicle's CIF-derived schedule at this stop vs. the departure row's
+       ``planned_departure``) within a tight 5-minute window, closest-first,
+       each departure and vehicle used at most once — not the delay-adjusted
+       side, which could otherwise match a vehicle whose own row has already
+       rolled past "now" to a different, unrelated, later departure instead.
+    2. A verified vehicle left over from stage 1 (its own row has rolled out of
+       the journey-planner's retrievable past) gets a row of its own instead of
+       being dropped, since it's typically the single most relevant "next bus"
+       on the board: ``service``/``destination`` borrowed from any other
+       departure sharing its line+direction, or — if none exists — the verified
+       trip's own CIF terminus stop name (a different naming style, and not
+       always meaningful for a circular route, but better than leaving
+       ``destination`` blank).
 
     When the stop can't be confidently crosswalked to a CIF ATCOCode (see
-    :func:`_resolve_target_atcos`) or its scheduled trip isn't found in the CIF data,
-    this fails closed: no vehicle is matched for that departure, rather than
-    silently falling back to the old, weaker time-only heuristic.
-
-    A verified vehicle whose own row has rolled too far into the journey-planner's
-    unretrievable past gets no row to match above — but it's routinely the single
-    most relevant bus on the board (one running just late enough that its
-    *scheduled* slot has passed is exactly the "next bus" a departure board exists
-    to show, not a case to drop) — so it gets a row of its own instead:
-    ``service``/``destination`` borrowed from any other departure sharing its
-    line+direction (for consistent display text; never used for timing), with its
-    own CIF-derived schedule/prediction. When no such sibling departure exists
-    (a low-frequency line at a busy, many-line hub — found live at Donegall
-    Place: routes 14/1E/2A had no other same-line departure in the fetched
-    window to borrow from), ``destination`` falls back to the verified trip's
-    own CIF terminus stop name instead of being left blank; this fallback uses a
-    different naming style than the journey-planner's own text and, for a
-    circular route, isn't always a meaningful destination — better than blank,
-    not guaranteed polished.
-
-    Assignment across departures is a greedy nearest-match: pairs are sorted by
-    schedule-time delta and assigned closest-first, each departure and each
-    vehicle used at most once.
+    :func:`_resolve_target_atcos`) or its scheduled trip isn't found in the CIF
+    data, this fails closed: no vehicle is matched for that departure.
 
     Not all departures will have a matched vehicle — buses that have not yet
     started their journey are not yet in the VMI feed.
@@ -548,22 +481,14 @@ def get_departures_with_vehicles(
         ``None`` / ``NaN`` where no match.
 
         ``vehicle_scheduled_departure``/``vehicle_predicted_departure`` are both
-        sourced from the one verified CIF trip — the former unadjusted, the latter
-        adjusted by the vehicle's own live delay. Prefer both together over
-        ``planned_departure``/``actual_departure`` when present: mixing one
-        vehicle-derived value with one journey-planner-derived value can produce a
-        nonsensical pair (found live: a verified vehicle greedily paired with the
-        nearest *available* departure row once its own true row had rolled out of
-        the journey-planner's retrievable range — confirmed separately that the
-        API silently ignores a past ``DepartureOrArrivalDate`` rather than
-        genuinely looking back — showed "Predicted" earlier than "Scheduled"
-        because the two came from different, unrelated sources).
-
-        ``actual_departure``/``delay_minutes`` (the journey-planner's own
-        estimate) were also found live to not reliably reflect real delay for a
-        sufficiently late bus (confirmed against bustimes.org: a bus running
-        ~22 min late was reported as exactly on time) — kept for comparison/
-        transparency, not preferred for display once a vehicle is verified.
+        sourced from the one verified CIF trip — the former unadjusted, the
+        latter adjusted by the vehicle's own live delay — and should be
+        preferred together over ``planned_departure``/``actual_departure``
+        when present, never mixed one-from-each: the journey-planner's own
+        ``actual_departure``/``delay_minutes`` doesn't reliably reflect real
+        delay for a significantly late bus, and pairing a vehicle-derived value
+        with a journey-planner-derived value from a different, unrelated row
+        can show a "Predicted" earlier than its own "Scheduled".
     """
     from .vehicles import get_live_vehicles
 
@@ -608,9 +533,7 @@ def get_departures_with_vehicles(
 
     target_atcos = _resolve_target_atcos(deps["stop_name"].iloc[0]) if "stop_name" in deps.columns else []
 
-    # Verify every candidate vehicle once (not once per departure row sharing its
-    # line+direction -- that was redundant work and made it awkward to tell
-    # whether a verified vehicle ended up used anywhere at all).
+    # Verify every candidate vehicle once, independent of any departure row.
     verified: dict[int, tuple[pd.Timestamp, pd.Timestamp, str | None]] = {}
     for v_idx, v in vehicles.iterrows():
         result_v = _verified_passing_time(
@@ -625,23 +548,16 @@ def get_departures_with_vehicles(
         if result_v is not None:
             verified[v_idx] = result_v
 
-    # Match on each side's own *scheduled* time (vehicle's CIF time vs. the row's
-    # planned_departure), not the delay-adjusted/actual side -- this is what lets a
-    # tight window work regardless of how late a bus is. Both scheduled values are
-    # static, cross-checked-small-drift numbers (~1-2 min between the journey-
-    # planner and CIF, already observed) independent of real-time delay, so a small
-    # window (5 min) reliably finds the right row without ever reaching far enough
-    # to land on a different real journey's slot (a wide, delay-chasing window
-    # found live to do exactly that: paired a vehicle with a different, unrelated
-    # departure 20 minutes away once its own row had rolled past "now").
+    # Match on each side's own scheduled time, within a tight window (see docstring).
     deps_list = list(deps.iterrows())
     pairs: list[tuple[int, int, pd.Timedelta]] = []
     for dep_idx, (_, dep) in enumerate(deps_list):
         line = _extract_line(dep["service"])
-        direction = _dep_direction(dep["destination"])
+        direction = _infer_direction(dep["destination"])
 
         candidates = vehicles[
-            (vehicles["line"].str.upper() == line.upper()) & (vehicles["direction"].apply(_vmi_direction) == direction)
+            (vehicles["line"].str.upper() == line.upper())
+            & (vehicles["direction"].apply(_infer_direction) == direction)
         ]
         for v_idx in candidates.index:
             if v_idx not in verified:
@@ -679,31 +595,21 @@ def get_departures_with_vehicles(
                 row[col] = default
         matched_rows.append(row)
 
-    # A verified vehicle whose own departure row has already rolled out of the
-    # journey-planner's fetchable range (established separately: the API can't
-    # look backwards) gets no row to match at all above -- but it's real and
-    # often the single most relevant one on the whole board: a bus running just
-    # late enough that its *scheduled* slot has passed is exactly the "next bus"
-    # a departure board exists to show, not a case to quietly drop. Give it its
-    # own row instead.
+    # A verified vehicle left unmatched above gets a row of its own (see docstring).
     used_vehicles = set(dep_to_vehicle.values())
     for v_idx in verified:
         if v_idx in used_vehicles:
             continue
         v = vehicles.loc[v_idx]
         line = v["line"]
-        direction = _vmi_direction(v["direction"])
+        direction = _infer_direction(v["direction"])
         same_line = deps[
             (deps["service"].apply(_extract_line).str.upper() == line.upper())
-            & (deps["destination"].apply(_dep_direction) == direction)
+            & (deps["destination"].apply(_infer_direction) == direction)
         ]
         scheduled, predicted, destination_hint = verified[v_idx]
-        # Prefer a sibling departure's own text (matches the journey-planner's
-        # "Belfast, Donegall Place" style used elsewhere on the board); fall back
-        # to the verified trip's own CIF terminus name only when no sibling
-        # exists to borrow from -- that CIF name uses a different style and, for
-        # a circular route, isn't necessarily a meaningful destination at all, so
-        # it's a best-effort fallback rather than something to prefer.
+        # Prefer a sibling departure's own destination text; fall back to the
+        # verified trip's CIF terminus name (see docstring) only when none exists.
         destination = same_line["destination"].iloc[0] if not same_line.empty else (destination_hint or "")
         row = {
             "planned_departure": scheduled,
@@ -723,15 +629,13 @@ def get_departures_with_vehicles(
 
     result = pd.DataFrame(matched_rows)
     # When every row is unmatched, these columns are all-NaT with no real
-    # Timestamp to infer a tz from, so pandas defaults them to naive datetime64
-    # instead of tz-aware UTC (like planned_departure/actual_departure) -- breaks
-    # any later arithmetic against those tz-aware columns. Force it explicitly.
+    # Timestamp to infer a tz from, so pandas defaults to naive datetime64
+    # instead of tz-aware UTC -- force it explicitly.
     result["vehicle_scheduled_departure"] = pd.to_datetime(result["vehicle_scheduled_departure"], utc=True)
     result["vehicle_predicted_departure"] = pd.to_datetime(result["vehicle_predicted_departure"], utc=True)
-    # Prefer the vehicle-derived prediction over the journey-planner's own estimate
-    # (demonstrated unreliable for a significantly late bus) when deciding what's
-    # genuinely still upcoming, then restore the "next N" contract the widened
-    # lookback fetch above would otherwise break.
+    # Prefer the vehicle-derived prediction over the journey-planner's own
+    # estimate, then restore the "next N" contract (the +2 over-fetch above
+    # can leave extra, now-past or surplus rows).
     effective = result["vehicle_predicted_departure"].where(
         result["vehicle_predicted_departure"].notna(), result["actual_departure"]
     )
