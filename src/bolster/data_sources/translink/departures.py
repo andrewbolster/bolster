@@ -494,10 +494,16 @@ def get_departures_with_vehicles(
     When the stop can't be confidently crosswalked to a CIF ATCOCode (see
     :func:`_resolve_target_atcos`) or its scheduled trip isn't found in the CIF data,
     this fails closed: no vehicle is matched for that departure, rather than
-    silently falling back to the old, weaker time-only heuristic. The same applies
-    when a vehicle's own row has rolled too far into the unretrievable past: the
-    vehicle simply doesn't show as live for a few minutes, rather than claiming an
-    unrelated row.
+    silently falling back to the old, weaker time-only heuristic.
+
+    A verified vehicle whose own row has rolled too far into the journey-planner's
+    unretrievable past gets no row to match above — but it's routinely the single
+    most relevant bus on the board (one running just late enough that its
+    *scheduled* slot has passed is exactly the "next bus" a departure board exists
+    to show, not a case to drop) — so it gets a row of its own instead:
+    ``service``/``destination`` borrowed from any other departure sharing its
+    line+direction (for consistent display text; never used for timing), with its
+    own CIF-derived schedule/prediction.
 
     Assignment across departures is a greedy nearest-match: pairs are sorted by
     schedule-time delta and assigned closest-first, each departure and each
@@ -582,6 +588,23 @@ def get_departures_with_vehicles(
 
     target_atcos = _resolve_target_atcos(deps["stop_name"].iloc[0]) if "stop_name" in deps.columns else []
 
+    # Verify every candidate vehicle once (not once per departure row sharing its
+    # line+direction -- that was redundant work and made it awkward to tell
+    # whether a verified vehicle ended up used anywhere at all).
+    verified: dict[int, tuple[pd.Timestamp, pd.Timestamp]] = {}
+    for v_idx, v in vehicles.iterrows():
+        result_v = _verified_passing_time(
+            v["line"],
+            v["journey_id"],
+            v.get("current_stop"),
+            v.get("next_stop"),
+            target_atcos,
+            dt_aware,
+            vehicle_delay_seconds=v.get("delay_seconds"),
+        )
+        if result_v is not None:
+            verified[v_idx] = result_v
+
     # Match on each side's own *scheduled* time (vehicle's CIF time vs. the row's
     # planned_departure), not the delay-adjusted/actual side -- this is what lets a
     # tight window work regardless of how late a bus is. Both scheduled values are
@@ -593,57 +616,82 @@ def get_departures_with_vehicles(
     # departure 20 minutes away once its own row had rolled past "now").
     deps_list = list(deps.iterrows())
     pairs: list[tuple[int, int, pd.Timedelta]] = []
-    passing_times: dict[tuple[int, int], tuple[pd.Timestamp, pd.Timestamp]] = {}
     for dep_idx, (_, dep) in enumerate(deps_list):
         line = _extract_line(dep["service"])
         direction = _dep_direction(dep["destination"])
-        dep_dt = dep["actual_departure"]
 
         candidates = vehicles[
             (vehicles["line"].str.upper() == line.upper()) & (vehicles["direction"].apply(_vmi_direction) == direction)
         ]
-        for v_idx, v in candidates.iterrows():
-            verified = _verified_passing_time(
-                v["line"],
-                v["journey_id"],
-                v.get("current_stop"),
-                v.get("next_stop"),
-                target_atcos,
-                dep_dt,
-                vehicle_delay_seconds=v.get("delay_seconds"),
-            )
-            if verified is None:
+        for v_idx in candidates.index:
+            if v_idx not in verified:
                 continue
-            scheduled, _ = verified
+            scheduled, _ = verified[v_idx]
             delta = abs(dep["planned_departure"] - scheduled)
             if delta < pd.Timedelta(minutes=5):
                 pairs.append((dep_idx, v_idx, delta))
-                passing_times[(dep_idx, v_idx)] = verified
 
     dep_to_vehicle = _greedy_assign_vehicles(pairs)
+
+    def _apply_vehicle_cols(row: dict[str, Any], v_idx: int) -> None:
+        best_match = vehicles.loc[v_idx]
+        scheduled, predicted = verified[v_idx]
+        row["vehicle_id"] = best_match["vehicle_id"]
+        row["vehicle_lat"] = best_match["latitude"]
+        row["vehicle_lon"] = best_match["longitude"]
+        row["vehicle_delay_s"] = best_match["delay_seconds"]
+        row["current_stop"] = best_match.get("current_stop")
+        row["next_stop"] = best_match.get("next_stop")
+        row["vehicle_scheduled_departure"] = scheduled
+        row["vehicle_predicted_departure"] = predicted
+        if enrich_stops:
+            row["current_stop_name"] = best_match.get("current_stop_name")
+            row["next_stop_name"] = best_match.get("next_stop_name")
 
     matched_rows = []
     for dep_idx, (_, dep) in enumerate(deps_list):
         row = dep.to_dict()
         v_idx = dep_to_vehicle.get(dep_idx)
         if v_idx is not None:
-            best_match = vehicles.loc[v_idx]
-            scheduled, predicted = passing_times[(dep_idx, v_idx)]
-            row["vehicle_id"] = best_match["vehicle_id"]
-            row["vehicle_lat"] = best_match["latitude"]
-            row["vehicle_lon"] = best_match["longitude"]
-            row["vehicle_delay_s"] = best_match["delay_seconds"]
-            row["current_stop"] = best_match.get("current_stop")
-            row["next_stop"] = best_match.get("next_stop")
-            row["vehicle_scheduled_departure"] = scheduled
-            row["vehicle_predicted_departure"] = predicted
-            if enrich_stops:
-                row["current_stop_name"] = best_match.get("current_stop_name")
-                row["next_stop_name"] = best_match.get("next_stop_name")
+            _apply_vehicle_cols(row, v_idx)
         else:
             for col, default in vehicle_cols.items():
                 row[col] = default
+        matched_rows.append(row)
 
+    # A verified vehicle whose own departure row has already rolled out of the
+    # journey-planner's fetchable range (established separately: the API can't
+    # look backwards) gets no row to match at all above -- but it's real and
+    # often the single most relevant one on the whole board: a bus running just
+    # late enough that its *scheduled* slot has passed is exactly the "next bus"
+    # a departure board exists to show, not a case to quietly drop. Give it its
+    # own row instead.
+    used_vehicles = set(dep_to_vehicle.values())
+    for v_idx in verified:
+        if v_idx in used_vehicles:
+            continue
+        v = vehicles.loc[v_idx]
+        line = v["line"]
+        direction = _vmi_direction(v["direction"])
+        same_line = deps[
+            (deps["service"].apply(_extract_line).str.upper() == line.upper())
+            & (deps["destination"].apply(_dep_direction) == direction)
+        ]
+        scheduled, predicted = verified[v_idx]
+        row = {
+            "planned_departure": scheduled,
+            "actual_departure": predicted,
+            "service": f"Bus {line}",
+            "destination": same_line["destination"].iloc[0] if not same_line.empty else "",
+            "transport_mode": same_line["transport_mode"].iloc[0] if not same_line.empty else "Bus",
+            "is_real_time": True,
+            "is_cancelled": False,
+            "delay_minutes": (predicted - scheduled).total_seconds() / 60,
+            "unique_id": f"vehicle-{v['vehicle_id']}-{scheduled.isoformat()}",
+        }
+        if "stop_name" in deps.columns:
+            row["stop_name"] = deps["stop_name"].iloc[0]
+        _apply_vehicle_cols(row, v_idx)
         matched_rows.append(row)
 
     result = pd.DataFrame(matched_rows)

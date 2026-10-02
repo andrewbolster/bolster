@@ -1050,3 +1050,101 @@ class TestGreedyAssignVehicles:
 
     def test_empty_pairs_returns_empty(self):
         assert _greedy_assign_vehicles([]) == {}
+
+
+# ---------------------------------------------------------------------------
+# departures: get_departures_with_vehicles -- synthesized row for an
+# unmatched-but-verified vehicle
+# ---------------------------------------------------------------------------
+
+
+class TestGetDeparturesWithVehiclesSynthesizesUnmatchedVehicle:
+    """A verified vehicle whose own row has rolled out of the journey-planner's
+    fetchable range must get its own row, not be dropped or cannibalize an
+    unrelated departure (the TM-3668 case, and the user's correction that
+    dropping exactly these buses is not an acceptable trade-off)."""
+
+    def test_unmatched_verified_vehicle_gets_own_row_without_touching_others(self, monkeypatch):
+        from datetime import UTC, datetime
+
+        from bolster.data_sources.translink import departures
+
+        dt = datetime(2026, 10, 2, 15, 0, tzinfo=UTC)
+        dt_aware = pd.Timestamp(dt)
+
+        # One real, unrelated departure far outside any 5-minute match window --
+        # must survive untouched, with no vehicle attached.
+        unrelated_planned = dt_aware + pd.Timedelta(minutes=30)
+        deps = pd.DataFrame(
+            [
+                {
+                    "stop_name": "Fake Stop",
+                    "planned_departure": unrelated_planned,
+                    "actual_departure": unrelated_planned,
+                    "service": "11A",
+                    "destination": "Belfast, CastleCourt",
+                    "transport_mode": "Bus",
+                    "is_real_time": False,
+                    "is_cancelled": False,
+                    "delay_minutes": 0.0,
+                    "unique_id": "real-row-1",
+                }
+            ]
+        )
+        monkeypatch.setattr(departures, "get_departures_by_name", lambda stop_name, n, dt: deps)
+
+        vehicles = pd.DataFrame(
+            [
+                {
+                    "vehicle_id": "TM-9999",
+                    "line": "11A",
+                    "direction": "City Centre",
+                    "latitude": 54.6,
+                    "longitude": -5.95,
+                    "delay_seconds": 300,
+                    "journey_id": "1234",
+                    "current_stop": "700000000001",
+                    "next_stop": "700000000002",
+                }
+            ]
+        )
+        monkeypatch.setattr(
+            "bolster.data_sources.translink.vehicles.get_live_vehicles",
+            lambda line, enrich_stops=False: vehicles,
+        )
+
+        # This vehicle's true CIF-scheduled slot has already rolled into the
+        # past -- nowhere near the one (unrelated) departure row above -- but
+        # it's running late enough that it's still genuinely inbound (its own
+        # delay-adjusted predicted time is still ahead of "now").
+        verified_scheduled = dt_aware - pd.Timedelta(minutes=10)
+        verified_predicted = verified_scheduled + pd.Timedelta(minutes=15)
+
+        def fake_verified(
+            vehicle_line,
+            vehicle_journey_id,
+            vehicle_current_stop,
+            vehicle_next_stop,
+            target_atcos,
+            ref_dt,
+            vehicle_delay_seconds=None,
+        ):
+            return verified_scheduled, verified_predicted
+
+        monkeypatch.setattr(departures, "_verified_passing_time", fake_verified)
+
+        result = departures.get_departures_with_vehicles("Fake Stop", n=5, dt=dt)
+
+        assert len(result) == 2
+
+        unrelated_row = result[result["unique_id"] == "real-row-1"].iloc[0]
+        assert pd.isna(unrelated_row["vehicle_id"])
+        assert unrelated_row["planned_departure"] == unrelated_planned
+
+        synthesized = result[result["unique_id"] != "real-row-1"].iloc[0]
+        assert synthesized["vehicle_id"] == "TM-9999"
+        assert synthesized["service"] == "Bus 11A"
+        assert synthesized["destination"] == "Belfast, CastleCourt"
+        assert synthesized["planned_departure"] == verified_scheduled
+        assert synthesized["vehicle_scheduled_departure"] == verified_scheduled
+        assert synthesized["vehicle_predicted_departure"] == verified_predicted
