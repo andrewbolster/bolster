@@ -1242,3 +1242,52 @@ class TestGetDeparturesWithVehiclesSynthesizesUnmatchedVehicle:
 
         synthesized = result[result["service"] == "Bus 14"].iloc[0]
         assert synthesized["destination"] == "Glebe Road"
+
+
+# ---------------------------------------------------------------------------
+# departures: get_departures_with_vehicles -- "next N" contract must hold
+# even when no vehicles are live anywhere
+# ---------------------------------------------------------------------------
+
+
+class TestGetDeparturesWithVehiclesNoVehiclesStillCapsAtN:
+    """``deps`` is over-fetched (n+2) to absorb a stale pagination-boundary
+    row; the no-live-vehicles-at-all early return must still truncate back
+    to n before returning, not hand back the raw n+2 rows (found live: CI
+    caught ``len(result) == 7`` for ``n=5``)."""
+
+    def test_no_vehicles_at_all_still_returns_at_most_n(self, monkeypatch):
+        from datetime import UTC, datetime
+
+        from bolster.data_sources.translink import departures
+
+        dt = datetime(2026, 10, 2, 15, 0, tzinfo=UTC)
+        dt_aware = pd.Timestamp(dt)
+
+        n = 5
+        deps = pd.DataFrame(
+            [
+                {
+                    "stop_name": "Fake Stop",
+                    "planned_departure": dt_aware + pd.Timedelta(minutes=i * 5),
+                    "actual_departure": dt_aware + pd.Timedelta(minutes=i * 5),
+                    "service": "11A",
+                    "destination": "Belfast, CastleCourt",
+                    "transport_mode": "Bus",
+                    "is_real_time": False,
+                    "is_cancelled": False,
+                    "delay_minutes": 0.0,
+                    "unique_id": f"real-row-{i}",
+                }
+                for i in range(n + 2)
+            ]
+        )
+        monkeypatch.setattr(departures, "get_departures_by_name", lambda stop_name, n, dt: deps)
+        monkeypatch.setattr(
+            "bolster.data_sources.translink.vehicles.get_live_vehicles",
+            lambda line, enrich_stops=False: pd.DataFrame(),
+        )
+
+        result = departures.get_departures_with_vehicles("Fake Stop", n=n, dt=dt)
+
+        assert len(result) == n

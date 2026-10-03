@@ -508,12 +508,14 @@ def get_departures_with_vehicles(
         all_vehicles.append(vdf)
 
     if not all_vehicles or all(v.empty for v in all_vehicles):
-        # No live vehicles on any line — return departures as-is with empty vehicle cols
+        # No live vehicles on any line — return departures as-is with empty vehicle cols.
+        # deps was over-fetched (n+2) to absorb a stale boundary row, so restore the
+        # "next N" contract here too, not just on the vehicle-matched path below.
         for col in ("vehicle_id", "vehicle_lat", "vehicle_lon", "vehicle_delay_s", "current_stop", "next_stop"):
             deps[col] = None
         deps["vehicle_scheduled_departure"] = pd.NaT
         deps["vehicle_predicted_departure"] = pd.NaT
-        return deps
+        return deps.head(n).reset_index(drop=True)
 
     vehicles = pd.concat([v for v in all_vehicles if not v.empty], ignore_index=True)
 
