@@ -282,7 +282,13 @@ Common return types:
 - `str` — URL discovery functions
 - `bool` — validation functions (always)
 
-No untyped `Any` in public function signatures.
+Avoid `Any` in public function signatures where a more specific type is
+available. Not mechanically enforced (ruff's `ANN401` isn't enabled — it
+tends to flag legitimate generic cases like a `*args: Any, **kwargs: Any`
+decorator wrapper too aggressively to be worth the noise), and not
+currently true everywhere (a handful of existing public functions take a
+genuinely dynamic third-party/stdlib object, e.g. an `icalendar` component
+or a Lambda `context`) — a review-time judgment call, not a hard rule.
 
 ### CLI integration
 
@@ -342,8 +348,10 @@ rule doesn't get re-litigated or re-"discovered" as missing:
   point-in-time file), docstring *content* (that `Data Source:` says
   something real, not just that the section exists), function-naming
   prefixes (`get_latest_*`/`parse_*`/`validate_*`), the no-narrative/no-
-  fixed-numbers comment rules, and which domain-specific exception to
-  raise in place of a bare `Exception`.
+  fixed-numbers comment rules, which domain-specific exception to raise
+  in place of a bare `Exception`, and avoiding `Any` where a more
+  specific type is available (ruff's `ANN401` isn't enabled — too noisy
+  against legitimate generic cases to be worth it).
 
 When a reviewed-only rule gets violated more than once independently
 (the hostname-substring check was, twice), that's the signal to look for
