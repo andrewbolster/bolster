@@ -6,7 +6,7 @@ Standard CI (pytest, codecov, pre-commit/ruff) handles testing and linting separ
 
 Superseded by the quality-gate system (see docs/quality-gate-system.md).
 Kept only as a reference for the ad-hoc string/AST checks it used to run
-against the conventions documented in .claude/constitution.md.
+against the conventions now documented in STYLE_GUIDE.md.
 
 Checks:
 - Shared utilities usage (no raw requests.get())

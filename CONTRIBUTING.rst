@@ -97,8 +97,11 @@ Before submitting a pull request:
 
 1. **Tests** — include real-data integrity tests. No mocks. Use
    ``scope="class"`` fixtures so the network call is made once per class.
-2. **Coverage** — new code must reach >90%. ``cli.py`` is deliberately
-   excluded from coverage checks.
+2. **Coverage** — locally, ``make test`` enforces an 80% floor
+   (``pyproject.toml``'s ``fail_under``); on the PR, Codecov only fails if
+   coverage drops by more than 1% from baseline (``codecov.yml``), so aim
+   well above 80% on new code. ``cli.py`` is deliberately excluded from
+   coverage checks.
 3. **Docs** — if you add a new data source, update ``README.md``
    (coverage table) and ``docs/data_sources.rst``. Add a docstring with
    an ``Example:`` section.
@@ -131,10 +134,10 @@ See ``AGENTS.md`` for the full specification of each agent, including
 templates, checklists, and quality gates.
 
 **Code conventions** (docstrings, naming, comments, HTTP/hostname checks,
-exceptions, testing) are in ``.claude/constitution.md`` — the project's style
-guide. For NISRA data specifically, prefer ``pxstat.read_dataset()`` (no
-rate limits, no auth, no CI flakiness) and only fall back to Excel scraping
-when the dataset isn't in PxStat.
+exceptions, testing) are in ``STYLE_GUIDE.md`` at the repo root. For NISRA
+data specifically, prefer ``pxstat.read_dataset()`` (no rate limits, no
+auth, no CI flakiness) and only fall back to Excel scraping when the
+dataset isn't in PxStat.
 
 Tips
 ----
