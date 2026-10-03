@@ -146,10 +146,11 @@ line-length = 120
 [tool.ruff.lint.pydocstyle]
 convention = "google"  # Use Google docstring style
 
-# Project convention (STYLE_GUIDE.md): use the shared HTTP session and
-# download_file() instead of raw requests/urlretrieve.
+# Project convention (STYLE_GUIDE.md): use download_file() instead of raw
+# urlretrieve. (Raw `requests` itself is already banned project-wide by
+# .importlinter's http-centralization contract -- no need to duplicate
+# that here.)
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
-"requests".msg = "Use bolster.utils.web.session instead -- it has retry logic for transient failures."
 "urllib.request.urlretrieve".msg = "Use download_file() from the module's _base.py instead."
 
 # Custom rules for different file types
@@ -158,8 +159,7 @@ convention = "google"  # Use Google docstring style
 "*.ipynb" = ["E402", "F401", "F811", "I001", "F403", "F405", "E741"]
 "src/bolster/cli.py" = ["T20"]  # Allow print() in CLI module
 "scripts/**/*.py" = ["T20"]  # Allow print() in scripts
-"src/bolster/utils/web.py" = ["TID251"]  # The one module that legitimately builds the shared session from raw requests
-"tests/**/*.py" = ["D", "T20", "TID251"]  # Tests legitimately exercise raw requests (error types, retry adapters)
+"tests/**/*.py" = ["D", "T20"]  # Relax docstring and print rules in tests
 
 
 [tool.coverage.run]

@@ -167,11 +167,13 @@ Never use `requests.get()` directly — the shared session has retry logic
 for transient failures. Modules that don't make HTTP calls (e.g.
 `migration.py`, `validation.py`) are exempt.
 
-**Mechanically enforced**: `import requests` is banned project-wide by
-ruff's `TID251` (`lint.flake8-tidy-imports.banned-api`), except in
-`utils/web.py` itself (which builds the session) and `tests/` (which
-legitimately exercises raw `requests` for error types and retry
-behavior).
+**Mechanically enforced**: `import-linter`'s `http-centralization`
+contract (`.importlinter`) forbids importing `requests` (or `httpx`)
+anywhere under `bolster` except `utils/web.py` itself, which builds the
+session — adding a new exception means adding an explicit, documented
+entry to that file, not just suppressing a lint warning inline (`import-linter`
+doesn't support `# noqa`-style comments). Tests are unaffected — the
+contract only scopes `source_modules = bolster`.
 
 ### URL / hostname validation
 
@@ -268,8 +270,7 @@ Typical TTLs: 24 hours for daily/weekly data, `30 * 24` for monthly
 publications, `365 * 24` for annual/static data.
 
 **Mechanically enforced**: `urllib.request.urlretrieve` is banned
-project-wide by the same `TID251` rule as raw `requests` (`tests/` exempt,
-for the same reason).
+project-wide by ruff's `TID251` (`lint.flake8-tidy-imports.banned-api`).
 
 ### Return types and typing
 
@@ -328,13 +329,14 @@ A rule above is either checked by a tool on every push, or it's a
 judgment call a reviewer makes — worth being explicit about which, so a
 rule doesn't get re-litigated or re-"discovered" as missing:
 
-- **Mechanical** (ruff, unless noted): shared-session usage and
-  `download_file()` (`TID251`), no bare `raise Exception()` (`TRY002`),
-  no `print()` in library code (`T20`), logger pattern when a module logs
-  (`LOG001`/`LOG002`/`LOG015`), docstring presence/format (`D`, Google
-  convention), mutable default arguments (`B006`), modern syntax (`UP`),
-  architectural import boundaries (`import-linter`, `.importlinter`),
-  type correctness (`mypy`).
+- **Mechanical**: shared-session usage (`import-linter`'s
+  `http-centralization` contract, `.importlinter`), `download_file()`
+  over `urlretrieve` (ruff's `TID251`), no bare `raise Exception()`
+  (ruff's `TRY002`), no `print()` in library code (ruff's `T20`), logger
+  pattern when a module logs (ruff's `LOG001`/`LOG002`/`LOG015`),
+  docstring presence/format (ruff's `D`, Google convention), mutable
+  default arguments (ruff's `B006`), modern syntax (ruff's `UP`), type
+  correctness (`mypy`).
 - **Reviewed, not mechanical**: the mother-page-discovery pattern
   (a linter can't know whether a URL is a stable listing page or a
   point-in-time file), docstring *content* (that `Data Source:` says
