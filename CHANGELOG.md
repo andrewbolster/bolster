@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.11.6\] - 2026-10-03
+
+- fix(translink): restore the "next N" contract when no vehicles are live
+
 ## \[0.11.5\] - 2026-09-30
 
 - feat: NISRA datavis embedded-download extractor + 4 new data sources (#2200)
