@@ -79,6 +79,11 @@ Example:
 Utility modules (e.g. `validation.py`, `migration.py`) and `_base.py` are
 exempt — they describe what they compute, not a data source.
 
+**Partially mechanically enforced**: ruff's `D` rules (Google convention)
+require a docstring to exist and be correctly formatted. Whether it
+actually contains a `Data Source:`/`Update Frequency:`/`Example:` section
+is a review-time check — no linter rule for that.
+
 ### Mother-page discovery
 
 Never hardcode a URL to a specific data file — publishers rename and
@@ -162,6 +167,12 @@ Never use `requests.get()` directly — the shared session has retry logic
 for transient failures. Modules that don't make HTTP calls (e.g.
 `migration.py`, `validation.py`) are exempt.
 
+**Mechanically enforced**: `import requests` is banned project-wide by
+ruff's `TID251` (`lint.flake8-tidy-imports.banned-api`), except in
+`utils/web.py` itself (which builds the session) and `tests/` (which
+legitimately exercises raw `requests` for error types and retry
+behavior).
+
 ### URL / hostname validation
 
 When checking whether a scraped link belongs to a known, trusted domain,
@@ -193,6 +204,12 @@ logger = logging.getLogger(__name__)
 No `print()` calls in library code — use `logger.info()`,
 `logger.warning()`, `logger.error()` appropriately.
 
+**Mechanically enforced**: ruff's `T20` bans `print()` outside `cli.py`
+and `scripts/`; ruff's `LOG` rules (`LOG001`/`LOG002`/`LOG015`) require the
+`logging.getLogger(__name__)` pattern and ban the root logger wherever a
+module does log — a module that never logs anything correctly has nothing
+to flag.
+
 ### Exception hierarchy
 
 Raise domain-specific exceptions, never bare `Exception`:
@@ -204,6 +221,10 @@ Raise domain-specific exceptions, never bare `Exception`:
 
 Exception messages are actionable (say what went wrong and where), not
 generic.
+
+**Mechanically enforced**: ruff's `TRY002` bans a bare `raise Exception(...)`.
+Which domain-specific exception to raise instead is a review-time judgment
+call, not something a linter can decide.
 
 ### Validation functions
 
@@ -245,6 +266,10 @@ file_path = download_file(url, cache_ttl_hours=24, force_refresh=False)
 
 Typical TTLs: 24 hours for daily/weekly data, `30 * 24` for monthly
 publications, `365 * 24` for annual/static data.
+
+**Mechanically enforced**: `urllib.request.urlretrieve` is banned
+project-wide by the same `TID251` rule as raw `requests` (`tests/` exempt,
+for the same reason).
 
 ### Return types and typing
 
@@ -296,3 +321,28 @@ class TestDataIntegrity:
   from the current baseline (`codecov.yml`, `target: auto`). Error-handling
   paths that would need a mock to exercise are a pragmatic exception either
   way.
+
+## What's Mechanical vs. Reviewed
+
+A rule above is either checked by a tool on every push, or it's a
+judgment call a reviewer makes — worth being explicit about which, so a
+rule doesn't get re-litigated or re-"discovered" as missing:
+
+- **Mechanical** (ruff, unless noted): shared-session usage and
+  `download_file()` (`TID251`), no bare `raise Exception()` (`TRY002`),
+  no `print()` in library code (`T20`), logger pattern when a module logs
+  (`LOG001`/`LOG002`/`LOG015`), docstring presence/format (`D`, Google
+  convention), mutable default arguments (`B006`), modern syntax (`UP`),
+  architectural import boundaries (`import-linter`, `.importlinter`),
+  type correctness (`mypy`).
+- **Reviewed, not mechanical**: the mother-page-discovery pattern
+  (a linter can't know whether a URL is a stable listing page or a
+  point-in-time file), docstring *content* (that `Data Source:` says
+  something real, not just that the section exists), function-naming
+  prefixes (`get_latest_*`/`parse_*`/`validate_*`), the no-narrative/no-
+  fixed-numbers comment rules, and which domain-specific exception to
+  raise in place of a bare `Exception`.
+
+When a reviewed-only rule gets violated more than once independently
+(the hostname-substring check was, twice), that's the signal to look for
+a mechanical equivalent instead of flagging it by hand a third time.
