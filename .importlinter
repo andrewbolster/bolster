@@ -43,5 +43,6 @@ ignore_imports =
     # Add exceptions here following the format above
     # Example: bolster.data_sources.special_case -> requests
 
-# Note: urllib.request violations are caught by the existing pre-commit hook
-# since import-linter can't easily handle submodule imports like urllib.request
+# Note: urllib.request.urlretrieve is banned separately via ruff's TID251
+# (flake8-tidy-imports banned-api, pyproject.toml) -- import-linter can't
+# easily handle submodule imports like urllib.request.urlretrieve itself.
