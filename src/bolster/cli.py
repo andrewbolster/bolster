@@ -43,6 +43,7 @@ from .data_sources.justice import nicts_quarterly as justice_nicts_quarterly
 from .data_sources.justice import pbni_caseload as justice_pbni
 from .data_sources.justice import pps_statistical_bulletin as justice_pps_statistical_bulletin
 from .data_sources.justice import prosecutions_convictions as justice_prosecutions
+from .data_sources.justice import yja_workload as justice_yja_workload
 from .data_sources.metoffice import get_uk_precipitation
 from .data_sources.ni_house_price_index import build as get_ni_house_prices
 from .data_sources.ni_water import get_postcode_to_water_supply_zone, get_water_quality_by_zone
@@ -10845,6 +10846,141 @@ def justice_prosecutions_convictions_cmd(dataset, by, year, list_tables, output_
                 latest = data[data["year"] == data["year"].max()]
                 for row in latest.itertuples():
                     console.print(f"   {row.court}: {row.conviction_rate:.1%} of {int(row.total_findings):,} findings")
+            elif "table_id" in data.columns:
+                console.print(f"   Tables: {data['table_id'].nunique()}")
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.astype(str).to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.astype(str).to_json(orient="records", indent=2))
+        else:
+            click.echo(data.to_csv(index=False), nl=False)
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@justice.command(name="yja-workload")
+@click.option(
+    "--dataset",
+    type=click.Choice(
+        ["referrals", "referral-types", "areas", "custody-age", "custody-population", "pace", "all"],
+        case_sensitive=False,
+    ),
+    default="referrals",
+    help="Which table to extract (default: referrals). 'all' returns the full long frame.",
+)
+@click.option("--year", type=int, help="Start of the financial year to fetch, e.g. 2025 for 2025/26 (default: latest)")
+@click.option("--list-tables", is_flag=True, help="List the tables in the workbook and exit")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics instead of full data")
+def justice_yja_workload_cmd(dataset, year, list_tables, output_format, force_refresh, save, summary):
+    r"""Youth Justice Agency annual workload statistics for NI.
+
+    \b
+    Annual Department of Justice figures on the Youth Justice Agency's work:
+    referrals of children to the Youth Justice Service (and the rate per 1,000
+    of the 10-17 population), referral type and area, and children held in
+    Woodlands Juvenile Justice Centre by age, legal status and PACE conversion.
+    Financial years from 2008/09.
+
+    Examples:
+        Referrals, children involved and rate per 1,000::
+
+            bolster justice yja-workload
+
+        Referrals by type (diversionary, court ordered, ...)::
+
+            bolster justice yja-workload --dataset referral-types
+
+        Referrals by local government district::
+
+            bolster justice yja-workload --dataset areas
+
+        Children in custody by age band::
+
+            bolster justice yja-workload --dataset custody-age
+
+        Every table in the 2025/26 bulletin, as JSON::
+
+            bolster justice yja-workload --dataset all --year 2025 --format json
+
+    Source:
+        https://www.justice-ni.gov.uk/publications/youth-justice-agency-annual-workload-statistics-2025-26
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        if list_tables:
+            with console.status("[bold green]Downloading Youth Justice Agency workload data..."):
+                tables = justice_yja_workload.list_tables(year=year)
+            console.print("[bold]Available tables:[/bold]")
+            for row in tables.itertuples():
+                console.print(f"   {row.table_id:>4}  {row.table_title} ({row.records} records)")
+            return
+
+        with console.status("[bold green]Downloading Youth Justice Agency workload data..."):
+            if dataset == "referral-types":
+                data = justice_yja_workload.get_referrals_by_type(year=year)
+            elif dataset == "areas":
+                data = justice_yja_workload.get_referrals_by_area(year=year)
+            elif dataset == "custody-age":
+                data = justice_yja_workload.get_children_in_custody_by_age(year=year)
+            elif dataset == "custody-population":
+                data = justice_yja_workload.get_custody_population(year=year)
+            elif dataset == "pace":
+                data = justice_yja_workload.get_pace_conversion(year=year)
+            elif dataset == "all":
+                data = justice_yja_workload.get_latest_data(year=year, force_refresh=force_refresh)
+            else:
+                data = justice_yja_workload.get_referrals_summary(year=year)
+
+        if data.empty:
+            console.print("[yellow]No data returned[/yellow]")
+            return
+
+        console.print("[green]Youth Justice Agency workload data retrieved successfully[/green]")
+        console.print(f"[cyan]Dataset: {dataset} | Rows: {len(data)}[/cyan]")
+
+        if summary:
+            console.print("\n[bold]Summary:[/bold]")
+            if "financial_year" in data.columns:
+                console.print(f"   Coverage: {data['financial_year'].iloc[0]} to {data['financial_year'].iloc[-1]}")
+            if "rate_per_1000" in data.columns:
+                latest = data.iloc[-1]
+                console.print(
+                    f"   {latest.financial_year}: {int(latest.referrals):,} referrals, "
+                    f"{int(latest.children):,} children ({latest.rate_per_1000:.1f} per 1,000)"
+                )
             elif "table_id" in data.columns:
                 console.print(f"   Tables: {data['table_id'].nunique()}")
             if not save:

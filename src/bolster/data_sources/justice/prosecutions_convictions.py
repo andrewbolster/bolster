@@ -60,7 +60,7 @@ from odf.table import Table
 from bolster.utils.cache import CachedDownloader, bind_download_file
 from bolster.utils.web import fetch_soup, scrape_file_links
 
-from ._base import _parse_value, _sheet_rows, _strip_note_refs
+from ._base import _label_column_count, _parse_value, _sheet_rows, _strip_note_refs
 
 logger = logging.getLogger(__name__)
 
@@ -183,30 +183,6 @@ def get_data_file_url(publication_url: str) -> str:
 # download_file(url, cache_ttl_hours=_CACHE_TTL_HOURS, force_refresh=False) -> Path,
 # raising ProsecutionsDataNotFoundError in place of DownloadError.
 download_file = bind_download_file(_downloader, ProsecutionsDataNotFoundError, _CACHE_TTL_HOURS)
-
-
-def _label_column_count(data_rows: list[list[str]]) -> int:
-    """Count the leading columns that hold labels rather than values.
-
-    Most tables carry a single label column, but breakdowns such as sentencing
-    disposal by gender carry two. A column is a label column when every cell in
-    it is non-empty and non-numeric.
-
-    Args:
-        data_rows: Body rows of one table block.
-
-    Returns:
-        Number of leading label columns, always at least 1.
-    """
-    width = max(len(row) for row in data_rows)
-    count = 0
-    for column in range(width):
-        cells = [row[column] if column < len(row) else "" for row in data_rows]
-        if all(cell.strip() and pd.isna(_parse_value(cell)) for cell in cells):
-            count += 1
-        else:
-            break
-    return max(count, 1)
 
 
 def _split_blocks(rows: list[list[str]]) -> list[tuple[str | None, list[list[str]]]]:
