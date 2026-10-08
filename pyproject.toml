@@ -129,6 +129,7 @@ lint.select = [
     "TID",  # flake8-tidy-imports
     "TCH",  # flake8-type-checking
     "PGH",  # pygrep-hooks
+    "TRY002",  # raise-vanilla-class - require a domain-specific exception, not bare Exception()
 ]
 lint.ignore = [
     "E501",    # Line too long (handled by formatter)
@@ -145,13 +146,19 @@ line-length = 120
 [tool.ruff.lint.pydocstyle]
 convention = "google"  # Use Google docstring style
 
+# Project convention (STYLE_GUIDE.md): use download_file() instead of raw
+# urlretrieve. (Raw `requests` itself is already banned project-wide by
+# .importlinter's http-centralization contract -- no need to duplicate
+# that here.)
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"urllib.request.urlretrieve".msg = "Use download_file() from the module's _base.py instead."
+
 # Custom rules for different file types
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "D104"]  # Allow unused imports and missing docstrings in __init__.py
 "*.ipynb" = ["E402", "F401", "F811", "I001", "F403", "F405", "E741"]
 "src/bolster/cli.py" = ["T20"]  # Allow print() in CLI module
 "scripts/**/*.py" = ["T20"]  # Allow print() in scripts
-"scripts/constitutional_check.py.reference" = ["UP006", "UP035", "T201"]  # Legacy reference file
 "tests/**/*.py" = ["D", "T20"]  # Relax docstring and print rules in tests
 
 
