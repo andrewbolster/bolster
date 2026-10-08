@@ -1485,6 +1485,46 @@ by gender and age band. Publications run from 2008 to the present.
     $ bolster justice prosecutions-convictions --dataset out-of-court
     $ bolster justice prosecutions-convictions --dataset diversionary --by age
 
+Youth Justice Agency Workload Statistics
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Annual Department of Justice figures on the Youth Justice Agency's work:
+referrals of children to the Youth Justice Service (with children involved and
+the rate per 1,000 of the 10-17 population), referral type, area of residence,
+and the children held in Woodlands Juvenile Justice Centre by age, legal
+status and religion, plus the PACE-to-remand/sentence conversion estimate.
+Most tables run from the 2008/09 financial year to the latest bulletin; the
+referral scheme tables are short (three years or the latest year only).
+
+The workbook URL changes every year, so the module finds it by scraping the
+publication page. Typed accessors match tables by title rather than number.
+
+.. code-block:: python
+
+    from bolster.data_sources.justice import yja_workload
+
+    # Referrals, children involved and rate per 1,000 children
+    summary = yja_workload.get_referrals_summary()
+
+    # Referrals by type and by local government district
+    by_type = yja_workload.get_referrals_by_type()
+    by_area = yja_workload.get_referrals_by_area()
+
+    # Children in custody by age band, and average custody population
+    by_age = yja_workload.get_children_in_custody_by_age()
+    population = yja_workload.get_custody_population()
+
+    # Every table in long format, and what is available
+    everything = yja_workload.get_latest_data()
+    yja_workload.list_tables()
+
+.. code-block:: console
+
+    $ bolster justice yja-workload --summary
+    $ bolster justice yja-workload --dataset referral-types
+    $ bolster justice yja-workload --dataset custody-age
+    $ bolster justice yja-workload --dataset all --year 2025 --format json
+
 First Time Entrants
 ~~~~~~~~~~~~~~~~~~~
 

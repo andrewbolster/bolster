@@ -16,6 +16,7 @@ Example:
     'Total'
 """
 
+import math
 import re
 
 from odf.table import Table, TableCell, TableRow
@@ -78,6 +79,34 @@ def _parse_value(text: str) -> float:
         return float(text.replace(",", ""))
     except ValueError:
         return float("nan")
+
+
+def _label_column_count(data_rows: list[list[str]]) -> int:
+    """Count the leading columns that hold labels rather than values.
+
+    Most tables carry a single label column, but breakdowns such as sentencing
+    disposal by gender carry two. A column is a label column when every cell in
+    it is non-empty and non-numeric.
+
+    Args:
+        data_rows: Body rows of one table block.
+
+    Returns:
+        Number of leading label columns, always at least 1.
+
+    Example:
+        >>> _label_column_count([["2008/09", "April", "27"], ["2009/10", "May", "30"]])
+        2
+    """
+    width = max(len(row) for row in data_rows)
+    count = 0
+    for column in range(width):
+        cells = [row[column] if column < len(row) else "" for row in data_rows]
+        if all(cell.strip() and math.isnan(_parse_value(cell)) for cell in cells):
+            count += 1
+        else:
+            break
+    return max(count, 1)
 
 
 def _sheet_rows(table: Table) -> list[list[str]]:

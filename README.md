@@ -197,7 +197,8 @@ Education:
 [`nicts_quarterly`](https://bolster.readthedocs.io/en/latest/data_sources.html#quarterly-court-business-figures),
 [`mortgages`](https://bolster.readthedocs.io/en/latest/data_sources.html#mortgage-possession-actions),
 [`pbni_caseload`](https://bolster.readthedocs.io/en/latest/data_sources.html#pbni-caseload),
-[`pps_statistical_bulletin`](https://bolster.readthedocs.io/en/latest/data_sources.html#justice-pps-statistical-bulletin)
+[`pps_statistical_bulletin`](https://bolster.readthedocs.io/en/latest/data_sources.html#justice-pps-statistical-bulletin),
+[`yja_workload`](https://bolster.readthedocs.io/en/latest/data_sources.html#youth-justice-agency-workload-statistics) (Youth Justice Agency referrals and custody, 2008/09-present)
 
 ### Other sources
 
