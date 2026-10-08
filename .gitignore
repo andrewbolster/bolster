@@ -123,8 +123,6 @@ notebooks/cache
 # Auto-generated API documentation
 docs/autoapi/
 
-# Spec Kit - Keep specs/plans/tasks versioned, ignore temp/cache
-# .specify/ is intentionally versioned (specs are documentation)
 # .claude/commands/ is intentionally versioned (slash command definitions)
 # Note: Do NOT add .claude/ to .gitignore - it contains project-specific commands
 .claude/worktrees/

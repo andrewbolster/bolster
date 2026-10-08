@@ -36,7 +36,6 @@ health, economy, crime, transport, housing, and more — into clean
    contributing
    data_source_development
    development/auto-versioning
-   quality-gate-system
    authors
    history
 

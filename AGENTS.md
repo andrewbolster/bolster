@@ -158,10 +158,8 @@ some are real breakage. Decide before rerunning:
 
 ## Standards
 
-- **No mocks** - tests use real data with `scope="class"` fixtures
-- **Pre-commit required** - ruff linting/formatting enforced
-- **Type hints** - required for public functions
-- **Docstrings** - Args, Returns, Example sections
+Code conventions (docstrings, naming, comments, HTTP/hostname checks,
+exceptions, testing) are in `STYLE_GUIDE.md` at the repo root.
 
 ## Shared Utilities
 
@@ -298,7 +296,7 @@ Three specialized agents for the data source development lifecycle.
    - **Phase 4** (if applicable): Cross-validation tests against related datasets. Commit: `test(<name>): add cross-validation`
 1. **Quality checks** — before pushing:
    - `uv run pytest tests/ -q --no-cov` — ALL tests must pass, not just new ones
-   - `make test` — >90% coverage on new code
+   - `make test` — passes the 80% coverage gate (`pyproject.toml`'s `fail_under`); Codecov's PR check then only tolerates a 1% drop from baseline (`codecov.yml`), so new code should aim well above 80%
    - `uv run pre-commit run --all-files` — must be clean
 1. **PR** - Only push and `gh pr create` once all quality checks pass locally. Include the insights and cross-dataset sensitivity analysis required by "Data-source PR content requirements" above, and link the originating `data-source-candidate` issue with `Closes #NNN`.
 1. **Check the version label** - `pr-labeler.yml` auto-applies `version:minor` to a `feat:` PR title, but a module added to a provider that already has other modules should release as a **patch**, not a minor — override the label to `version:patch` before merge in that case (see "Releases" above). If it's not clear whether the provider counts as "new" or "already covered," ask the user before merging.
@@ -399,7 +397,7 @@ class TestValidation:
 - \[ \] Real data tests (no mocks)
 - \[ \] Uses `scope="class"` fixtures
 - \[ \] Tests data integrity, not just code paths
-- \[ \] >90% coverage on new code
+- \[ \] New code is well above the 80% local gate (`pyproject.toml`'s `fail_under`) — Codecov's PR check only tolerates a 1% drop from baseline
 - \[ \] ALL existing tests still pass (no regressions)
 
 ### Integration

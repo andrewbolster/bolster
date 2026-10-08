@@ -38,10 +38,9 @@ jobs:
 
     mypy:
         runs-on: ubuntu-latest
-        # Not a pre-commit hook: 341 pre-existing errors across 50 files on
-        # first run would block every local commit. A separate job here
-        # instead — a real, visible, independently-failing merge status
-        # check without gating commits on a debt this change didn't create.
+        # Not a pre-commit hook: a full-repo mypy run is too slow to gate
+        # every local commit. A separate job here instead — a real, visible,
+        # independently-failing merge status check.
         steps:
           - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
           - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
