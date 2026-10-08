@@ -15,6 +15,7 @@ from odf.opendocument import OpenDocumentSpreadsheet
 from odf.table import Table, TableCell, TableRow
 from odf.text import P
 
+from bolster.data_sources.justice import first_time_entrants
 from bolster.data_sources.justice import yja_workload as yja
 from bolster.data_sources.justice.yja_workload import (
     YouthJusticeDataError,
@@ -248,6 +249,60 @@ class TestCustodyIntegrity:
 
     def test_conversions_never_exceed_admissions(self, pace):
         assert (pace.pace_to_remand_sentence <= pace.pace_admissions).all()
+
+
+class TestCrossValidation:
+    """Cross-validation between YJA tables and against the first time entrants bulletin."""
+
+    @pytest.fixture(scope="class")
+    def latest_data(self):
+        return yja.get_latest_data()
+
+    @pytest.fixture(scope="class")
+    def summary(self):
+        return yja.get_referrals_summary()
+
+    @pytest.fixture(scope="class")
+    def youth_first_time_entrants(self):
+        """Persons aged 10 to 17 in their first conviction or diversion, with the all-disposals total."""
+        age = first_time_entrants.get_by_age()
+        rows = age[
+            (age.table == "1a") & (age.category == "10 to 17") & age.measure.isin(["first_count", "total_count"])
+        ]
+        wide = rows.pivot(index="year", columns="measure", values="value").dropna()
+        wide.index = wide.index.str.replace("-", "/", regex=False)
+        return wide
+
+    def test_custody_ages_sum_to_individual_children_in_jjc(self, latest_data):
+        """Table 20's age bands and Table 14's headline child count describe the same children."""
+        by_age = yja.get_children_in_custody_by_age().groupby("year_start").children.sum()
+        headline = latest_data[
+            (latest_data.table_id == 14) & latest_data["column"].str.startswith("Number of Individual Children")
+        ]
+        headline = headline.assign(year_start=headline.row_label.map(yja._year_start)).set_index("year_start").value
+        assert (by_age == headline.loc[by_age.index]).all()
+
+    def test_published_area_total_matches_referrals(self, latest_data, summary):
+        """The area table's own Total row agrees with Table 5, even where its district rows do not."""
+        totals = latest_data[(latest_data.table_id == 12) & (latest_data.row_label == "Total")]
+        totals = totals.assign(year_start=totals["column"].map(yja._year_start)).set_index("year_start").value
+        assert (totals == summary.set_index("year_start").referrals.loc[totals.index]).all()
+
+    def test_first_time_entrants_aged_10_to_17_are_the_same_order_as_yja_referrals(
+        self, summary, youth_first_time_entrants
+    ):
+        """Both bulletins count youth cases dealt with in a year, so they should sit on the same scale."""
+        overlap = summary.set_index("financial_year").join(youth_first_time_entrants, how="inner")
+        if overlap.empty:
+            pytest.skip("first time entrants edition does not overlap the YJA bulletin")
+        ratio = overlap.total_count / overlap.referrals
+        assert ratio.between(0.75, 1.25).all(), ratio.to_dict()
+
+    def test_first_time_entrants_do_not_exceed_children_referred(self, summary, youth_first_time_entrants):
+        overlap = summary.set_index("financial_year").join(youth_first_time_entrants, how="inner")
+        if overlap.empty:
+            pytest.skip("first time entrants edition does not overlap the YJA bulletin")
+        assert (overlap.first_count <= overlap.children).all()
 
 
 def _make_ods(path, sheets: dict[str, list[list[str]]]) -> None:
