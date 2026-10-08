@@ -275,8 +275,9 @@ uv run pytest tests/ -q --no-cov        # quick run
 uv run pytest tests/ --cov=src/bolster  # with coverage
 ```
 
-See [AGENTS.md](AGENTS.md) for the data source development workflow and
-[CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+See [AGENTS.md](AGENTS.md) for the data source development workflow,
+[CONTRIBUTING.rst](CONTRIBUTING.rst) for contribution guidelines, and
+[STYLE_GUIDE.md](STYLE_GUIDE.md) for code conventions.
 
 ______________________________________________________________________
 
