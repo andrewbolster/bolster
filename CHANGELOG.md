@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.11.7\] - 2026-10-08
+
+- feat(justice): add Youth Justice Agency workload statistics (#2225)
+- fix(translink): restore the "next N" contract when no vehicles are live
+
 ## \[0.11.6\] - 2026-10-03
 
 - fix(translink): restore the "next N" contract when no vehicles are live
