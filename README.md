@@ -209,7 +209,7 @@ Education:
 | NI House Price Index | `ni_house_price_index` | Quarterly house price index and sales volumes |
 | NI Assembly | `niassembly` | MLAs, oral/written questions, votes (2007–present) |
 | EONI | `eoni` | Assembly election results (2016, 2022) |
-| Translink | `translink` | Live departures and vehicle positions |
+| Translink | `translink` | Live departures and vehicle positions, direct journeys between stops, local fuzzy stop search, and lateness statistics from locally polled snapshots |
 | ONS | `ons_cpi` | CPI / CPIH / RPI inflation indices |
 | Bank of England | `boe_base_rate` | Official Bank Rate (1694–present) |
 | European Central Bank | [`ecb_interest_rates`](https://bolster.readthedocs.io/en/latest/data_sources.html#european-central-bank) | Eurozone key policy rates (MRR, DFR, MLFR), 1999–present |
@@ -234,6 +234,9 @@ bolster nisra composite-index
 bolster health-ni disease-prevalence --level gp
 bolster psni stop-and-search
 bolster translink departures "Europa Buscentre"
+bolster translink board "Cambria Street"
+bolster translink route "Central Library" "Flax Street"
+bolster translink lateness                  # needs `bolster translink poll` data
 bolster water-quality BT1 5GS
 bolster dva vehicle-tests
 bolster --help                              # full command list

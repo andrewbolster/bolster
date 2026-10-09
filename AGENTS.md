@@ -15,15 +15,22 @@ src/bolster/
 │   ├── psni/           # Police Service of NI
 │   │   ├── _base.py    # PSNI shared utilities
 │   │   └── road_traffic_collisions.py, crime_statistics.py
+│   ├── dfe/            # Department for the Economy (higher/further education)
+│   │   ├── _base.py    # DfE shared exceptions
+│   │   └── higher_education_enrolments.py, further_education_outcomes.py, ...
+│   ├── dfc/            # Department for Communities
+│   │   └── child_maintenance.py, family_resources_survey.py, ...
 │   └── dva.py          # Driver and Vehicle Agency
 ├── utils/
 │   ├── cache.py        # CachedDownloader, bind_download_file, load_workbook
 │   ├── embedded_downloads.py  # read_tables: figures/tables from base64 data: download links
 │   ├── excel.py        # find_marker_row
+│   ├── fuzzy.py        # fuzzy_match: stdlib fuzzy ranking of candidate strings
 │   ├── htmlwidgets.py  # extract_widgets, plotly_frame: Plotly data from R htmlwidgets pages
 │   ├── rss.py          # get_nisra_statistics_feed()
+│   ├── snapshots.py    # append_snapshot, read_snapshots: local sqlite store for polled live data
 │   ├── text.py         # clean_column_name
-│   └── web.py          # HTTP session with retry logic
+│   └── web.py          # HTTP session with retry logic; publication-link discovery
 └── cli.py              # Click-based CLI
 ```
 
@@ -155,6 +162,26 @@ response = session.get(url)  # Retries on 500/502/503/504; 30s timeout applied a
 ```
 
 Do NOT use raw `requests.get()` - it lacks retry logic and causes CI flakiness.
+
+`utils/web.py` also holds the link-discovery helpers. Use these rather than
+re-scraping a publication page by hand:
+
+| Function | Purpose |
+|----------|---------|
+| `find_publication_link(hub_url, ...)` | Two-hop discovery: a hub page lists publications; follow the first matching one and return the first matching file link on it |
+| `find_academic_year_publication_link(url_template, is_report_link, lookback_years=4)` | For publishers with one publication page per academic year: formats `url_template`'s `{slug}` for each of the last `lookback_years` years, newest first, and returns the first link satisfying `is_report_link(text, href)`. Raises `LinkNotFoundError` if none match |
+| `academic_year_slug(start_year)` | `2024` → `"202425"`, the suffix used in those publication URLs |
+
+The last two are used by `dfe/further_education_outcomes.py` and
+`nisra/teacher_vacancies_absence.py`; new academic-year modules should reuse
+them instead of re-implementing the year walk.
+
+### Fuzzy matching and local snapshots (`utils/fuzzy.py`, `utils/snapshots.py`)
+
+| Function | Purpose |
+|----------|---------|
+| `fuzzy_match(query, candidates, n=5, cutoff=0.6)` (`utils.fuzzy`) | Rank candidate strings against a query (stdlib `difflib`, no extra dependency); a substring match scores `1.0`. Returns `(candidate, score)` pairs, best first |
+| `snapshot_db_path(name)`, `append_snapshot(db_path, table, df)`, `read_snapshots(db_path, table, ...)` (`utils.snapshots`) | Append DataFrames from a repeatedly-polled live feed to a sqlite store under `~/.cache/bolster/snapshots/<name>.db`. For feeds with no historical API; used by `translink.lateness` |
 
 ### Spreadsheet helpers (`utils/text.py`, `utils/excel.py`, `utils/cache.py`)
 

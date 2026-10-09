@@ -1665,23 +1665,50 @@ Suppressed cells (small-count disclosure control) come back as ``NaN`` in
 Translink
 ---------
 
-Live and scheduled bus and rail departures, and vehicle positions, for the
+Live and scheduled bus and rail departures, vehicle positions, direct journeys
+between stops, local fuzzy stop search, and lateness statistics for the
 Translink NI public transport network.
 
 .. code-block:: python
 
     from bolster.data_sources import translink
+    from bolster.data_sources.translink.stops import find_stop_fuzzy
 
     # Next departures from a stop (by name)
     df = translink.get_departures_by_name("Europa Buscentre")
 
+    # Next departures matched to live vehicles (scheduled/predicted times come
+    # from the vehicle's own CIF trip where one is verified)
+    board = translink.get_departures_with_vehicles("Cambria Street", n=5)
+
     # Live vehicle positions
     vehicles = translink.get_live_vehicles()
+
+    # Next direct (no change) journeys between two stops, from the cached CIF timetable
+    journeys = translink.get_direct_journeys("Central Library", "Flax Street")
+
+    # Fuzzy stop search, entirely against the local CIF stop table
+    matches = find_stop_fuzzy("victoria sq")
+
+    # Lateness: the VMI feed has no history, so poll it first, then summarise
+    translink.poll_once()
+    snapshots = translink.read_snapshots()
+    by_line = translink.lateness_by_line(snapshots)
+
+``poll_once`` appends one snapshot of the VMI feed to a local sqlite store
+(``~/.cache/bolster/snapshots/translink_vmi.db``); ``lateness_by_line``,
+``lateness_by_stop`` and ``lateness_by_journey`` summarise whatever has been
+collected. See :doc:`usage` for a worked lateness-tracking example.
 
 .. code-block:: console
 
     $ bolster translink departures "Europa Buscentre"
+    $ bolster translink board "Cambria Street" --n 10
     $ bolster translink vehicles
+    $ bolster translink route "Central Library" "Flax Street"
+    $ bolster translink find-stop "victoria sq"
+    $ bolster translink poll --watch
+    $ bolster translink lateness --group-by stop --enrich-stops
 
 ----
 
