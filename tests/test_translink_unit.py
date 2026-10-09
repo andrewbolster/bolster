@@ -666,8 +666,8 @@ class TestParseCifTrips:
 
 
 class TestFindDirectTrips:
-    def _make_index_with_trip(self, stops: list[str]) -> None:
-        """Inject a synthetic trip into the module's trip index for testing."""
+    def _make_index_with_trip(self, monkeypatch, stops: list[str]) -> None:
+        """Inject a synthetic trip into the module's trip index for the current test."""
         from bolster.data_sources.translink import timetable
 
         trip = Trip(
@@ -693,11 +693,11 @@ class TestFindDirectTrips:
         index = {atco: [] for atco in stops}
         for ts in trip.stops:
             index[ts.atco].append((trip, ts))
-        timetable._TRIP_INDEX = index
+        monkeypatch.setattr(timetable, "_TRIP_INDEX", index)
 
-    def test_direct_trip_found(self):
+    def test_direct_trip_found(self, monkeypatch):
         stops = ["700000001000", "700000001001", "700000001002"]
-        self._make_index_with_trip(stops)
+        self._make_index_with_trip(monkeypatch, stops)
         results = find_direct_trips("700000001000", "700000001002")
         assert len(results) == 1
         trip, orig_ts, dest_ts = results[0]
@@ -706,15 +706,15 @@ class TestFindDirectTrips:
         assert dest_ts.atco == "700000001002"
         assert orig_ts.seq < dest_ts.seq
 
-    def test_no_direct_trip(self):
+    def test_no_direct_trip(self, monkeypatch):
         stops = ["700000001000", "700000001001", "700000001002"]
-        self._make_index_with_trip(stops)
+        self._make_index_with_trip(monkeypatch, stops)
         results = find_direct_trips("700000001002", "700000001000")  # wrong direction
         assert results == []
 
-    def test_unknown_stop_returns_empty(self):
+    def test_unknown_stop_returns_empty(self, monkeypatch):
         stops = ["700000001000", "700000001001"]
-        self._make_index_with_trip(stops)
+        self._make_index_with_trip(monkeypatch, stops)
         results = find_direct_trips("700000009999", "700000001001")
         assert results == []
 
