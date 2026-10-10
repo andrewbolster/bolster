@@ -72,6 +72,25 @@ uv run bolster --help                                # CLI
 
 This applies even to small fixes. The only exception is post-merge follow-up commits already agreed with the user in the same session.
 
+### Data-source PR content requirements
+
+Any PR that changes what a `data_sources/` module returns — a new module, a bug fix that changes values
+a `get_*` function produces, a new column/breakdown, a data-loss fix — must include two things in its
+description, computed against real (usually live) data, never invented:
+
+- **2-3 example insights**: concrete numbers/trends from the data itself (e.g. "X rose 12% since 2020").
+- **Cross-dataset relationships (sensitivity analysis)**: name the datasets already in this repo that are
+  semantically related to the new/changed one, and say what combining them actually supports. This is
+  as much about what *doesn't* join cleanly as what does — flag mismatched denominators, different
+  category boundaries, or missing crosswalks (e.g. two area-level datasets keyed by different geography
+  schemes) as explicitly as a genuine correlation. A plausible-looking join that's actually a methodology
+  trap is a more valuable finding than a clean one.
+
+**Exemption**: a PR that changes no output — a refactor, an internal utility extraction, a test-only
+change — is exempt. Verify the exemption applies by re-running the affected module(s) against live data
+and confirming the values are unchanged (not just that tests pass), and say so in the PR's test plan
+rather than silently omitting the section.
+
 ### Releases
 
 Merging a PR to `main` can trigger an automatic release — `release-logic.yml`
@@ -306,7 +325,7 @@ Three specialized agents for the data source development lifecycle.
    - `uv run pytest tests/ -q --no-cov` — ALL tests must pass, not just new ones
    - `make test` — passes the 80% coverage gate (`pyproject.toml`'s `fail_under`); Codecov's PR check then only tolerates a 1% drop from baseline (`codecov.yml`), so new code should aim well above 80%
    - `uv run pre-commit run --all-files` — must be clean
-1. **PR** - Only push and `gh pr create` once all quality checks pass locally. Include 2-3 example insights from the data and link the originating `data-source-candidate` issue with `Closes #NNN`.
+1. **PR** - Only push and `gh pr create` once all quality checks pass locally. Include the insights and cross-dataset sensitivity analysis required by "Data-source PR content requirements" above, and link the originating `data-source-candidate` issue with `Closes #NNN`.
 1. **Check the version label** - `pr-labeler.yml` auto-applies `version:minor` to a `feat:` PR title, but a module added to a provider that already has other modules should release as a **patch**, not a minor — override the label to `version:patch` before merge in that case (see "Releases" above). If it's not clear whether the provider counts as "new" or "already covered," ask the user before merging.
 1. **Verify CI** - After PR, run `gh pr checks` to confirm CI passes. Do not merge until green.
 
@@ -369,7 +388,7 @@ class TestValidation:
 **PR must include**:
 
 - Summary of what the module provides
-- 2-3 example insights from the data
+- The insights and cross-dataset sensitivity analysis required by "Data-source PR content requirements"
 - Usage examples (Python and CLI)
 
 ## Agent: data-review
@@ -414,6 +433,7 @@ class TestValidation:
 - \[ \] README coverage table updated
 - \[ \] Pre-commit checks pass
 - \[ \] `data-source-candidate` issue referenced with `Closes #NNN`
+- \[ \] If the PR changes what a `get_*` function returns: insights and cross-dataset sensitivity analysis present per "Data-source PR content requirements" (a pure refactor with no output change is exempt — check the PR says so and shows how it verified that)
 
 ### Opportunities
 
