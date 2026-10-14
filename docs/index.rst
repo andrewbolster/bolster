@@ -22,6 +22,7 @@ health, economy, crime, transport, housing, and more — into clean
    installation
    data_sources
    usage
+   insights/index
 
 .. toctree::
    :maxdepth: 3
