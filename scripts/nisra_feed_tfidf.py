@@ -149,7 +149,7 @@ def fetch_feed(limit: int = 20) -> list[dict]:
             "title": e.get("title", ""),
             "summary": e.get("summary", ""),
             "link": e.get("link", ""),
-            "published": e.get("published", None),
+            "published": e.get("published") or e.get("updated"),
         })
     return entries
 

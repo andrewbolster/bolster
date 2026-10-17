@@ -1,6 +1,6 @@
 """Tests for RSS feed parsing utilities."""
 
-from datetime import datetime
+from datetime import UTC, datetime, timedelta, timezone
 from unittest.mock import Mock, patch
 
 import pytest
@@ -120,6 +120,33 @@ def test_filter_entries_by_date():
     filtered_range = filter_entries(entries, after_date="2024-02-01", before_date="2024-11-01")
     assert len(filtered_range) == 1
     assert filtered_range[0].title == "Entry 2"
+
+
+def test_filter_entries_by_date_mixes_naive_and_aware():
+    """Aware feed dates compare cleanly with naive and aware cutoffs (naive means UTC)."""
+    belfast = timezone(timedelta(hours=1))
+    entries = [
+        FeedEntry(title="Old", link="https://example.com/1", published=datetime(2024, 1, 1, 9, 0, tzinfo=belfast)),
+        FeedEntry(title="New", link="https://example.com/2", published=datetime(2024, 6, 1, 9, 0, tzinfo=belfast)),
+        FeedEntry(title="Naive", link="https://example.com/3", published=datetime(2024, 6, 2)),
+    ]
+
+    assert [e.title for e in filter_entries(entries, after_date=datetime(2024, 5, 1))] == ["New", "Naive"]
+    assert [e.title for e in filter_entries(entries, after_date=datetime(2024, 5, 1, tzinfo=UTC))] == [
+        "New",
+        "Naive",
+    ]
+    assert [e.title for e in filter_entries(entries, before_date=datetime(2024, 5, 1, tzinfo=UTC))] == ["Old"]
+
+
+def test_filter_entries_by_date_compares_instants_not_wall_clock():
+    """09:30 at +01:00 is 08:30 UTC, so it falls before a 09:00 UTC cutoff."""
+    belfast = timezone(timedelta(hours=1))
+    entries = [
+        FeedEntry(title="Early", link="https://example.com/1", published=datetime(2024, 6, 1, 9, 30, tzinfo=belfast))
+    ]
+
+    assert filter_entries(entries, after_date=datetime(2024, 6, 1, 9, 0, tzinfo=UTC)) == []
 
 
 def test_filter_entries_by_category():

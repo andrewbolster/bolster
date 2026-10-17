@@ -3,7 +3,7 @@
 import os
 import sys
 import time
-from datetime import date
+from datetime import UTC, date
 from pathlib import Path
 
 import click
@@ -2008,8 +2008,7 @@ def nisra_feed(limit: int, title_filter: str, days: int, check_coverage: bool):
 
     # Apply date filter
     if days:
-        cutoff = datetime.now() - timedelta(days=days)
-        entries = [e for e in entries if e.published and e.published >= cutoff]
+        entries = filter_entries(entries, after_date=datetime.now(UTC) - timedelta(days=days))
 
     # Apply title filter
     if title_filter:
