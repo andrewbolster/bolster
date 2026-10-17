@@ -4,6 +4,8 @@ An Insights Digest is a short, dated page of findings about recently updated dat
 the library. The `data-insights` agent drafts one a week when something solid turns up, and a person reviews it
 before it is merged.
 
+- **Tables and charts first**: each finding is a summary table and, where it helps, a chart, with only a
+  line or two of words around them; a table at the top lists every finding at a glance.
 - **Reproducible**: every number comes with the code or `bolster` command that produced it.
 - **Association, not causation**: findings describe what moves together, with a stated confidence and caveat.
 - **Honest about joins**: differences in vintage, geography, definitions and denominators are called out, and
