@@ -9,5 +9,6 @@ generated from code run against live data and reviewed by a person before it is 
 :reversed:
 :maxdepth: 1
 
-*
+*/*
+about
 ```
