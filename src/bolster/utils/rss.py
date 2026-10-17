@@ -7,7 +7,7 @@ with a focus on government statistics and research publications.
 import contextlib
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 
 import feedparser
 from dateutil import parser as date_parser
@@ -236,6 +236,19 @@ def parse_rss_feed(feed_url: str, timeout: int = 30) -> Feed:
     )
 
 
+def _as_utc(value: datetime) -> datetime:
+    """Return ``value`` as a timezone-aware UTC datetime, treating naive values as UTC.
+
+    Feed entries carry timezone-aware dates while callers often pass naive ones;
+    comparing the two directly raises ``TypeError``.
+
+    Example:
+        >>> _as_utc(datetime(2024, 1, 1)).isoformat()
+        '2024-01-01T00:00:00+00:00'
+    """
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+
+
 def filter_entries(
     entries: list[FeedEntry],
     title_contains: str | None = None,
@@ -283,13 +296,15 @@ def filter_entries(
         if isinstance(after_date, str):
             after_date = parse_date(after_date)
         if after_date:
-            filtered = [e for e in filtered if e.published and e.published >= after_date]
+            after_utc = _as_utc(after_date)
+            filtered = [e for e in filtered if e.published and _as_utc(e.published) >= after_utc]
 
     if before_date:
         if isinstance(before_date, str):
             before_date = parse_date(before_date)
         if before_date:
-            filtered = [e for e in filtered if e.published and e.published <= before_date]
+            before_utc = _as_utc(before_date)
+            filtered = [e for e in filtered if e.published and _as_utc(e.published) <= before_utc]
 
     return filtered
 

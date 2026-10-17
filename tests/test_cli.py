@@ -2,6 +2,7 @@
 """Tests for CLI module."""
 
 import os
+from datetime import UTC
 from unittest.mock import patch
 
 import click
@@ -359,6 +360,36 @@ class TestDeprecatedDimensionAliases:
             result = runner.invoke(cli, ["nisra", "registrar-general", "--latest", "--table", "births"])
         assert "deprecated" in result.output.lower()
         assert "--dimension" in result.output
+
+
+class TestNisraFeedDays:
+    """`bolster nisra feed --days` against timezone-aware feed dates."""
+
+    def test_days_filters_aware_entries(self):
+        from datetime import datetime, timedelta
+
+        from bolster.utils.rss import Feed, FeedEntry
+
+        now = datetime.now(UTC)
+        feed = Feed(
+            title="NISRA",
+            link="https://example.com",
+            entries=[
+                FeedEntry(
+                    title="Recent Widgets Statistics", link="https://example.com/1", published=now - timedelta(days=1)
+                ),
+                FeedEntry(
+                    title="Ancient Gadgets Statistics", link="https://example.com/2", published=now - timedelta(days=30)
+                ),
+            ],
+        )
+
+        with patch("bolster.utils.rss.get_nisra_statistics_feed", return_value=feed):
+            result = CliRunner().invoke(cli, ["nisra", "feed", "--days", "7"])
+
+        assert result.exit_code == 0, result.output
+        assert "Recent Widgets" in result.output
+        assert "Ancient Gadgets" not in result.output
 
 
 class TestListSources:
