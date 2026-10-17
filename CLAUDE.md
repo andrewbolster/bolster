@@ -11,6 +11,7 @@ Code conventions (docstrings, naming, comments, HTTP/hostname checks, exceptions
   - `data-build` — build a module from a RECOMMENDED issue
   - `data-review` — review open data-source PRs
   - `data-maintenance` — weekly review of merged PRs for doc gaps and shared-utility candidates
+  - `data-insights` — weekly search for trends and cross-dataset relationships in recent data, as a draft Insights Digest PR
 - `commands/nisra-feed-review.md` — `/nisra-feed-review`: scan the NISRA RSS feed and open `data-source-candidate` issues
 
 The agent definitions themselves are specified in AGENTS.md; the files in `.claude/agents/` are the Claude Code wrappers.

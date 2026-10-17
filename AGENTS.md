@@ -395,7 +395,7 @@ class TestValidation:
 
 **Purpose**: Review open PRs that implement a `data-source-candidate` for consistency, shared utilities, and quality.
 
-**Trigger**: Invoked manually against a specific PR: "Use the data-review agent to review PR #NNN". Also invokable as a batch: "review all open data-source PRs". Only review PRs that touch `src/bolster/data_sources/` — skip dependency bumps, CI changes, and documentation-only PRs.
+**Trigger**: Invoked manually against a specific PR: "Use the data-review agent to review PR #NNN". Also invokable as a batch: "review all open data-source PRs". Only review PRs that touch `src/bolster/data_sources/` — skip dependency bumps, CI changes, and documentation-only PRs (including `insights-digest` PRs).
 
 **Before reviewing**:
 
@@ -451,7 +451,7 @@ class TestValidation:
 
 **Workflow**:
 
-1. **Find scope** - Run `gh pr list --state merged --base main --limit 50 --json number,title,mergedAt,labels` and filter to PRs merged in the last 7 days. Skip PRs labelled `dependencies`, and PRs whose only non-`version:*` label is `documentation`. Do **not** skip on `version:skip` alone — refactors and internal utility extractions carry that label precisely because they change no behaviour, which is where shared-utility duplication shows up.
+1. **Find scope** - Run `gh pr list --state merged --base main --limit 50 --json number,title,mergedAt,labels` and filter to PRs merged in the last 7 days. Skip PRs labelled `dependencies` or `insights-digest`, and PRs whose only non-`version:*` label is `documentation`. Do **not** skip on `version:skip` alone — refactors and internal utility extractions carry that label precisely because they change no behaviour, which is where shared-utility duplication shows up.
 1. **README audit** - For each merged PR that touches `src/bolster/data_sources/`, verify:
    - The new module appears in the README coverage table
    - The CLI command is documented (`uv run bolster --help` output matches)
@@ -471,6 +471,37 @@ class TestValidation:
 - Open the minimum number of issues needed — batch documentation gaps into one issue, not one per module
 - Be conservative on shared utility candidates — only flag patterns seen in ≥2 separate PRs
 - Do not re-raise issues that are already open with the same label and similar title
+
+## Agent: data-insights
+
+**Purpose**: Once a week, look for genuinely interesting trends or relationships in the data that changed recently, set against the rest of the library, and publish the ones that hold up as a draft digest for human review.
+
+**Trigger**: Runs weekly. Also invokable manually: "Use the data-insights agent to review this week's data".
+
+**Never-read rule — applies before anything else.** Never read, cite, summarise, build on, or be steered by any existing Insights Digest. That means:
+
+- nothing under `docs/insights/`
+- no PR, branch or issue labelled `insights-digest` or titled `Insights Digest - ...`
+- no digest text quoted or copied elsewhere (README, release notes, issue comments)
+
+**Why**: a digest that reads earlier digests ends up summarising its own output and compounding its own mistakes. Every claim must rest on code and live data run in *this* run. The "example insights" in an ordinary data-source PR body are unverified leads at most, never evidence — re-derive anything you use. Keep searches clear of digests by path-limiting `git log` to `src/bolster/data_sources/` and by filtering `gh` queries with `-label:insights-digest`.
+
+**Workflow**:
+
+1. **Open-digest check** - Run `gh pr list --label insights-digest --state open --json number`. If any is open, stop — do nothing this run. Look only at whether one exists, never at what it contains.
+1. **Find scope** - Collect (a) `data_sources/` modules merged in the last 7 days (`git log --since="7 days ago" --first-parent --name-only --format= -- src/bolster/data_sources/`), (b) newly published releases of existing series, and (c) the findings of the latest NISRA Feed Drift Detection run. Pair each with related existing modules by domain, using the README coverage table.
+1. **Explore** - Run real code (`uv run`, disposable scripts in `/tmp/`, never committed) against live data. Look for trends in the new data and for relationships between it and the paired datasets. Skip any source that returns 403 from a datacentre IP (see #2041) and list it as skipped — do not work around blocks.
+1. **Challenge** - For every candidate finding check vintage, geography, definition, denominator and category boundaries against the paired dataset. State mismatches as explicitly as matches, using the "Cross-dataset relationships (sensitivity analysis)" wording from "Data-source PR content requirements". A join that turns out to be a methodology trap is a valid finding.
+1. **Select** - Keep at most 5 findings, fewer if weak. If none are solid, stop and open nothing — silence is the expected, common case.
+1. **Write** - Add one file, `docs/insights/YYYY-MM-DD-digest.md`. For each finding: a headline; the numbers; a reproducible snippet or `uv run bolster ...` command; data vintage and geography; any definition or methodology mismatch; confidence (high/medium/low) with the main caveat. Add a "Skipped sources" section and a "Joins considered and rejected" section.
+1. **PR** - Branch `docs/insights-digest-YYYYMMDD`, stage only that file, commit `docs: insights digest YYYYMMDD`. Create the `insights-digest` label first if it does not exist. Open one draft PR with `gh pr create --draft`, titled `Insights Digest - YYYYMMDD`, labelled `insights-digest`, `documentation` and `version:skip`. The body lists the findings and the commands re-run, and ends with the standard generated-with line and no session link.
+
+**Key behaviors**:
+
+- Every number comes from code actually run in this run; describe association, never causation
+- Read-only on code — do NOT modify `src/`, and edit nothing but the one digest file (`docs/insights/index.md` lists digests by glob, so no shared file needs updating)
+- At most one open digest PR at a time, and always a draft — a human decides what is worth publishing
+- The label, title and path are fixed so that other agents and routines can exclude digests mechanically
 
 ______________________________________________________________________
 
