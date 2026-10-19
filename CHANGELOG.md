@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.11.8\] - 2026-10-17
+
+- fix: nisra feed --days crash; make the insights agent routine-ready (#2234)
+
 ## \[0.11.7\] - 2026-10-08
 
 - feat(justice): add Youth Justice Agency workload statistics (#2225)
