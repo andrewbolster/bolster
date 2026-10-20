@@ -72,12 +72,10 @@ jobs:
                 print-hash: true
 
             - name: Create GitHub Release
-              # No `if:` gate — this used to only run on workflow_dispatch,
-              # which meant every automatic release (every patch/minor bump
-              # since v0.7.1) published to PyPI but never got a GitHub
-              # Release object, and anything listening for the `release`
-              # event (e.g. andrewbolster/mcp.bolster.online's
-              # repository_dispatch notifier) never fired.
+              # No `if:` gate: every release, automatic or manual, gets a Release
+              # object. It is created with GITHUB_TOKEN, so it does not trigger
+              # `release` workflows; mcp.bolster.online is notified by the
+              # `notify-mcp` job below instead.
               uses: softprops/action-gh-release@7c4723f7a335432393329f8f1c564994ce50185d  # v3
               with:
                 tag_name: ${{ github.event.inputs.tag || github.ref_name }}
@@ -93,3 +91,26 @@ jobs:
                 draft: false
                 prerelease: false
                 files: dist/*
+
+    # Its own job so a failed notification can be re-run without re-publishing.
+    notify-mcp:
+        name: Notify mcp.bolster.online
+        needs: publish
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9
+              env:
+                TAG: ${{ github.event.inputs.tag || github.ref_name }}
+              with:
+                github-token: ${{ secrets.MCP_DISPATCH_TOKEN }}
+                script: |
+                  await github.rest.repos.createDispatchEvent({
+                    owner: 'andrewbolster',
+                    repo: 'mcp.bolster.online',
+                    event_type: 'bolster-release',
+                    client_payload: {
+                      version: process.env.TAG,
+                      release_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/releases/tag/${process.env.TAG}`
+                    }
+                  })
+                  core.info(`Dispatched bolster-release for ${process.env.TAG}`)
