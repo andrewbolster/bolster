@@ -4766,6 +4766,9 @@ def nisra_construction_output_cmd(
             "industry-change",
             "pay-distribution",
             "pay-distribution-by-classification",
+            "headline",
+            "lgd",
+            "sector-table",
         ],
         case_sensitive=False,
     ),
@@ -4775,9 +4778,14 @@ def nisra_construction_output_cmd(
     "--basis",
     type=click.Choice(["workplace", "residence"], case_sensitive=False),
     default="workplace",
-    help="Geographic basis (for geography dimension only)",
+    help="Geographic basis (for geography and lgd dimensions only)",
 )
 @click.option("--year", type=int, help="Filter data for specific year")
+@click.option(
+    "--release-year",
+    type=int,
+    help="Release to read (default: latest). Raises if that release's file is not published; never substitutes another",
+)
 @click.option(
     "--format",
     "output_format",
@@ -4788,7 +4796,7 @@ def nisra_construction_output_cmd(
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
 @click.option("--growth", is_flag=True, help="Include year-on-year growth rates (timeseries only)")
-def nisra_ashe_cmd(metric, dimension, basis, year, output_format, force_refresh, save, growth):
+def nisra_ashe_cmd(metric, dimension, basis, year, release_year, output_format, force_refresh, save, growth):
     """NISRA Annual Survey of Hours and Earnings (ASHE) - Employee Earnings Statistics.
 
     Annual survey measuring employee earnings in Northern Ireland across multiple dimensions
@@ -4797,9 +4805,10 @@ def nisra_ashe_cmd(metric, dimension, basis, year, output_format, force_refresh,
 
     Args:
         metric: Type of earnings metric (weekly, hourly, or annual)
-        dimension: Data dimension (timeseries, geography, sector, real-earnings, real-earnings-change, real-earnings-index, occupation-change, industry-change, pay-distribution, pay-distribution-by-classification)
-        basis: Geographic basis (workplace or residence, for geography dimension only)
+        dimension: Data dimension (timeseries, geography, sector, real-earnings, real-earnings-change, real-earnings-index, occupation-change, industry-change, pay-distribution, pay-distribution-by-classification, headline, lgd, sector-table)
+        basis: Geographic basis (workplace or residence, for geography and lgd dimensions only)
         year: Filter data for specific year
+        release_year: Release to read for every dimension but timeseries (default: latest)
         output_format: Output format (csv or json)
         force_refresh: Force re-download even if cached
         save: Save data to file (specify filename)
@@ -4830,6 +4839,22 @@ def nisra_ashe_cmd(metric, dimension, basis, year, output_format, force_refresh,
 
             bolster nisra ashe --dimension sector
 
+        Mean and median pay by sex and work pattern, with CVs (headline results)::
+
+            bolster nisra ashe --dimension headline
+
+        Earnings by Local Government District for every sex and work pattern (ODS Table 7/8)::
+
+            bolster nisra ashe --dimension lgd --basis residence
+
+        Public vs private sector in NI for every sex and work pattern (ODS Table 13)::
+
+            bolster nisra ashe --dimension sector-table
+
+        Read an earlier release (the figure-workbook dimensions have no 2026 file)::
+
+            bolster nisra ashe --dimension geography --release-year 2025
+
         Include year-on-year growth rates::
 
             bolster nisra ashe --growth
@@ -4843,9 +4868,12 @@ def nisra_ashe_cmd(metric, dimension, basis, year, output_format, force_refresh,
             bolster nisra ashe --save earnings.csv --format csv
 
     Data Notes:
-        - Coverage: April 1997 - 2025 (annual, timeseries)
-        - Annual earnings: 1999 - 2025
-        - Sector breakdown: 2005 - 2025
+        - Coverage: April 1997 - latest release (annual, timeseries)
+        - Annual earnings: 1999 - latest release
+        - Sector breakdown (Figure 5): 2005 - 2025; headline, lgd and sector-table: 2021/2022 onwards
+        - The figure-workbook dimensions (geography, sector, real-earnings*, *-change, pay-distribution*)
+          read ASHE-<year>-linked.xlsx, which NISRA did not publish for 2026: they fail with an error
+          naming the year rather than returning another year; use --release-year 2025 for those
         - Reference period: April of each year
         - Published: October each year
         - Base: Employee jobs in Northern Ireland (not self-employed)
@@ -4858,7 +4886,10 @@ def nisra_ashe_cmd(metric, dimension, basis, year, output_format, force_refresh,
     Dimensions:
         - timeseries: Historical trends by work pattern (Full-time/Part-time/All)
         - geography: Earnings by 11 Local Government Districts
-        - sector: Public vs Private sector comparison (NI & UK)
+        - sector: Public vs Private sector comparison (NI & UK, full-time median, Figure 5)
+        - headline: Mean, median, percentiles and CVs by sex and work pattern for 11 measures
+        - lgd: Earnings by Local Government District, every sex and work pattern (ODS Table 7/8)
+        - sector-table: Public vs Private sector in NI, every sex and work pattern (ODS Table 13)
 
     Returns:
         DataFrame with different columns depending on dimension:
@@ -4873,13 +4904,20 @@ def nisra_ashe_cmd(metric, dimension, basis, year, output_format, force_refresh,
             - year: Year
             - lgd: Local Government District name
             - basis: workplace or residence
+            - work_pattern: Full-time
             - median_weekly_earnings: Median weekly earnings (£)
 
         Sector:
             - year: Year
             - location: Northern Ireland or United Kingdom
             - sector: Public or Private
+            - work_pattern: Full-time
             - median_weekly_earnings: Median weekly earnings (£)
+
+        Headline / lgd / sector-table:
+            - year, measure, sex, work_pattern (plus basis, lgd_code, lgd or sector)
+            - jobs_thousands, median, mean, annual % changes, p10-p90
+            - jobs_cv, median_cv, mean_cv: coefficients of variation
 
     Note:
         Source: NISRA Economic & Labour Market Statistics Branch
@@ -4891,31 +4929,40 @@ def nisra_ashe_cmd(metric, dimension, basis, year, output_format, force_refresh,
         # Determine what data to fetch
         if dimension == "geography":
             with console.status(f"[bold green]Fetching ASHE geographic earnings ({basis})..."):
-                data = nisra_ashe.get_latest_ashe_geography(basis=basis, force_refresh=force_refresh)
+                data = nisra_ashe.get_latest_ashe_geography(basis=basis, force_refresh=force_refresh, year=release_year)
         elif dimension == "sector":
             with console.status("[bold green]Fetching ASHE sector earnings..."):
-                data = nisra_ashe.get_latest_ashe_sector(force_refresh=force_refresh)
+                data = nisra_ashe.get_latest_ashe_sector(force_refresh=force_refresh, year=release_year)
         elif dimension == "real-earnings":
             with console.status("[bold green]Fetching ASHE real earnings (Figure 2)..."):
-                data = nisra_ashe.get_real_earnings(force_refresh=force_refresh)
+                data = nisra_ashe.get_real_earnings(force_refresh=force_refresh, year=release_year)
         elif dimension == "real-earnings-change":
             with console.status("[bold green]Fetching ASHE real earnings change by pattern (Figure 3)..."):
-                data = nisra_ashe.get_real_earnings_change_by_pattern(force_refresh=force_refresh)
+                data = nisra_ashe.get_real_earnings_change_by_pattern(force_refresh=force_refresh, year=release_year)
         elif dimension == "real-earnings-index":
             with console.status("[bold green]Fetching ASHE real earnings index by sector (Figure 6)..."):
-                data = nisra_ashe.get_real_earnings_index_by_sector(force_refresh=force_refresh)
+                data = nisra_ashe.get_real_earnings_index_by_sector(force_refresh=force_refresh, year=release_year)
         elif dimension == "occupation-change":
             with console.status("[bold green]Fetching ASHE earnings change by occupation (Figure 7)..."):
-                data = nisra_ashe.get_annual_change_by_occupation(force_refresh=force_refresh)
+                data = nisra_ashe.get_annual_change_by_occupation(force_refresh=force_refresh, year=release_year)
         elif dimension == "industry-change":
             with console.status("[bold green]Fetching ASHE earnings change by industry (Figure 8)..."):
-                data = nisra_ashe.get_annual_change_by_industry(force_refresh=force_refresh)
+                data = nisra_ashe.get_annual_change_by_industry(force_refresh=force_refresh, year=release_year)
         elif dimension == "pay-distribution":
             with console.status("[bold green]Fetching ASHE pay distribution timeseries (Figure 11)..."):
-                data = nisra_ashe.get_pay_distribution_timeseries(force_refresh=force_refresh)
+                data = nisra_ashe.get_pay_distribution_timeseries(force_refresh=force_refresh, year=release_year)
         elif dimension == "pay-distribution-by-classification":
             with console.status("[bold green]Fetching ASHE pay distribution by classification (Figure 12)..."):
-                data = nisra_ashe.get_pay_distribution_by_classification(force_refresh=force_refresh)
+                data = nisra_ashe.get_pay_distribution_by_classification(force_refresh=force_refresh, year=release_year)
+        elif dimension == "headline":
+            with console.status("[bold green]Fetching ASHE headline results..."):
+                data = nisra_ashe.get_ashe_headline_results(year=release_year, force_refresh=force_refresh)
+        elif dimension == "lgd":
+            with console.status(f"[bold green]Fetching ASHE earnings by LGD ({basis})..."):
+                data = nisra_ashe.get_ashe_lgd_earnings(year=release_year, basis=basis, force_refresh=force_refresh)
+        elif dimension == "sector-table":
+            with console.status("[bold green]Fetching ASHE public/private sector earnings..."):
+                data = nisra_ashe.get_ashe_sector_earnings(year=release_year, force_refresh=force_refresh)
         else:
             # Default to timeseries
             with console.status(f"[bold green]Fetching ASHE {metric} earnings..."):

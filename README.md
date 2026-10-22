@@ -111,7 +111,7 @@ print(latest.groupby("trust")["pct_within_4hrs"].mean().sort_values())
 from bolster.data_sources.nisra import ashe
 
 df = ashe.get_latest_ashe_timeseries("weekly")
-# £713.10 median full-time weekly earnings in 2025
+# £754.40 median full-time weekly earnings in 2026 (provisional)
 print(df[df["work_pattern"] == "Full-time"].tail(5)[["year", "median_weekly_earnings"]])
 ```
 

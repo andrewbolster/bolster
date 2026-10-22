@@ -246,19 +246,44 @@ April 1997, with LGD and SOA breakdowns.
 Annual Survey of Hours and Earnings (ASHE)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Employee earnings statistics for Northern Ireland, covering median weekly and
-hourly earnings, real earnings growth, occupation/industry breakdowns, and gender
-pay distribution (Figures 1–18).
+Employee earnings statistics for Northern Ireland, covering median and mean weekly,
+hourly and annual earnings, real earnings growth, occupation/industry breakdowns, and
+gender pay distribution.
+
+NISRA publishes each release as several files, and the module finds each by scraping
+the publication pages, never by building a URL from the year:
+
+- the headline timeseries (1997 to the release year);
+- the headline results workbook (2021 onwards): mean, median, percentiles and
+  coefficients of variation by sex and work pattern (``get_ashe_headline_results``);
+- the ODS tables archive (2022 onwards): earnings by Local Government District for every
+  sex and work pattern (``get_ashe_lgd_earnings``) and by public/private sector
+  (``get_ashe_sector_earnings``);
+- the figure workbook (``ASHE-<year>-linked.xlsx``, the chart data behind the bulletin),
+  which every other accessor reads.
+
+NISRA did not publish the figure workbook for 2026. Its accessors raise
+``NISRADataNotFoundError`` naming the year; pass ``year=2025`` for the last release that
+has one. No accessor returns a different year's data from the one asked for. The newest
+year is provisional and is revised the following October, so a year's figures differ
+between releases.
 
 .. code-block:: python
 
     from bolster.data_sources.nisra import ashe
 
     df = ashe.get_latest_ashe_timeseries("weekly")
+    headline = ashe.get_ashe_headline_results(year=2026, measure="weekly_pay_gross")
+    lgds = ashe.get_ashe_lgd_earnings(year=2026, basis="workplace")
+    sectors = ashe.get_ashe_sector_earnings(year=2026)
+    gpg = ashe.get_gender_pay_gap(year=2025)  # figure workbook: no 2026 file
 
 .. code-block:: console
 
     $ bolster nisra ashe
+    $ bolster nisra ashe --dimension headline
+    $ bolster nisra ashe --dimension lgd --basis residence
+    $ bolster nisra ashe --dimension geography --release-year 2025
 
 NI Civil Service Pay Statistics
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

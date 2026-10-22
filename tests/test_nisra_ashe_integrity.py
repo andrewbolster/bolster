@@ -19,6 +19,10 @@ import pytest
 
 from bolster.data_sources.nisra import ashe
 
+# NISRA did not publish the figure workbook (ASHE-<year>-linked.xlsx) for 2026, so the accessors that read it
+# are pinned to the latest release that has one. Their behaviour for 2026 is in test_nisra_ashe_published_tables.py.
+LINKED_YEAR = 2025
+
 
 class TestASHETimeseriesIntegrity:
     """Integrity tests for ASHE timeseries data."""
@@ -111,12 +115,12 @@ class TestASHEGeographyIntegrity:
     @pytest.fixture(scope="class")
     def latest_workplace(self):
         """Fixture for workplace-based geographic earnings."""
-        return ashe.get_latest_ashe_geography(basis="workplace", force_refresh=False)
+        return ashe.get_latest_ashe_geography(basis="workplace", force_refresh=False, year=LINKED_YEAR)
 
     @pytest.fixture(scope="class")
     def latest_residence(self):
         """Fixture for residence-based geographic earnings."""
-        return ashe.get_latest_ashe_geography(basis="residence", force_refresh=False)
+        return ashe.get_latest_ashe_geography(basis="residence", force_refresh=False, year=LINKED_YEAR)
 
     def test_workplace_data_structure(self, latest_workplace):
         """Test that workplace geography data has correct structure."""
@@ -165,7 +169,7 @@ class TestASHESectorIntegrity:
     @pytest.fixture(scope="class")
     def latest_sector(self):
         """Fixture for sector earnings data."""
-        return ashe.get_latest_ashe_sector(force_refresh=False)
+        return ashe.get_latest_ashe_sector(force_refresh=False, year=LINKED_YEAR)
 
     def test_sector_data_structure(self, latest_sector):
         """Test that sector data has correct structure."""
@@ -262,7 +266,7 @@ class TestASHEGenderPayGap:
 
     @pytest.fixture(scope="class")
     def gpg(self):
-        return ashe.get_gender_pay_gap()
+        return ashe.get_gender_pay_gap(year=LINKED_YEAR)
 
     def test_required_columns(self, gpg):
         assert set(gpg.columns) == {"year", "location", "gender_pay_gap_pct"}
@@ -307,7 +311,7 @@ class TestASHEHourlyEarningsBySectorGender:
 
     @pytest.fixture(scope="class")
     def df(self):
-        return ashe.get_hourly_earnings_by_sector_gender()
+        return ashe.get_hourly_earnings_by_sector_gender(year=LINKED_YEAR)
 
     def test_required_columns(self, df):
         assert set(df.columns) == {"year", "sector", "sex", "median_hourly_earnings"}
@@ -364,7 +368,7 @@ class TestASHEHourlyEarningsByAgeGender:
 
     @pytest.fixture(scope="class")
     def df(self):
-        return ashe.get_hourly_earnings_by_age_gender()
+        return ashe.get_hourly_earnings_by_age_gender(year=LINKED_YEAR)
 
     def test_required_columns(self, df):
         assert set(df.columns) == {"age_group", "sex", "median_hourly_earnings"}
@@ -403,7 +407,7 @@ class TestASHEHourlyEarningsByOccupationGender:
 
     @pytest.fixture(scope="class")
     def df(self):
-        return ashe.get_hourly_earnings_by_occupation_gender()
+        return ashe.get_hourly_earnings_by_occupation_gender(year=LINKED_YEAR)
 
     def test_required_columns(self, df):
         assert set(df.columns) == {"occupation", "sex", "median_hourly_earnings"}
@@ -436,7 +440,7 @@ class TestASHEHourlyEarningsByPatternGender:
 
     @pytest.fixture(scope="class")
     def df(self):
-        return ashe.get_hourly_earnings_by_pattern_gender()
+        return ashe.get_hourly_earnings_by_pattern_gender(year=LINKED_YEAR)
 
     def test_required_columns(self, df):
         assert set(df.columns) == {"work_pattern", "sex", "median_hourly_earnings"}
@@ -469,7 +473,7 @@ class TestASHENIUKEarningsComparison:
 
     @pytest.fixture(scope="class")
     def df(self):
-        return ashe.get_ni_uk_earnings_comparison()
+        return ashe.get_ni_uk_earnings_comparison(year=LINKED_YEAR)
 
     def test_required_columns(self, df):
         assert set(df.columns) == {"year", "location", "median_weekly_earnings_fulltime"}
@@ -508,7 +512,7 @@ class TestASHEUKRegionalPayRatio:
 
     @pytest.fixture(scope="class")
     def df(self):
-        return ashe.get_uk_regional_pay_ratio()
+        return ashe.get_uk_regional_pay_ratio(year=LINKED_YEAR)
 
     def test_required_columns(self, df):
         assert set(df.columns) == {"region", "ratio"}
@@ -538,7 +542,7 @@ class TestASHEHoursDistribution:
 
     @pytest.fixture(scope="class")
     def df(self):
-        return ashe.get_hours_distribution()
+        return ashe.get_hours_distribution(year=LINKED_YEAR)
 
     def test_required_columns(self, df):
         assert set(df.columns) == {"paid_hours_worked", "percentage"}
@@ -564,7 +568,7 @@ class TestASHEWorkingPatternPayGap:
 
     @pytest.fixture(scope="class")
     def df(self):
-        return ashe.get_working_pattern_pay_gap()
+        return ashe.get_working_pattern_pay_gap(year=LINKED_YEAR)
 
     def test_required_columns(self, df):
         assert set(df.columns) == {"year", "location", "working_pattern_pay_gap_pct"}
@@ -596,7 +600,7 @@ class TestASHEMeanHoursByPatternGender:
 
     @pytest.fixture(scope="class")
     def df(self):
-        return ashe.get_mean_hours_by_pattern_gender()
+        return ashe.get_mean_hours_by_pattern_gender(year=LINKED_YEAR)
 
     def test_required_columns(self, df):
         assert set(df.columns) == {"work_pattern", "male_mean_hours", "female_mean_hours", "all_mean_hours"}
@@ -631,7 +635,7 @@ class TestASHERealEarnings:
 
     @pytest.fixture(scope="class")
     def df(self):
-        return ashe.get_real_earnings()
+        return ashe.get_real_earnings(year=LINKED_YEAR)
 
     def test_required_columns(self, df):
         assert set(df.columns) == {"year", "nominal_weekly_earnings", "real_weekly_earnings"}
@@ -676,7 +680,7 @@ class TestASHERealEarningsChangeByPattern:
 
     @pytest.fixture(scope="class")
     def df(self):
-        return ashe.get_real_earnings_change_by_pattern()
+        return ashe.get_real_earnings_change_by_pattern(year=LINKED_YEAR)
 
     def test_required_columns(self, df):
         assert set(df.columns) == {"work_pattern", "nominal_change_pct", "real_change_pct"}
@@ -706,7 +710,7 @@ class TestASHERealEarningsIndexBySector:
 
     @pytest.fixture(scope="class")
     def df(self):
-        return ashe.get_real_earnings_index_by_sector()
+        return ashe.get_real_earnings_index_by_sector(year=LINKED_YEAR)
 
     def test_required_columns(self, df):
         assert set(df.columns) == {"year", "sector", "real_earnings_index"}
@@ -741,7 +745,7 @@ class TestASHEAnnualChangeByOccupation:
 
     @pytest.fixture(scope="class")
     def df(self):
-        return ashe.get_annual_change_by_occupation()
+        return ashe.get_annual_change_by_occupation(year=LINKED_YEAR)
 
     def test_required_columns(self, df):
         assert set(df.columns) == {"occupation", "annual_change_pct"}
@@ -762,7 +766,7 @@ class TestASHEAnnualChangeByIndustry:
 
     @pytest.fixture(scope="class")
     def df(self):
-        return ashe.get_annual_change_by_industry()
+        return ashe.get_annual_change_by_industry(year=LINKED_YEAR)
 
     def test_required_columns(self, df):
         assert set(df.columns) == {"industry", "annual_change_pct"}
@@ -785,7 +789,7 @@ class TestASHEPayDistributionTimeseries:
 
     @pytest.fixture(scope="class")
     def df(self):
-        return ashe.get_pay_distribution_timeseries()
+        return ashe.get_pay_distribution_timeseries(year=LINKED_YEAR)
 
     def test_required_columns(self, df):
         assert set(df.columns) == {"year", "low_paid_pct", "middle_paid_pct", "high_paid_pct"}
@@ -822,7 +826,7 @@ class TestASHEPayDistributionByClassification:
 
     @pytest.fixture(scope="class")
     def df(self):
-        return ashe.get_pay_distribution_by_classification()
+        return ashe.get_pay_distribution_by_classification(year=LINKED_YEAR)
 
     def test_required_columns(self, df):
         assert set(df.columns) == {
@@ -853,3 +857,122 @@ class TestASHEPayDistributionByClassification:
         age_df = df[df["classification"].str.lower() == "age group"].set_index("subset")
         if "16-21" in age_df.index and "40-49" in age_df.index:
             assert age_df.loc["16-21", "low_paid_pct"] > age_df.loc["40-49", "low_paid_pct"]
+
+
+class TestASHEPublishedTablesIntegrity:
+    """Live checks of the headline results and ODS table accessors, which exist for the latest release."""
+
+    @pytest.fixture(scope="class")
+    def release_year(self):
+        return ashe.get_latest_ashe_publication_url()[1]
+
+    @pytest.fixture(scope="class")
+    def headline(self, release_year):
+        return ashe.get_ashe_headline_results(year=release_year)
+
+    @pytest.fixture(scope="class")
+    def lgd_workplace(self, release_year):
+        return ashe.get_ashe_lgd_earnings(year=release_year, basis="workplace")
+
+    @pytest.fixture(scope="class")
+    def lgd_residence(self, release_year):
+        return ashe.get_ashe_lgd_earnings(year=release_year, basis="residence")
+
+    @pytest.fixture(scope="class")
+    def sector(self, release_year):
+        return ashe.get_ashe_sector_earnings(year=release_year)
+
+    def test_year_columns_come_from_the_requested_release(
+        self, headline, lgd_workplace, lgd_residence, sector, release_year
+    ):
+        for df in (headline, lgd_workplace, lgd_residence, sector):
+            assert set(df["year"]) == {release_year}
+
+    def test_headline_structure(self, headline):
+        assert set(headline["measure"]) == set(ashe.ASHE_MEASURES)
+        assert len(headline) == 11 * 9
+        assert not headline.duplicated(["measure", "sex", "work_pattern"]).any()
+        assert {"median", "mean", "p10", "p90", "median_cv", "mean_cv", "jobs_thousands"} <= set(headline.columns)
+
+    def test_headline_median_matches_timeseries(self, headline, release_year):
+        """The headline workbook and the timeseries workbook are the same release: their medians must agree."""
+        weekly = headline[headline["measure"] == "weekly_pay_gross"].set_index(["sex", "work_pattern"])["median"]
+        series = ashe.get_latest_ashe_timeseries("weekly")
+        series = series[series["year"] == release_year].set_index("work_pattern")["median_weekly_earnings"]
+        for pattern in ("All", "Full-time", "Part-time"):
+            assert weekly[("All", pattern)] == pytest.approx(series[pattern], abs=0.05)
+
+    def test_mean_exceeds_median_for_pay(self, headline):
+        pay = headline[(headline["measure"] == "weekly_pay_gross") & headline["mean"].notna()]
+        assert (pay["mean"] > pay["median"]).all()
+
+    def test_percentiles_are_ordered(self, headline):
+        pay = headline[headline["measure"] == "weekly_pay_gross"].dropna(subset=["p10", "median", "p90"])
+        assert (pay["p10"] < pay["median"]).all()
+        assert (pay["median"] < pay["p90"]).all()
+
+    def test_lgd_has_eleven_districts_per_group(self, lgd_workplace, lgd_residence):
+        for df in (lgd_workplace, lgd_residence):
+            assert df["lgd"].nunique() == 11
+            assert df.groupby(["sex", "work_pattern"]).size().eq(11).all()
+            assert df["lgd_code"].str.fullmatch(r"N09\d{6}").all()
+
+    def test_lgd_jobs_sum_to_headline_total(self, lgd_workplace, lgd_residence, headline):
+        total = headline[
+            (headline["measure"] == "weekly_pay_gross")
+            & (headline["sex"] == "All")
+            & (headline["work_pattern"] == "All")
+        ]["jobs_thousands"].iloc[0]
+        for df in (lgd_workplace, lgd_residence):
+            jobs = df[(df["sex"] == "All") & (df["work_pattern"] == "All")]["jobs_thousands"].sum()
+            # The districts do not sum to the NI total: jobs the survey cannot place in a district are in the
+            # total only (2026: 986k by workplace and 969k by residence, of 1,004k), so the districts fall
+            # short of the total by a few percent.
+            assert 0.93 * total <= jobs <= total
+
+    def test_lgd_medians_plausible_and_belfast_leads_workplace_pay(self, lgd_workplace):
+        everyone = lgd_workplace[(lgd_workplace["sex"] == "All") & (lgd_workplace["work_pattern"] == "All")]
+        assert everyone["median"].between(300, 1000).all()
+        assert everyone.loc[everyone["median"].idxmax(), "lgd"] == "Belfast"
+
+    def test_sector_structure(self, sector):
+        assert {"All", "Public", "Private"} <= set(sector["sector"])
+        assert not sector.duplicated(["sector", "sex", "work_pattern"]).any()
+
+    def test_sector_all_matches_headline(self, sector, headline):
+        sector_all = sector[(sector["sector"] == "All") & (sector["sex"] == "All") & (sector["work_pattern"] == "All")][
+            "median"
+        ].iloc[0]
+        headline_all = headline[
+            (headline["measure"] == "weekly_pay_gross")
+            & (headline["sex"] == "All")
+            & (headline["work_pattern"] == "All")
+        ]["median"].iloc[0]
+        assert sector_all == pytest.approx(headline_all, abs=0.05)
+
+    def test_public_sector_median_exceeds_private(self, sector):
+        everyone = sector[(sector["sex"] == "All") & (sector["work_pattern"] == "All")].set_index("sector")["median"]
+        assert everyone["Public"] > everyone["Private"]
+
+    def test_older_release_is_reachable_by_explicit_year(self, release_year):
+        older = release_year - 1
+        df = ashe.get_ashe_sector_earnings(year=older)
+        assert set(df["year"]) == {older}
+
+    def test_figure_workbook_accessors_raise_rather_than_substitute_when_unpublished(self, release_year):
+        """If NISRA has not published the figure workbook for the release year, accessors say so.
+
+        Skipped when the workbook is published, in which case the accessors return that year (covered above).
+        """
+        try:
+            ashe.get_ashe_file_url(release_year, "linked")
+        except ashe.NISRADataNotFoundError:
+            pass
+        else:
+            pytest.skip(f"The {release_year} figure workbook is published")
+        with pytest.raises(ashe.NISRADataNotFoundError, match=str(release_year)):
+            ashe.get_gender_pay_gap()
+        with pytest.raises(ashe.NISRADataNotFoundError, match=str(release_year)):
+            ashe.get_latest_ashe_geography()
+        # The explicit earlier year still works and is labelled with that year
+        assert set(ashe.get_latest_ashe_geography(year=release_year - 1)["year"]) == {release_year - 1}
