@@ -297,7 +297,7 @@ css = [
 
 [[package]]
 name = "bolster"
-version = "0.11.8"
+version = "0.11.9"
 source = { editable = "." }
 dependencies = [
     { name = "boto3" },
