@@ -1,5 +1,7 @@
 """NISRA Quarterly Tourism Visitor Statistics Data Source.
 
+Published as: Northern Ireland Tourism Statistics.
+
 Provides access to quarterly visitor statistics for Northern Ireland covering
 overnight trips, nights spent, and expenditure across geographic markets.
 

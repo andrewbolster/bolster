@@ -1,5 +1,7 @@
 """Northern Ireland General Medical Services (GMS) statistics.
 
+Published as: General Medical Services Statistics.
+
 Provides access to Business Services Organisation (BSO) / Family Practitioner
 Services (FPS) statistics on GP practices, GPs, registered patients, funding
 and access equity across Northern Ireland.

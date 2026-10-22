@@ -1,5 +1,7 @@
 """NISRA Annual Survey of Hours and Earnings (ASHE) Module.
 
+Published as: Employee earnings in NI.
+
 This module provides access to Northern Ireland's earnings statistics:
 - Median weekly, hourly, and annual earnings
 - Breakdowns by employment type, sector, geography, occupation, industry

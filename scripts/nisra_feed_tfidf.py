@@ -126,11 +126,16 @@ def extract_corpus(root: pathlib.Path) -> list[ModuleDoc]:
         try:
             tree = ast.parse(path.read_text())
             docstring = ast.get_docstring(tree) or ""
-            first_line = next((l.strip() for l in docstring.splitlines() if l.strip()), "")
+            lines = [l.strip() for l in docstring.splitlines() if l.strip()]
+            first_line = lines[0] if lines else ""
+            # How the publisher titles this release, when that differs from our wording.
+            published_as = " ".join(
+                l.removeprefix("Published as:").strip() for l in lines if l.startswith("Published as:")
+            )
             docs.append(ModuleDoc(
                 name=path.stem,
                 path=str(path.relative_to(REPO_ROOT)),
-                docstring=first_line,
+                docstring=f"{first_line} {published_as}".strip(),
             ))
         except Exception:
             pass

@@ -1,5 +1,7 @@
 """NISRA Elective/Outpatient Waiting Times Module.
 
+Published as: inpatient and day case waiting times; outpatient waiting times.
+
 Provides access to Northern Ireland's elective and outpatient waiting times
 statistics, covering inpatient/day case and outpatient referrals waiting by
 weeks-waited band, specialty, and HSC Trust.

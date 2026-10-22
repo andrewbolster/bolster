@@ -76,6 +76,11 @@ Example:
 """
 ```
 
+If the publisher titles the release differently from the brief description,
+add a line `Published as: <the publisher's title>.` straight after it. The NISRA
+feed drift classifier indexes the first line and any `Published as:` lines, so
+this is how a release such as "Employee earnings in NI" finds the ASHE module.
+
 Utility modules (e.g. `validation.py`, `migration.py`) and `_base.py` are
 exempt — they describe what they compute, not a data source.
 

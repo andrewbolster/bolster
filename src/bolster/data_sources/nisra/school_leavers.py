@@ -1,5 +1,7 @@
 """NISRA School Leavers Survey Data Source.
 
+Published as: Qualifications and destinations of Northern Ireland school leavers.
+
 Provides access to the Department of Education NI / NISRA School Leavers Survey
 via the NISRA PxStat API.  The survey covers every grammar and secondary school
 leaver in Northern Ireland, recording their highest attainment and their

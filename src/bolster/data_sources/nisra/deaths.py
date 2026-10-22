@@ -1,5 +1,7 @@
 """NISRA Weekly Death Registrations Data Source.
 
+Published as: Deaths Registered in Northern Ireland - Week ending.
+
 Provides access to weekly death registration statistics for Northern Ireland with breakdowns by:
 - Totals (observed, expected, excess, COVID-19, flu/pneumonia deaths)
 - Demographics (age, sex)
