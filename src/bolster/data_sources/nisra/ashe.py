@@ -3,7 +3,7 @@
 Published as: Employee earnings in NI.
 
 This module provides access to Northern Ireland's earnings statistics:
-- Median weekly, hourly, and annual earnings
+- Median and mean weekly, hourly, and annual earnings
 - Breakdowns by employment type, sector, geography, occupation, industry
 - Gender pay gap analysis
 - Historical timeseries from 1997 to present
@@ -17,16 +17,34 @@ ASHE data covers employee earnings across all sectors based on a sample survey o
 records from HMRC PAYE data, providing comprehensive earnings statistics for Northern Ireland.
 
 Update Frequency: Annual publications released in October each year, covering earnings data
-for the reference period of April. The dataset provides the most comprehensive and official
-source of employee earnings statistics for Northern Ireland, updated once per year with
-historical revisions as necessary.
+for the reference period of April. The newest year is published as provisional and revised the
+following October (the 2025 figures in the 2026 release differ from those published in 2025).
+
+NISRA publishes each release as separate files, found by scraping the publication pages rather
+than constructing URLs from the year. Each accessor reads one of:
+
+- **Headline timeseries** (``ASHE-1997-<year>-headline-timeseries.xlsx``, 1997 to the release
+  year): :func:`get_latest_ashe_timeseries`.
+- **Headline results** (``ASHE-<year>-headline-results.xlsx``, 2021 onwards): mean, median,
+  percentiles and coefficients of variation (CV) by sex and work pattern for 11 measures
+  (weekly, hourly and annual pay, hours): :func:`get_ashe_headline_results`.
+- **ODS tables** (``ODS-format-ASHE-tables-<year>.zip``, 2022 onwards, Tables 7, 8 and 13): by Local Government
+  District, :func:`get_ashe_lgd_earnings`, and by public/private sector,
+  :func:`get_ashe_sector_earnings`. Every sex and work pattern, with CVs.
+- **Figure workbook** (``ASHE-<year>-linked.xlsx``, the chart data behind the bulletin): every
+  other ``get_*`` accessor, including :func:`get_latest_ashe_geography` (maps A/B, full-time
+  median only) and :func:`get_latest_ashe_sector` (Figure 5, full-time median, NI and UK).
+  NISRA did not publish this workbook for 2026, so these accessors raise
+  ``NISRADataNotFoundError`` for 2026; pass ``year=2025`` (or another year that has a workbook)
+  to read an earlier release. No accessor returns another year's data in place of the year asked for.
 
 Data Coverage:
-    - Weekly Earnings: 1997 - Present (annual, full-time/part-time/all)
-    - Hourly Earnings: 1997 - Present (annual, excluding overtime)
-    - Annual Earnings: 1999 - Present (annual, full-time/part-time/all)
-    - Geographic: 11 Local Government Districts (workplace vs residence basis)
-    - Sector: Public vs Private sector comparison (2005 - Present)
+    - Weekly Earnings timeseries: 1997 - Present (annual, full-time/part-time/all)
+    - Hourly Earnings timeseries: 1997 - Present (annual, excluding overtime)
+    - Annual Earnings timeseries: 1999 - Present (annual, full-time/part-time/all)
+    - Headline results: 2021 - Present
+    - Geographic: 11 Local Government Districts (workplace vs residence basis), 2022 - Present
+    - Sector: Public vs Private sector comparison (Figure 5: 2005 - 2025; ODS Table 13: 2022 - Present)
 
 Examples:
     >>> from bolster.data_sources.nisra import ashe
@@ -35,14 +53,19 @@ Examples:
     >>> sorted(df.columns.tolist())
     ['median_weekly_earnings', 'work_pattern', 'year']
 
-    >>> # Get geographic earnings by workplace
-    >>> df_geo = ashe.get_latest_ashe_geography(basis='workplace')
+    >>> # Median and mean weekly pay by sex and work pattern for a named release
+    >>> df_head = ashe.get_ashe_headline_results(year=2025, measure='weekly_pay_gross')
+    >>> {'year', 'sex', 'work_pattern', 'median', 'mean', 'median_cv'} <= set(df_head.columns)
+    True
+
+    >>> # Geographic earnings by workplace (bulletin map: full-time median, figure workbook)
+    >>> df_geo = ashe.get_latest_ashe_geography(basis='workplace', year=2025)
     >>> 'median_weekly_earnings' in df_geo.columns
     True
 
-    >>> # Get public vs private sector comparison
-    >>> df_sector = ashe.get_latest_ashe_sector()
-    >>> 'location' in df_sector.columns
+    >>> # Public vs private sector, all sexes and work patterns (ODS Table 13)
+    >>> df_sector = ashe.get_ashe_sector_earnings(year=2025)
+    >>> 'Public' in set(df_sector['sector'])
     True
 
 Publication Details:
@@ -53,22 +76,30 @@ Publication Details:
     - Base: Employee jobs in Northern Ireland (not self-employed)
 """
 
+import io
 import logging
 import re
-from datetime import datetime
+import zipfile
+from collections import Counter
 from pathlib import Path
 from typing import cast
 
 import pandas as pd
 
-from bolster.utils.web import session
+from bolster.utils.excel import find_marker_row
+from bolster.utils.web import scrape_file_links, session
 
-from ._base import NISRADataNotFoundError, download_file
+from ._base import NISRADataError, NISRADataNotFoundError, download_file
 
 logger = logging.getLogger(__name__)
 
 # Base URL for NISRA ASHE statistics
 ASHE_BASE_URL = "https://www.nisra.gov.uk/statistics/work-pay-and-benefits/annual-survey-hours-and-earnings"
+
+# Pages whose links are scraped for files; ``{year}`` is the release year of the publication page
+ASHE_PUBLICATION_PAGE = "https://www.nisra.gov.uk/publications/employee-earnings-ni-{year}"
+ASHE_HEADLINE_PAGE = "https://www.nisra.gov.uk/publications/ashe-headline-statistics-northern-ireland"
+ASHE_ODS_PAGE = "https://www.nisra.gov.uk/publications/ashe-tables-ods"
 
 
 def get_latest_ashe_publication_url() -> tuple[str, int]:
@@ -119,35 +150,81 @@ def get_latest_ashe_publication_url() -> tuple[str, int]:
     raise NISRADataNotFoundError("Could not find latest ASHE publication")
 
 
+def _file_links(page_url: str, extension: str, force_refresh: bool = False) -> list[dict]:
+    """Scrape ``page_url`` for file links, raising ``NISRADataNotFoundError`` if the page cannot be read."""
+    try:
+        return scrape_file_links(page_url, file_extension=extension, force_refresh=force_refresh)
+    except Exception as e:
+        raise NISRADataNotFoundError(f"Could not read the NISRA ASHE page {page_url}: {e}") from e
+
+
+def _link_for_year(links: list[dict], year: int, pattern: str, kind: str, page_url: str, hint: str = "") -> str:
+    """Return the link whose URL matches ``pattern`` (one group: the year) for ``year``.
+
+    Raises:
+        NISRADataNotFoundError: Naming the year and file kind if that year is not linked, and
+            listing the years that are. No other year is ever returned.
+    """
+    by_year: dict[int, str] = {}
+    for link in links:
+        match = re.search(pattern, link["url"], flags=re.IGNORECASE)
+        if match:
+            by_year.setdefault(int(match.group(1)), link["url"])
+    if year not in by_year:
+        if by_year:
+            where = f"is not linked on {page_url} (years linked there: {', '.join(str(y) for y in sorted(by_year, reverse=True))})"
+            advice = "Pass year=<one of those years> to read that release"
+        else:
+            where = f"is not linked on {page_url}"
+            advice = f"Pass an earlier release year (e.g. year={year - 1}) to read that release"
+        raise NISRADataNotFoundError(
+            f"The ASHE {year} {kind} {where}. {advice} instead; no other year is substituted.{hint}"
+        )
+    return by_year[year]
+
+
+def _resolve_year(year: int | None) -> int:
+    """``year`` itself, or the latest published release year when ``None``."""
+    if year is not None:
+        return year
+    return get_latest_ashe_publication_url()[1]
+
+
 def get_ashe_file_url(year: int, file_type: str = "timeseries") -> str:
-    """Construct URL for ASHE file based on year and file type.
+    """Find the URL of an ASHE publication file on that year's NISRA publication page.
 
     Args:
         year: Publication year (e.g., 2025)
-        file_type: Type of file - 'timeseries' or 'linked'
+        file_type: Type of file - 'timeseries' (headline timeseries) or 'linked' (the figure
+            workbook holding the chart data behind the bulletin)
 
     Returns:
         URL to the Excel file
+
+    Raises:
+        ValueError: If ``file_type`` is unknown
+        NISRADataNotFoundError: If that year's publication page does not link the file
 
     Example:
         >>> url = get_ashe_file_url(2025, 'timeseries')
         >>> url.startswith('https://')
         True
     """
-    # ASHE is published in October
-    month = 10
-
-    if file_type == "timeseries":
-        # Pattern: ASHE-1997-{year}-headline-timeseries.xlsx
-        filename = f"ASHE-1997-{year}-headline-timeseries.xlsx"
-    elif file_type == "linked":
-        # Pattern: ASHE-{year}-linked.xlsx
-        filename = f"ASHE-{year}-linked.xlsx"
-    else:
+    patterns = {
+        "timeseries": (r"ASHE-1997-(\d{4})-headline-timeseries\.xlsx", "headline timeseries workbook", ""),
+        "linked": (
+            r"ASHE-(\d{4})-linked\.xlsx",
+            "figure ('linked') workbook",
+            " The headline tables NISRA does publish for that year are available from get_ashe_headline_results,"
+            " get_ashe_lgd_earnings and get_ashe_sector_earnings.",
+        ),
+    }
+    if file_type not in patterns:
         raise ValueError(f"Unknown file_type: {file_type}. Use 'timeseries' or 'linked'")
-
-    url = f"https://www.nisra.gov.uk/system/files/statistics/{year}-{month:02d}/{filename}"
-    logger.info(f"Constructed ASHE file URL: {url}")
+    pattern, kind, hint = patterns[file_type]
+    page_url = ASHE_PUBLICATION_PAGE.format(year=year)
+    url = _link_for_year(_file_links(page_url, ".xlsx"), year, pattern, kind, page_url, hint)
+    logger.info(f"Found ASHE {file_type} file for {year}: {url}")
     return url
 
 
@@ -274,24 +351,29 @@ def parse_ashe_timeseries_annual(file_path: str | Path) -> pd.DataFrame:
 def parse_ashe_geography(file_path: str | Path, basis: str = "workplace", year: int | None = None) -> pd.DataFrame:
     """Parse ASHE geographic earnings data.
 
-    Extracts earnings by Local Government District from the linked tables file.
+    Extracts earnings by Local Government District from the linked tables file. The maps chart
+    the median gross weekly earnings of full-time employees only.
 
     Args:
         file_path: Path to the ASHE linked tables Excel file
         basis: 'workplace' (MapA) or 'residence' (MapB)
-        year: Year of the data (if not provided, will be extracted from file)
+        year: Year the caller expects. The year is always read from the sheet's own title;
+            if ``year`` is given and differs, an error is raised.
 
     Returns:
         DataFrame with columns:
-            - year: int
+            - year: int (read from the sheet title)
             - lgd: str (Local Government District name)
             - basis: str ('workplace' or 'residence')
+            - work_pattern: str (always 'Full-time')
             - median_weekly_earnings: float (£)
 
+    Raises:
+        NISRADataError: If the sheet title carries no year, or a different year to ``year``
+
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
-        >>> df = parse_ashe_geography(path, basis='workplace', year=year)
+        >>> path = download_file(get_ashe_file_url(2025, 'linked'), cache_ttl_hours=90*24)
+        >>> df = parse_ashe_geography(path, basis='workplace', year=2025)
         >>> 'median_weekly_earnings' in df.columns
         True
     """
@@ -299,6 +381,11 @@ def parse_ashe_geography(file_path: str | Path, basis: str = "workplace", year: 
 
     # Select the correct sheet
     sheet_name = "MapA" if basis == "workplace" else "MapB"
+
+    source_year = _title_year(pd.read_excel(file_path, sheet_name=sheet_name, header=None, nrows=2).iat[1, 0])
+    if year is not None and year != source_year:
+        raise NISRADataError(f"Expected ASHE {year} data but sheet {sheet_name} in {file_path} is titled {source_year}")
+    year = source_year
 
     # Read the sheet, skip first 2 rows to get to data
     df = pd.read_excel(file_path, sheet_name=sheet_name, skiprows=2)
@@ -309,18 +396,13 @@ def parse_ashe_geography(file_path: str | Path, basis: str = "workplace", year: 
     # Remove any NaN rows
     df = df.dropna()
 
-    # Extract year from data if not provided
-    if year is None:
-        # Try to extract from filename
-        match = re.search(r"ASHE-(\d{4})-linked", str(file_path))
-        year = int(match.group(1)) if match else datetime.now().year
-
     # Add metadata columns
     df["year"] = year
     df["basis"] = basis
+    df["work_pattern"] = "Full-time"
 
     # Reorder columns
-    df = df[["year", "lgd", "basis", "median_weekly_earnings"]]
+    df = df[["year", "lgd", "basis", "work_pattern", "median_weekly_earnings"]]
 
     # Convert earnings to float
     df["median_weekly_earnings"] = df["median_weekly_earnings"].astype(float)
@@ -332,7 +414,8 @@ def parse_ashe_geography(file_path: str | Path, basis: str = "workplace", year: 
 def parse_ashe_sector(file_path: str | Path) -> pd.DataFrame:
     """Parse ASHE public vs private sector earnings.
 
-    Extracts public and private sector earnings timeseries from the linked tables file.
+    Extracts public and private sector earnings timeseries from the linked tables file
+    (Figure 5: median gross weekly earnings of full-time employees only).
 
     Args:
         file_path: Path to the ASHE linked tables Excel file
@@ -342,11 +425,11 @@ def parse_ashe_sector(file_path: str | Path) -> pd.DataFrame:
             - year: int
             - location: str ('Northern Ireland' or 'United Kingdom')
             - sector: str ('Public' or 'Private')
+            - work_pattern: str (always 'Full-time')
             - median_weekly_earnings: float (£)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = download_file(get_ashe_file_url(2025, 'linked'), cache_ttl_hours=90*24)
         >>> df = parse_ashe_sector(path)
         >>> 'location' in df.columns
         True
@@ -397,6 +480,8 @@ def parse_ashe_sector(file_path: str | Path) -> pd.DataFrame:
         )
 
     result = pd.DataFrame(records)
+    result["work_pattern"] = "Full-time"
+    result = result[["year", "location", "sector", "work_pattern", "median_weekly_earnings"]]
     logger.info(f"Parsed {len(result)} sector earnings records ({result['year'].min()}-{result['year'].max()})")
     return result
 
@@ -434,57 +519,536 @@ def get_latest_ashe_timeseries(metric: str = "weekly", force_refresh: bool = Fal
     raise ValueError(f"Unknown metric: {metric}. Use 'weekly', 'hourly', or 'annual'")
 
 
-def get_latest_ashe_geography(basis: str = "workplace", force_refresh: bool = False) -> pd.DataFrame:
-    """Get the latest ASHE geographic earnings data.
+def get_latest_ashe_geography(
+    basis: str = "workplace", force_refresh: bool = False, year: int | None = None
+) -> pd.DataFrame:
+    """Get the bulletin map of full-time median weekly earnings by Local Government District.
 
-    Downloads and parses the most recent ASHE linked tables publication.
+    Reads Map A/B of the ASHE figure workbook, which charts full-time employees only. For every
+    sex and work pattern, the mean, CVs, and releases without a figure workbook (2026), use
+    :func:`get_ashe_lgd_earnings`. The two differ for the same year because NISRA revises the
+    previous year's figures in the following release.
+
     Results are cached for 90 days unless force_refresh=True.
 
     Args:
         basis: 'workplace' (where employees work) or 'residence' (where employees live)
         force_refresh: If True, bypass cache and download fresh data
+        year: Publication year of the figure workbook to read. Defaults to the latest published
+            release year.
 
     Returns:
         DataFrame with earnings by Local Government District
 
+    Raises:
+        NISRADataNotFoundError: If that year's figure workbook is not published (no other
+            year is substituted)
+
     Example:
-        >>> df = get_latest_ashe_geography(basis='workplace')
+        >>> df = get_latest_ashe_geography(basis='workplace', year=2025)
         >>> 'median_weekly_earnings' in df.columns
         True
     """
-    _, year = get_latest_ashe_publication_url()
-    file_url = get_ashe_file_url(year, file_type="linked")
-
-    # Cache for 90 days (published annually)
-    file_path = download_file(file_url, cache_ttl_hours=90 * 24, force_refresh=force_refresh)
+    year = _resolve_year(year)
+    file_path = _get_linked_file(year=year, force_refresh=force_refresh)
 
     return parse_ashe_geography(file_path, basis=basis, year=year)
 
 
-def get_latest_ashe_sector(force_refresh: bool = False) -> pd.DataFrame:
-    """Get the latest ASHE public vs private sector earnings data.
+def get_latest_ashe_sector(force_refresh: bool = False, year: int | None = None) -> pd.DataFrame:
+    """Get the Figure 5 public vs private sector series of full-time median weekly earnings.
 
-    Downloads and parses the most recent ASHE linked tables publication.
+    Reads the ASHE figure workbook, which charts full-time employees only, for NI and the UK.
+    For every sex and work pattern, the mean and CVs, and releases without a figure workbook
+    (2026), use :func:`get_ashe_sector_earnings` (NI only).
+
     Results are cached for 90 days unless force_refresh=True.
 
     Args:
         force_refresh: If True, bypass cache and download fresh data
+        year: Publication year of the figure workbook to read. Defaults to the latest published
+            release year.
 
     Returns:
-        DataFrame with public and private sector earnings timeseries (2005-present)
+        DataFrame with public and private sector earnings timeseries (2005 to the release year)
+
+    Raises:
+        NISRADataNotFoundError: If that year's figure workbook is not published (no other
+            year is substituted)
 
     Example:
-        >>> df = get_latest_ashe_sector()
+        >>> df = get_latest_ashe_sector(year=2025)
         >>> 'location' in df.columns
         True
     """
-    _, year = get_latest_ashe_publication_url()
-    file_url = get_ashe_file_url(year, file_type="linked")
-
-    # Cache for 90 days (published annually)
-    file_path = download_file(file_url, cache_ttl_hours=90 * 24, force_refresh=force_refresh)
+    file_path = _get_linked_file(year=year, force_refresh=force_refresh)
 
     return parse_ashe_sector(file_path)
+
+
+# ============================================================================
+# Published tables: headline results workbook and ODS table archive
+# ============================================================================
+
+# Measure key -> table number within each table family (Table 1.<n>, Table 7 (NI).<n>, Table 13 (NI).<n>)
+ASHE_MEASURES = {
+    "weekly_pay_gross": 1,
+    "weekly_pay_excl_overtime": 2,
+    "basic_pay": 3,
+    "overtime_pay": 4,
+    "hourly_pay_gross": 5,
+    "hourly_pay_excl_overtime": 6,
+    "annual_pay_gross": 7,
+    "annual_incentive_pay": 8,
+    "paid_hours_total": 9,
+    "paid_hours_basic": 10,
+    "paid_hours_overtime": 11,
+}
+
+# Earlier headline workbooks use a different layout (one workbook per sheet family, separate CV files)
+_HEADLINE_FIRST_YEAR = 2021
+
+# Earlier ODS archives hold different sheet names (2021) or file layouts (2020 and before)
+_ODS_FIRST_YEAR = 2022
+
+# Row/sheet group name (lower case, spaces/underscores normalised) -> (sex, work_pattern)
+_GROUPS = {
+    "all": ("All", "All"),
+    "male": ("Male", "All"),
+    "female": ("Female", "All"),
+    "full-time": ("All", "Full-time"),
+    "part-time": ("All", "Part-time"),
+    "male full-time": ("Male", "Full-time"),
+    "female full-time": ("Female", "Full-time"),
+    "male part-time": ("Male", "Part-time"),
+    "female part-time": ("Female", "Part-time"),
+}
+
+_HEADER_NAMES = {
+    "description": "description",
+    "code": "code",
+    "number of jobs (thousands)": "jobs_thousands",
+    "median": "median",
+    "annual percentage change: median": "median_annual_change_pct",
+    "mean": "mean",
+    "annual percentage change: mean": "mean_annual_change_pct",
+}
+
+_ESTIMATE_COLUMNS = [
+    "jobs_thousands",
+    "median",
+    "median_annual_change_pct",
+    "mean",
+    "mean_annual_change_pct",
+    "p10",
+    "p20",
+    "p25",
+    "p30",
+    "p40",
+    "p60",
+    "p70",
+    "p75",
+    "p80",
+    "p90",
+    "jobs_cv",
+    "median_cv",
+    "mean_cv",
+]
+
+_SECTOR_NAMES = {
+    "all employees": "All",
+    "public sector": "Public",
+    "private sector": "Private",
+    "non-profit body or mutual association": "Non-profit",
+    "not classified": "Not classified",
+}
+
+
+def _title_year(title: object) -> int:
+    """The year a table or map title is labelled with (its last four-digit year)."""
+    years = re.findall(r"(?<!\d)((?:19|20)\d{2})(?!\d)", str(title))
+    if not years:
+        raise NISRADataError(f"No year found in table title: {title!r}")
+    return int(years[-1])
+
+
+def _split_group(text: object) -> tuple[str, str]:
+    """Map a row or sheet group name (e.g. 'Male Full-time', 'Female_Part-Time') to (sex, work_pattern)."""
+    key = re.sub(r"[\s_]+", " ", str(text)).strip().lower()
+    if key not in _GROUPS:
+        raise NISRADataError(f"Unrecognised ASHE sex/work-pattern group: {text!r}")
+    return _GROUPS[key]
+
+
+def _column_name(header: object) -> str:
+    text = re.sub(r"\s*\[note \d+\]", "", str(header)).strip().lower()
+    if text in _HEADER_NAMES:
+        return _HEADER_NAMES[text]
+    percentile = re.fullmatch(r"(\d+)(?:st|nd|rd|th) percentile", text)
+    if percentile:
+        return f"p{percentile.group(1)}"
+    return text
+
+
+def _read_estimates(raw: pd.DataFrame, source: str) -> tuple[pd.DataFrame, int]:
+    """Read one estimates (or CV) sheet read with ``header=None``; returns (rows, title year).
+
+    Suppressed cells (``[x]``, ``[z]``, ``[u]``, ``[d]``) become NaN.
+    """
+    header_row = find_marker_row(raw, lambda v: str(v).strip() == "Description", max_rows=20)
+    if header_row is None:
+        raise NISRADataNotFoundError(f"No 'Description' header row in {source}")
+    year = _title_year(raw.iat[0, 0])
+    body = raw.iloc[header_row + 1 :].copy()
+    body.columns = [_column_name(h) for h in raw.iloc[header_row]]
+    missing = {"description", "median", "mean"} - set(body.columns)
+    if missing:
+        raise NISRADataNotFoundError(f"{source} has no {sorted(missing)} column(s); got {list(body.columns)}")
+    body = body.dropna(subset=["description"]).reset_index(drop=True)
+    for column in body.columns:
+        if column not in ("description", "code"):
+            body[column] = pd.to_numeric(body[column], errors="coerce")
+    return body, year
+
+
+def _with_cv(estimates_raw: pd.DataFrame, cv_raw: pd.DataFrame, source: str) -> tuple[pd.DataFrame, list[int]]:
+    """Estimates joined to the CVs from the matching ``b`` sheet, with the two sheets' title years."""
+    estimates, year = _read_estimates(estimates_raw, source)
+    cv, cv_year = _read_estimates(cv_raw, f"{source} (CV)")
+    if list(cv["description"]) != list(estimates["description"]):
+        raise NISRADataError(f"{source}: the CV sheet does not line up with the estimates sheet")
+    estimates["jobs_cv"] = cv["jobs_thousands"].to_numpy()
+    estimates["median_cv"] = cv["median"].to_numpy()
+    estimates["mean_cv"] = cv["mean"].to_numpy()
+    return estimates, [year, cv_year]
+
+
+def _workbook_year(titles: dict[str, list[int]], expected: int | None, source: str) -> int:
+    """The year a workbook's tables are for, from the years in their titles.
+
+    The year the caller expects is authoritative: every table must carry it in at least one title,
+    and a table with a stray year in another title (NISRA's 2023 headline Table 1.7a is titled
+    2021) is logged, not trusted. With no expected year the most common title year is used, and a
+    tie is an error.
+
+    Raises:
+        NISRADataError: If a table does not carry the expected year, or the year is ambiguous
+    """
+    if expected is None:
+        ranked = Counter(y for years in titles.values() for y in years).most_common()
+        if not ranked or (len(ranked) > 1 and ranked[0][1] == ranked[1][1]):
+            raise NISRADataError(f"{source}: cannot tell which year the tables are for from their titles: {ranked}")
+        expected = ranked[0][0]
+    for name, years in titles.items():
+        if expected not in years:
+            raise NISRADataError(f"Expected ASHE {expected} data but {source} {name} is titled {sorted(set(years))}")
+        if any(y != expected for y in years):
+            logger.warning(f"{source} {name} has a title year that differs from {expected} ({years}); using {expected}")
+    return expected
+
+
+def _finish(df: pd.DataFrame, lead: list[str]) -> pd.DataFrame:
+    columns = lead + [c for c in _ESTIMATE_COLUMNS if c in df.columns]
+    return df[columns].reset_index(drop=True)
+
+
+def parse_ashe_headline_results(
+    file_path: str | Path | io.BytesIO, year: int | None = None, measure: str | None = None
+) -> pd.DataFrame:
+    """Parse an ``ASHE-<year>-headline-results.xlsx`` workbook into a tidy frame.
+
+    Args:
+        file_path: Path to the headline results workbook
+        year: Year the caller expects. The year is always read from the table titles; if
+            ``year`` is given and differs, an error is raised.
+        measure: One key of :data:`ASHE_MEASURES`, or ``None`` for all eleven measures
+
+    Returns:
+        DataFrame with one row per measure, sex and work pattern: ``year``, ``measure``, ``sex``
+        ('All', 'Male', 'Female'), ``work_pattern`` ('All', 'Full-time', 'Part-time'),
+        ``jobs_thousands``, ``median``, ``mean``, their annual percentage changes, percentiles
+        ``p10`` to ``p90``, and the coefficients of variation ``jobs_cv``, ``median_cv`` and
+        ``mean_cv``. Pay measures are £; hours measures are paid hours per week.
+
+    Raises:
+        ValueError: If ``measure`` is not a key of :data:`ASHE_MEASURES`
+        NISRADataError: If the tables are titled with a different year to ``year``
+        NISRADataNotFoundError: If a table's sheet or columns are missing
+    """
+    if measure is not None and measure not in ASHE_MEASURES:
+        raise ValueError(f"Unknown measure: {measure}. Use one of {sorted(ASHE_MEASURES)}")
+    book = pd.ExcelFile(file_path)
+    estimate_sheets = {int(m.group(1)): s for s in book.sheet_names if (m := re.match(r"Table 1\.(\d+)a\b", s))}
+    cv_sheets = {int(m.group(1)): s for s in book.sheet_names if (m := re.match(r"Table 1\.(\d+)b\b", s))}
+    frames = []
+    titles: dict[str, list[int]] = {}
+    for key, number in ASHE_MEASURES.items():
+        if measure is not None and key != measure:
+            continue
+        if number not in estimate_sheets or number not in cv_sheets:
+            raise NISRADataNotFoundError(f"Headline workbook has no estimates/CV sheet pair for Table 1.{number}")
+        df, titles[f"Table 1.{number}"] = _with_cv(
+            book.parse(estimate_sheets[number], header=None),
+            book.parse(cv_sheets[number], header=None),
+            f"Table 1.{number}",
+        )
+        groups = df["description"].map(_split_group)
+        df["measure"] = key
+        df["sex"] = [g[0] for g in groups]
+        df["work_pattern"] = [g[1] for g in groups]
+        frames.append(df)
+    df = pd.concat(frames, ignore_index=True)
+    df["year"] = _workbook_year(titles, year, "headline workbook")
+    return _finish(df, ["year", "measure", "sex", "work_pattern"])
+
+
+def parse_ashe_ods_table(
+    book: pd.ExcelFile, table_number: int, source: str = "ODS table", year: int | None = None
+) -> pd.DataFrame:
+    """Parse every sex/work-pattern sheet pair of one ODS table workbook (e.g. Table 7, 8 or 13).
+
+    Args:
+        book: The opened ODS workbook, with sheets ``Table<N>_<k>a_<group>`` (estimates) and
+            ``Table<N>_<k>b_<group>_CV`` (coefficients of variation)
+        table_number: The table family number (7 work LGD, 8 home LGD, 13 public/private)
+        source: Label used in error messages
+        year: Year the caller expects; every sheet must carry it in its title (see
+            :func:`_workbook_year`). If ``None``, the most common title year is used.
+
+    Returns:
+        DataFrame with ``year`` (read from the sheet titles), ``sex``, ``work_pattern``,
+        ``description``, ``code`` and the estimate columns, one row per row of each sheet.
+
+    Raises:
+        NISRADataNotFoundError: If the workbook has no estimates sheets for the table
+        NISRADataError: If a sheet is not titled with the expected year
+    """
+    pattern = re.compile(rf"^Table{table_number}_(\d+)a_(.+)$")
+    frames = []
+    titles: dict[str, list[int]] = {}
+    for sheet in book.sheet_names:
+        match = pattern.match(sheet)
+        if not match:
+            continue
+        number, group = match.group(1), match.group(2)
+        cv_sheet = f"Table{table_number}_{number}b_{group}_CV"
+        if cv_sheet not in book.sheet_names:
+            raise NISRADataNotFoundError(f"{source} has estimates sheet {sheet} but no CV sheet {cv_sheet}")
+        df, titles[sheet] = _with_cv(
+            book.parse(sheet, header=None), book.parse(cv_sheet, header=None), f"{source} {sheet}"
+        )
+        df["sex"], df["work_pattern"] = _split_group(group)
+        frames.append(df)
+    if not frames:
+        raise NISRADataNotFoundError(f"{source} has no Table{table_number}_*a_* estimates sheets")
+    df = pd.concat(frames, ignore_index=True)
+    df["year"] = _workbook_year(titles, year, source)
+    return df
+
+
+def parse_ashe_lgd_table(
+    book: pd.ExcelFile, basis: str, measure: str, table_number: int | None = None, year: int | None = None
+) -> pd.DataFrame:
+    """Parse an ODS Table 7 (work) or Table 8 (home) workbook into one row per LGD, sex and work pattern.
+
+    Args:
+        book: The opened ODS workbook
+        basis: 'workplace' (Table 7) or 'residence' (Table 8)
+        measure: The measure key the workbook holds, recorded in the ``measure`` column
+        table_number: Override the table family number (defaults to 7 for workplace, 8 for residence)
+        year: Year the caller expects; a sheet not titled with it is an error
+
+    Returns:
+        DataFrame with ``year``, ``basis``, ``lgd_code``, ``lgd``, ``measure``, ``sex``,
+        ``work_pattern`` and the estimate columns. The Northern Ireland total row is dropped.
+    """
+    table_number = table_number or (7 if basis == "workplace" else 8)
+    df = parse_ashe_ods_table(book, table_number, source=f"Table {table_number}", year=year)
+    df = df[df["code"].astype(str).str.fullmatch(r"N09\d{6}")].copy()
+    df = df.rename(columns={"description": "lgd", "code": "lgd_code"})
+    df["basis"] = basis
+    df["measure"] = measure
+    return _finish(
+        df.sort_values(["sex", "work_pattern", "lgd_code"]),
+        ["year", "basis", "lgd_code", "lgd", "measure", "sex", "work_pattern"],
+    )
+
+
+def parse_ashe_sector_table(book: pd.ExcelFile, measure: str, year: int | None = None) -> pd.DataFrame:
+    """Parse an ODS Table 13 workbook into one row per sector, sex and work pattern.
+
+    Args:
+        book: The opened ODS workbook
+        measure: The measure key the workbook holds, recorded in the ``measure`` column
+        year: Year the caller expects; a sheet not titled with it is an error
+
+    Returns:
+        DataFrame with ``year``, ``sector`` ('All', 'Public', 'Private', 'Non-profit'), ``measure``,
+        ``sex``, ``work_pattern`` and the estimate columns. Rows with no estimates (e.g. the
+        'Not classified' placeholder) are dropped.
+    """
+    df = parse_ashe_ods_table(book, 13, source="Table 13", year=year)
+    unknown = set(df["description"].str.strip().str.lower()) - set(_SECTOR_NAMES)
+    if unknown:
+        raise NISRADataError(f"Unrecognised ASHE sector(s) in Table 13: {sorted(unknown)}")
+    df["sector"] = df["description"].str.strip().str.lower().map(_SECTOR_NAMES)
+    df["measure"] = measure
+    df = df.dropna(subset=["jobs_thousands", "median", "mean"], how="all")
+    return _finish(
+        df.sort_values(["sex", "work_pattern", "sector"]), ["year", "sector", "measure", "sex", "work_pattern"]
+    )
+
+
+def _open_ods_table(year: int, table_number: int, measure: str, force_refresh: bool) -> pd.ExcelFile:
+    """Open one table workbook from the ``ODS-format-ASHE-tables-<year>.zip`` archive for ``year``."""
+    if measure not in ASHE_MEASURES:
+        raise ValueError(f"Unknown measure: {measure}. Use one of {sorted(ASHE_MEASURES)}")
+    if year < _ODS_FIRST_YEAR:
+        raise ValueError(f"ODS table archives are only supported from {_ODS_FIRST_YEAR}; got {year}")
+    url = _link_for_year(
+        _file_links(ASHE_ODS_PAGE, ".zip", force_refresh),
+        year,
+        r"ODS-format-ASHE-tables-(\d{4})",
+        "ODS tables archive",
+        ASHE_ODS_PAGE,
+    )
+    zip_path = download_file(url, cache_ttl_hours=90 * 24, force_refresh=force_refresh)
+    wanted = re.compile(rf"Table {table_number} \(NI\)\.{ASHE_MEASURES[measure]}\s.*\.ods$", re.IGNORECASE)
+    with zipfile.ZipFile(zip_path) as archive:
+        members = [name for name in archive.namelist() if wanted.search(name)]
+        if not members:
+            raise NISRADataNotFoundError(
+                f"The ASHE {year} ODS archive {url} has no Table {table_number} {measure} file"
+            )
+        data = archive.read(members[0])
+    return pd.ExcelFile(io.BytesIO(data), engine="odf")
+
+
+def get_ashe_headline_results(
+    year: int | None = None, measure: str | None = None, force_refresh: bool = False
+) -> pd.DataFrame:
+    """Get the ASHE headline results: mean, median, percentiles and CVs by sex and work pattern.
+
+    Reads ``ASHE-<year>-headline-results.xlsx`` (Tables 1.1 to 1.11), found by scraping the NISRA
+    headline statistics page. The newest year is provisional and is revised in the next release.
+    Results are cached for 90 days unless force_refresh=True.
+
+    Args:
+        year: Release year of the workbook (2021 onwards). Defaults to the latest published
+            release year.
+        measure: One key of :data:`ASHE_MEASURES` (e.g. 'weekly_pay_gross', 'hourly_pay_gross',
+            'annual_pay_gross'), or ``None`` for all eleven.
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with ``year``, ``measure``, ``sex``, ``work_pattern``, ``jobs_thousands``,
+        ``median``, ``mean``, annual percentage changes, ``p10``-``p90`` and the coefficients of
+        variation ``jobs_cv``, ``median_cv``, ``mean_cv``. Suppressed cells are NaN.
+
+    Raises:
+        ValueError: If ``measure`` is unknown or ``year`` is before 2021
+        NISRADataNotFoundError: If that year's workbook is not linked (no other year is substituted)
+
+    Example:
+        >>> df = get_ashe_headline_results(year=2025, measure='weekly_pay_gross')
+        >>> sorted(set(df['year']))
+        [2025]
+        >>> {'All', 'Male', 'Female'} <= set(df['sex'])
+        True
+    """
+    year = _resolve_year(year)
+    if year < _HEADLINE_FIRST_YEAR:
+        raise ValueError(f"Headline results workbooks are only supported from {_HEADLINE_FIRST_YEAR}; got {year}")
+    url = _link_for_year(
+        _file_links(ASHE_HEADLINE_PAGE, ".xlsx", force_refresh),
+        year,
+        r"ASHE-(\d{4})-headline-results",
+        "headline results workbook",
+        ASHE_HEADLINE_PAGE,
+    )
+    file_path = download_file(url, cache_ttl_hours=90 * 24, force_refresh=force_refresh)
+    return parse_ashe_headline_results(file_path, year=year, measure=measure)
+
+
+def get_ashe_lgd_earnings(
+    year: int | None = None,
+    basis: str = "workplace",
+    measure: str = "weekly_pay_gross",
+    force_refresh: bool = False,
+) -> pd.DataFrame:
+    """Get ASHE earnings by Local Government District, for every sex and work pattern.
+
+    Reads ODS Table 7 (by place of work) or Table 8 (by place of residence) from the
+    ``ODS-format-ASHE-tables-<year>.zip`` archive found on the NISRA ASHE tables page. Unlike
+    :func:`get_latest_ashe_geography` (full-time median from the bulletin map, original vintage)
+    this has the mean, percentiles and CVs for all sex/work-pattern groups, from the current
+    vintage of that year's figures, and exists for 2026 where the figure workbook does not.
+    Results are cached for 90 days unless force_refresh=True.
+
+    Args:
+        year: Release year of the archive. Defaults to the latest published release year.
+        basis: 'workplace' (Table 7) or 'residence' (Table 8)
+        measure: One key of :data:`ASHE_MEASURES`; defaults to 'weekly_pay_gross'
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with ``year``, ``basis``, ``lgd_code``, ``lgd``, ``measure``, ``sex``,
+        ``work_pattern``, ``jobs_thousands``, ``median``, ``mean``, annual percentage changes,
+        ``p10``-``p90`` and ``jobs_cv``, ``median_cv``, ``mean_cv`` (11 LGDs per group).
+
+    Raises:
+        ValueError: If ``basis`` or ``measure`` is unknown
+        NISRADataNotFoundError: If that year's archive is not linked (no other year is substituted)
+
+    Example:
+        >>> df = get_ashe_lgd_earnings(year=2025, basis='workplace')
+        >>> sorted(set(df['year']))
+        [2025]
+        >>> df['lgd'].nunique()
+        11
+    """
+    if basis not in ("workplace", "residence"):
+        raise ValueError(f"Unknown basis: {basis}. Use 'workplace' or 'residence'")
+    year = _resolve_year(year)
+    book = _open_ods_table(year, 7 if basis == "workplace" else 8, measure, force_refresh)
+    return parse_ashe_lgd_table(book, basis, measure, year=year)
+
+
+def get_ashe_sector_earnings(
+    year: int | None = None, measure: str = "weekly_pay_gross", force_refresh: bool = False
+) -> pd.DataFrame:
+    """Get ASHE earnings by public/private sector in NI, for every sex and work pattern.
+
+    Reads ODS Table 13 from the ``ODS-format-ASHE-tables-<year>.zip`` archive found on the NISRA
+    ASHE tables page. Unlike :func:`get_latest_ashe_sector` (Figure 5: full-time median only, NI
+    and UK, 2005 onwards) this is NI only, one release at a time, with the mean and CVs for all
+    sex/work-pattern groups, and exists for 2026 where the figure workbook does not.
+    Results are cached for 90 days unless force_refresh=True.
+
+    Args:
+        year: Release year of the archive. Defaults to the latest published release year.
+        measure: One key of :data:`ASHE_MEASURES`; defaults to 'weekly_pay_gross'
+        force_refresh: If True, bypass cache and download fresh data
+
+    Returns:
+        DataFrame with ``year``, ``sector`` ('All', 'Public', 'Private', 'Non-profit'),
+        ``measure``, ``sex``, ``work_pattern``, ``jobs_thousands``, ``median``, ``mean``, annual
+        percentage changes, ``p10``-``p90`` and ``jobs_cv``, ``median_cv``, ``mean_cv``.
+
+    Raises:
+        ValueError: If ``measure`` is unknown
+        NISRADataNotFoundError: If that year's archive is not linked (no other year is substituted)
+
+    Example:
+        >>> df = get_ashe_sector_earnings(year=2025)
+        >>> sorted(set(df['year']))
+        [2025]
+        >>> {'Public', 'Private'} <= set(df['sector'])
+        True
+    """
+    year = _resolve_year(year)
+    book = _open_ods_table(year, 13, measure, force_refresh)
+    return parse_ashe_sector_table(book, measure, year=year)
 
 
 # ============================================================================
@@ -708,9 +1272,11 @@ def _find_linked_sheet(
 
 
 def _get_linked_file(year: int | None = None, force_refresh: bool = False) -> Path:
-    """Download the linked tables file, returning path. Uses latest year if not specified."""
-    if year is None:
-        _, year = get_latest_ashe_publication_url()
+    """Download the figure workbook for ``year`` (latest release year if ``None``), returning its path.
+
+    Raises ``NISRADataNotFoundError`` if that year's workbook is not published; another year's is never used.
+    """
+    year = _resolve_year(year)
     return download_file(get_ashe_file_url(year, "linked"), cache_ttl_hours=90 * 24, force_refresh=force_refresh)
 
 
@@ -742,8 +1308,7 @@ def parse_ashe_gender_pay_gap(file_path: str | Path) -> pd.DataFrame:
         - gender_pay_gap_pct: float — GPG as % of male earnings (positive = men paid more)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = download_file(get_ashe_file_url(2025, 'linked'), cache_ttl_hours=90*24)
         >>> df = parse_ashe_gender_pay_gap(path)
         >>> sorted(df.columns.tolist())
         ['gender_pay_gap_pct', 'location', 'year']
@@ -787,8 +1352,7 @@ def parse_ashe_hourly_earnings_by_sector_gender(file_path: str | Path) -> pd.Dat
         - median_hourly_earnings: float (£, excluding overtime)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = download_file(get_ashe_file_url(2025, 'linked'), cache_ttl_hours=90*24)
         >>> df = parse_ashe_hourly_earnings_by_sector_gender(path)
         >>> sorted(df.columns.tolist())
         ['median_hourly_earnings', 'sector', 'sex', 'year']
@@ -836,8 +1400,7 @@ def parse_ashe_hourly_earnings_by_age_gender(file_path: str | Path) -> pd.DataFr
         - median_hourly_earnings: float (£, excluding overtime)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = download_file(get_ashe_file_url(2025, 'linked'), cache_ttl_hours=90*24)
         >>> df = parse_ashe_hourly_earnings_by_age_gender(path)
         >>> sorted(df.columns.tolist())
         ['age_group', 'median_hourly_earnings', 'sex']
@@ -875,8 +1438,7 @@ def parse_ashe_hourly_earnings_by_occupation_gender(file_path: str | Path) -> pd
         - median_hourly_earnings: float (£, excluding overtime)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = download_file(get_ashe_file_url(2025, 'linked'), cache_ttl_hours=90*24)
         >>> df = parse_ashe_hourly_earnings_by_occupation_gender(path)
         >>> sorted(df.columns.tolist())
         ['median_hourly_earnings', 'occupation', 'sex']
@@ -918,8 +1480,7 @@ def parse_ashe_hourly_earnings_by_pattern_gender(file_path: str | Path) -> pd.Da
         - median_hourly_earnings: float (£, excluding overtime)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = download_file(get_ashe_file_url(2025, 'linked'), cache_ttl_hours=90*24)
         >>> df = parse_ashe_hourly_earnings_by_pattern_gender(path)
         >>> sorted(df.columns.tolist())
         ['median_hourly_earnings', 'sex', 'work_pattern']
@@ -959,8 +1520,7 @@ def parse_ashe_ni_uk_earnings_comparison(file_path: str | Path) -> pd.DataFrame:
         - median_weekly_earnings_fulltime: float (£)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = download_file(get_ashe_file_url(2025, 'linked'), cache_ttl_hours=90*24)
         >>> df = parse_ashe_ni_uk_earnings_comparison(path)
         >>> sorted(df.columns.tolist())
         ['location', 'median_weekly_earnings_fulltime', 'year']
@@ -995,8 +1555,7 @@ def parse_ashe_uk_regional_pay_ratio(file_path: str | Path) -> pd.DataFrame:
         - ratio: float (high-paid / low-paid jobs ratio)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = download_file(get_ashe_file_url(2025, 'linked'), cache_ttl_hours=90*24)
         >>> df = parse_ashe_uk_regional_pay_ratio(path)
         >>> sorted(df.columns.tolist())
         ['ratio', 'region']
@@ -1025,8 +1584,7 @@ def parse_ashe_hours_distribution(file_path: str | Path) -> pd.DataFrame:
         - percentage: float (% of employees)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = download_file(get_ashe_file_url(2025, 'linked'), cache_ttl_hours=90*24)
         >>> df = parse_ashe_hours_distribution(path)
         >>> sorted(df.columns.tolist())
         ['paid_hours_worked', 'percentage']
@@ -1056,8 +1614,7 @@ def parse_ashe_working_pattern_pay_gap(file_path: str | Path) -> pd.DataFrame:
         - working_pattern_pay_gap_pct: float (%)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = download_file(get_ashe_file_url(2025, 'linked'), cache_ttl_hours=90*24)
         >>> df = parse_ashe_working_pattern_pay_gap(path)
         >>> sorted(df.columns.tolist())
         ['location', 'working_pattern_pay_gap_pct', 'year']
@@ -1091,8 +1648,7 @@ def parse_ashe_mean_hours_by_pattern_gender(file_path: str | Path) -> pd.DataFra
         - all_mean_hours: float
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = download_file(get_ashe_file_url(2025, 'linked'), cache_ttl_hours=90*24)
         >>> df = parse_ashe_mean_hours_by_pattern_gender(path)
         >>> 'work_pattern' in df.columns
         True
@@ -1105,7 +1661,7 @@ def parse_ashe_mean_hours_by_pattern_gender(file_path: str | Path) -> pd.DataFra
     return df.reset_index(drop=True)
 
 
-def get_gender_pay_gap(force_refresh: bool = False) -> pd.DataFrame:
+def get_gender_pay_gap(force_refresh: bool = False, year: int | None = None) -> pd.DataFrame:
     """Get ASHE gender pay gap timeseries for NI and the UK.
 
     Returns the population-level GPG derived from NISRA's ASHE survey — the
@@ -1119,6 +1675,8 @@ def get_gender_pay_gap(force_refresh: bool = False) -> pd.DataFrame:
 
     Args:
         force_refresh: If True, bypass cache and download fresh data
+        year: Publication year of the figure workbook to read. Defaults to the latest published
+            release year; raises NISRADataNotFoundError if that year's workbook is not published.
 
     Returns:
         DataFrame with columns:
@@ -1128,14 +1686,14 @@ def get_gender_pay_gap(force_refresh: bool = False) -> pd.DataFrame:
         - gender_pay_gap_pct: float
 
     Example:
-        >>> df = get_gender_pay_gap()
+        >>> df = get_gender_pay_gap(year=2025)
         >>> 'gender_pay_gap_pct' in df.columns
         True
     """
-    return parse_ashe_gender_pay_gap(_get_linked_file(force_refresh=force_refresh))
+    return parse_ashe_gender_pay_gap(_get_linked_file(year=year, force_refresh=force_refresh))
 
 
-def get_hourly_earnings_by_sector_gender(force_refresh: bool = False) -> pd.DataFrame:
+def get_hourly_earnings_by_sector_gender(force_refresh: bool = False, year: int | None = None) -> pd.DataFrame:
     """Get ASHE hourly earnings by sector and gender timeseries for NI.
 
     Returns median gross hourly earnings (excl. overtime) for NI employees by
@@ -1143,6 +1701,8 @@ def get_hourly_earnings_by_sector_gender(force_refresh: bool = False) -> pd.Data
 
     Args:
         force_refresh: If True, bypass cache and download fresh data
+        year: Publication year of the figure workbook to read. Defaults to the latest published
+            release year; raises NISRADataNotFoundError if that year's workbook is not published.
 
     Returns:
         DataFrame with columns:
@@ -1153,14 +1713,14 @@ def get_hourly_earnings_by_sector_gender(force_refresh: bool = False) -> pd.Data
         - median_hourly_earnings: float (£)
 
     Example:
-        >>> df = get_hourly_earnings_by_sector_gender()
+        >>> df = get_hourly_earnings_by_sector_gender(year=2025)
         >>> 'median_hourly_earnings' in df.columns
         True
     """
-    return parse_ashe_hourly_earnings_by_sector_gender(_get_linked_file(force_refresh=force_refresh))
+    return parse_ashe_hourly_earnings_by_sector_gender(_get_linked_file(year=year, force_refresh=force_refresh))
 
 
-def get_hourly_earnings_by_age_gender(force_refresh: bool = False) -> pd.DataFrame:
+def get_hourly_earnings_by_age_gender(force_refresh: bool = False, year: int | None = None) -> pd.DataFrame:
     """Get ASHE hourly earnings by age group and gender for NI, latest year snapshot.
 
     Returns median gross hourly earnings (excl. overtime) for NI employees by
@@ -1168,6 +1728,8 @@ def get_hourly_earnings_by_age_gender(force_refresh: bool = False) -> pd.DataFra
 
     Args:
         force_refresh: If True, bypass cache and download fresh data
+        year: Publication year of the figure workbook to read. Defaults to the latest published
+            release year; raises NISRADataNotFoundError if that year's workbook is not published.
 
     Returns:
         DataFrame with columns:
@@ -1177,14 +1739,14 @@ def get_hourly_earnings_by_age_gender(force_refresh: bool = False) -> pd.DataFra
         - median_hourly_earnings: float (£)
 
     Example:
-        >>> df = get_hourly_earnings_by_age_gender()
+        >>> df = get_hourly_earnings_by_age_gender(year=2025)
         >>> 'median_hourly_earnings' in df.columns
         True
     """
-    return parse_ashe_hourly_earnings_by_age_gender(_get_linked_file(force_refresh=force_refresh))
+    return parse_ashe_hourly_earnings_by_age_gender(_get_linked_file(year=year, force_refresh=force_refresh))
 
 
-def get_hourly_earnings_by_occupation_gender(force_refresh: bool = False) -> pd.DataFrame:
+def get_hourly_earnings_by_occupation_gender(force_refresh: bool = False, year: int | None = None) -> pd.DataFrame:
     """Get ASHE hourly earnings by occupation and gender for NI, latest year snapshot.
 
     Returns median gross hourly earnings (excl. overtime) for NI employees by
@@ -1192,6 +1754,8 @@ def get_hourly_earnings_by_occupation_gender(force_refresh: bool = False) -> pd.
 
     Args:
         force_refresh: If True, bypass cache and download fresh data
+        year: Publication year of the figure workbook to read. Defaults to the latest published
+            release year; raises NISRADataNotFoundError if that year's workbook is not published.
 
     Returns:
         DataFrame with columns:
@@ -1201,14 +1765,14 @@ def get_hourly_earnings_by_occupation_gender(force_refresh: bool = False) -> pd.
         - median_hourly_earnings: float (£)
 
     Example:
-        >>> df = get_hourly_earnings_by_occupation_gender()
+        >>> df = get_hourly_earnings_by_occupation_gender(year=2025)
         >>> 'median_hourly_earnings' in df.columns
         True
     """
-    return parse_ashe_hourly_earnings_by_occupation_gender(_get_linked_file(force_refresh=force_refresh))
+    return parse_ashe_hourly_earnings_by_occupation_gender(_get_linked_file(year=year, force_refresh=force_refresh))
 
 
-def get_hourly_earnings_by_pattern_gender(force_refresh: bool = False) -> pd.DataFrame:
+def get_hourly_earnings_by_pattern_gender(force_refresh: bool = False, year: int | None = None) -> pd.DataFrame:
     """Get ASHE hourly earnings by working pattern and gender for NI, latest year snapshot.
 
     Returns median gross hourly earnings (excl. overtime) for NI employees by
@@ -1216,6 +1780,8 @@ def get_hourly_earnings_by_pattern_gender(force_refresh: bool = False) -> pd.Dat
 
     Args:
         force_refresh: If True, bypass cache and download fresh data
+        year: Publication year of the figure workbook to read. Defaults to the latest published
+            release year; raises NISRADataNotFoundError if that year's workbook is not published.
 
     Returns:
         DataFrame with columns:
@@ -1225,96 +1791,106 @@ def get_hourly_earnings_by_pattern_gender(force_refresh: bool = False) -> pd.Dat
         - median_hourly_earnings: float (£)
 
     Example:
-        >>> df = get_hourly_earnings_by_pattern_gender()
+        >>> df = get_hourly_earnings_by_pattern_gender(year=2025)
         >>> 'median_hourly_earnings' in df.columns
         True
     """
-    return parse_ashe_hourly_earnings_by_pattern_gender(_get_linked_file(force_refresh=force_refresh))
+    return parse_ashe_hourly_earnings_by_pattern_gender(_get_linked_file(year=year, force_refresh=force_refresh))
 
 
-def get_ni_uk_earnings_comparison(force_refresh: bool = False) -> pd.DataFrame:
+def get_ni_uk_earnings_comparison(force_refresh: bool = False, year: int | None = None) -> pd.DataFrame:
     """Get NI vs UK full-time weekly earnings timeseries.
 
     Args:
         force_refresh: If True, bypass cache and download fresh data
+        year: Publication year of the figure workbook to read. Defaults to the latest published
+            release year; raises NISRADataNotFoundError if that year's workbook is not published.
 
     Returns:
         DataFrame with columns: year, location ('NI'/'UK'), median_weekly_earnings_fulltime
 
     Example:
-        >>> df = get_ni_uk_earnings_comparison()
+        >>> df = get_ni_uk_earnings_comparison(year=2025)
         >>> 'median_weekly_earnings_fulltime' in df.columns
         True
     """
-    return parse_ashe_ni_uk_earnings_comparison(_get_linked_file(force_refresh=force_refresh))
+    return parse_ashe_ni_uk_earnings_comparison(_get_linked_file(year=year, force_refresh=force_refresh))
 
 
-def get_uk_regional_pay_ratio(force_refresh: bool = False) -> pd.DataFrame:
+def get_uk_regional_pay_ratio(force_refresh: bool = False, year: int | None = None) -> pd.DataFrame:
     """Get high-to-low pay ratio by UK region, latest year snapshot.
 
     Args:
         force_refresh: If True, bypass cache and download fresh data
+        year: Publication year of the figure workbook to read. Defaults to the latest published
+            release year; raises NISRADataNotFoundError if that year's workbook is not published.
 
     Returns:
         DataFrame with columns: region, ratio
 
     Example:
-        >>> df = get_uk_regional_pay_ratio()
+        >>> df = get_uk_regional_pay_ratio(year=2025)
         >>> 'ratio' in df.columns
         True
     """
-    return parse_ashe_uk_regional_pay_ratio(_get_linked_file(force_refresh=force_refresh))
+    return parse_ashe_uk_regional_pay_ratio(_get_linked_file(year=year, force_refresh=force_refresh))
 
 
-def get_hours_distribution(force_refresh: bool = False) -> pd.DataFrame:
+def get_hours_distribution(force_refresh: bool = False, year: int | None = None) -> pd.DataFrame:
     """Get distribution of total weekly paid hours for NI employees, latest year snapshot.
 
     Args:
         force_refresh: If True, bypass cache and download fresh data
+        year: Publication year of the figure workbook to read. Defaults to the latest published
+            release year; raises NISRADataNotFoundError if that year's workbook is not published.
 
     Returns:
         DataFrame with columns: paid_hours_worked, percentage
 
     Example:
-        >>> df = get_hours_distribution()
+        >>> df = get_hours_distribution(year=2025)
         >>> 'percentage' in df.columns
         True
     """
-    return parse_ashe_hours_distribution(_get_linked_file(force_refresh=force_refresh))
+    return parse_ashe_hours_distribution(_get_linked_file(year=year, force_refresh=force_refresh))
 
 
-def get_working_pattern_pay_gap(force_refresh: bool = False) -> pd.DataFrame:
+def get_working_pattern_pay_gap(force_refresh: bool = False, year: int | None = None) -> pd.DataFrame:
     """Get working pattern pay gap timeseries for NI vs UK.
 
     Args:
         force_refresh: If True, bypass cache and download fresh data
+        year: Publication year of the figure workbook to read. Defaults to the latest published
+            release year; raises NISRADataNotFoundError if that year's workbook is not published.
 
     Returns:
         DataFrame with columns: year, location ('NI'/'UK'), working_pattern_pay_gap_pct
 
     Example:
-        >>> df = get_working_pattern_pay_gap()
+        >>> df = get_working_pattern_pay_gap(year=2025)
         >>> 'working_pattern_pay_gap_pct' in df.columns
         True
     """
-    return parse_ashe_working_pattern_pay_gap(_get_linked_file(force_refresh=force_refresh))
+    return parse_ashe_working_pattern_pay_gap(_get_linked_file(year=year, force_refresh=force_refresh))
 
 
-def get_mean_hours_by_pattern_gender(force_refresh: bool = False) -> pd.DataFrame:
+def get_mean_hours_by_pattern_gender(force_refresh: bool = False, year: int | None = None) -> pd.DataFrame:
     """Get mean weekly paid hours by work pattern and gender for NI, latest year snapshot.
 
     Args:
         force_refresh: If True, bypass cache and download fresh data
+        year: Publication year of the figure workbook to read. Defaults to the latest published
+            release year; raises NISRADataNotFoundError if that year's workbook is not published.
 
     Returns:
         DataFrame with columns: work_pattern, male_mean_hours, female_mean_hours, all_mean_hours
 
     Example:
-        >>> df = get_mean_hours_by_pattern_gender()
+        >>> df = get_mean_hours_by_pattern_gender(year=2025)
         >>> 'male_mean_hours' in df.columns
         True
     """
-    return parse_ashe_mean_hours_by_pattern_gender(_get_linked_file(force_refresh=force_refresh))
+    return parse_ashe_mean_hours_by_pattern_gender(_get_linked_file(year=year, force_refresh=force_refresh))
 
 
 # ---------------------------------------------------------------------------
@@ -1340,8 +1916,7 @@ def parse_ashe_real_earnings(file_path: str | Path) -> pd.DataFrame:
         - real_weekly_earnings: float (£, inflation-adjusted to latest year)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = download_file(get_ashe_file_url(2025, 'linked'), cache_ttl_hours=90*24)
         >>> df = parse_ashe_real_earnings(path)
         >>> sorted(df.columns.tolist())
         ['nominal_weekly_earnings', 'real_weekly_earnings', 'year']
@@ -1376,8 +1951,7 @@ def parse_ashe_real_earnings_change_by_pattern(file_path: str | Path) -> pd.Data
         - real_change_pct: float (annual % change in real terms)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = download_file(get_ashe_file_url(2025, 'linked'), cache_ttl_hours=90*24)
         >>> df = parse_ashe_real_earnings_change_by_pattern(path)
         >>> sorted(df.columns.tolist())
         ['nominal_change_pct', 'real_change_pct', 'work_pattern']
@@ -1409,8 +1983,7 @@ def parse_ashe_real_earnings_index_by_sector(file_path: str | Path) -> pd.DataFr
         - real_earnings_index: float (index, base year = 100)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = download_file(get_ashe_file_url(2025, 'linked'), cache_ttl_hours=90*24)
         >>> df = parse_ashe_real_earnings_index_by_sector(path)
         >>> sorted(df.columns.tolist())
         ['real_earnings_index', 'sector', 'year']
@@ -1495,8 +2068,7 @@ def parse_ashe_annual_change_by_occupation(file_path: str | Path) -> pd.DataFram
         - annual_change_pct: float (% change in median gross weekly earnings)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = download_file(get_ashe_file_url(2025, 'linked'), cache_ttl_hours=90*24)
         >>> df = parse_ashe_annual_change_by_occupation(path)
         >>> sorted(df.columns.tolist())
         ['annual_change_pct', 'occupation']
@@ -1525,8 +2097,7 @@ def parse_ashe_annual_change_by_industry(file_path: str | Path) -> pd.DataFrame:
         - annual_change_pct: float (% change in median gross weekly earnings)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = download_file(get_ashe_file_url(2025, 'linked'), cache_ttl_hours=90*24)
         >>> df = parse_ashe_annual_change_by_industry(path)
         >>> sorted(df.columns.tolist())
         ['annual_change_pct', 'industry']
@@ -1567,8 +2138,7 @@ def parse_ashe_pay_distribution_timeseries(file_path: str | Path) -> pd.DataFram
         - high_paid_pct: float
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = download_file(get_ashe_file_url(2025, 'linked'), cache_ttl_hours=90*24)
         >>> df = parse_ashe_pay_distribution_timeseries(path)
         >>> sorted(df.columns.tolist())
         ['high_paid_pct', 'low_paid_pct', 'middle_paid_pct', 'year']
@@ -1603,8 +2173,7 @@ def parse_ashe_pay_distribution_by_classification(file_path: str | Path) -> pd.D
         - high_paid_pct: float
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = download_file(get_ashe_file_url(2025, 'linked'), cache_ttl_hours=90*24)
         >>> df = parse_ashe_pay_distribution_by_classification(path)
         >>> sorted(df.columns.tolist())
         ['classification', 'high_paid_pct', 'low_paid_pct', 'middle_paid_pct', 'subset']
@@ -1624,123 +2193,137 @@ def parse_ashe_pay_distribution_by_classification(file_path: str | Path) -> pd.D
 # ---------------------------------------------------------------------------
 
 
-def get_real_earnings(force_refresh: bool = False) -> pd.DataFrame:
+def get_real_earnings(force_refresh: bool = False, year: int | None = None) -> pd.DataFrame:
     """Get ASHE nominal vs real weekly earnings timeseries for NI (Figure 2).
 
     Args:
         force_refresh: If True, bypass cache and download fresh data
+        year: Publication year of the figure workbook to read. Defaults to the latest published
+            release year; raises NISRADataNotFoundError if that year's workbook is not published.
 
     Returns:
         DataFrame with columns: year, nominal_weekly_earnings, real_weekly_earnings
 
     Example:
-        >>> df = get_real_earnings()
+        >>> df = get_real_earnings(year=2025)
         >>> 'real_weekly_earnings' in df.columns
         True
     """
-    return parse_ashe_real_earnings(_get_linked_file(force_refresh=force_refresh))
+    return parse_ashe_real_earnings(_get_linked_file(year=year, force_refresh=force_refresh))
 
 
-def get_real_earnings_change_by_pattern(force_refresh: bool = False) -> pd.DataFrame:
+def get_real_earnings_change_by_pattern(force_refresh: bool = False, year: int | None = None) -> pd.DataFrame:
     """Get ASHE annual % change in weekly earnings by work pattern (Figure 3).
 
     Args:
         force_refresh: If True, bypass cache and download fresh data
+        year: Publication year of the figure workbook to read. Defaults to the latest published
+            release year; raises NISRADataNotFoundError if that year's workbook is not published.
 
     Returns:
         DataFrame with columns: work_pattern, nominal_change_pct, real_change_pct
 
     Example:
-        >>> df = get_real_earnings_change_by_pattern()
+        >>> df = get_real_earnings_change_by_pattern(year=2025)
         >>> 'real_change_pct' in df.columns
         True
     """
-    return parse_ashe_real_earnings_change_by_pattern(_get_linked_file(force_refresh=force_refresh))
+    return parse_ashe_real_earnings_change_by_pattern(_get_linked_file(year=year, force_refresh=force_refresh))
 
 
-def get_real_earnings_index_by_sector(force_refresh: bool = False) -> pd.DataFrame:
+def get_real_earnings_index_by_sector(force_refresh: bool = False, year: int | None = None) -> pd.DataFrame:
     """Get ASHE real earnings index by sector for NI (Figure 6).
 
     Args:
         force_refresh: If True, bypass cache and download fresh data
+        year: Publication year of the figure workbook to read. Defaults to the latest published
+            release year; raises NISRADataNotFoundError if that year's workbook is not published.
 
     Returns:
         DataFrame with columns: year, sector, real_earnings_index
 
     Example:
-        >>> df = get_real_earnings_index_by_sector()
+        >>> df = get_real_earnings_index_by_sector(year=2025)
         >>> 'real_earnings_index' in df.columns
         True
     """
-    return parse_ashe_real_earnings_index_by_sector(_get_linked_file(force_refresh=force_refresh))
+    return parse_ashe_real_earnings_index_by_sector(_get_linked_file(year=year, force_refresh=force_refresh))
 
 
-def get_annual_change_by_occupation(force_refresh: bool = False) -> pd.DataFrame:
+def get_annual_change_by_occupation(force_refresh: bool = False, year: int | None = None) -> pd.DataFrame:
     """Get ASHE annual % change in weekly earnings by occupation, NI (Figure 7).
 
     Args:
         force_refresh: If True, bypass cache and download fresh data
+        year: Publication year of the figure workbook to read. Defaults to the latest published
+            release year; raises NISRADataNotFoundError if that year's workbook is not published.
 
     Returns:
         DataFrame with columns: occupation, annual_change_pct
 
     Example:
-        >>> df = get_annual_change_by_occupation()
+        >>> df = get_annual_change_by_occupation(year=2025)
         >>> 'annual_change_pct' in df.columns
         True
     """
-    return parse_ashe_annual_change_by_occupation(_get_linked_file(force_refresh=force_refresh))
+    return parse_ashe_annual_change_by_occupation(_get_linked_file(year=year, force_refresh=force_refresh))
 
 
-def get_annual_change_by_industry(force_refresh: bool = False) -> pd.DataFrame:
+def get_annual_change_by_industry(force_refresh: bool = False, year: int | None = None) -> pd.DataFrame:
     """Get ASHE annual % change in weekly earnings by industry, NI (Figure 8).
 
     Args:
         force_refresh: If True, bypass cache and download fresh data
+        year: Publication year of the figure workbook to read. Defaults to the latest published
+            release year; raises NISRADataNotFoundError if that year's workbook is not published.
 
     Returns:
         DataFrame with columns: industry, annual_change_pct
 
     Example:
-        >>> df = get_annual_change_by_industry()
+        >>> df = get_annual_change_by_industry(year=2025)
         >>> 'annual_change_pct' in df.columns
         True
     """
-    return parse_ashe_annual_change_by_industry(_get_linked_file(force_refresh=force_refresh))
+    return parse_ashe_annual_change_by_industry(_get_linked_file(year=year, force_refresh=force_refresh))
 
 
-def get_pay_distribution_timeseries(force_refresh: bool = False) -> pd.DataFrame:
+def get_pay_distribution_timeseries(force_refresh: bool = False, year: int | None = None) -> pd.DataFrame:
     """Get ASHE low/middle/high-paid proportion timeseries for NI (Figure 11).
 
     Args:
         force_refresh: If True, bypass cache and download fresh data
+        year: Publication year of the figure workbook to read. Defaults to the latest published
+            release year; raises NISRADataNotFoundError if that year's workbook is not published.
 
     Returns:
         DataFrame with columns: year, low_paid_pct, middle_paid_pct, high_paid_pct
 
     Example:
-        >>> df = get_pay_distribution_timeseries()
+        >>> df = get_pay_distribution_timeseries(year=2025)
         >>> 'low_paid_pct' in df.columns
         True
     """
-    return parse_ashe_pay_distribution_timeseries(_get_linked_file(force_refresh=force_refresh))
+    return parse_ashe_pay_distribution_timeseries(_get_linked_file(year=year, force_refresh=force_refresh))
 
 
-def get_pay_distribution_by_classification(force_refresh: bool = False) -> pd.DataFrame:
+def get_pay_distribution_by_classification(force_refresh: bool = False, year: int | None = None) -> pd.DataFrame:
     """Get ASHE pay distribution by classification, NI, latest year (Figure 12).
 
     Args:
         force_refresh: If True, bypass cache and download fresh data
+        year: Publication year of the figure workbook to read. Defaults to the latest published
+            release year; raises NISRADataNotFoundError if that year's workbook is not published.
 
     Returns:
         DataFrame with columns: classification, subset, low_paid_pct, middle_paid_pct, high_paid_pct
 
     Example:
-        >>> df = get_pay_distribution_by_classification()
+        >>> df = get_pay_distribution_by_classification(year=2025)
         >>> 'classification' in df.columns
         True
     """
-    return parse_ashe_pay_distribution_by_classification(_get_linked_file(force_refresh=force_refresh))
+    return parse_ashe_pay_distribution_by_classification(_get_linked_file(year=year, force_refresh=force_refresh))
 
 
 def validate_ashe_data(df: pd.DataFrame) -> bool:  # pragma: no cover
