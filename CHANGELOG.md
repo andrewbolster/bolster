@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.11.9\] - 2026-10-22
+
+- feat(ashe): read the published 2026 tables; never substitute another year (#2253)
+
 ## \[0.11.8\] - 2026-10-17
 
 - fix: nisra feed --days crash; make the insights agent routine-ready (#2234)
