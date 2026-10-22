@@ -1,5 +1,7 @@
 """NISRA Monthly Birth Registrations Data Source.
 
+Published as: Monthly Births (Northern Ireland).
+
 Provides access to monthly birth registration statistics for Northern Ireland with breakdowns by:
 - Sex (Persons, Male, Female)
 - Event type (Registration date vs Birth/Occurrence date)

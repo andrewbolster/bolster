@@ -1,5 +1,7 @@
 """NISRA Registrar General Quarterly Tables Data Source.
 
+Published as: Registrar General Quarterly Report (Northern Ireland).
+
 Provides access to quarterly vital statistics for Northern Ireland, including:
 - Quarterly births and stillbirths (from Q1 2009)
 - Quarterly deaths, marriages, and civil partnerships

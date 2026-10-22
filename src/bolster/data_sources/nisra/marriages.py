@@ -1,5 +1,7 @@
 """NISRA Marriage and Civil Partnership Registrations Data Source.
 
+Published as: Monthly Marriages (Northern Ireland); Monthly Civil Partnerships (Northern Ireland).
+
 Provides access to monthly marriage and civil partnership registration data for Northern Ireland.
 
 Data includes:
