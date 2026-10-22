@@ -287,9 +287,8 @@ def parse_ashe_geography(file_path: str | Path, basis: str = "workplace", year: 
             - median_weekly_earnings: float (£)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
-        >>> df = parse_ashe_geography(path, basis='workplace', year=year)
+        >>> path = _get_linked_file()
+        >>> df = parse_ashe_geography(path, basis='workplace')
         >>> 'median_weekly_earnings' in df.columns
         True
     """
@@ -343,8 +342,7 @@ def parse_ashe_sector(file_path: str | Path) -> pd.DataFrame:
             - median_weekly_earnings: float (£)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = _get_linked_file()
         >>> df = parse_ashe_sector(path)
         >>> 'location' in df.columns
         True
@@ -450,13 +448,8 @@ def get_latest_ashe_geography(basis: str = "workplace", force_refresh: bool = Fa
         >>> 'median_weekly_earnings' in df.columns
         True
     """
-    _, year = get_latest_ashe_publication_url()
-    file_url = get_ashe_file_url(year, file_type="linked")
-
-    # Cache for 90 days (published annually)
-    file_path = download_file(file_url, cache_ttl_hours=90 * 24, force_refresh=force_refresh)
-
-    return parse_ashe_geography(file_path, basis=basis, year=year)
+    path, year = _get_linked_file_and_year(force_refresh)
+    return parse_ashe_geography(path, basis=basis, year=year)
 
 
 def get_latest_ashe_sector(force_refresh: bool = False) -> pd.DataFrame:
@@ -476,13 +469,7 @@ def get_latest_ashe_sector(force_refresh: bool = False) -> pd.DataFrame:
         >>> 'location' in df.columns
         True
     """
-    _, year = get_latest_ashe_publication_url()
-    file_url = get_ashe_file_url(year, file_type="linked")
-
-    # Cache for 90 days (published annually)
-    file_path = download_file(file_url, cache_ttl_hours=90 * 24, force_refresh=force_refresh)
-
-    return parse_ashe_sector(file_path)
+    return parse_ashe_sector(_get_linked_file(force_refresh=force_refresh))
 
 
 # ============================================================================
@@ -705,11 +692,43 @@ def _find_linked_sheet(
     )
 
 
+def _is_not_found(error: BaseException | None) -> bool:
+    """True if ``error`` or anything it was raised from is an HTTP 404."""
+    while error is not None:
+        if getattr(getattr(error, "response", None), "status_code", None) == 404:
+            return True
+        error = error.__cause__
+    return False
+
+
+def _get_linked_file_and_year(force_refresh: bool = False) -> tuple[Path, int]:
+    """Download the latest linked tables file, returning its path and the year it is for.
+
+    NISRA can publish the headline timeseries before the linked tables. When the
+    latest year's linked file is not there yet (HTTP 404), the previous year's file
+    is used and a warning is logged; any other failure is raised.
+    """
+
+    def fetch(for_year: int) -> Path:
+        return download_file(
+            get_ashe_file_url(for_year, "linked"), cache_ttl_hours=90 * 24, force_refresh=force_refresh
+        )
+
+    _, latest = get_latest_ashe_publication_url()
+    try:
+        return fetch(latest), latest
+    except NISRADataNotFoundError as e:
+        if not _is_not_found(e):
+            raise
+        logger.warning(f"ASHE {latest} linked tables are not published yet; using {latest - 1}")
+        return fetch(latest - 1), latest - 1
+
+
 def _get_linked_file(year: int | None = None, force_refresh: bool = False) -> Path:
     """Download the linked tables file, returning path. Uses latest year if not specified."""
-    if year is None:
-        _, year = get_latest_ashe_publication_url()
-    return download_file(get_ashe_file_url(year, "linked"), cache_ttl_hours=90 * 24, force_refresh=force_refresh)
+    if year is not None:
+        return download_file(get_ashe_file_url(year, "linked"), cache_ttl_hours=90 * 24, force_refresh=force_refresh)
+    return _get_linked_file_and_year(force_refresh)[0]
 
 
 # ---------------------------------------------------------------------------
@@ -740,8 +759,7 @@ def parse_ashe_gender_pay_gap(file_path: str | Path) -> pd.DataFrame:
         - gender_pay_gap_pct: float — GPG as % of male earnings (positive = men paid more)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = _get_linked_file()
         >>> df = parse_ashe_gender_pay_gap(path)
         >>> sorted(df.columns.tolist())
         ['gender_pay_gap_pct', 'location', 'year']
@@ -785,8 +803,7 @@ def parse_ashe_hourly_earnings_by_sector_gender(file_path: str | Path) -> pd.Dat
         - median_hourly_earnings: float (£, excluding overtime)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = _get_linked_file()
         >>> df = parse_ashe_hourly_earnings_by_sector_gender(path)
         >>> sorted(df.columns.tolist())
         ['median_hourly_earnings', 'sector', 'sex', 'year']
@@ -834,8 +851,7 @@ def parse_ashe_hourly_earnings_by_age_gender(file_path: str | Path) -> pd.DataFr
         - median_hourly_earnings: float (£, excluding overtime)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = _get_linked_file()
         >>> df = parse_ashe_hourly_earnings_by_age_gender(path)
         >>> sorted(df.columns.tolist())
         ['age_group', 'median_hourly_earnings', 'sex']
@@ -873,8 +889,7 @@ def parse_ashe_hourly_earnings_by_occupation_gender(file_path: str | Path) -> pd
         - median_hourly_earnings: float (£, excluding overtime)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = _get_linked_file()
         >>> df = parse_ashe_hourly_earnings_by_occupation_gender(path)
         >>> sorted(df.columns.tolist())
         ['median_hourly_earnings', 'occupation', 'sex']
@@ -916,8 +931,7 @@ def parse_ashe_hourly_earnings_by_pattern_gender(file_path: str | Path) -> pd.Da
         - median_hourly_earnings: float (£, excluding overtime)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = _get_linked_file()
         >>> df = parse_ashe_hourly_earnings_by_pattern_gender(path)
         >>> sorted(df.columns.tolist())
         ['median_hourly_earnings', 'sex', 'work_pattern']
@@ -957,8 +971,7 @@ def parse_ashe_ni_uk_earnings_comparison(file_path: str | Path) -> pd.DataFrame:
         - median_weekly_earnings_fulltime: float (£)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = _get_linked_file()
         >>> df = parse_ashe_ni_uk_earnings_comparison(path)
         >>> sorted(df.columns.tolist())
         ['location', 'median_weekly_earnings_fulltime', 'year']
@@ -993,8 +1006,7 @@ def parse_ashe_uk_regional_pay_ratio(file_path: str | Path) -> pd.DataFrame:
         - ratio: float (high-paid / low-paid jobs ratio)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = _get_linked_file()
         >>> df = parse_ashe_uk_regional_pay_ratio(path)
         >>> sorted(df.columns.tolist())
         ['ratio', 'region']
@@ -1023,8 +1035,7 @@ def parse_ashe_hours_distribution(file_path: str | Path) -> pd.DataFrame:
         - percentage: float (% of employees)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = _get_linked_file()
         >>> df = parse_ashe_hours_distribution(path)
         >>> sorted(df.columns.tolist())
         ['paid_hours_worked', 'percentage']
@@ -1054,8 +1065,7 @@ def parse_ashe_working_pattern_pay_gap(file_path: str | Path) -> pd.DataFrame:
         - working_pattern_pay_gap_pct: float (%)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = _get_linked_file()
         >>> df = parse_ashe_working_pattern_pay_gap(path)
         >>> sorted(df.columns.tolist())
         ['location', 'working_pattern_pay_gap_pct', 'year']
@@ -1089,8 +1099,7 @@ def parse_ashe_mean_hours_by_pattern_gender(file_path: str | Path) -> pd.DataFra
         - all_mean_hours: float
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = _get_linked_file()
         >>> df = parse_ashe_mean_hours_by_pattern_gender(path)
         >>> 'work_pattern' in df.columns
         True
@@ -1338,8 +1347,7 @@ def parse_ashe_real_earnings(file_path: str | Path) -> pd.DataFrame:
         - real_weekly_earnings: float (£, inflation-adjusted to latest year)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = _get_linked_file()
         >>> df = parse_ashe_real_earnings(path)
         >>> sorted(df.columns.tolist())
         ['nominal_weekly_earnings', 'real_weekly_earnings', 'year']
@@ -1374,8 +1382,7 @@ def parse_ashe_real_earnings_change_by_pattern(file_path: str | Path) -> pd.Data
         - real_change_pct: float (annual % change in real terms)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = _get_linked_file()
         >>> df = parse_ashe_real_earnings_change_by_pattern(path)
         >>> sorted(df.columns.tolist())
         ['nominal_change_pct', 'real_change_pct', 'work_pattern']
@@ -1407,8 +1414,7 @@ def parse_ashe_real_earnings_index_by_sector(file_path: str | Path) -> pd.DataFr
         - real_earnings_index: float (index, base year = 100)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = _get_linked_file()
         >>> df = parse_ashe_real_earnings_index_by_sector(path)
         >>> sorted(df.columns.tolist())
         ['real_earnings_index', 'sector', 'year']
@@ -1493,8 +1499,7 @@ def parse_ashe_annual_change_by_occupation(file_path: str | Path) -> pd.DataFram
         - annual_change_pct: float (% change in median gross weekly earnings)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = _get_linked_file()
         >>> df = parse_ashe_annual_change_by_occupation(path)
         >>> sorted(df.columns.tolist())
         ['annual_change_pct', 'occupation']
@@ -1523,8 +1528,7 @@ def parse_ashe_annual_change_by_industry(file_path: str | Path) -> pd.DataFrame:
         - annual_change_pct: float (% change in median gross weekly earnings)
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = _get_linked_file()
         >>> df = parse_ashe_annual_change_by_industry(path)
         >>> sorted(df.columns.tolist())
         ['annual_change_pct', 'industry']
@@ -1565,8 +1569,7 @@ def parse_ashe_pay_distribution_timeseries(file_path: str | Path) -> pd.DataFram
         - high_paid_pct: float
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = _get_linked_file()
         >>> df = parse_ashe_pay_distribution_timeseries(path)
         >>> sorted(df.columns.tolist())
         ['high_paid_pct', 'low_paid_pct', 'middle_paid_pct', 'year']
@@ -1601,8 +1604,7 @@ def parse_ashe_pay_distribution_by_classification(file_path: str | Path) -> pd.D
         - high_paid_pct: float
 
     Example:
-        >>> _, year = get_latest_ashe_publication_url()
-        >>> path = download_file(get_ashe_file_url(year, 'linked'), cache_ttl_hours=90*24)
+        >>> path = _get_linked_file()
         >>> df = parse_ashe_pay_distribution_by_classification(path)
         >>> sorted(df.columns.tolist())
         ['classification', 'high_paid_pct', 'low_paid_pct', 'middle_paid_pct', 'subset']
