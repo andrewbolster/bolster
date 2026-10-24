@@ -224,6 +224,15 @@ class TestValidateVehicles:
         with pytest.raises(TranslinkValidationError, match="Longitude"):
             validate_vehicles(df)
 
+    def test_out_of_bounds_error_names_the_vehicles(self):
+        df = self._valid_df()
+        df.loc[0, ["latitude", "longitude"]] = [50.73, -1.8]
+        with pytest.raises(TranslinkValidationError) as exc:
+            validate_vehicles(df)
+        message = str(exc.value)
+        for expected in ("TM-1234", "11E", "50.73", "-1.8"):
+            assert expected in message
+
     def test_nan_coords_ignored(self):
         df = self._valid_df()
         df["latitude"] = float("nan")
