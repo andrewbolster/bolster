@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING, cast
 import pandas as pd
 from bs4 import Tag  # noqa: TC002 (used inside `cast(...)`, evaluated at runtime)
 
+from bolster.utils.excel import parse_sheet
 from bolster.utils.web import fetch_soup, make_absolute_url, scrape_file_links
 
 from ._base import NISRADataNotFoundError, NISRAValidationError, download_file  # noqa: F401
@@ -273,7 +274,7 @@ def parse_presentations(file_path: str | Path) -> pd.DataFrame:
         True
     """
     xl = pd.ExcelFile(file_path, engine="openpyxl")
-    raw = xl.parse(_SHEET_PRESENTATIONS_LGD, header=None)
+    raw = parse_sheet(xl, _SHEET_PRESENTATIONS_LGD, header=None)
     return _parse_lgd_period_sheet(raw, "presentations")
 
 
@@ -294,7 +295,7 @@ def parse_acceptances(file_path: str | Path) -> pd.DataFrame:
         True
     """
     xl = pd.ExcelFile(file_path, engine="openpyxl")
-    raw = xl.parse(_SHEET_ACCEPTANCES_LGD, header=None)
+    raw = parse_sheet(xl, _SHEET_ACCEPTANCES_LGD, header=None)
     return _parse_lgd_period_sheet(raw, "acceptances")
 
 

@@ -60,6 +60,7 @@ from collections.abc import Set as AbstractSet
 
 import pandas as pd
 
+from bolster.utils.excel import parse_sheet
 from bolster.utils.web import session
 
 from ._base import (
@@ -278,7 +279,7 @@ def find_latest_registered_patients_url() -> str:
 
 def _sheet_rows(workbook: pd.ExcelFile, sheet_name: str) -> list[list[str]]:
     """Convert one Excel sheet to trimmed string rows for parse_stacked_tables."""
-    raw = workbook.parse(sheet_name, header=None).fillna("")
+    raw = parse_sheet(workbook, sheet_name, header=None).fillna("")
     return [trim_row([str(cell).strip() for cell in row]) for row in raw.itertuples(index=False, name=None)]
 
 
@@ -416,7 +417,7 @@ def _parse_quarter_period(label: str) -> pd.Timestamp | None:
     quarter, fy_start = int(match.group(1)), int(match.group(2))
     month, day = _QUARTER_END[quarter]
     year = fy_start if quarter != 4 else fy_start + 1
-    return pd.Timestamp(year=year, month=month, day=day)
+    return pd.Timestamp(year=year, month=month, day=day)  # ty: ignore[invalid-return-type]  # pandas types Timestamp() as Timestamp | NaTType
 
 
 def parse_quarterly_patients_by_practice(workbook: pd.ExcelFile) -> pd.DataFrame:

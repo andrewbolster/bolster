@@ -52,6 +52,7 @@ import pandas as pd
 from bs4 import Tag  # noqa: TC002 (used inside `cast(...)`, evaluated at runtime)
 
 from bolster.utils.cache import CachedDownloader, bind_download_file
+from bolster.utils.excel import parse_sheet
 from bolster.utils.web import fetch_soup, scrape_file_links
 
 logger = logging.getLogger(__name__)
@@ -398,7 +399,7 @@ def parse_data(file_path: Path, survey_year: int | None = None) -> pd.DataFrame:
     workbook = pd.ExcelFile(Path(file_path))
 
     frames = [
-        _parse_worksheet(workbook.parse(name, header=None), name)
+        _parse_worksheet(parse_sheet(workbook, name, header=None), name)
         for name in workbook.sheet_names
         if name not in NON_DATA_SHEETS
     ]
@@ -435,7 +436,7 @@ def parse_trend_data(file_path: Path) -> pd.DataFrame:
     if TREND_SHEET not in workbook.sheet_names:
         raise SchoolTravelValidationError(f"No '{TREND_SHEET}' worksheet in {file_path}")
 
-    sheet = workbook.parse(TREND_SHEET, header=None)
+    sheet = parse_sheet(workbook, TREND_SHEET, header=None)
 
     records = []
     totals: dict[tuple[str, int], int] = {}

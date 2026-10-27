@@ -132,7 +132,7 @@ def _parse_qes_date(label: str) -> pd.Timestamp | None:
         month = int(iso_match.group(2))
         for _abbr, (m, _q) in _QUARTER_MONTHS.items():
             if m == month:
-                return pd.Timestamp(year=year, month=month, day=1)
+                return pd.Timestamp(year=year, month=month, day=1)  # ty: ignore[invalid-return-type]  # pandas types Timestamp() as Timestamp | NaTType
         return None
 
     # Label format: "Mar-25 (Provisional)" or "Dec-24 (Revised)"
@@ -143,7 +143,7 @@ def _parse_qes_date(label: str) -> pd.Timestamp | None:
         year = 2000 + year_2d if year_2d < 50 else 1900 + year_2d
         if month_abbr in _QUARTER_MONTHS:
             month, _ = _QUARTER_MONTHS[month_abbr]
-            return pd.Timestamp(year=year, month=month, day=1)
+            return pd.Timestamp(year=year, month=month, day=1)  # ty: ignore[invalid-return-type]  # pandas types Timestamp() as Timestamp | NaTType
 
     return None
 

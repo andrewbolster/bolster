@@ -54,6 +54,7 @@ from typing import cast
 
 import pandas as pd
 
+from bolster.utils.excel import parse_sheet
 from bolster.utils.web import session
 
 from ._base import NISRADataNotFoundError, download_file
@@ -210,7 +211,7 @@ def _find_contributions_sheet(workbook: pd.ExcelFile) -> str:
     for name in workbook.sheet_names:
         if not str(name).lower().startswith("table"):
             continue
-        first_row = workbook.parse(name, header=None, nrows=1)
+        first_row = parse_sheet(workbook, name, header=None, nrows=1)
         if any("sector contributions" in str(cell).lower() for cell in first_row.iloc[0]):
             return str(name)
     raise ValueError("Could not find the NICEI sector contributions table in the workbook")
@@ -248,7 +249,7 @@ def parse_nicei_contributions(file_path: str | Path) -> pd.DataFrame:
     # Table numbers shift when NISRA adds tables (11 -> 12 in Q2 2026), so find the sheet by title.
     # Multi-row header structure: skip the title row, next 2 rows are headers.
     workbook = pd.ExcelFile(file_path)
-    df = workbook.parse(_find_contributions_sheet(workbook), skiprows=2)
+    df = parse_sheet(workbook, _find_contributions_sheet(workbook), skiprows=2)
 
     # Rename columns based on the structure
     # Columns: Year, Quarter, NICEI, NICEI Quarterly Change, Public Sector, Services, Production, Construction, Agriculture

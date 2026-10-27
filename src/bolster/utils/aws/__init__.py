@@ -55,7 +55,7 @@ def start_session(*args, restart=False, **kwargs) -> boto3.Session:
 
 def get_s3_client():
     """Get configured S3 client with path-style addressing and retry settings."""
-    start_session()
+    session = start_session()
     return session.client(
         "s3",
         session.region_name,
@@ -278,7 +278,7 @@ def get_latest_key(prefix: str, bucket: str, key: Callable | None = None, client
 ###
 def get_sqs_client():
     """Get configured SQS client with timeout and retry settings."""
-    start_session()
+    session = start_session()
     return session.client(
         "sqs",
         endpoint_url=f"https://sqs.{session.region_name}.amazonaws.com",
@@ -315,7 +315,7 @@ _ssm_params: dict[str, str] = {}
 
 def get_ssm_client():
     """Get configured SSM client for parameter store access."""
-    start_session()
+    session = start_session()
     return session.client(
         "ssm",
         config=botocore.config.Config(
@@ -509,7 +509,7 @@ def send_to_kinesis(records: Iterator[Sequence], stream: str, partition_key: str
 
 def get_sns_client():
     """Get configured SNS client for notifications."""
-    start_session()
+    session = start_session()
     return session.client(
         "sns",
         session.region_name,

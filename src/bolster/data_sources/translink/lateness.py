@@ -35,6 +35,7 @@ import os
 from pathlib import Path
 
 import pandas as pd
+from pandas.core.groupby.generic import DataFrameGroupBy
 
 from bolster.utils import snapshots as _snapshots
 
@@ -113,7 +114,7 @@ def read_snapshots(
     return df
 
 
-def _delay_stats(grouped: "pd.core.groupby.generic.DataFrameGroupBy", min_samples: int) -> pd.DataFrame:
+def _delay_stats(grouped: DataFrameGroupBy, min_samples: int) -> pd.DataFrame:
     """Shared delay-distribution aggregation for a groupby of rows with a ``delay_seconds`` column."""
     stats = grouped["delay_seconds"].agg(
         samples="count",

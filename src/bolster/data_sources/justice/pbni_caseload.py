@@ -41,6 +41,7 @@ import base64
 import io
 import logging
 import re
+from typing import cast
 
 import pandas as pd
 
@@ -270,7 +271,7 @@ def get_annual_caseload(force_refresh: bool = False) -> pd.DataFrame:
         >>> bool((df["caseload"] >= df["service_users"]).all())
         True
     """
-    return get_latest_data("caseload", frequency="annual", force_refresh=force_refresh)
+    return cast("pd.DataFrame", get_latest_data("caseload", frequency="annual", force_refresh=force_refresh))
 
 
 def get_quarterly_caseload(force_refresh: bool = False) -> pd.DataFrame:
@@ -287,7 +288,7 @@ def get_quarterly_caseload(force_refresh: bool = False) -> pd.DataFrame:
         >>> len(df) >= 8
         True
     """
-    return get_latest_data("caseload", frequency="quarterly", force_refresh=force_refresh)
+    return cast("pd.DataFrame", get_latest_data("caseload", frequency="quarterly", force_refresh=force_refresh))
 
 
 def validate_data(df: pd.DataFrame) -> bool:

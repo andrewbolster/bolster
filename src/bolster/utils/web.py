@@ -116,11 +116,11 @@ class CachingSession(requests.Session):
         'CachingSession'
     """
 
-    def get(self, url, **kwargs):  # noqa: D102
+    def get(self, url, params=None, **kwargs):  # noqa: D102
         kwargs.setdefault("timeout", DEFAULT_TIMEOUT)
         force_refresh = kwargs.pop("force_refresh", False)
-        if kwargs.get("params"):
-            return super().get(url, **kwargs)
+        if params:
+            return super().get(url, params=params, **kwargs)
 
         _PAGE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
         url_hash = hashlib.md5(url.encode(), usedforsecurity=False).hexdigest()

@@ -73,6 +73,7 @@ import pandas as pd
 from bs4 import Tag  # noqa: TC002 (used inside `cast(...)`, evaluated at runtime)
 
 from bolster.utils.cache import CachedDownloader, bind_download_file
+from bolster.utils.excel import parse_sheet
 from bolster.utils.web import fetch_soup, scrape_file_links
 
 logger = logging.getLogger(__name__)
@@ -265,7 +266,7 @@ def _parse_quarter(value: object) -> pd.Timestamp | None:
     if pd.isna(stamp):
         return None
 
-    return stamp + pd.offsets.MonthEnd(0)
+    return stamp + pd.offsets.MonthEnd(0)  # ty: ignore[invalid-return-type]  # pandas types Timestamp() as Timestamp | NaTType
 
 
 def _parse_value(value: object) -> float | None:
@@ -697,7 +698,7 @@ def parse_workbook(file_path: Path) -> pd.DataFrame:
 
     records: list[dict] = []
     for sheet in workbook.sheet_names:
-        frame = workbook.parse(sheet, header=None)
+        frame = parse_sheet(workbook, sheet, header=None)
         table = _table_for_sheet(frame)
         if table is None:
             continue

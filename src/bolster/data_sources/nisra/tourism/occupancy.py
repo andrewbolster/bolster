@@ -369,7 +369,7 @@ def parse_hotel_occupancy_rates(file_path: str | Path) -> pd.DataFrame:
     df = pd.DataFrame(records)
 
     # Create datetime column
-    df["date"] = pd.to_datetime({"year": df["year"], "month": df["month_num"], "day": 1})
+    df["date"] = pd.to_datetime(pd.DataFrame({"year": df["year"], "month": df["month_num"], "day": 1}))
 
     # Select and reorder columns
     result = df[["date", "year", "month", "room_occupancy", "bed_occupancy"]].copy()
@@ -498,7 +498,7 @@ def parse_rooms_beds_sold(file_path: str | Path) -> pd.DataFrame:
     df = pd.DataFrame(records)
 
     # Create datetime column
-    df["date"] = pd.to_datetime({"year": df["year"], "month": df["month_num"], "day": 1})
+    df["date"] = pd.to_datetime(pd.DataFrame({"year": df["year"], "month": df["month_num"], "day": 1}))
 
     # Select and reorder columns
     result = df[["date", "year", "month", "rooms_sold", "beds_sold"]].copy()
@@ -709,7 +709,7 @@ def parse_ssa_occupancy_rates(file_path: str | Path) -> pd.DataFrame:
     df = pd.DataFrame(records)
 
     # Create datetime column
-    df["date"] = pd.to_datetime({"year": df["year"], "month": df["month_num"], "day": 1})
+    df["date"] = pd.to_datetime(pd.DataFrame({"year": df["year"], "month": df["month_num"], "day": 1}))
 
     # Select and reorder columns
     result = df[["date", "year", "month", "room_occupancy", "bed_occupancy"]].copy()
@@ -834,7 +834,7 @@ def parse_ssa_rooms_beds_sold(file_path: str | Path) -> pd.DataFrame:
     df = pd.DataFrame(records)
 
     # Create datetime column
-    df["date"] = pd.to_datetime({"year": df["year"], "month": df["month_num"], "day": 1})
+    df["date"] = pd.to_datetime(pd.DataFrame({"year": df["year"], "month": df["month_num"], "day": 1}))
 
     # Select and reorder columns
     result = df[["date", "year", "month", "rooms_sold", "beds_sold"]].copy()

@@ -410,3 +410,27 @@ class TestListSources:
         assert "OTHER" in result.output
         assert "zzz-throwaway" in result.output
         assert "Throwaway summary." in result.output
+
+
+class TestNisraCommandsMatchTheirModules:
+    """CLI commands call functions and offer options that their modules actually provide."""
+
+    def test_drug_related_deaths_offers_the_module_dimensions(self):
+        import pandas as pd
+
+        frames = {"hsct": pd.DataFrame({"year": [2023], "deaths": [1]}), "lgd": pd.DataFrame({"year": [2023]})}
+        with patch("bolster.cli.nisra_drug_related_deaths.get_latest_drug_related_deaths", return_value=frames) as get:
+            result = CliRunner().invoke(cli, ["nisra", "drug-related-deaths", "--dimension", "all"])
+
+        assert result.exit_code == 0, result.output
+        get.assert_called_once()
+        assert "year,deaths" in result.output
+
+    def test_drug_related_deaths_rejects_the_old_dimensions(self):
+        result = CliRunner().invoke(cli, ["nisra", "drug-related-deaths", "--dimension", "summary"])
+        assert result.exit_code != 0
+
+    def test_population_projections_has_no_lgd_option(self):
+        result = CliRunner().invoke(cli, ["nisra", "population-projections", "--lgd"])
+        assert result.exit_code != 0
+        assert "No such option" in result.output

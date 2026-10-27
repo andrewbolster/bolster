@@ -152,7 +152,7 @@ def get_stage_votes_from_df(df: pd.DataFrame) -> pd.DataFrame:
     """Extract the votes from each stage as a mapped column for each stage, i.e. stages 1...N."""
     stages = cast("int", get_metadata_from_df(df)["stage"])
     return (
-        pd.concat({n: extract_stage_n_votes(df, n) for n in range(stages)})
+        pd.concat({n: extract_stage_n_votes(df, n) for n in range(stages)})  # ty: ignore[no-matching-overload]  # pandas has no overload for concat of a dict of frames
         .unstack()
         .T.replace(0, None)
         .dropna(how="all")
@@ -163,7 +163,7 @@ def get_stage_transfers_from_df(df: pd.DataFrame) -> pd.DataFrame:
     """Extract the transfers from each stage as a mapped column for each stage, i.e. stages 2...N."""
     stages = cast("int", get_metadata_from_df(df)["stage"])
     return (
-        pd.concat({n: extract_stage_n_transfers(df, n) for n in range(stages)})
+        pd.concat({n: extract_stage_n_transfers(df, n) for n in range(stages)})  # ty: ignore[no-matching-overload]  # pandas has no overload for concat of a dict of frames
         .unstack()
         .T.replace(0, None)
         .dropna(how="all")

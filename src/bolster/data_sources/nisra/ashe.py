@@ -86,7 +86,7 @@ from typing import cast
 
 import pandas as pd
 
-from bolster.utils.excel import find_marker_row
+from bolster.utils.excel import find_marker_row, parse_sheet
 from bolster.utils.web import scrape_file_links, session
 
 from ._base import NISRADataError, NISRADataNotFoundError, download_file
@@ -788,8 +788,8 @@ def parse_ashe_headline_results(
         if number not in estimate_sheets or number not in cv_sheets:
             raise NISRADataNotFoundError(f"Headline workbook has no estimates/CV sheet pair for Table 1.{number}")
         df, titles[f"Table 1.{number}"] = _with_cv(
-            book.parse(estimate_sheets[number], header=None),
-            book.parse(cv_sheets[number], header=None),
+            parse_sheet(book, estimate_sheets[number], header=None),
+            parse_sheet(book, cv_sheets[number], header=None),
             f"Table 1.{number}",
         )
         groups = df["description"].map(_split_group)
@@ -835,7 +835,7 @@ def parse_ashe_ods_table(
         if cv_sheet not in book.sheet_names:
             raise NISRADataNotFoundError(f"{source} has estimates sheet {sheet} but no CV sheet {cv_sheet}")
         df, titles[sheet] = _with_cv(
-            book.parse(sheet, header=None), book.parse(cv_sheet, header=None), f"{source} {sheet}"
+            parse_sheet(book, sheet, header=None), parse_sheet(book, cv_sheet, header=None), f"{source} {sheet}"
         )
         df["sex"], df["work_pattern"] = _split_group(group)
         frames.append(df)

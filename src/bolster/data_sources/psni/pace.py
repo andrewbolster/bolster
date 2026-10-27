@@ -191,7 +191,7 @@ def parse_stop_search(file_path: Path | str) -> pd.DataFrame:
         raise PSNIValidationError("Could not locate stop & search table header row (expected 'Apr' in column C)")
 
     # Data rows immediately follow the header
-    data_rows = df_raw.iloc[t1_header_idx + 1 : t1_header_idx + 11]
+    data_rows = df_raw.iloc[t1_header_idx + 1 : t1_header_idx + 11]  # ty: ignore[unsupported-operator]  # pandas types index and column labels as Hashable
 
     records = []
     current_reason = None
@@ -288,7 +288,7 @@ def parse_arrests(file_path: Path | str) -> pd.DataFrame:
         raise PSNIValidationError("Could not locate arrests table data rows (expected quarter label in column A)")
 
     # Collect up to 5 rows: Q1, Q2, Q3, Q4, Total
-    data_rows = df_raw.iloc[t2_data_start : t2_data_start + 5]
+    data_rows = df_raw.iloc[t2_data_start : t2_data_start + 5]  # ty: ignore[unsupported-operator]  # pandas types index and column labels as Hashable
 
     # Categories correspond to column indices 1, 2, 3, 4, 6, 7
     # Col 1: Total, Col 2: Male, Col 3: Female, Col 4: Unknown/Other

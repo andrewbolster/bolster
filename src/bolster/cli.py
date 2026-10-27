@@ -224,7 +224,10 @@ def get_precipitation(bounding_box, order_name, output):
             return
 
     # TODO: API integration testing - requires valid Met Office credentials
-    img = get_uk_precipitation(order_name=order_name, bounding_box=bounding_box)  # pragma: no cover
+    img = get_uk_precipitation(  # pragma: no cover
+        order_name=order_name,
+        bounding_box=bounding_box,  # ty: ignore[invalid-argument-type]  # lon/lat floats; parameter is a pixel box
+    )
     img.save(output)  # pragma: no cover
     click.echo(f"Precipitation image saved as '{output}'")
 
@@ -622,7 +625,7 @@ def dva_cmd(latest, test_type, year, output_format, force_refresh, save, summary
                 data = dva.get_tests_by_year(data, year)
 
         # Check for empty data
-        if test_type == "all":
+        if isinstance(data, dict):
             if all(df.empty for df in data.values()):
                 console.print("[yellow]⚠️  No data found for the specified filters[/yellow]")
                 return
@@ -632,7 +635,7 @@ def dva_cmd(latest, test_type, year, output_format, force_refresh, save, summary
                 return
 
         # Display success
-        if test_type == "all":
+        if isinstance(data, dict):
             total_records = sum(len(df) for df in data.values())
             console.print(f"[green]✅ Retrieved {total_records} records[/green]")
             for name, df in data.items():
@@ -643,7 +646,7 @@ def dva_cmd(latest, test_type, year, output_format, force_refresh, save, summary
         # Save to file
         if save:
             try:
-                if test_type == "all":
+                if isinstance(data, dict):
                     for name, df in data.items():
                         filename = (
                             f"{save.rsplit('.', 1)[0]}_{name}.{save.rsplit('.', 1)[-1] if '.' in save else 'csv'}"
@@ -665,7 +668,7 @@ def dva_cmd(latest, test_type, year, output_format, force_refresh, save, summary
                 return
 
         # Output to console
-        if test_type == "all":
+        if isinstance(data, dict):
             for name, df in data.items():
                 console.print(f"\n[bold]{name.upper()} TESTS:[/bold]")
                 if output_format == "json":
@@ -964,20 +967,20 @@ def ni_elections(election_year, output_format, save):
 
                         with open(save, "w") as f:
                             json.dump(election_data, f, indent=2, default=str)
-                    elif hasattr(election_data, "to_json"):
+                    elif isinstance(election_data, pd.DataFrame):
                         election_data.to_json(save, indent=2, date_format="iso")
                     else:
                         click.echo("❌ Error: Cannot convert election data to JSON format")
                         click.echo("💡 Try using CSV format instead")
                         return
                 else:
-                    if hasattr(election_data, "to_csv"):
+                    if isinstance(election_data, pd.DataFrame):
                         election_data.to_csv(save, index=False)
                     else:
                         # If it's a dict of DataFrames, save each separately
                         if isinstance(election_data, dict):
                             for key, df in election_data.items():
-                                if hasattr(df, "to_csv"):
+                                if isinstance(df, pd.DataFrame):
                                     filename = f"{save.rsplit('.', 1)[0]}_{key}.csv"
                                     df.to_csv(filename, index=False)
                                     click.echo(f"💾 Saved {key} to: {filename}")
@@ -999,12 +1002,12 @@ def ni_elections(election_year, output_format, save):
 
             if isinstance(election_data, dict):
                 click.echo(json.dumps(election_data, indent=2, default=str))
-            elif hasattr(election_data, "to_json"):
+            elif isinstance(election_data, pd.DataFrame):
                 click.echo(election_data.to_json(indent=2, date_format="iso"))
             else:
                 click.echo("Warning: Cannot display election data in JSON format")
         elif output_format == "csv":
-            if hasattr(election_data, "to_csv"):
+            if isinstance(election_data, pd.DataFrame):
                 click.echo(election_data.to_csv(index=False))
             else:
                 click.echo("Warning: Cannot display election data in CSV format")
@@ -1014,7 +1017,7 @@ def ni_elections(election_year, output_format, save):
                 click.echo(f"Year: {election_year}")
             click.echo("=" * 60)
 
-            if hasattr(election_data, "to_string"):
+            if isinstance(election_data, pd.DataFrame):
                 # If it's a DataFrame
                 if len(election_data) > 20:
                     click.echo(f"Showing first 20 of {len(election_data)} records:")
@@ -1027,7 +1030,7 @@ def ni_elections(election_year, output_format, save):
                 for key, value in election_data.items():
                     click.echo(f"\n{key}:")
                     click.echo("-" * 40)
-                    if hasattr(value, "to_string"):
+                    if isinstance(value, pd.DataFrame):
                         if len(value) > 10:
                             click.echo(f"First 10 of {len(value)} records:")
                             click.echo(value.head(10).to_string(index=False))
@@ -2134,7 +2137,7 @@ def nisra_deaths_cmd(dimension, output_format, force_refresh, save):
             data = nisra_deaths.get_latest_deaths(dimension=dimension, force_refresh=force_refresh)
 
         # Handle the result based on whether it's a single DataFrame or dict of DataFrames
-        if dimension == "all":
+        if isinstance(data, dict):
             console.print("[green]✅ Retrieved all dimensions successfully[/green]")
             total_records = sum(len(df) for df in data.values())
             console.print(f"[cyan]📊 Total records: {total_records}[/cyan]")
@@ -2154,7 +2157,7 @@ def nisra_deaths_cmd(dimension, output_format, force_refresh, save):
         # Handle file saving
         if save:
             try:
-                if dimension == "all":
+                if isinstance(data, dict):
                     # Save each dimension to a separate file
                     for dim_name, df in data.items():
                         filename = (
@@ -2185,14 +2188,14 @@ def nisra_deaths_cmd(dimension, output_format, force_refresh, save):
         if output_format == "json":
             import json
 
-            if dimension == "all":
+            if isinstance(data, dict):
                 # Convert DataFrames to JSON-serializable format
                 output = {dim_name: df.to_dict(orient="records") for dim_name, df in data.items()}
                 click.echo(json.dumps(output, indent=2, default=str))
             else:
                 click.echo(data.to_json(orient="records", date_format="iso", indent=2))
         else:  # csv format
-            if dimension == "all":
+            if isinstance(data, dict):
                 console.print("\n[yellow]💡 Tip: For 'all' dimensions, use --save to export to files[/yellow]")
                 console.print("[yellow]   Displaying demographics dimension only:[/yellow]\n")
                 click.echo(data["demographics"].to_csv(index=False))
@@ -2211,9 +2214,9 @@ def nisra_deaths_cmd(dimension, output_format, force_refresh, save):
 @nisra.command(name="drug-related-deaths")
 @click.option(
     "--dimension",
-    type=click.Choice(["summary", "age", "substances", "all"], case_sensitive=False),
-    default="summary",
-    help="Which dimension to retrieve (default: summary)",
+    type=click.Choice(["hsct", "lgd", "all"], case_sensitive=False),
+    default="all",
+    help="Geographic breakdown to retrieve (default: all)",
 )
 @click.option(
     "--format",
@@ -2232,32 +2235,26 @@ def nisra_drug_related_deaths_cmd(dimension, output_format, force_refresh, save)
 
     Examples:
     ---------
-    Annual totals and rates::
+    Health and Social Care Trust breakdown::
 
-        bolster nisra drug-related-deaths --dimension summary
+        bolster nisra drug-related-deaths --dimension hsct
 
-    Age-band breakdown by gender and year::
+    Local Government District breakdown::
 
-        bolster nisra drug-related-deaths --dimension age
+        bolster nisra drug-related-deaths --dimension lgd
 
-    Deaths mentioning selected substances::
-
-        bolster nisra drug-related-deaths --dimension substances
-
-    All dimensions saved to files::
+    Both breakdowns saved to files::
 
         bolster nisra drug-related-deaths --dimension all --save drug_deaths.csv
 
     Dimensions
     ----------
-    summary
-        Annual totals, crude rates, and age-standardised rates by gender/measure
-    age
-        Counts by age band, gender, and year (drug-related and drug misuse)
-    substances
-        Drug-related deaths mentioning selected substances by year
+    hsct
+        Drug-related and drug misuse deaths by Health and Social Care Trust and year
+    lgd
+        Drug-related and drug misuse deaths by Local Government District and year
     all
-        All dimensions (returns separate tables)
+        Both breakdowns (returns separate tables)
 
     Source
     ------
@@ -2267,9 +2264,11 @@ def nisra_drug_related_deaths_cmd(dimension, output_format, force_refresh, save)
 
     try:
         with console.status("[bold green]Downloading latest NISRA drug deaths data..."):
-            data = nisra_drug_related_deaths.get_latest_data(dimension=dimension, force_refresh=force_refresh)
+            data = nisra_drug_related_deaths.get_latest_drug_related_deaths(
+                dimension=dimension, force_refresh=force_refresh
+            )
 
-        if dimension == "all":
+        if isinstance(data, dict):
             console.print("[green]✅ Retrieved all dimensions successfully[/green]")
             total_records = sum(len(df) for df in data.values())
             console.print(f"[cyan]📊 Total records: {total_records}[/cyan]")
@@ -2281,7 +2280,7 @@ def nisra_drug_related_deaths_cmd(dimension, output_format, force_refresh, save)
 
         if save:
             try:
-                if dimension == "all":
+                if isinstance(data, dict):
                     for dim_name, df in data.items():
                         filename = (
                             f"{save.rsplit('.', 1)[0]}_{dim_name}.{save.rsplit('.', 1)[-1] if '.' in save else 'csv'}"
@@ -2308,16 +2307,16 @@ def nisra_drug_related_deaths_cmd(dimension, output_format, force_refresh, save)
         if output_format == "json":
             import json
 
-            if dimension == "all":
+            if isinstance(data, dict):
                 output = {dim_name: df.to_dict(orient="records") for dim_name, df in data.items()}
                 click.echo(json.dumps(output, indent=2, default=str))
             else:
                 click.echo(data.to_json(orient="records", indent=2))
         else:  # csv
-            if dimension == "all":
+            if isinstance(data, dict):
                 console.print("\n[yellow]💡 Tip: For 'all' dimensions, use --save to export to files[/yellow]")
-                console.print("[yellow]   Displaying summary dimension only:[/yellow]\n")
-                click.echo(data["summary"].to_csv(index=False))
+                console.print("[yellow]   Displaying hsct dimension only:[/yellow]\n")
+                click.echo(data["hsct"].to_csv(index=False))
             else:
                 click.echo(data.to_csv(index=False))
 
@@ -2405,7 +2404,7 @@ def nisra_school_leavers_cmd(dimension, geography, output_format, force_refresh,
                 dimension=dimension, geography=geography, force_refresh=force_refresh
             )
 
-        if dimension == "all":
+        if isinstance(data, dict):
             console.print("[green]✅ Retrieved all dimensions successfully[/green]")
             total_records = sum(len(df) for df in data.values())
             console.print(f"[cyan]📊 Total records: {total_records}[/cyan]")
@@ -2417,7 +2416,7 @@ def nisra_school_leavers_cmd(dimension, geography, output_format, force_refresh,
 
         if save:
             try:
-                if dimension == "all":
+                if isinstance(data, dict):
                     for dim_name, df in data.items():
                         filename = (
                             f"{save.rsplit('.', 1)[0]}_{dim_name}.{save.rsplit('.', 1)[-1] if '.' in save else 'csv'}"
@@ -2444,13 +2443,13 @@ def nisra_school_leavers_cmd(dimension, geography, output_format, force_refresh,
         if output_format == "json":
             import json
 
-            if dimension == "all":
+            if isinstance(data, dict):
                 output = {dim_name: df.to_dict(orient="records") for dim_name, df in data.items()}
                 click.echo(json.dumps(output, indent=2, default=str))
             else:
                 click.echo(data.to_json(orient="records", indent=2))
         else:  # csv
-            if dimension == "all":
+            if isinstance(data, dict):
                 console.print("\n[yellow]💡 Tip: For 'all' dimensions, use --save to export to files[/yellow]")
                 console.print("[yellow]   Displaying attainment dimension only:[/yellow]\n")
                 click.echo(data["attainment"].to_csv(index=False))
@@ -2536,7 +2535,7 @@ def nisra_teacher_workforce_cmd(dimension, summary, output_format, force_refresh
             else:
                 data = nisra_teacher_workforce.get_latest_data(dimension=dimension, force_refresh=force_refresh)
 
-        if dimension == "all":
+        if isinstance(data, dict):
             console.print("[green]✅ Retrieved all dimensions successfully[/green]")
             total_records = sum(len(df) for df in data.values())
             console.print(f"[cyan]📊 Total records: {total_records}[/cyan]")
@@ -2548,7 +2547,7 @@ def nisra_teacher_workforce_cmd(dimension, summary, output_format, force_refresh
 
         if save:
             try:
-                if dimension == "all":
+                if isinstance(data, dict):
                     for dim_name, df in data.items():
                         filename = (
                             f"{save.rsplit('.', 1)[0]}_{dim_name}.{save.rsplit('.', 1)[-1] if '.' in save else 'csv'}"
@@ -2575,13 +2574,13 @@ def nisra_teacher_workforce_cmd(dimension, summary, output_format, force_refresh
         if output_format == "json":
             import json
 
-            if dimension == "all":
+            if isinstance(data, dict):
                 output = {dim_name: df.to_dict(orient="records") for dim_name, df in data.items()}
                 click.echo(json.dumps(output, indent=2, default=str))
             else:
                 click.echo(data.to_json(orient="records", indent=2))
         else:  # csv
-            if dimension == "all":
+            if isinstance(data, dict):
                 console.print("\n[yellow]💡 Tip: For 'all' dimensions, use --save to export to files[/yellow]")
                 console.print("[yellow]   Displaying headcount dimension only:[/yellow]\n")
                 click.echo(data["headcount"].to_csv(index=False))
@@ -2726,7 +2725,7 @@ def nisra_labour_market_cmd(dimension, table_deprecated, output_format, force_re
                 data = nisra_labour_market.get_latest_employment_by_lgd(force_refresh=force_refresh)
 
         # Handle the result based on whether it's a single DataFrame or dict of DataFrames
-        if dimension == "all":
+        if isinstance(data, dict):
             console.print("[green]✅ Retrieved all dimensions successfully[/green]")
             total_records = sum(len(df) for df in data.values())
             console.print(f"[cyan]📊 Total records: {total_records}[/cyan]")
@@ -2765,7 +2764,7 @@ def nisra_labour_market_cmd(dimension, table_deprecated, output_format, force_re
         # Handle file saving
         if save:
             try:
-                if dimension == "all":
+                if isinstance(data, dict):
                     # Save each dimension to a separate file
                     for dim_name, df in data.items():
                         filename = (
@@ -2796,14 +2795,14 @@ def nisra_labour_market_cmd(dimension, table_deprecated, output_format, force_re
         if output_format == "json":
             import json
 
-            if dimension == "all":
+            if isinstance(data, dict):
                 # Convert DataFrames to JSON-serializable format
                 output = {dim_name: df.to_dict(orient="records") for dim_name, df in data.items()}
                 click.echo(json.dumps(output, indent=2, default=str))
             else:
                 click.echo(data.to_json(orient="records", date_format="iso", indent=2))
         else:  # csv format
-            if dimension == "all":
+            if isinstance(data, dict):
                 console.print("\n[yellow]💡 Tip: For 'all' dimensions, use --save to export to files[/yellow]")
                 console.print("[yellow]   Displaying employment dimension only:[/yellow]\n")
                 click.echo(data["employment"].to_csv(index=False))
@@ -3018,7 +3017,7 @@ def nisra_births_cmd(event_type, output_format, force_refresh, save):
             data = nisra_births.get_latest_births(event_type=event_type, force_refresh=force_refresh)
 
         # Handle the result based on whether it's a single DataFrame or dict of DataFrames
-        if event_type == "both":
+        if isinstance(data, dict):
             console.print("[green]✅ Retrieved both event types successfully[/green]")
             total_records = sum(len(df) for df in data.values())
             console.print(f"[cyan]📊 Total records: {total_records}[/cyan]")
@@ -3044,7 +3043,7 @@ def nisra_births_cmd(event_type, output_format, force_refresh, save):
         # Handle file saving
         if save:
             try:
-                if event_type == "both":
+                if isinstance(data, dict):
                     # Save each event type to a separate file
                     for event_name, df in data.items():
                         filename = (
@@ -3075,7 +3074,7 @@ def nisra_births_cmd(event_type, output_format, force_refresh, save):
         if output_format == "json":
             import json
 
-            if event_type == "both":
+            if isinstance(data, dict):
                 # Convert DataFrames to JSON-serializable format
                 output = {event_name: df.to_dict(orient="records") for event_name, df in data.items()}
                 click.echo(json.dumps(output, indent=2, default=str))
@@ -3083,7 +3082,7 @@ def nisra_births_cmd(event_type, output_format, force_refresh, save):
                 click.echo(data.to_json(orient="records", date_format="iso", indent=2))
         else:
             # CSV output
-            if event_type == "both":
+            if isinstance(data, dict):
                 for event_name, df in data.items():
                     console.print(f"\n[bold]{event_name.upper()}:[/bold]")
                     click.echo(df.to_csv(index=False), nl=False)
@@ -3254,8 +3253,6 @@ def nisra_population_cmd(area, year, output_format, force_refresh, save):
 
 
 @nisra.command(name="population-projections")
-@click.option("--lgd", is_flag=True, default=False, help="Show LGD sub-area projections instead of NI-level")
-@click.option("--lgd-name", default=None, help="Filter LGD projections to a specific LGD name or code")
 @click.option("--start-year", type=int, default=None, help="Filter projections from this year (inclusive)")
 @click.option("--end-year", type=int, default=None, help="Filter projections to this year (inclusive)")
 @click.option(
@@ -3267,46 +3264,30 @@ def nisra_population_cmd(area, year, output_format, force_refresh, save):
 )
 @click.option("--force-refresh", is_flag=True, default=False, help="Bypass cache and download fresh data")
 @click.option("--save", type=click.Path(), default=None, help="Save output to file")
-def nisra_population_projections_cmd(lgd, lgd_name, start_year, end_year, output_format, force_refresh, save):
+def nisra_population_projections_cmd(start_year, end_year, output_format, force_refresh, save):
     r"""NISRA Population Projections for Northern Ireland.
 
-    By default returns NI-level principal projections (2024-based, to 2074).
-    Use --lgd to get LGD sub-area projections (2022-based, 11 districts, to 2047).
+    Returns NI-level principal projections (2024-based, to 2074). Sub-area (LGD)
+    projections are not available through PxStat and are not offered here.
 
     \b
     Examples:
         bolster nisra population-projections
         bolster nisra population-projections --start-year 2025 --end-year 2035
-        bolster nisra population-projections --lgd
-        bolster nisra population-projections --lgd --lgd-name Belfast
-        bolster nisra population-projections --lgd --lgd-name N09000003
     """
     from rich.console import Console
 
     console = Console()
     try:
-        if lgd:
-            data = nisra_projections.get_lgd_projections(
-                lgd=lgd_name,
-                start_year=start_year,
-                end_year=end_year,
-                force_refresh=force_refresh,
-            )
-            console.print(
-                f"[bold]NI LGD Population Projections (2022-based)[/bold] — "
-                f"{data['lgd_name'].nunique()} LGDs, "
-                f"{data['year'].min()}–{data['year'].max()}"
-            )
-        else:
-            data = nisra_projections.get_latest_projections(
-                start_year=start_year,
-                end_year=end_year,
-                force_refresh=force_refresh,
-            )
-            base = data["base_year"].iloc[0] if not data.empty else "?"
-            console.print(
-                f"[bold]NI Population Projections ({base}-based)[/bold] — {data['year'].min()}–{data['year'].max()}"
-            )
+        data = nisra_projections.get_latest_projections(
+            start_year=start_year,
+            end_year=end_year,
+            force_refresh=force_refresh,
+        )
+        base = data["base_year"].iloc[0] if not data.empty else "?"
+        console.print(
+            f"[bold]NI Population Projections ({base}-based)[/bold] — {data['year'].min()}–{data['year'].max()}"
+        )
 
         if save:
             try:
@@ -5142,7 +5123,7 @@ def nisra_composite_index_cmd(dimension, table_deprecated, year, quarter, output
                     data["contributions"] = data["contributions"][data["contributions"]["quarter"] == quarter]
 
         # Check for empty results
-        if dimension in ("indices", "contributions"):
+        if not isinstance(data, dict):
             if data.empty:
                 console.print("[yellow]⚠️  No data found for the specified filters[/yellow]")
                 return
@@ -5152,7 +5133,7 @@ def nisra_composite_index_cmd(dimension, table_deprecated, year, quarter, output
                 return
 
         # Display success message
-        if dimension == "all":
+        if isinstance(data, dict):
             console.print("[green]✅ Retrieved all dimensions successfully[/green]")
             total_records = sum(len(df) for df in data.values())
             console.print(f"[cyan]📊 Total records: {total_records}[/cyan]")
@@ -5162,18 +5143,14 @@ def nisra_composite_index_cmd(dimension, table_deprecated, year, quarter, output
             console.print(f"[green]✅ Retrieved {dimension} dimension successfully[/green]")
             console.print(f"[cyan]📊 Total records: {len(data)}[/cyan]")
 
-        if (
-            not (isinstance(data, dict) and all(df.empty for df in data.values()))
-            and dimension != "all"
-            and not data.empty
-        ):
+        if not isinstance(data, dict) and not data.empty:
             years = data["year"].unique()
             console.print(f"[dim]Years: {min(years)} - {max(years)}[/dim]")
 
         # Handle file saving
         if save:
             try:
-                if dimension == "all":
+                if isinstance(data, dict):
                     # Save each dimension to a separate file
                     for dim_name, df in data.items():
                         filename = (
@@ -5197,7 +5174,7 @@ def nisra_composite_index_cmd(dimension, table_deprecated, year, quarter, output
                 return
 
         # Output to console
-        if dimension == "all":
+        if isinstance(data, dict):
             for dim_name, df in data.items():
                 console.print(f"\n[bold]{dim_name.upper()}:[/bold]")
                 if output_format == "json":
@@ -10383,10 +10360,10 @@ def justice_mortgages_cmd(table, output_format, force_refresh, save, summary):
 
         if summary and table in ("received", "disposed"):
             annual = data.groupby("year")["annual_total"].first().dropna()
-            peak_year = int(annual.idxmax())
+            peak_year = int(annual.idxmax())  # ty: ignore[invalid-argument-type]  # pandas types index labels as Hashable
             console.print("\n[bold]Summary:[/bold]")
             console.print(f"   Coverage: {int(data['year'].min())}-{int(data['year'].max())}")
-            console.print(f"   Peak year: {peak_year} ({int(annual.max()):,} applications)")
+            console.print(f"   Peak year: {peak_year} ({int(annual.max()):,} applications)")  # ty: ignore[invalid-argument-type]  # pandas types Series.max() loosely
             console.print(f"   Latest complete annual total: {int(annual.iloc[-1]):,} ({int(annual.index[-1])})")
             if not save:
                 return
@@ -10610,7 +10587,7 @@ def justice_pbni_caseload_cmd(frequency, dimension, list_dimensions, output_form
         with console.status(f"[bold green]Downloading PBNI {frequency} caseload data..."):
             data = justice_pbni.get_latest_data(dimension=dimension, frequency=frequency, force_refresh=force_refresh)
 
-        if dimension == "all":
+        if isinstance(data, dict):
             console.print("[green]PBNI caseload data retrieved successfully[/green]")
             for name, frame in data.items():
                 console.print(f"\n[bold cyan]{name}[/bold cyan] ({len(frame)} rows)")
@@ -10861,8 +10838,8 @@ def justice_prosecutions_convictions_cmd(dataset, by, year, list_tables, output_
             with console.status("[bold green]Downloading prosecutions and convictions data..."):
                 tables = justice_prosecutions.list_tables(year=year)
             console.print("[bold]Available tables:[/bold]")
-            for row in tables.itertuples():
-                console.print(f"   {row.table_id:>4}  {row.table_title} ({row.records} records)")
+            for row in tables.to_dict("records"):
+                console.print(f"   {row['table_id']:>4}  {row['table_title']} ({row['records']} records)")
             return
 
         with console.status("[bold green]Downloading prosecutions and convictions data..."):
@@ -10990,8 +10967,8 @@ def justice_yja_workload_cmd(dataset, year, list_tables, output_format, force_re
             with console.status("[bold green]Downloading Youth Justice Agency workload data..."):
                 tables = justice_yja_workload.list_tables(year=year)
             console.print("[bold]Available tables:[/bold]")
-            for row in tables.itertuples():
-                console.print(f"   {row.table_id:>4}  {row.table_title} ({row.records} records)")
+            for row in tables.to_dict("records"):
+                console.print(f"   {row['table_id']:>4}  {row['table_title']} ({row['records']} records)")
             return
 
         with console.status("[bold green]Downloading Youth Justice Agency workload data..."):
@@ -11578,7 +11555,7 @@ def translink_departures_cmd(stop_name, n, with_vehicles, enrich_stops, output_f
         output = df.to_json(orient="records", date_format="iso", indent=2)
         if save:
             with open(save, "w") as f:
-                f.write(output)
+                f.write(output)  # ty: ignore[invalid-argument-type]  # pandas types to_json() as str | None, but it is str without a path
             console.print(f"[green]Saved to {save}[/green]")
         else:
             click.echo(output)
@@ -11670,7 +11647,7 @@ def translink_vehicles_cmd(line, operator, enrich_stops, output_format, save):
         output = df.to_json(orient="records", date_format="iso", indent=2)
         if save:
             with open(save, "w") as f:
-                f.write(output)
+                f.write(output)  # ty: ignore[invalid-argument-type]  # pandas types to_json() as str | None, but it is str without a path
             console.print(f"[green]Saved to {save}[/green]")
         else:
             click.echo(output)
@@ -11765,7 +11742,7 @@ def translink_route_cmd(origin, destination, n, output_format, save):
         output = df.to_json(orient="records", date_format="iso", indent=2)
         if save:
             with open(save, "w") as f:
-                f.write(output)
+                f.write(output)  # ty: ignore[invalid-argument-type]  # pandas types to_json() as str | None, but it is str without a path
             console.print(f"[green]Saved to {save}[/green]")
         else:
             click.echo(output)
@@ -11936,7 +11913,7 @@ def translink_lateness_cmd(db_path, group_by, line, since, min_samples, enrich_s
         output = result.to_json(orient="records", indent=2)
         if save:
             with open(save, "w") as f:
-                f.write(output)
+                f.write(output)  # ty: ignore[invalid-argument-type]  # pandas types to_json() as str | None, but it is str without a path
             console.print(f"[green]Saved to {save}[/green]")
         else:
             click.echo(output)
@@ -12058,7 +12035,7 @@ def translink_board_cmd(stop, n, output_format, save):
         output = json_board.to_json(orient="records", indent=2)
         if save:
             with open(save, "w") as f:
-                f.write(output)
+                f.write(output)  # ty: ignore[invalid-argument-type]  # pandas types to_json() as str | None, but it is str without a path
             console.print(f"[green]Saved to {save}[/green]")
         else:
             click.echo(output)
@@ -12163,7 +12140,7 @@ def translink_find_stop_cmd(query, n, cutoff, output_format, save):
         output = df.to_json(orient="records", indent=2)
         if save:
             with open(save, "w") as f:
-                f.write(output)
+                f.write(output)  # ty: ignore[invalid-argument-type]  # pandas types to_json() as str | None, but it is str without a path
             console.print(f"[green]Saved to {save}[/green]")
         else:
             click.echo(output)

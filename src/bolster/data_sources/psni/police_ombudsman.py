@@ -43,6 +43,7 @@ from typing import cast
 import pandas as pd
 from bs4 import BeautifulSoup, Tag
 
+from bolster.utils.excel import parse_sheet
 from bolster.utils.web import session
 
 from ._base import (
@@ -219,7 +220,7 @@ def _parse_annual_t1(xl: pd.ExcelFile) -> pd.DataFrame:
     ``complaints`` (int), one row per financial year from 2000/01 onwards.
     """
     sheet = _find_sheet(xl, "T1")
-    raw = xl.parse(sheet, header=None)
+    raw = parse_sheet(xl, sheet, header=None)
 
     # Locate the "Year" header row
     header_row = None
@@ -246,7 +247,7 @@ def _parse_annual_t8(xl: pd.ExcelFile) -> pd.DataFrame:
     ``year``, ``year_label``, ``district``, ``lgd_code``, ``complaints``.
     """
     sheet = _find_sheet(xl, "T8")
-    raw = xl.parse(sheet, header=None)
+    raw = parse_sheet(xl, sheet, header=None)
 
     # Row 1 (0-indexed) is headers: District, 2011/12, 2012/13, ...
     header_row = 1
@@ -284,7 +285,7 @@ def _parse_annual_t10(xl: pd.ExcelFile) -> pd.DataFrame:
     merged cells for the parent category.
     """
     sheet = _find_sheet(xl, "T10")
-    raw = xl.parse(sheet, header=None)
+    raw = parse_sheet(xl, sheet, header=None)
 
     # Row 1 has: "Allegation Type", "Allegation Subtype", year cols...
     header_row = 1
@@ -321,7 +322,7 @@ def _parse_annual_t12(xl: pd.ExcelFile) -> pd.DataFrame:
     ``year``, ``year_label``, ``outcome``, ``closures``.
     """
     sheet = _find_sheet(xl, "T12")
-    raw = xl.parse(sheet, header=None)
+    raw = parse_sheet(xl, sheet, header=None)
 
     # Row 1 has: NaN, year_labels...
     header_row = 1
@@ -401,7 +402,7 @@ def parse_quarterly(file_path: str | Path) -> dict[str, pd.DataFrame]:
     xl = pd.ExcelFile(file_path)
 
     def _parse_quarterly_table(sheet_name: str, value_name: str) -> pd.DataFrame:
-        raw = xl.parse(sheet_name, header=None)
+        raw = parse_sheet(xl, sheet_name, header=None)
         # Row 3 (0-indexed): "Quarter", year_label, year_label, ...
         header_row = 3
         headers = raw.iloc[header_row].tolist()
@@ -434,7 +435,7 @@ def parse_quarterly(file_path: str | Path) -> dict[str, pd.DataFrame]:
     if district_sheet is None:
         raise PSNIDataNotFoundError("District sheet not found in quarterly workbook")
 
-    raw_d = xl.parse(district_sheet, header=None)
+    raw_d = parse_sheet(xl, district_sheet, header=None)
     # Row 3: Area, District, year1, year2
     header_row = 3
     headers = raw_d.iloc[header_row].tolist()

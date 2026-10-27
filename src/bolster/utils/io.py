@@ -15,12 +15,12 @@ Example:
     >>> os.remove(tmp)
 """
 
-from typing import AnyStr, BinaryIO
+from typing import BinaryIO
 
 import pandas as pd
 
 
-def save_xls(dict_df: dict[AnyStr, pd.DataFrame], path: str | BinaryIO) -> None:
+def save_xls(dict_df: dict[str, pd.DataFrame], path: str | BinaryIO) -> None:
     """Write a mapping of sheet-name → DataFrame to a multi-sheet Excel file.
 
     Args:

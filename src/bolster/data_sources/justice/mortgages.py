@@ -258,13 +258,13 @@ def _parse_period_label(label) -> tuple[int | None, str | None, pd.Period | None
     if m:
         year = int(m.group(1))
         quarter = f"Q{m.group(2)}"
-        return year, quarter, pd.Period(f"{year}{quarter}", freq="Q")
+        return year, quarter, pd.Period(f"{year}{quarter}", freq="Q")  # ty: ignore[invalid-return-type]  # pandas types Timestamp() as Timestamp | NaTType
 
     # Annual: "2017" or "2017.0"
     m = re.match(r"^(\d{4})(?:\.0)?$", text)
     if m:
         year = int(m.group(1))
-        return year, None, pd.Period(str(year), freq="Y")
+        return year, None, pd.Period(str(year), freq="Y")  # ty: ignore[invalid-return-type]  # pandas types Timestamp() as Timestamp | NaTType
 
     return None, None, None
 

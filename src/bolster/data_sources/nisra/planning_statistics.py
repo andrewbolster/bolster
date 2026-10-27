@@ -83,7 +83,7 @@ def _parse_financial_year_to_date(financial_year: str) -> pd.Timestamp:
         Timestamp('2024-04-01 00:00:00')
     """
     start_year = int(financial_year.split("/")[0])
-    return pd.Timestamp(year=start_year, month=4, day=1)
+    return pd.Timestamp(year=start_year, month=4, day=1)  # ty: ignore[invalid-return-type]  # pandas types Timestamp() as Timestamp | NaTType
 
 
 def parse_planning_by_lgd(force_refresh: bool = False) -> pd.DataFrame:
