@@ -86,7 +86,7 @@ def _parse_tlist_month(tlist: str) -> pd.Timestamp:
         pandas Timestamp for the first day of that month.
     """
     year, month = tlist.split("M")
-    return pd.Timestamp(year=int(year), month=int(month), day=1)
+    return pd.Timestamp(year=int(year), month=int(month), day=1)  # ty: ignore[invalid-return-type]  # pandas types Timestamp() as Timestamp | NaTType
 
 
 def _pivot_hsct(matrix: str, stat_within: str, stat_over: str) -> pd.DataFrame:

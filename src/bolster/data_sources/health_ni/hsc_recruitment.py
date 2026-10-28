@@ -110,7 +110,7 @@ def find_publication(period: str | pd.Timestamp | None = None) -> pd.Series:
     if period is None:
         return publications.iloc[0]
 
-    wanted = pd.Timestamp(period).to_period("M").to_timestamp()
+    wanted = pd.Timestamp(period).to_period("M").to_timestamp()  # ty: ignore[unresolved-attribute]  # pandas types Timestamp() as Timestamp | NaTType
     matched = publications[publications.period == wanted]
     if matched.empty:
         available = ", ".join(publications.period.dt.strftime("%B %Y"))

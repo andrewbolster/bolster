@@ -26,6 +26,7 @@ stability patterns since the establishment of devolved government.
 
 import datetime
 import logging
+from io import StringIO
 
 import dateparser
 import numpy as np
@@ -74,7 +75,7 @@ def get_ni_executive_basic_table() -> pd.DataFrame:
     response.raise_for_status()
 
     try:
-        tables = pd.read_html(pd.io.common.StringIO(response.text))
+        tables = pd.read_html(StringIO(response.text))
     except (ValueError, ImportError) as e:
         # pd.read_html raises ValueError when lxml finds no <table> elements,
         # then (since html5lib isn't installed) ImportError when it tries the

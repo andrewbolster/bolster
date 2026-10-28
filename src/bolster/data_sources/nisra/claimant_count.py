@@ -53,7 +53,7 @@ def _parse_month(month_str: str) -> pd.Timestamp:
         Timestamp('2024-03-01 00:00:00')
     """
     year, month = month_str.split("M")
-    return pd.Timestamp(int(year), int(month), 1)
+    return pd.Timestamp(int(year), int(month), 1)  # ty: ignore[invalid-return-type]  # pandas types Timestamp() as Timestamp | NaTType
 
 
 def _pivot_geo(df_raw: pd.DataFrame, geo_col: str, geo_name_col: str) -> pd.DataFrame:

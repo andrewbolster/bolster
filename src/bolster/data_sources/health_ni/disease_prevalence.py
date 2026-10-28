@@ -44,6 +44,7 @@ from pathlib import Path
 import pandas as pd
 
 from bolster.data_sources.nisra.pxstat import read_dataset
+from bolster.utils.excel import parse_sheet
 
 from ._base import (
     HEALTH_NI_BASE_URL,
@@ -567,7 +568,7 @@ def parse_all_gp_practices(file_path: str | Path) -> pd.DataFrame:
     frames: list[pd.DataFrame] = []
     for sheet_name in table5_sheets:
         try:
-            raw = xl.parse(sheet_name, header=None)
+            raw = parse_sheet(xl, sheet_name, header=None)
             financial_year, year = _sheet_to_financial_year(sheet_name)
             df_sheet = _parse_table5_sheet(raw, financial_year, year)
             if not df_sheet.empty:

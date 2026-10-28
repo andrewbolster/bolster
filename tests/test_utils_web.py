@@ -314,3 +314,14 @@ class TestFindAcademicYearPublicationLink:
 
         assert result == "/report-2024.html"
         assert ("Methodology", "/methodology") in seen
+
+
+class TestCachingSessionGet:
+    def test_positional_params_are_passed_through(self):
+        from bolster.utils.web import CachingSession
+
+        with patch("requests.Session.get", return_value="response") as parent_get:
+            result = CachingSession().get("https://example.org/data", {"q": "1"})
+
+        assert result == "response"
+        assert parent_get.call_args.kwargs["params"] == {"q": "1"}

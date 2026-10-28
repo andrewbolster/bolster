@@ -82,7 +82,7 @@ def _parse_tlist_quarter(tlist: str) -> pd.Timestamp:
     # Map financial year quarters to calendar year/month
     quarter_end = {1: (start_year, 6), 2: (start_year, 9), 3: (start_year, 12), 4: (start_year + 1, 3)}
     cal_year, cal_month = quarter_end[quarter]
-    return pd.Timestamp(year=cal_year, month=cal_month, day=1)
+    return pd.Timestamp(year=cal_year, month=cal_month, day=1)  # ty: ignore[invalid-return-type]  # pandas types Timestamp() as Timestamp | NaTType
 
 
 def get_latest_diagnostic_waiting_times(

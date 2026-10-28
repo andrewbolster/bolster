@@ -246,3 +246,15 @@ class TestCaching:
     def test_clear_cache_runs(self):
         """clear_cache should run without error."""
         hpi.clear_cache()  # Should not raise
+
+
+class TestRequireTable:
+    """A table missing from the workbook is an error, not a silent None."""
+
+    def test_returns_the_named_table(self):
+        frame = pd.DataFrame({"x": [1]})
+        assert hpi._require_table({"Table 1": frame}, "Table 1") is frame
+
+    def test_missing_table_raises_and_names_what_was_found(self):
+        with pytest.raises(hpi.NIHPIDataNotFoundError, match="Table 4.*Table 1"):
+            hpi._require_table({"Table 1": pd.DataFrame()}, "Table 4")

@@ -56,6 +56,7 @@ import logging
 
 import pandas as pd
 
+from bolster.utils.excel import parse_sheet
 from bolster.utils.web import session
 
 logger = logging.getLogger(__name__)
@@ -217,7 +218,7 @@ def _coalesce_daily(workbook: pd.ExcelFile) -> pd.DataFrame:
     Raises:
         BoEDataError: If the sheet is missing expected columns or yields no rows.
     """
-    raw = workbook.parse(sheet_name=RAW_DATA_SHEET, header=1)
+    raw = parse_sheet(workbook, RAW_DATA_SHEET, header=1)
 
     if "Date" not in raw.columns:
         raise BoEDataError(f"'{RAW_DATA_SHEET}' sheet is missing a 'Date' column; got {list(raw.columns)}")
@@ -352,7 +353,7 @@ def get_rate_changes(force_refresh: bool = False) -> pd.DataFrame:
         [Timestamp('1694-10-01 00:00:00'), 6.0]
     """
     workbook = _download_workbook(force_refresh=force_refresh)
-    raw = workbook.parse(sheet_name=HISTORICAL_SHEET, header=None)
+    raw = parse_sheet(workbook, HISTORICAL_SHEET, header=None)
 
     # Columns: 0=year, 1=day, 2=month abbr, 3=new rate. Year is sparse (only
     # filled on the first change of each year) so it is forward-filled.

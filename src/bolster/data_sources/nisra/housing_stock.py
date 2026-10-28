@@ -42,6 +42,7 @@ from typing import cast
 import pandas as pd
 from bs4 import BeautifulSoup, Tag
 
+from bolster.utils.excel import parse_sheet
 from bolster.utils.web import session
 
 from ._base import NISRAValidationError, download_file
@@ -188,7 +189,7 @@ def _parse_lgd_sheet(sheet_df: pd.DataFrame, year: int) -> pd.DataFrame:
     for idx, row in sheet_df.iterrows():
         row_str = " ".join(str(v).lower() for v in row if pd.notna(v))
         if "lgd" in row_str and ("code" in row_str or "council" in row_str or "district" in row_str):
-            header_row_idx = int(idx)
+            header_row_idx = int(idx)  # ty: ignore[invalid-argument-type]  # pandas types index and column labels as Hashable
             break
 
     if header_row_idx is None:
@@ -298,7 +299,7 @@ def parse_lgd_file(file_path: str | object) -> pd.DataFrame:
         if not sheet_name.startswith("Table"):
             continue
 
-        raw = xl.parse(sheet_name, header=None)
+        raw = parse_sheet(xl, sheet_name, header=None)
 
         # Get the sheet title from the first non-null cell
         title = ""
@@ -395,7 +396,7 @@ def get_latest_housing_stock(geo: str = "lgd", force_refresh: bool = False) -> p
     for sheet_name in xl.sheet_names:
         if sheet_name in _SKIP_SHEETS or not sheet_name.startswith("Table"):
             continue
-        return xl.parse(sheet_name, header=None)
+        return parse_sheet(xl, sheet_name, header=None)
 
     return pd.DataFrame()
 

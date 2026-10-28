@@ -198,7 +198,9 @@ def parse_crime_statistics_file(
         unrecognized = df[df["month_num"].isna()]["month"].unique()
         raise PSNIValidationError(f"Unrecognized month values: {unrecognized}")
 
-    df["date"] = pd.to_datetime({"year": df["calendar_year"], "month": df["month_num"], "day": 1}, errors="coerce")
+    df["date"] = pd.to_datetime(
+        pd.DataFrame({"year": df["calendar_year"], "month": df["month_num"], "day": 1}), errors="coerce"
+    )
 
     # Drop temporary month_num column
     df = df.drop(columns=["month_num"])

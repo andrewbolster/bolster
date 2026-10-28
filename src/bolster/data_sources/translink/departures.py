@@ -323,7 +323,7 @@ def _hhmm_to_timestamp(hhmm: str, ref: "pd.Timestamp") -> "pd.Timestamp | None":
         h, m = int(hhmm[:2]), int(hhmm[2:])
         ref_local = ref.tz_convert("Europe/London")
         local_dt = ref_local.normalize() + pd.Timedelta(hours=h, minutes=m)
-        return local_dt.tz_localize(None).tz_localize("Europe/London").tz_convert("UTC")
+        return local_dt.tz_localize(None).tz_localize("Europe/London").tz_convert("UTC")  # ty: ignore[invalid-return-type]  # pandas types Timestamp() as Timestamp | NaTType
     except (ValueError, IndexError, Exception):
         return None
 
@@ -398,7 +398,7 @@ def _verified_passing_time(
             continue
         delay = vehicle_delay_seconds if pd.notna(vehicle_delay_seconds) else 0
         destination_hint = resolve_stop_name(trip.stops[-1].atco, fallback=False)
-        return scheduled, scheduled + pd.Timedelta(seconds=float(delay)), destination_hint
+        return scheduled, scheduled + pd.Timedelta(seconds=float(delay)), destination_hint  # ty: ignore[invalid-return-type]  # pandas types Timestamp() as Timestamp | NaTType
     return None
 
 
@@ -544,11 +544,11 @@ def get_departures_with_vehicles(
             v.get("current_stop"),
             v.get("next_stop"),
             target_atcos,
-            dt_aware,
+            dt_aware,  # ty: ignore[invalid-argument-type]  # pandas types Timestamp() as Timestamp | NaTType
             vehicle_delay_seconds=v.get("delay_seconds"),
         )
         if result_v is not None:
-            verified[v_idx] = result_v
+            verified[v_idx] = result_v  # ty: ignore[invalid-assignment]  # pandas types index and column labels as Hashable
 
     # Match on each side's own scheduled time, within a tight window (see docstring).
     deps_list = list(deps.iterrows())
