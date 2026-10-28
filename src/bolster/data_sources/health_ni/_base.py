@@ -171,9 +171,9 @@ def parse_period_column(text: str) -> pd.Timestamp | None:
     """
     label = strip_note_refs(text)
     if re.fullmatch(r"\d{4}", label):
-        return pd.Timestamp(year=int(label), month=3, day=31)
+        return pd.Timestamp(year=int(label), month=3, day=31)  # ty: ignore[invalid-return-type]  # pandas types Timestamp() as Timestamp | NaTType
     if _DATE_COLUMN_RE.match(label):
-        return pd.Timestamp(label)
+        return pd.Timestamp(label)  # ty: ignore[invalid-return-type]  # pandas types Timestamp() as Timestamp | NaTType
     return None
 
 

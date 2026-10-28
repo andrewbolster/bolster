@@ -4,12 +4,32 @@ Several data source modules locate a header/title row by scanning the first
 few rows of a sheet's leading column for a marker value, each having
 independently reimplemented the same bounded linear scan (see issue #2176).
 This module centralises that scan; each module keeps its own predicate and
-its own "not found" error, since those are module-specific.
+its own "not found" error, since those are module-specific. ``parse_sheet``
+reads one named sheet with a DataFrame return type.
 """
 
 from collections.abc import Callable
+from typing import Any, cast
 
 import pandas as pd
+
+
+def parse_sheet(workbook: pd.ExcelFile, sheet_name: str, **kwargs: Any) -> pd.DataFrame:
+    """Parse one named sheet of ``workbook`` as a DataFrame.
+
+    ``pandas.ExcelFile.parse`` is annotated as returning a DataFrame or a dict of
+    DataFrames, because ``sheet_name`` may also be a list or ``None``. A single
+    sheet name always yields a DataFrame, which this wrapper states in its type.
+
+    Args:
+        workbook: An open workbook.
+        sheet_name: The name of the sheet to parse.
+        **kwargs: Passed to ``ExcelFile.parse`` (``header``, ``skiprows``, ``nrows``...).
+
+    Returns:
+        The parsed sheet.
+    """
+    return cast("pd.DataFrame", workbook.parse(sheet_name, **kwargs))
 
 
 def find_marker_row(sheet: pd.DataFrame, predicate: Callable[[object], bool], max_rows: int = 10) -> int | None:

@@ -200,13 +200,12 @@ def _parse_cpr_trend(file_path: str | Path, content: bytes | None = None) -> lis
     Returns:
         List of record dicts with keys: year, measure, category, subcategory, value, notes
     """
-    kwargs = {"sheet_name": "Table 2.2", "header": None}
     if content is not None:
         from io import BytesIO
 
-        df = pd.read_excel(BytesIO(content), **kwargs)
+        df = pd.read_excel(BytesIO(content), sheet_name="Table 2.2", header=None)
     else:
-        df = pd.read_excel(file_path, **kwargs)
+        df = pd.read_excel(file_path, sheet_name="Table 2.2", header=None)
 
     records = []
 
@@ -281,13 +280,12 @@ def _parse_referrals_trend(file_path: str | Path, content: bytes | None = None) 
     Returns:
         List of record dicts
     """
-    kwargs = {"sheet_name": "Table 2.9", "header": None}
     if content is not None:
         from io import BytesIO
 
-        df = pd.read_excel(BytesIO(content), **kwargs)
+        df = pd.read_excel(BytesIO(content), sheet_name="Table 2.9", header=None)
     else:
-        df = pd.read_excel(file_path, **kwargs)
+        df = pd.read_excel(file_path, sheet_name="Table 2.9", header=None)
 
     records = []
     header_trusts = []
@@ -371,13 +369,12 @@ def _parse_cpr_snapshot(file_path: str | Path, content: bytes | None = None) -> 
     Returns:
         List of record dicts
     """
-    kwargs = {"sheet_name": "Table 2.1", "header": None}
     if content is not None:
         from io import BytesIO
 
-        df = pd.read_excel(BytesIO(content), **kwargs)
+        df = pd.read_excel(BytesIO(content), sheet_name="Table 2.1", header=None)
     else:
-        df = pd.read_excel(file_path, **kwargs)
+        df = pd.read_excel(file_path, sheet_name="Table 2.1", header=None)
 
     records = []
 
@@ -429,13 +426,12 @@ def _parse_investigations_trend(file_path: str | Path, content: bytes | None = N
     Returns:
         List of record dicts
     """
-    kwargs = {"sheet_name": "Table 2.12", "header": None}
     if content is not None:
         from io import BytesIO
 
-        df = pd.read_excel(BytesIO(content), **kwargs)
+        df = pd.read_excel(BytesIO(content), sheet_name="Table 2.12", header=None)
     else:
-        df = pd.read_excel(file_path, **kwargs)
+        df = pd.read_excel(file_path, sheet_name="Table 2.12", header=None)
 
     records = []
     header_years: list[int] = []
@@ -515,13 +511,12 @@ def _parse_abuse_category_trend(file_path: str | Path, content: bytes | None = N
     Returns:
         List of record dicts
     """
-    kwargs = {"sheet_name": "Table 2.5", "header": None}
     if content is not None:
         from io import BytesIO
 
-        df = pd.read_excel(BytesIO(content), **kwargs)
+        df = pd.read_excel(BytesIO(content), sheet_name="Table 2.5", header=None)
     else:
-        df = pd.read_excel(file_path, **kwargs)
+        df = pd.read_excel(file_path, sheet_name="Table 2.5", header=None)
 
     records = []
     header_years: list[int] = []

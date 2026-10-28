@@ -52,10 +52,11 @@ def timed(func: F) -> F:
     @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         start = time.time()
-        logger.info(f"Launching {func.__name__}")
+        name = getattr(func, "__name__", repr(func))
+        logger.info(f"Launching {name}")
         result = func(*args, **kwargs)
         end = time.time()
-        logger.info(f"{func.__name__} ran in {round(end - start, 2)}s")
+        logger.info(f"{name} ran in {round(end - start, 2)}s")
         return result
 
     return cast("F", wrapper)

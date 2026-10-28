@@ -243,7 +243,7 @@ def get_latest_migration(force_refresh: bool = False) -> pd.DataFrame:
     pop_df = population.get_latest_population(area="Northern Ireland", force_refresh=force_refresh)
 
     # For births, use occurrence data (actual birth dates) not registration dates
-    births_df = births.get_latest_births(event_type="occurrence", force_refresh=force_refresh)
+    births_df = cast("pd.DataFrame", births.get_latest_births(event_type="occurrence", force_refresh=force_refresh))
 
     # For deaths, use historical deaths data (provides annual totals)
     deaths_df = deaths.get_historical_deaths(force_refresh=force_refresh)

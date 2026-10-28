@@ -190,7 +190,7 @@ def _parse_time_series_sheet(file_path: str | Path, sheet_name: str) -> pd.DataF
 
     # Extract data rows immediately after the header until a blank/non-data row
     records = []
-    for row_idx in range(header_row_idx + 1, len(df_raw)):
+    for row_idx in range(header_row_idx + 1, len(df_raw)):  # ty: ignore[unsupported-operator]  # pandas types index and column labels as Hashable
         row = df_raw.iloc[row_idx]
         response = row.iloc[0]
 

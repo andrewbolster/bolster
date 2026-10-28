@@ -411,7 +411,7 @@ def get_prosecutions_convictions(year: int | None = None) -> pd.DataFrame:
 
     frames = []
     for title, group in table.groupby("table_title"):
-        court = title.split(" in ", 1)[1].split(" in Northern Ireland")[0].strip()
+        court = title.split(" in ", 1)[1].split(" in Northern Ireland")[0].strip()  # ty: ignore[unresolved-attribute]  # pandas types index and column labels as Hashable
         wide = group.pivot_table(index="column", columns="row_label", values="value", aggfunc="first")
         frames.append(
             pd.DataFrame(

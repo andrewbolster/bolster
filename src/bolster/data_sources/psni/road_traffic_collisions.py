@@ -658,7 +658,7 @@ def get_casualties_by_district(
 
     # Add collision count
     collisions = get_collisions(year, force_refresh=force_refresh)
-    collision_counts = collisions.groupby("district").size().reset_index(name="collisions")
+    collision_counts = collisions.groupby("district").size().reset_index(name="collisions")  # ty: ignore[no-matching-overload]  # pandas types GroupBy.size() as DataFrame | Series
     result = result.merge(collision_counts, on="district", how="left")
 
     # Reorder columns

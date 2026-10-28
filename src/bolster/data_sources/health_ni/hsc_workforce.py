@@ -132,7 +132,7 @@ def find_publication(period: str | pd.Timestamp | None = None) -> pd.Series:
     if period is None:
         return publications.iloc[0]
 
-    wanted = pd.Timestamp(period).to_period("M").to_timestamp()
+    wanted = pd.Timestamp(period).to_period("M").to_timestamp()  # ty: ignore[unresolved-attribute]  # pandas types Timestamp() as Timestamp | NaTType
     matched = publications[publications.period == wanted]
     if not matched.empty:
         return matched.iloc[0]
@@ -148,7 +148,7 @@ def find_publication(period: str | pd.Timestamp | None = None) -> pd.Series:
     raise NISRADataNotFoundError(f"No bulletin for {wanted:%B %Y}; advertised: {available}")
 
 
-def list_archive(earliest: str | pd.Timestamp = _ARCHIVE_EARLIEST) -> pd.DataFrame:
+def list_archive(earliest: str | pd.Timestamp = _ARCHIVE_EARLIEST) -> pd.DataFrame:  # ty: ignore[invalid-parameter-default]  # pandas types Timestamp() as Timestamp | NaTType
     """List every reachable bulletin, including those no longer advertised.
 
     :func:`list_publications` reads the series page, which links roughly the
@@ -171,7 +171,7 @@ def list_archive(earliest: str | pd.Timestamp = _ARCHIVE_EARLIEST) -> pd.DataFra
         >>> archive.period.dt.strftime("%B %Y").tolist()  # doctest: +SKIP
         ['March 2026', 'December 2025', ..., 'March 2024']
     """
-    floor = pd.Timestamp(earliest).to_period("M").to_timestamp()
+    floor = pd.Timestamp(earliest).to_period("M").to_timestamp()  # ty: ignore[unresolved-attribute]  # pandas types Timestamp() as Timestamp | NaTType
     today = pd.Timestamp.today().normalize()
     candidates = [
         pd.Timestamp(year=year, month=month, day=1)
@@ -179,7 +179,7 @@ def list_archive(earliest: str | pd.Timestamp = _ARCHIVE_EARLIEST) -> pd.DataFra
         for month in _ARCHIVE_QUARTERS
         if floor <= pd.Timestamp(year=year, month=month, day=1) <= today
     ]
-    return probe_dated_publications(_ARCHIVE_URL, sorted(candidates, reverse=True))
+    return probe_dated_publications(_ARCHIVE_URL, sorted(candidates, reverse=True))  # ty: ignore[invalid-argument-type]  # pandas types Timestamp() as Timestamp | NaTType
 
 
 def get_data_file_url(publication_url: str) -> str:

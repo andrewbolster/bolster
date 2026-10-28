@@ -293,7 +293,7 @@ def validate_population_totals(df: pd.DataFrame) -> bool:
     # Get unique combinations of area, year, age_5
     groups = df.groupby(["area_name", "year", "age_5"])
 
-    for (area_name, year, age_band), group_data in groups:
+    for (area_name, year, age_band), group_data in groups:  # ty: ignore[not-iterable]  # pandas types index and column labels as Hashable
         all_persons = group_data[group_data["sex"] == "All persons"]["population"].sum()
         males = group_data[group_data["sex"] == "Males"]["population"].sum()
         females = group_data[group_data["sex"] == "Females"]["population"].sum()

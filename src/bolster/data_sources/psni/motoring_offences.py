@@ -158,7 +158,7 @@ def _split_blocks(sheet: pd.DataFrame) -> list[pd.DataFrame]:
                 blocks.append(sheet.loc[current])
                 current = []
         else:
-            current.append(index)
+            current.append(index)  # ty: ignore[invalid-argument-type]  # pandas types index and column labels as Hashable
 
     if current:
         blocks.append(sheet.loc[current])
@@ -251,7 +251,7 @@ def _parse_month(label: str) -> pd.Timestamp | None:
 
     month = _MONTH_FIXES.get(match.group(1), match.group(1))
     try:
-        return pd.Timestamp(f"{month} {match.group(2)}")
+        return pd.Timestamp(f"{month} {match.group(2)}")  # ty: ignore[invalid-return-type]  # pandas types Timestamp() as Timestamp | NaTType
     except ValueError:
         return None
 

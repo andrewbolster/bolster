@@ -39,6 +39,7 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
+from bolster.utils.excel import parse_sheet
 from bolster.utils.web import find_publication_link
 
 from ._base import NISRADataNotFoundError, NISRAValidationError, download_file
@@ -122,7 +123,7 @@ def get_latest_publication_url() -> str:
 def _load_sheet(file_path: str | Path, sheet: str) -> pd.DataFrame:
     """Read one sheet of the bulletin workbook with no header inference."""
     engine = "odf" if str(file_path).lower().endswith(".ods") else "openpyxl"
-    return pd.ExcelFile(file_path, engine=engine).parse(sheet, header=None)
+    return parse_sheet(pd.ExcelFile(file_path, engine=engine), sheet, header=None)
 
 
 def _clean_number(value: object) -> float | None:

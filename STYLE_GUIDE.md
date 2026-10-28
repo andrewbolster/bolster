@@ -347,7 +347,7 @@ rule doesn't get re-litigated or re-"discovered" as missing:
   pattern when a module logs (ruff's `LOG001`/`LOG002`/`LOG015`),
   docstring presence/format (ruff's `D`, Google convention), mutable
   default arguments (ruff's `B006`), modern syntax (ruff's `UP`), type
-  correctness (`mypy`).
+  correctness (`ty`).
 - **Reviewed, not mechanical**: the mother-page-discovery pattern
   (a linter can't know whether a URL is a stable listing page or a
   point-in-time file), docstring *content* (that `Data Source:` says

@@ -56,10 +56,12 @@ import datetime
 import io
 import logging
 import re
+from typing import Any
 
 import pandas as pd
 
 from bolster.utils.cache import CachedDownloader
+from bolster.utils.excel import parse_sheet
 from bolster.utils.web import session
 
 logger = logging.getLogger(__name__)
@@ -184,10 +186,10 @@ def _read_table(chapter: str, sheet: str, force_refresh: bool = False) -> pd.Dat
     workbook = pd.ExcelFile(io.BytesIO(path.read_bytes()))
     if sheet not in workbook.sheet_names:
         raise FRSDataNotFoundError(f"Sheet {sheet!r} not found in chapter {chapter!r}: {workbook.sheet_names}")
-    return workbook.parse(sheet, header=None)
+    return parse_sheet(workbook, sheet, header=None)
 
 
-def _clean_value(value: object) -> float:
+def _clean_value(value: Any) -> float:
     """Normalise a published cell to a float, honouring suppression markers."""
     if isinstance(value, str):
         text = value.strip()
@@ -197,7 +199,7 @@ def _clean_value(value: object) -> float:
             return 0.0
         value = text.replace(",", "").replace("%", "").replace("£", "")
     try:
-        return float(value)  # type: ignore[arg-type]
+        return float(value)
     except (TypeError, ValueError):
         return float("nan")
 
