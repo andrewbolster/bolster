@@ -73,6 +73,14 @@ class NIHPIDataNotFoundError(NIHPIDataError):
     pass
 
 
+def _require_table(tables: dict[str, pd.DataFrame], name: str) -> pd.DataFrame:
+    """Return ``name`` from the workbook's tables or raise if the workbook does not contain it."""
+    try:
+        return tables[name]
+    except KeyError:
+        raise NIHPIDataNotFoundError(f"{name!r} not found in the NI HPI workbook; found {sorted(tables)}") from None
+
+
 def _get_cached_file(url: str, cache_ttl_hours: int = 24) -> Path | None:
     """Return cached file if exists and fresh, else None.
 
@@ -605,7 +613,7 @@ def get_hpi_trends(force_refresh: bool = False) -> pd.DataFrame:
         True
     """
     tables = get_all_tables(force_refresh=force_refresh)
-    return tables.get("Table 1")
+    return _require_table(tables, "Table 1")
 
 
 def get_sales_volumes(force_refresh: bool = False) -> pd.DataFrame:
@@ -634,7 +642,7 @@ def get_sales_volumes(force_refresh: bool = False) -> pd.DataFrame:
         True
     """
     tables = get_all_tables(force_refresh=force_refresh)
-    return tables.get("Table 4")
+    return _require_table(tables, "Table 4")
 
 
 def get_average_prices(force_refresh: bool = False) -> pd.DataFrame:
@@ -661,7 +669,7 @@ def get_average_prices(force_refresh: bool = False) -> pd.DataFrame:
         True
     """
     tables = get_all_tables(force_refresh=force_refresh)
-    return tables.get("Table 9")
+    return _require_table(tables, "Table 9")
 
 
 def get_hpi_by_lgd(force_refresh: bool = False) -> pd.DataFrame:
@@ -690,7 +698,7 @@ def get_hpi_by_lgd(force_refresh: bool = False) -> pd.DataFrame:
         True
     """
     tables = get_all_tables(force_refresh=force_refresh)
-    return tables.get("Table 5")
+    return _require_table(tables, "Table 5")
 
 
 def get_hpi_by_property_type(force_refresh: bool = False) -> pd.DataFrame:
@@ -716,7 +724,7 @@ def get_hpi_by_property_type(force_refresh: bool = False) -> pd.DataFrame:
         True
     """
     tables = get_all_tables(force_refresh=force_refresh)
-    return tables.get("Table 2")
+    return _require_table(tables, "Table 2")
 
 
 # =============================================================================

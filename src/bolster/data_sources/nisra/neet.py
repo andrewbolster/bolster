@@ -168,7 +168,7 @@ def _parse_quarter(label: str) -> tuple[pd.Timestamp, int, str]:
 
     month = _QUARTER_STARTS[match.group(1)]
     year = int(match.group(2))
-    return pd.Timestamp(year=year, month=month, day=1), year, _QUARTER_CODES[month]
+    return pd.Timestamp(year=year, month=month, day=1), year, _QUARTER_CODES[month]  # ty: ignore[invalid-return-type]  # pandas types Timestamp() as Timestamp | NaTType
 
 
 def _header_row(sheet: pd.DataFrame, first_header: str) -> int:

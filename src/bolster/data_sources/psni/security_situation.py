@@ -50,6 +50,7 @@ from urllib.parse import urljoin
 import bs4
 import pandas as pd
 
+from bolster.utils.excel import parse_sheet
 from bolster.utils.web import session
 
 from ._base import (
@@ -301,7 +302,7 @@ def get_deaths(force_refresh: bool = False) -> pd.DataFrame:
     """
     workbook = _open_workbook(force_refresh)
     return _parse_series_sheet(
-        workbook.parse("Deaths due Security Situation", header=None),
+        parse_sheet(workbook, "Deaths due Security Situation", header=None),
         _SHEET_CONFIG["Deaths due Security Situation"],
     )
 
@@ -320,7 +321,7 @@ def get_security_related_incidents(force_refresh: bool = False) -> pd.DataFrame:
     """
     workbook = _open_workbook(force_refresh)
     return _parse_series_sheet(
-        workbook.parse("Security Related Incidents", header=None),
+        parse_sheet(workbook, "Security Related Incidents", header=None),
         _SHEET_CONFIG["Security Related Incidents"],
     )
 
@@ -345,7 +346,7 @@ def get_paramilitary_style_attacks(force_refresh: bool = False) -> pd.DataFrame:
     """
     workbook = _open_workbook(force_refresh)
     return _parse_series_sheet(
-        workbook.parse("Paramilitary Style Attacks", header=None),
+        parse_sheet(workbook, "Paramilitary Style Attacks", header=None),
         _SHEET_CONFIG["Paramilitary Style Attacks"],
     )
 
@@ -362,7 +363,7 @@ def get_firearms_and_explosives_finds(force_refresh: bool = False) -> pd.DataFra
     """
     workbook = _open_workbook(force_refresh)
     return _parse_series_sheet(
-        workbook.parse("Firearms and Explosive finds", header=None),
+        parse_sheet(workbook, "Firearms and Explosive finds", header=None),
         _SHEET_CONFIG["Firearms and Explosive finds"],
     )
 
@@ -381,7 +382,7 @@ def get_terrorism_act_arrests(force_refresh: bool = False) -> pd.DataFrame:
     """
     workbook = _open_workbook(force_refresh)
     return _parse_series_sheet(
-        workbook.parse("Terrorism Act arrests & charges", header=None),
+        parse_sheet(workbook, "Terrorism Act arrests & charges", header=None),
         _SHEET_CONFIG["Terrorism Act arrests & charges"],
     )
 
@@ -414,7 +415,7 @@ def get_district_breakdown(force_refresh: bool = False) -> pd.DataFrame:
     """
     workbook = _open_workbook(force_refresh)
     sheet_name = _latest_district_sheet(workbook)
-    df = workbook.parse(sheet_name, header=None)
+    df = parse_sheet(workbook, sheet_name, header=None)
 
     # Unlike the time-series sheets, this sheet's own label column has a
     # header too ("District"), so _detect_header_start's "blank corner cell"
@@ -462,7 +463,7 @@ def get_all_data(force_refresh: bool = False) -> dict[str, pd.DataFrame]:
     """
     workbook = _open_workbook(force_refresh)
     result = {
-        config["topic"]: _parse_series_sheet(workbook.parse(sheet_name, header=None), config)
+        config["topic"]: _parse_series_sheet(parse_sheet(workbook, sheet_name, header=None), config)
         for sheet_name, config in _SHEET_CONFIG.items()
     }
     result["district_breakdown"] = get_district_breakdown(force_refresh=force_refresh)

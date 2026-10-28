@@ -204,7 +204,7 @@ def parse_construction_file(file_path: str | Path) -> pd.DataFrame:
     # Create date column (first day of quarter)
     quarter_to_month = {"Q1": 1, "Q2": 4, "Q3": 7, "Q4": 10}
     df["month"] = df["quarter"].map(quarter_to_month)
-    df["date"] = pd.to_datetime({"year": df["year"], "month": df["month"], "day": 1})
+    df["date"] = pd.to_datetime(pd.DataFrame({"year": df["year"], "month": df["month"], "day": 1}))
 
     # Select and order columns
     result = df[

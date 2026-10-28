@@ -111,6 +111,13 @@ log_cli_format = "%(asctime)s %(levelname)s %(name)s: %(message)s"
 log_cli_date_format = "%H:%M:%S"
 filterwarnings = []
 
+[tool.ty.src]
+include = ["src/bolster"]
+
+[tool.ty.terminal]
+# A warning is a diagnostic nobody has acted on; keep the tree at zero.
+error-on-warning = true
+
 [tool.ruff]
 # Select rule categories - adding more for quality gate
 lint.select = [
@@ -240,7 +247,7 @@ dev = [
     "pytest-cov",
     "pytest-mock",
     "ruff==0.17.1",
-    "mypy==2.3.1",
+    "ty==0.0.91",
     "bandit>=1.7",
     "nbmake",
     "bump-my-version>=0.15.4",

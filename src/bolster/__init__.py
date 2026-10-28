@@ -201,10 +201,10 @@ def arg_exception_logger(func: Callable) -> Callable:
 
 # noinspection PyShadowingNames
 def backoff(
-    exception_to_check: Any | Sequence[Any] = BaseException,
-    tries: SupportsInt = 5,
-    delay: SupportsFloat = 0.2,
-    backoff: SupportsFloat = 2,
+    exception_to_check: type[BaseException] | tuple[type[BaseException], ...] = BaseException,
+    tries: int = 5,
+    delay: float = 0.2,
+    backoff: float = 2,
     logger: logging.Logger | None = logger,
 ):
     """Retry calling the decorated function using an exponential backoff.

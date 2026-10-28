@@ -19,7 +19,8 @@ Example:
 import math
 import re
 
-from odf.table import Table, TableCell, TableRow
+from odf.element import Element
+from odf.table import TableCell, TableRow
 from odf.text import P
 
 # Suppression markers used in place of a value
@@ -109,7 +110,7 @@ def _label_column_count(data_rows: list[list[str]]) -> int:
     return max(count, 1)
 
 
-def _sheet_rows(table: Table) -> list[list[str]]:
+def _sheet_rows(table: Element) -> list[list[str]]:
     """Extract a worksheet as a list of raw text rows.
 
     Args:

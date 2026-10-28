@@ -22,6 +22,7 @@ import logging
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
 import pandas as pd
 
@@ -276,7 +277,7 @@ def stitch_publications(
     dedup_keys: list[str],
     sort_keys: list[str] | None = None,
     errors: tuple[type[Exception], ...] = (Exception,),
-    sort_kind: str = "quicksort",
+    sort_kind: Literal["quicksort", "mergesort", "heapsort", "stable"] = "quicksort",
 ) -> pd.DataFrame:
     """Download, parse, and merge several publications into one tidy frame.
 

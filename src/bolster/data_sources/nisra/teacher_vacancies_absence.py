@@ -193,15 +193,15 @@ def get_vacancies_history_by_grade(force_refresh: bool = False) -> pd.DataFrame:
     wide = table.data.copy()
     wide["school_type"] = clean_labels(wide["school_type"].ffill())
     wide["grade_of_teacher"] = clean_labels(wide["grade_of_teacher"])
-    measures = {col: _HISTORY_COLUMN_RE.match(col) for col in wide.columns}
-    measure_columns = [col for col, match in measures.items() if match]
+    measures = {col: match for col in wide.columns if (match := _HISTORY_COLUMN_RE.match(col))}
+    measure_columns = list(measures)
     if not measure_columns:
         raise NISRAValidationError(f"No filled/unfilled/pct_filled_YYYY columns in {list(wide.columns)}")
     long = wide.melt(
         id_vars=["school_type", "grade_of_teacher"], value_vars=measure_columns, var_name="measure", value_name="value"
     )
-    long["year"] = long["measure"].map(lambda col: int(measures[col].group(2)))  # type: ignore[union-attr]
-    long["measure"] = long["measure"].map(lambda col: measures[col].group(1))  # type: ignore[union-attr]
+    long["year"] = long["measure"].map(lambda col: int(measures[col].group(2)))
+    long["measure"] = long["measure"].map(lambda col: measures[col].group(1))
     long["value"] = coerce_numeric(long["value"])
     tidy = long.pivot_table(
         index=["school_type", "grade_of_teacher", "year"], columns="measure", values="value", aggfunc="first"

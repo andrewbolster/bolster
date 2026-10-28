@@ -429,7 +429,7 @@ def get_detections_by_district(year: int | None = None, force_refresh: bool = Fa
     df = get_detections(year=year, force_refresh=force_refresh)
 
     return (
-        df.groupby(["district", "lgd_code", "nuts3_code"], dropna=False)
+        df.groupby(["district", "lgd_code", "nuts3_code"], dropna=False)  # ty: ignore[no-matching-overload]  # pandas types GroupBy.size() as DataFrame | Series
         .size()
         .reset_index(name="detections")
         .sort_values("detections", ascending=False)
@@ -455,7 +455,7 @@ def get_detections_by_camera_type(year: int | None = None, force_refresh: bool =
     df = get_detections(year=year, force_refresh=force_refresh)
 
     return (
-        df.groupby(["year", "camera_type"])
+        df.groupby(["year", "camera_type"])  # ty: ignore[no-matching-overload]  # pandas types GroupBy.size() as DataFrame | Series
         .size()
         .reset_index(name="detections")
         .sort_values(["year", "detections"], ascending=[True, False])
@@ -506,7 +506,7 @@ def get_offender_demographics(year: int | None = None, force_refresh: bool = Fal
     """
     df = get_detections(year=year, force_refresh=force_refresh)
 
-    result = df.groupby(["age_band", "gender"]).size().reset_index(name="detections")
+    result = df.groupby(["age_band", "gender"]).size().reset_index(name="detections")  # ty: ignore[no-matching-overload]  # pandas types GroupBy.size() as DataFrame | Series
     result["age_band"] = pd.Categorical(result["age_band"], categories=AGE_BANDS, ordered=True)
     return result.sort_values(["age_band", "gender"]).reset_index(drop=True)
 

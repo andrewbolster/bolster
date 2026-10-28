@@ -180,7 +180,7 @@ def parse_marriages_file(file_path: str | Path) -> pd.DataFrame:
         )
 
     # Create datetime (first day of each month)
-    df_long["date"] = pd.to_datetime({"year": df_long["year"], "month": df_long["month_num"], "day": 1})
+    df_long["date"] = pd.to_datetime(pd.DataFrame({"year": df_long["year"], "month": df_long["month_num"], "day": 1}))
 
     # Select and reorder final columns
     result = df_long[["date", "year", "month", "marriages"]].copy()
@@ -482,7 +482,7 @@ def parse_civil_partnerships_file(file_path: str | Path) -> pd.DataFrame:
     df = pd.DataFrame(records)
 
     # Create datetime column
-    df["date"] = pd.to_datetime({"year": df["year"], "month": df["month_num"], "day": 1})
+    df["date"] = pd.to_datetime(pd.DataFrame({"year": df["year"], "month": df["month_num"], "day": 1}))
 
     # Select and reorder columns
     result = df[["date", "year", "month", "civil_partnerships"]].copy()
