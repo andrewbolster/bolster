@@ -1,5 +1,7 @@
 # Changelog
 
+## \[0.11.10\] - 2026-10-28
+
 ## \[0.11.9\] - 2026-10-22
 
 - feat(ashe): read the published 2026 tables; never substitute another year (#2253)
