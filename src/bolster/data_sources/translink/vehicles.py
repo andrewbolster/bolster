@@ -202,6 +202,14 @@ def get_live_vehicles(
     return df.reset_index(drop=True)
 
 
+def _describe_vehicles(df: pd.DataFrame, index: pd.Index, limit: int = 5) -> str:
+    """Name the vehicles at ``index`` (id, operator, line, position, timestamp) for an error message."""
+    cols = [c for c in ("vehicle_id", "operator", "line", "latitude", "longitude", "timestamp") if c in df.columns]
+    rows = df.loc[index, cols].head(limit).to_dict("records")
+    more = f" (+{len(index) - limit} more)" if len(index) > limit else ""
+    return f"{rows}{more}"
+
+
 def validate_vehicles(df: pd.DataFrame) -> bool:
     """Validate a live vehicles DataFrame.
 
@@ -231,12 +239,12 @@ def validate_vehicles(df: pd.DataFrame) -> bool:
     if len(lats) > 0 and not ((lats >= 53.0) & (lats <= 55.4)).all():
         bad = lats[(lats < 53.0) | (lats > 55.4)]
         raise TranslinkValidationError(
-            f"Latitude values outside island-of-Ireland bounds [53.0, 55.4]: {bad.head().tolist()}"
+            f"Latitude values outside island-of-Ireland bounds [53.0, 55.4]: {_describe_vehicles(df, bad.index)}"
         )
     if len(lons) > 0 and not ((lons >= -8.5) & (lons <= -5.4)).all():
         bad = lons[(lons < -8.5) | (lons > -5.4)]
         raise TranslinkValidationError(
-            f"Longitude values outside island-of-Ireland bounds [-8.5, -5.4]: {bad.head().tolist()}"
+            f"Longitude values outside island-of-Ireland bounds [-8.5, -5.4]: {_describe_vehicles(df, bad.index)}"
         )
 
     return True
