@@ -247,7 +247,7 @@ dev = [
     "pytest-cov",
     "pytest-mock",
     "ruff==0.17.1",
-    "ty==0.0.91",
+    "ty==0.0.95",
     "bandit>=1.7",
     "nbmake",
     "bump-my-version>=0.15.4",
