@@ -76,7 +76,7 @@ jobs:
               # object. It is created with GITHUB_TOKEN, so it does not trigger
               # `release` workflows; mcp.bolster.online is notified by the
               # `notify-mcp` job below instead.
-              uses: softprops/action-gh-release@7c4723f7a335432393329f8f1c564994ce50185d  # v3
+              uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3  # v3
               with:
                 tag_name: ${{ github.event.inputs.tag || github.ref_name }}
                 name: Release ${{ github.event.inputs.tag || github.ref_name }}
