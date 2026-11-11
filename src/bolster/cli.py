@@ -74,6 +74,7 @@ from .data_sources.nisra import planning_statistics as nisra_planning
 from .data_sources.nisra import population as nisra_population
 from .data_sources.nisra import population_projections as nisra_projections
 from .data_sources.nisra import public_confidence as nisra_public_confidence
+from .data_sources.nisra import racial_equality_indicators as nisra_racial_equality
 from .data_sources.nisra import registrar_general as nisra_registrar_general
 from .data_sources.nisra import school_leavers as nisra_school_leavers
 from .data_sources.nisra import teacher_workforce as nisra_teacher_workforce
@@ -8156,6 +8157,92 @@ def nisra_workless_households_cmd(table, list_tables, year, output_format, force
         console.print("   - Check your internet connection")
         console.print("   - Run with --list-tables to see valid table names")
         console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@nisra.command(name="racial-equality")
+@click.option("--indicator", default=None, help="Indicator to retrieve (default: all). Use --list to see them.")
+@click.option("--list", "list_indicators", is_flag=True, help="List the available indicators and exit")
+@click.option("--year", type=int, default=None, help="Only rows whose period starts in this year")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Accepted for consistency; PxStat is always read live")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_racial_equality_cmd(indicator, list_indicators, year, output_format, force_refresh, save):
+    r"""Racial Equality Indicators for Northern Ireland.
+
+    \b
+    Annual indicators monitoring the Racial Equality Strategy 2015-2025:
+    attitudes to minority ethnic communities, belonging, school outcomes by
+    ethnic group, public appointments and police-recorded racist incidents and
+    crimes. Output is one tidy row per figure.
+
+    Examples:
+        List the indicators::
+
+            bolster nisra racial-equality --list
+
+        Self-reported prejudice, 2025 only::
+
+            bolster nisra racial-equality --indicator prejudice --year 2025
+
+        Police-recorded racist incidents and crimes, saved as JSON::
+
+            bolster nisra racial-equality --indicator racist_incidents_crimes \
+                --format json --save racist_crimes.json
+
+    Source:
+        NISRA PxStat (``*REI`` cubes): https://data.nisra.gov.uk/
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    if list_indicators:
+        click.echo(nisra_racial_equality.list_indicators().to_csv(index=False), nl=False)
+        return
+
+    try:
+        with console.status("[bold green]Fetching racial equality indicators..."):
+            data = nisra_racial_equality.get_latest_racial_equality_indicators(indicator, force_refresh=force_refresh)
+
+        if year is not None:
+            data = data[data["year"] == year]
+            if data.empty:
+                console.print(f"[yellow]No data found for year {year}[/yellow]")
+                return
+
+        console.print(f"[cyan]Rows: {len(data)} | Indicators: {data['indicator'].nunique()}[/cyan]")
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        else:
+            click.echo(data.to_csv(index=False), nl=False)
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Run with --list to see valid indicator names")
         raise click.Abort() from e
 
 

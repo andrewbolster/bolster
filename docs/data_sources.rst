@@ -84,6 +84,27 @@ Monthly stillbirth registrations.
 
     $ bolster nisra stillbirths
 
+Racial Equality Indicators
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Annual indicators for the Racial Equality Strategy 2015-2025, from the NISRA PxStat
+``*REI`` cubes: attitudes to minority ethnic communities, belonging, school outcomes by
+ethnic group, public appointments and police-recorded racist incidents and crimes.
+Every indicator comes back in one tidy long format. Survey percentages and recorded
+crime counts measure different things and should not be combined into one series.
+Hate-motivated crime in general is held in the separate ``HATE*`` PxStat cubes.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import racial_equality_indicators as rei
+
+    df = rei.get_latest_racial_equality_indicators("prejudice")
+
+.. code-block:: console
+
+    $ bolster nisra racial-equality --list
+    $ bolster nisra racial-equality --indicator prejudice --year 2025
+
 Population
 ~~~~~~~~~~
 
