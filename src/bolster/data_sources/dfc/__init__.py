@@ -12,10 +12,17 @@ published at https://www.communities-ni.gov.uk.
 - family_resources_survey: Annual Family Resources Survey report covering
   household income and state support, tenure, carers and disability, and
   household food security and food bank usage.
+- employment_vacancies: Vacancies notified to DfC, by quarter and month from
+  the DfC factsheet, and by financial year and area from NISRA PxStat.
 
 Corresponding CLI commands live under ``bolster dfc ...``.
 """
 
-from bolster.data_sources.dfc import child_maintenance, family_resources_survey, neighbourhood_renewal_profiles
+from bolster.data_sources.dfc import (
+    child_maintenance,
+    employment_vacancies,
+    family_resources_survey,
+    neighbourhood_renewal_profiles,
+)
 
-__all__ = ["child_maintenance", "family_resources_survey", "neighbourhood_renewal_profiles"]
+__all__ = ["child_maintenance", "employment_vacancies", "family_resources_survey", "neighbourhood_renewal_profiles"]
