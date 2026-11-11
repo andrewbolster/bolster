@@ -198,6 +198,7 @@ Education:
 [`mortgages`](https://bolster.readthedocs.io/en/latest/data_sources.html#mortgage-possession-actions),
 [`pbni_caseload`](https://bolster.readthedocs.io/en/latest/data_sources.html#pbni-caseload),
 [`pps_statistical_bulletin`](https://bolster.readthedocs.io/en/latest/data_sources.html#justice-pps-statistical-bulletin),
+[`reoffending`](https://bolster.readthedocs.io/en/latest/data_sources.html#adult-and-youth-reoffending) (one-year proven reoffending rates by cohort, 2010/11-present),
 [`yja_workload`](https://bolster.readthedocs.io/en/latest/data_sources.html#youth-justice-agency-workload-statistics) (Youth Justice Agency referrals and custody, 2008/09-present)
 
 ### Other sources

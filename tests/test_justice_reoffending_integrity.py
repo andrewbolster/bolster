@@ -490,3 +490,15 @@ class TestReadWorkbook:
     def test_missing_worksheet_names_what_is_missing(self):
         with pytest.raises(ReoffendingDataNotFoundError, match="reoffending rate by disposal"):
             reoffending._sheet({"annual reoffending rates": GOOD_RATES}, "reoffending rate by disposal")
+
+
+class TestCli:
+    def test_command_is_registered_with_its_options(self):
+        from click.testing import CliRunner
+
+        from bolster.cli import cli
+
+        result = CliRunner().invoke(cli, ["justice", "reoffending", "--help"])
+        assert result.exit_code == 0
+        for option in ("--dataset", "--cohort", "--format", "--summary"):
+            assert option in result.output
