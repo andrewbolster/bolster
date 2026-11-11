@@ -175,6 +175,7 @@ Education:
 [`hospital_activity`](https://bolster.readthedocs.io/en/latest/data_sources.html#inpatient-and-day-case-activity) (beds, independent-sector activity, theatre usage),
 [`emergency_care_waiting_times`](https://bolster.readthedocs.io/en/latest/data_sources.html#emergency-care-waiting-times),
 [`child_protection`](https://bolster.readthedocs.io/en/latest/data_sources.html#child-protection),
+[`health_visiting_reviews`](https://bolster.readthedocs.io/en/latest/data_sources.html#health-visiting-reviews) (pre-school health visitor reviews by HSC Trust),
 [`hsc_workforce`](https://bolster.readthedocs.io/en/latest/data_sources.html#hsc-workforce) / [`hsc_recruitment`](https://bolster.readthedocs.io/en/latest/data_sources.html#hsc-workforce),
 [`gms`](https://bolster.readthedocs.io/en/latest/data_sources.html#ni-general-medical-services-gms-statistics) (GP practices/GPs/patients by trust, LGD or GP federation, funding, access equity)
 
