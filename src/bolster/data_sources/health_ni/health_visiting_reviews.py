@@ -573,8 +573,7 @@ def validate_outcomes(df: pd.DataFrame) -> bool:
     if df.empty:
         raise NISRAValidationError("Health review outcomes are empty")
 
-    counts = df[[*OUTCOME_COLUMNS, "cohort"]]
-    if (counts.dropna(how="all").stack().astype(float) < 0).any():
+    if bool((df[[*OUTCOME_COLUMNS, "cohort"]].astype("Float64") < 0).any().any()):
         raise NISRAValidationError("Health review outcomes contain negative counts")
     if (df["cohort"] <= 0).any():
         raise NISRAValidationError("Health review outcomes contain a non-positive cohort")
