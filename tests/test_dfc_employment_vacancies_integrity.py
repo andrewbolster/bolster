@@ -728,3 +728,39 @@ class TestCli:
         result = CliRunner().invoke(cli, ["dfc", "vacancies", "--dimension", "lgd", "--release", "2024-02"])
         assert result.exit_code == 2
         assert "factsheet dimensions only" in result.output
+
+
+@pytest.mark.integration
+class TestClaimantCountJoin:
+    """Vacancy areas share their keys with the claimant count, so the two can be joined by code."""
+
+    @pytest.fixture(scope="class")
+    def lgd_vacancies(self):
+        return ev.get_vacancies_by_geography("lgd")
+
+    @pytest.fixture(scope="class")
+    def claimants(self):
+        from bolster.data_sources.nisra import claimant_count
+
+        return {
+            "lgd": claimant_count.get_latest_claimant_count("lgd"),
+            "aa": claimant_count.get_latest_claimant_count("aa"),
+        }
+
+    def test_lgd_codes_and_names_match(self, lgd_vacancies, claimants):
+        claimant_lgd = claimants["lgd"]
+        claimant_lgd = claimant_lgd[claimant_lgd["geography_code"] != "N92000002"]
+        vacancy_names = dict(zip(lgd_vacancies["geography_code"], lgd_vacancies["geography"], strict=False))
+        claimant_names = dict(zip(claimant_lgd["geography_code"], claimant_lgd["geography"], strict=False))
+        assert vacancy_names == claimant_names
+
+    def test_assembly_area_codes_match(self, claimants):
+        areas = ev.get_vacancies_by_geography("assembly_area")
+        claimant_aa = claimants["aa"]
+        assert set(areas["geography_code"]) == set(claimant_aa["geography_code"]) - {"N92000002"}
+
+    def test_a_financial_year_of_claimants_spans_twelve_months(self, claimants):
+        """The vacancy year (April to March) maps onto twelve monthly claimant counts."""
+        lgd = claimants["lgd"]
+        window = lgd[(lgd["date"] >= "2024-04-01") & (lgd["date"] <= "2025-03-01")]
+        assert window["date"].nunique() == 12

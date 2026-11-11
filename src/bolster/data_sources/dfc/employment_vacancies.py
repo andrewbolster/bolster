@@ -44,6 +44,13 @@ Reference Period: Quarterly from Q1 2022/23; annual from 2014/15
     single release.
 
 .. note::
+    Category labels are as published, and the wording of a category can change
+    between releases: the SIC section for administrative and support services is
+    "Administrative & Support Service Activities" in one release and
+    "Administrative and Support Service" in another. Normalise labels before
+    combining breakdowns from different releases.
+
+.. note::
     Area figures do not sum to the NI total: vacancies that cannot be placed in
     an area are in the NI total only. In 2025/26 the districts cover 99.3% of it.
     The factsheet layout also differs between releases, and a release whose
