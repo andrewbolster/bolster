@@ -703,3 +703,28 @@ class TestListings:
     def test_breakdown_and_geography_keys(self):
         assert ev.list_breakdowns() == ["vacancy_type", "soc", "sic", "jbo", "nimdm"]
         assert ev.list_geographies() == ["lgd", "assembly_area", "hsct", "dea"]
+
+
+class TestCli:
+    """The ``bolster dfc vacancies`` command; no network."""
+
+    def test_help_lists_every_dimension(self):
+        from click.testing import CliRunner
+
+        from bolster.cli import cli
+
+        result = CliRunner().invoke(cli, ["dfc", "vacancies", "--help"])
+        assert result.exit_code == 0
+        for dimension in ("quarterly", "monthly", "vacancy-type", "soc", "sic", "jbo", "nimdm"):
+            assert dimension in result.output
+        for dimension in ("annual", "lgd", "assembly-area", "hsct", "dea"):
+            assert dimension in result.output
+
+    def test_release_with_an_annual_dimension_is_a_usage_error(self):
+        from click.testing import CliRunner
+
+        from bolster.cli import cli
+
+        result = CliRunner().invoke(cli, ["dfc", "vacancies", "--dimension", "lgd", "--release", "2024-02"])
+        assert result.exit_code == 2
+        assert "factsheet dimensions only" in result.output
