@@ -8277,6 +8277,92 @@ def nisra_public_confidence_cmd(breakdown, output_format, force_refresh, save):
         raise click.Abort() from e
 
 
+@nisra.command(name="public-expenditure")
+@click.option(
+    "--view",
+    type=click.Choice(["detail", "departments"], case_sensitive=False),
+    default="detail",
+    help="detail: spend by department, spending area and category; departments: totals by department (default: detail)",
+)
+@click.option("--year", help="Financial year to show, e.g. 2024/25 (default: all years)")
+@click.option(
+    "--include-provisional",
+    is_flag=True,
+    help="Also include the newest year from the NI Executive spending dashboard, flagged provisional",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--force-refresh", is_flag=True, help="Bypass the cache for the dashboard page")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_public_expenditure_cmd(view, year, include_provisional, output_format, force_refresh, save):
+    """NISRA public expenditure — NI Executive spending by department and spending area.
+
+    Spend in £ thousands (cash terms) by financial year, from PxStat matrix PUBEXP
+    (final outturn). With --include-provisional the newest year from the NI Executive
+    spending dashboard is added, flagged provisional, when PxStat does not yet hold it.
+
+    Source
+    ------
+    https://www.nisra.gov.uk/statistics/business-economy-and-trade/ni-executive-spending
+    """
+    from rich.table import Table
+
+    from .data_sources.nisra import public_expenditure as nisra_public_expenditure
+
+    console = Console()
+
+    try:
+        if view == "departments":
+            data = nisra_public_expenditure.get_department_totals(
+                include_provisional=include_provisional, force_refresh=force_refresh
+            )
+        else:
+            data = nisra_public_expenditure.get_latest_data(
+                include_provisional=include_provisional, force_refresh=force_refresh
+            )
+
+        if year:
+            data = data[data["financial_year"] == year]
+            if data.empty:
+                raise click.ClickException(f"No rows for financial year {year!r}")
+
+        if save:
+            if save.endswith(".json"):
+                data.to_json(save, orient="records", indent=2)
+            else:
+                data.to_csv(save, index=False)
+            console.print(f"[green]Saved {len(data)} rows to {save}[/green]")
+            return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        elif output_format == "csv":
+            click.echo(data.to_csv(index=False), nl=False)
+        else:
+            rich_table = Table(title=f"NI public expenditure ({view})")
+            for col in data.columns:
+                rich_table.add_column(col, style="cyan" if col == "financial_year" else "white")
+            for _, row in data.head(200).iterrows():
+                rich_table.add_row(*[str(v) for v in row])
+            console.print(rich_table)
+            if len(data) > 200:
+                console.print(f"[yellow]Showing 200 of {len(data)} rows; use --format csv or --save for all[/yellow]")
+
+    except click.ClickException:
+        raise
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
 @nisra.command(name="deprivation")
 @click.option("--lgd", default=None, help="Filter by Local Government District (case-insensitive substring match)")
 @click.option(

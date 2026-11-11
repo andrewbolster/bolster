@@ -616,6 +616,29 @@ trust indicators back to 2009.
 
     $ bolster nisra public-confidence
 
+Public Expenditure
+~~~~~~~~~~~~~~~~~~
+
+NI Executive spending by department, spending area and expenditure category, in
+financial years (April to March) and pounds sterling (thousands, cash terms).
+The final-outturn series comes from PxStat (``PUBEXP``); the newest year, published
+as provisional outturn on the NI Executive spending dashboard before PxStat holds
+it, is added only with ``include_provisional=True`` and is flagged ``provisional``.
+The table excludes ringfenced resource DEL and some AME items, so it is not total
+managed expenditure.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import public_expenditure
+
+    final = public_expenditure.get_latest_data()
+    with_2025_26 = public_expenditure.get_latest_data(include_provisional=True)
+    totals = public_expenditure.get_department_totals(include_provisional=True)
+
+.. code-block:: console
+
+    $ bolster nisra public-expenditure --view departments --include-provisional
+
 Registrar General Quarterly Tables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
