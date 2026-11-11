@@ -41,7 +41,8 @@ Note:
     recorded counts move with reporting and recording practice, so the two
     should not be combined into one series. Hate-motivated crime more widely
     (all motivations, with area breakdowns) is held in the separate ``HATE*``
-    PxStat cubes.
+    PxStat cubes; their Northern Ireland racist-motivation rows equal the
+    ``racist_incidents_crimes`` counts here.
 
 Example:
     >>> from bolster.data_sources.nisra import racial_equality_indicators as rei

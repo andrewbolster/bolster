@@ -10,6 +10,7 @@ import pytest
 from bolster.data_sources.nisra import racial_equality_indicators as rei
 from bolster.data_sources.nisra import school_leavers
 from bolster.data_sources.nisra._base import NISRADataNotFoundError, NISRAValidationError
+from bolster.data_sources.nisra.pxstat import read_dataset
 
 
 class TestAllIndicators:
@@ -171,6 +172,40 @@ class TestSchoolLeavers:
         assert len(joined) >= 5
         assert (joined["Minority ethnic group_destrei"] - joined["Other_slsaeq"]).abs().max() < 0.05
         assert (joined["White_destrei"] - joined["White_slsaeq"]).abs().max() < 0.05
+
+
+class TestHateCubesAgree:
+    """The racist-motivation counts also appear in the PxStat ``HATE*`` cubes (not part of this module)."""
+
+    @pytest.fixture(scope="class")
+    def police(self):
+        frame = rei.get_latest_racial_equality_indicators("racist_incidents_crimes")
+        return frame.pivot_table(index="period", columns="statistic", values="value")
+
+    @pytest.mark.parametrize(
+        ("matrix", "geography", "statistic", "ours"),
+        [
+            ("HATELGD", "Local Government District", "allraccrm", "RACECRREI"),
+            ("HATELGD", "Local Government District", "allracinc", "RACEINREI"),
+            ("HATEHSCT", "Health and Social Care Trust", "allraccrm", "RACECRREI"),
+        ],
+    )
+    def test_northern_ireland_row_matches(self, police, matrix, geography, statistic, ours):
+        cube = read_dataset(matrix)
+        rows = cube[(cube["STATISTIC"] == statistic) & (cube[geography] == "Northern Ireland")]
+        theirs = rows.set_index("Financial year")["VALUE"]
+        joined = pd.concat([police[ours].rename("ours"), theirs.rename("theirs")], axis=1).dropna()
+        assert len(joined) == len(police)
+        assert (joined["ours"] == joined["theirs"]).all()
+
+    def test_districts_add_up_to_northern_ireland(self):
+        cube = read_dataset("HATELGD")
+        crimes = cube[cube["STATISTIC"] == "allraccrm"]
+        ni = crimes[crimes["Local Government District"] == "Northern Ireland"].set_index("Financial year")["VALUE"]
+        parts = (
+            crimes[crimes["Local Government District"] != "Northern Ireland"].groupby("Financial year")["VALUE"].sum()
+        )
+        assert (parts == ni).all()
 
 
 class TestPublicAppointments:
