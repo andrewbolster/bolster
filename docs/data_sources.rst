@@ -1647,6 +1647,51 @@ last few years, and paying parent characteristics only a single quarter — so
 
 ----
 
+Communities — Employment Vacancies
+----------------------------------
+
+Vacancies notified to the Department for Communities through JobApplyNI. These
+are notified vacancies, a subset of all vacancies in the economy, not a vacancy
+rate. The quarterly factsheet gives the NI total by financial-year quarter from
+Q1 2022/23, and for the current financial year the split by vacancy type,
+occupation (SOC 2020), industry (SIC 2007), Jobs & Benefits Office and
+deprivation quintile, plus a monthly view. NISRA PxStat gives annual totals by
+Local Government District, Assembly Area, Health and Social Care Trust (from
+2014/15) and District Electoral Area (from 2018/19).
+
+Area figures do not always sum to the NI total, because vacancies that cannot be
+placed in an area are counted only in the total (the areas cover between 95.9% and
+100% of it, depending on the year and geography). The factsheet file name is not
+predictable, so the module scrapes the DfC topic page for it, and a release
+whose layout is not recognised raises an error rather than returning a partial
+table.
+
+.. code-block:: python
+
+    from bolster.data_sources.dfc import employment_vacancies
+
+    # NI vacancies by quarter, from the latest factsheet
+    quarterly = employment_vacancies.get_latest_data()
+
+    # The current financial year split by occupation
+    soc = employment_vacancies.get_vacancy_breakdown("soc")
+
+    # Annual figures by district from PxStat, and the NI total to compare
+    districts = employment_vacancies.get_vacancies_by_geography("lgd")
+    totals = employment_vacancies.get_annual_vacancies()
+
+    # An earlier release
+    older = employment_vacancies.get_vacancy_breakdown("vacancy_type", release="2024-02")
+
+.. code-block:: console
+
+    $ bolster dfc vacancies
+    $ bolster dfc vacancies --dimension soc
+    $ bolster dfc vacancies --dimension lgd --save vacancies_lgd.csv
+    $ bolster dfc vacancies --list-releases
+
+----
+
 Justice — PPS Statistical Bulletin
 ----------------------------------
 
