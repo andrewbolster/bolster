@@ -7306,8 +7306,8 @@ def psni_hate_crime_cmd(
 
     if list_geographies:
         console.print("\n[bold blue]Available geographies[/bold blue]\n")
-        for row in hate_crime.list_geographies().itertuples():
-            console.print(f"  {row.geography:14} {row.cube:9} {row.title}")
+        for row in hate_crime.list_geographies().to_dict("records"):
+            console.print(f"  {row['geography']:14} {row['cube']:9} {row['title']}")
         return
 
     try:
