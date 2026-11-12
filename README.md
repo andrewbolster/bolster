@@ -139,6 +139,7 @@ People and society:
 [`wellbeing`](https://bolster.readthedocs.io/en/latest/data_sources.html#wellbeing),
 [`public_confidence`](https://bolster.readthedocs.io/en/latest/data_sources.html#public-confidence-in-official-statistics),
 [`racial_equality_indicators`](https://bolster.readthedocs.io/en/latest/data_sources.html#racial-equality-indicators),
+[`respect_index`](https://bolster.readthedocs.io/en/latest/data_sources.html#respect-index),
 [`drug_related_deaths`](https://bolster.readthedocs.io/en/latest/data_sources.html#drug-related-deaths),
 [`armed_forces_veterans`](https://bolster.readthedocs.io/en/latest/data_sources.html#census-2021-uk-armed-forces-veterans)
 

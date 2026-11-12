@@ -77,6 +77,7 @@ from .data_sources.nisra import population_projections as nisra_projections
 from .data_sources.nisra import public_confidence as nisra_public_confidence
 from .data_sources.nisra import racial_equality_indicators as nisra_racial_equality
 from .data_sources.nisra import registrar_general as nisra_registrar_general
+from .data_sources.nisra import respect_index as nisra_respect_index
 from .data_sources.nisra import school_leavers as nisra_school_leavers
 from .data_sources.nisra import teacher_workforce as nisra_teacher_workforce
 from .data_sources.nisra import wellbeing as nisra_wellbeing
@@ -8336,6 +8337,103 @@ def nisra_racial_equality_cmd(indicator, list_indicators, year, output_format, f
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
         console.print("\n[yellow]Troubleshooting:[/yellow]")
         console.print("   - Run with --list to see valid indicator names")
+        raise click.Abort() from e
+
+
+@nisra.command(name="respect-index")
+@click.option(
+    "--table",
+    type=click.Choice(["index", "questions"], case_sensitive=False),
+    default="index",
+    help="Table to retrieve (default: index)",
+)
+@click.option(
+    "--group-type",
+    type=click.Choice(["all", "sex", "age", "religion", "disability"], case_sensitive=False),
+    default=None,
+    help="Only this kind of group (index table only)",
+)
+@click.option("--year", type=int, default=None, help="Only this survey year")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Re-discover and re-download the workbook")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_respect_index_cmd(table, group_type, year, output_format, force_refresh, save):
+    r"""A Respect Index for Northern Ireland (Everyday Discrimination Scale).
+
+    \b
+    The share of adults who feel respected, from the Northern Ireland Life and
+    Times survey. Someone counts as respected only if they answered "Never" to all
+    nine Everyday Discrimination Scale questions. Output is one row per survey
+    year and group.
+
+    Examples:
+        The whole series for all adults::
+
+            bolster nisra respect-index --group-type all
+
+        By age in the latest year::
+
+            bolster nisra respect-index --group-type age --year 2025
+
+        Answers to each of the nine questions::
+
+            bolster nisra respect-index --table questions
+
+    Source:
+        The Executive Office: https://www.executiveoffice-ni.gov.uk/topics/respect-index
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        with console.status("[bold green]Fetching the Respect Index..."):
+            data = nisra_respect_index.get_latest_data(table, force_refresh=force_refresh)
+
+        if group_type is not None:
+            if table != "index":
+                console.print("[yellow]--group-type applies to the index table only[/yellow]")
+                return
+            data = data[data["group_type"] == group_type]
+        if year is not None:
+            data = data[data["year"] == year]
+        if data.empty:
+            console.print("[yellow]No data found for those options[/yellow]")
+            return
+
+        console.print(f"[cyan]Rows: {len(data)} | Survey years: {data['year'].nunique()}[/cyan]")
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        else:
+            click.echo(data.to_csv(index=False), nl=False)
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to re-discover the workbook")
         raise click.Abort() from e
 
 

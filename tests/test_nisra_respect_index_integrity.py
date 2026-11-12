@@ -6,10 +6,13 @@ build small workbooks in a temporary directory and need no network.
 """
 
 import logging
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
+from click.testing import CliRunner
 
+from bolster.cli import cli
 from bolster.data_sources.nisra import respect_index as ri
 from bolster.data_sources.nisra._base import NISRADataNotFoundError, NISRAValidationError
 from bolster.data_sources.nisra.pxstat import read_dataset
@@ -446,3 +449,61 @@ class TestValidateQuestionResponses:
         df = _valid_questions()
         df.loc[0, "sample_size"] = 0
         assert ri.validate_question_responses(df) is False
+
+
+class TestCli:
+    """``bolster nisra respect-index`` filters and formats what the module returns."""
+
+    @pytest.fixture
+    def frame(self):
+        return pd.DataFrame(
+            {
+                "year": [2024, 2025, 2025],
+                "group": ["All", "All", "Male"],
+                "group_type": ["all", "all", "sex"],
+                "pct_respected": [12.1, 22.8, 24.6],
+                "pct_not_respected": [87.9, 77.2, 75.4],
+                "sample_size": [1162, 1208, 507],
+            }
+        )
+
+    def _run(self, frame, *args):
+        with patch("bolster.cli.nisra_respect_index.get_latest_data", return_value=frame) as get:
+            result = CliRunner().invoke(cli, ["nisra", "respect-index", *args])
+        return result, get
+
+    def test_filters_by_group_type_and_year(self, frame):
+        result, get = self._run(frame, "--group-type", "all", "--year", "2025")
+        assert result.exit_code == 0, result.output
+        get.assert_called_once_with("index", force_refresh=False)
+        assert "2025,All,all,22.8" in result.output
+        assert "2024" not in result.output.replace("Survey years", "")
+        assert "Male" not in result.output
+
+    def test_json_format(self, frame):
+        result, _ = self._run(frame, "--format", "json")
+        assert result.exit_code == 0, result.output
+        assert '"group_type":"sex"' in result.output
+
+    def test_group_type_does_not_apply_to_the_questions_table(self, frame):
+        result, _ = self._run(frame, "--table", "questions", "--group-type", "age")
+        assert result.exit_code == 0
+        assert "index table only" in result.output
+
+    def test_no_matching_rows_says_so(self, frame):
+        result, _ = self._run(frame, "--year", "1999")
+        assert result.exit_code == 0
+        assert "No data found" in result.output
+
+    def test_unknown_group_type_is_rejected(self, frame):
+        result, _ = self._run(frame, "--group-type", "ethnicity")
+        assert result.exit_code != 0
+
+    def test_a_module_error_aborts_with_a_message(self):
+        with patch(
+            "bolster.cli.nisra_respect_index.get_latest_data",
+            side_effect=NISRADataNotFoundError("no workbook"),
+        ):
+            result = CliRunner().invoke(cli, ["nisra", "respect-index"])
+        assert result.exit_code != 0
+        assert "no workbook" in result.output
