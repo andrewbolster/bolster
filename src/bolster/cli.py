@@ -5951,6 +5951,98 @@ def nisra_hospital_activity_cmd(dataset, output_format, force_refresh, save):
         raise click.Abort() from e
 
 
+@nisra.command(name="health-visiting-reviews")
+@click.option(
+    "--dataset",
+    type=click.Choice(["outcomes", "quarterly", "outcomes-series", "quarterly-series"], case_sensitive=False),
+    default="outcomes",
+    show_default=True,
+    help="outcomes: reviews by outcome for NI and each Trust in one release year. quarterly: NI proportion "
+    "of reviews on time by quarter in one release. outcomes-series / quarterly-series: every release stitched.",
+)
+@click.option(
+    "--year",
+    type=int,
+    default=None,
+    help="Year the financial year starts (2025 for 2025/26); outcomes and quarterly only. Default: newest release.",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_health_visiting_reviews_cmd(dataset, year, output_format, force_refresh, save):
+    r"""Pre-school health visitor reviews in Northern Ireland.
+
+    \b
+    Healthy Child, Healthy Future: how many of the six health visitor reviews
+    (new baby, 6-8 weeks, 14-16 weeks, 6-9 months, 1 year, 2-2.5 years) were
+    delivered early, on time or late, or not at all, for Northern Ireland and
+    each HSC Trust. Annual Department of Health release, 2018/19 to present.
+    A year with no release is an error; no other year is substituted.
+
+    Examples:
+        Newest release, by review and Trust::
+
+            bolster nisra health-visiting-reviews
+
+        The 2022/23 release::
+
+            bolster nisra health-visiting-reviews --year 2022
+
+        Quarterly on-time proportions since 2017/18, saved as JSON::
+
+            bolster nisra health-visiting-reviews --dataset quarterly-series --format json --save quarterly.json
+
+    Source:
+        https://www.health-ni.gov.uk/articles/health-review-statistics-pre-school-children
+    """
+    from bolster.data_sources.health_ni import health_visiting_reviews as hvr
+
+    console = Console()
+
+    if year is not None and dataset.endswith("series"):
+        raise click.UsageError("--year applies to the outcomes and quarterly datasets, not to the stitched series")
+
+    getters = {
+        "outcomes": lambda: hvr.get_health_review_outcomes(year=year, force_refresh=force_refresh),
+        "quarterly": lambda: hvr.get_quarterly_on_time(year=year, force_refresh=force_refresh),
+        "outcomes-series": lambda: hvr.get_health_review_outcomes_series(force_refresh=force_refresh),
+        "quarterly-series": lambda: hvr.get_quarterly_on_time_series(force_refresh=force_refresh),
+    }
+
+    try:
+        with console.status(f"[bold green]Downloading health visiting review data ({dataset})..."):
+            data = getters[dataset]()
+
+        console.print("[green]Health visiting review data retrieved successfully[/green]")
+        console.print(f"[cyan]Dataset: {dataset} | Rows: {len(data)}[/cyan]")
+
+        if save:
+            if output_format == "json" or save.endswith(".json"):
+                data.to_json(save, orient="records", date_format="iso", indent=2)
+            else:
+                data.to_csv(save, index=False)
+            console.print(f"[green]Saved to: {save}[/green]")
+            return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            click.echo(data.to_csv(index=False), nl=False)
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
 @nisra.command(name="nics-pay")
 @click.option(
     "--dataset",
@@ -9654,6 +9746,139 @@ def dfc_child_maintenance_cmd(
             for key, group in df.groupby("table"):
                 span = f"{group['date'].min():%Y-%m} to {group['date'].max():%Y-%m}"
                 console.print(f"   {key:32} {len(group):5,} rows  {span}")
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    df.astype(str).to_json(save, orient="records", indent=2)
+                else:
+                    df.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(df.astype(str).to_json(orient="records", indent=2))
+        else:
+            # Not console.print: rich wraps at the terminal width, which corrupts
+            # the CSV when the output is piped.
+            click.echo(df.to_csv(index=False), nl=False)
+
+    except click.Abort:
+        raise
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+_VACANCY_FACTSHEET_DIMENSIONS = ("quarterly", "monthly", "vacancy-type", "soc", "sic", "jbo", "nimdm")
+_VACANCY_AREA_DIMENSIONS = ("annual", "lgd", "assembly-area", "hsct", "dea")
+
+
+@dfc.command(name="vacancies")
+@click.option(
+    "--dimension",
+    type=click.Choice(_VACANCY_FACTSHEET_DIMENSIONS + _VACANCY_AREA_DIMENSIONS, case_sensitive=False),
+    default="quarterly",
+    show_default=True,
+    help=(
+        "Series to fetch. Factsheet: quarterly (NI total by quarter), monthly, vacancy-type, soc, sic, jbo, "
+        "nimdm (current financial year). Annual from PxStat: annual (NI total), lgd, assembly-area, hsct, dea"
+    ),
+)
+@click.option("--release", help="Factsheet release as YYYY-MM (default: latest); factsheet dimensions only")
+@click.option("--list-releases", is_flag=True, help="List the available factsheet releases and exit")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show a summary instead of the full data")
+def dfc_vacancies_cmd(dimension, release, list_releases, output_format, force_refresh, save, summary):
+    """Employment vacancies notified to the Department for Communities.
+
+    Vacancy positions that employers notify to DfC through JobApplyNI. These are
+    notified vacancies, a subset of all vacancies, not a vacancy rate. Factsheet
+    series come from the quarterly DfC publication; annual series by area come
+    from NISRA PxStat, with financial years from 2014/15.
+
+    Examples:
+        Quarterly NI series::
+
+            bolster dfc vacancies
+
+        Vacancies by occupation in the latest release::
+
+            bolster dfc vacancies --dimension soc
+
+        Annual figures by district, saved as CSV::
+
+            bolster dfc vacancies --dimension lgd --save vacancies_lgd.csv
+
+        A factsheet from an earlier release::
+
+            bolster dfc vacancies --dimension vacancy-type --release 2024-02
+
+    Source:
+        https://www.communities-ni.gov.uk/topics/employment-vacancy-statistics
+    """
+    from rich.console import Console
+
+    from bolster.data_sources.dfc import employment_vacancies as vacancies
+
+    console = Console()
+    dimension = dimension.lower()
+
+    if list_releases:
+        try:
+            for publication in vacancies.list_publications(force_refresh=force_refresh):
+                console.print(f"   {publication['release']}  {publication['url']}")
+        except vacancies.VacanciesDataError as e:
+            console.print(f"[bold red]Error:[/bold red] {e}", style="red")
+            raise click.Abort() from e
+        return
+
+    if release and dimension in _VACANCY_AREA_DIMENSIONS:
+        raise click.UsageError("--release applies to factsheet dimensions only; annual PxStat series have no releases")
+
+    try:
+        with console.status(f"[bold green]Downloading employment vacancies ({dimension})..."):
+            if dimension == "quarterly":
+                df = vacancies.get_quarterly_vacancies(release=release, force_refresh=force_refresh)
+            elif dimension == "monthly":
+                df = vacancies.get_monthly_vacancies(release=release, force_refresh=force_refresh)
+            elif dimension in _VACANCY_FACTSHEET_DIMENSIONS:
+                df = vacancies.get_vacancy_breakdown(
+                    dimension.replace("-", "_"), release=release, force_refresh=force_refresh
+                )
+            elif dimension == "annual":
+                df = vacancies.get_annual_vacancies()
+            else:
+                df = vacancies.get_vacancies_by_geography(dimension.replace("-", "_"))
+
+        console.print("[green]Employment vacancies retrieved successfully[/green]")
+        console.print(f"[cyan]Dimension: {dimension} | Rows: {len(df)}[/cyan]")
+
+        if summary:
+            console.print("\n[bold]Summary:[/bold]")
+            console.print(f"   Rows: {len(df):,}")
+            for column in ("financial_year", "quarter_start", "month"):
+                if column in df.columns:
+                    console.print(f"   {column}: {df[column].min()} to {df[column].max()}")
             if not save:
                 return
 
