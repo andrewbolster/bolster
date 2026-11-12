@@ -33,10 +33,10 @@ Geographic Coverage: Northern Ireland
 Reference Period: Survey years 2016 to the latest release.
 
 Notes:
-    Samples are about 1,100 to 1,350 adults a year, so the all-adult figure carries
-    roughly +/-2 percentage points at 95% confidence and the smaller groups carry
-    more; the workbook does not publish intervals (the PxStat cube ``RESPECTEQ``
-    does, to 2023). In 2020 NILT moved from in-person interviewing to a
+    Samples are about 1,150 to 1,350 adults a year, so the all-adult figure carries
+    roughly +/-2 to 3 percentage points at 95% confidence (the PxStat cube
+    ``RESPECTEQ`` publishes 2.1 to 2.75 for 2016 to 2023) and the smaller groups
+    carry more; the workbook itself does not publish intervals. In 2020 NILT moved from in-person interviewing to a
     combination of web and telephone interviewing, and has used that format since,
     so comparisons spanning 2020 mix modes. The PxStat cubes ``RESPECTNI``,
     ``RESPECTEQ`` and ``INDRESPECTEQ`` hold the same indicator for 2016 to 2023 with
@@ -207,12 +207,16 @@ def _read_block(sheet: pd.DataFrame, row: int, col: int, header: list[str], year
             break
         values: list[float] = []
         for i in range(1, len(header)):
+            cell = sheet.iloc[r, col + i]
             try:
-                values.append(float(sheet.iloc[r, col + i]))
-            except (TypeError, ValueError) as e:
+                value = float(cell)
+            except (TypeError, ValueError):
+                value = float("nan")
+            if pd.isna(value):
                 raise NISRAValidationError(
-                    f"Non-numeric value {sheet.iloc[r, col + i]!r} for {label!r}, column {header[i]!r}, in the {year} table"
-                ) from e
+                    f"Non-numeric or missing value {cell!r} for {label!r}, column {header[i]!r}, in the {year} table"
+                )
+            values.append(value)
         rows.append((label, values))
     return rows
 
