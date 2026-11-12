@@ -10,6 +10,7 @@ Modules:
     - elective_waiting_times: Elective and outpatient waiting times
     - emergency_care_waiting_times: Emergency care (A&E) waiting times against the 4-hour target
     - gms: BSO/FPS General Medical Services statistics (GP practices, GPs, patients, funding, access equity)
+    - health_visiting_reviews: Pre-school health visitor reviews (early/on time/late/no contact) by HSC Trust
     - hsc_recruitment: Active recruitment (vacancy) statistics for the HSC workforce
     - hsc_workforce: Quarterly HSC workforce size, composition and turnover
     - hospital_activity: Hospital bed activity (available/occupied beds,
@@ -25,6 +26,7 @@ from bolster.data_sources.health_ni import (
     elective_waiting_times,
     emergency_care_waiting_times,
     gms,
+    health_visiting_reviews,
     hospital_activity,
     hsc_recruitment,
     hsc_workforce,
@@ -38,6 +40,7 @@ __all__ = [
     "elective_waiting_times",
     "emergency_care_waiting_times",
     "gms",
+    "health_visiting_reviews",
     "hospital_activity",
     "hsc_recruitment",
     "hsc_workforce",

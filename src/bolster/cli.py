@@ -5951,6 +5951,98 @@ def nisra_hospital_activity_cmd(dataset, output_format, force_refresh, save):
         raise click.Abort() from e
 
 
+@nisra.command(name="health-visiting-reviews")
+@click.option(
+    "--dataset",
+    type=click.Choice(["outcomes", "quarterly", "outcomes-series", "quarterly-series"], case_sensitive=False),
+    default="outcomes",
+    show_default=True,
+    help="outcomes: reviews by outcome for NI and each Trust in one release year. quarterly: NI proportion "
+    "of reviews on time by quarter in one release. outcomes-series / quarterly-series: every release stitched.",
+)
+@click.option(
+    "--year",
+    type=int,
+    default=None,
+    help="Year the financial year starts (2025 for 2025/26); outcomes and quarterly only. Default: newest release.",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_health_visiting_reviews_cmd(dataset, year, output_format, force_refresh, save):
+    r"""Pre-school health visitor reviews in Northern Ireland.
+
+    \b
+    Healthy Child, Healthy Future: how many of the six health visitor reviews
+    (new baby, 6-8 weeks, 14-16 weeks, 6-9 months, 1 year, 2-2.5 years) were
+    delivered early, on time or late, or not at all, for Northern Ireland and
+    each HSC Trust. Annual Department of Health release, 2018/19 to present.
+    A year with no release is an error; no other year is substituted.
+
+    Examples:
+        Newest release, by review and Trust::
+
+            bolster nisra health-visiting-reviews
+
+        The 2022/23 release::
+
+            bolster nisra health-visiting-reviews --year 2022
+
+        Quarterly on-time proportions since 2017/18, saved as JSON::
+
+            bolster nisra health-visiting-reviews --dataset quarterly-series --format json --save quarterly.json
+
+    Source:
+        https://www.health-ni.gov.uk/articles/health-review-statistics-pre-school-children
+    """
+    from bolster.data_sources.health_ni import health_visiting_reviews as hvr
+
+    console = Console()
+
+    if year is not None and dataset.endswith("series"):
+        raise click.UsageError("--year applies to the outcomes and quarterly datasets, not to the stitched series")
+
+    getters = {
+        "outcomes": lambda: hvr.get_health_review_outcomes(year=year, force_refresh=force_refresh),
+        "quarterly": lambda: hvr.get_quarterly_on_time(year=year, force_refresh=force_refresh),
+        "outcomes-series": lambda: hvr.get_health_review_outcomes_series(force_refresh=force_refresh),
+        "quarterly-series": lambda: hvr.get_quarterly_on_time_series(force_refresh=force_refresh),
+    }
+
+    try:
+        with console.status(f"[bold green]Downloading health visiting review data ({dataset})..."):
+            data = getters[dataset]()
+
+        console.print("[green]Health visiting review data retrieved successfully[/green]")
+        console.print(f"[cyan]Dataset: {dataset} | Rows: {len(data)}[/cyan]")
+
+        if save:
+            if output_format == "json" or save.endswith(".json"):
+                data.to_json(save, orient="records", date_format="iso", indent=2)
+            else:
+                data.to_csv(save, index=False)
+            console.print(f"[green]Saved to: {save}[/green]")
+            return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", date_format="iso", indent=2))
+        else:
+            click.echo(data.to_csv(index=False), nl=False)
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
 @nisra.command(name="nics-pay")
 @click.option(
     "--dataset",

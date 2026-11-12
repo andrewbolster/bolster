@@ -835,6 +835,30 @@ statistics from the Department of Health.
 
     $ bolster nisra child-protection
 
+Health Visiting Reviews
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Pre-school health visitor reviews (new baby, 6-8 weeks, 14-16 weeks, 6-9 months,
+1 year, 2-2.5 years) by outcome (early, on time, late, no contact) for Northern
+Ireland and each HSC Trust, from the Department of Health's *Healthy Child,
+Healthy Future* release, 2018/19 to the latest release. Each release has its own
+publication page and workbook; a year with no release raises
+``NISRADataNotFoundError`` and no other year is returned in its place.
+
+.. code-block:: python
+
+    from bolster.data_sources.health_ni import health_visiting_reviews as hvr
+
+    df = hvr.get_health_review_outcomes()  # newest release
+    df = hvr.get_health_review_outcomes(year=2022)  # the 2022/23 release
+    quarterly = hvr.get_quarterly_on_time_series()  # NI on-time % by quarter, 2017/18 Q1 onwards
+
+.. code-block:: console
+
+    $ bolster nisra health-visiting-reviews
+    $ bolster nisra health-visiting-reviews --year 2022
+    $ bolster nisra health-visiting-reviews --dataset quarterly-series
+
 HSC Workforce
 ~~~~~~~~~~~~~
 
