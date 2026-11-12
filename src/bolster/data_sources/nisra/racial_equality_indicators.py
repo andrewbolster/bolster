@@ -33,8 +33,10 @@ Reference Period: Calendar years, academic years or financial years depending
 Note:
     The survey indicators (attitudes, belonging) are percentages from the
     Northern Ireland Life and Times and Young Life and Times surveys and carry
-    sampling error that the cubes do not publish. ``value`` is ``NaN`` where
-    the source suppresses a cell.
+    sampling error that the cubes do not publish; the Life and Times survey
+    moved from in-person to web and telephone interviewing in 2020, so
+    comparisons spanning 2020 mix modes. ``value`` is ``NaN`` where the source
+    suppresses a cell.
 
     Racist incidents and crimes (``racist_incidents_crimes``) are police
     recorded counts, a different kind of measure from the survey percentages;
