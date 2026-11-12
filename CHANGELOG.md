@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.11.13\] - 2026-11-12
+
+- feat(reoffending): add adult and youth reoffending statistics (#2291)
+- feat(health-visiting-reviews): add pre-school health visitor review statistics (#2290)
+
 ## \[0.11.12\] - 2026-11-12
 
 - feat(health-visiting-reviews): add pre-school health visitor review statistics (#2290)
