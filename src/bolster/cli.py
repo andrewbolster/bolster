@@ -10001,6 +10001,147 @@ def dfc_vacancies_cmd(dimension, release, list_releases, output_format, force_re
         raise click.Abort() from e
 
 
+@dfc.command(name="young-people")
+@click.option(
+    "--topic",
+    type=click.Choice(["sport", "culture"], case_sensitive=False),
+    default="sport",
+    show_default=True,
+    help="Series: sport, or culture (culture, arts and heritage; ten workbooks)",
+)
+@click.option("--year", type=int, help="Survey wave, such as 2022 (default: the latest)")
+@click.option("--workbook", help="Workbook key, or part of one (default: every workbook of the wave)")
+@click.option(
+    "--kind",
+    type=click.Choice(["estimates", "comparisons"], case_sensitive=False),
+    default="estimates",
+    show_default=True,
+    help="estimates: every figure of the wave. comparisons: the tables comparing it with the previous wave",
+)
+@click.option("--list-waves", is_flag=True, help="List the survey waves of the topic and exit")
+@click.option("--list-workbooks", is_flag=True, help="List the workbooks of the wave and exit")
+@click.option("--lenient", is_flag=True, help="Skip tables with an unrecognised layout instead of stopping")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show a summary instead of the full data")
+def dfc_young_people_cmd(
+    topic, year, workbook, kind, list_waves, list_workbooks, lenient, output_format, force_refresh, save, summary
+):
+    """Young people's experience of culture, arts, heritage and sport.
+
+    Findings from the Young Persons' Behaviour and Attitudes Survey (YPBAS) of pupils in
+    Years 8 to 12, published by the Department for Communities every three years. Figures
+    are percentages of surveyed pupils, by sex, year group, religious background,
+    disability and free school meals, with confidence intervals and the number of respondents.
+
+    Examples:
+        Sport participation in the latest wave::
+
+            bolster dfc young-people
+
+        What changed since the previous wave, and whether the survey calls it significant::
+
+            bolster dfc young-people --kind comparisons
+
+        Culture, arts and heritage: one of its ten workbooks::
+
+            bolster dfc young-people --topic culture --workbook experience-of-heritage
+
+        An earlier wave, saved as CSV::
+
+            bolster dfc young-people --year 2022 --save sport_2022.csv
+
+        The waves available::
+
+            bolster dfc young-people --topic culture --list-waves
+
+    Source:
+        https://www.communities-ni.gov.uk/articles/experience-sport-northern-ireland
+        https://www.communities-ni.gov.uk/articles/culture-arts-and-heritage-statistics
+    """
+    from rich.console import Console
+
+    from bolster.data_sources.dfc import young_people_culture_sport as young_people
+
+    console = Console()
+    topic = topic.lower()
+
+    try:
+        if list_waves:
+            for wave in young_people.list_waves(topic, force_refresh=force_refresh):
+                console.print(f"   {wave['year']}  {wave['url']}")
+            return
+        if list_workbooks:
+            for book in young_people.list_workbooks(topic, year, force_refresh=force_refresh):
+                console.print(f"   {book['key']}  {book['name']}")
+            return
+
+        with console.status(f"[bold green]Downloading young people's {topic} data ({kind})..."):
+            if kind.lower() == "comparisons":
+                df = young_people.get_wave_comparisons(
+                    topic, year=year, workbook=workbook, force_refresh=force_refresh, strict=not lenient
+                )
+            else:
+                df = young_people.get_survey_tables(
+                    topic, year=year, workbook=workbook, force_refresh=force_refresh, strict=not lenient
+                )
+
+        console.print(f"[green]Young people's {topic} data retrieved successfully[/green]")
+        console.print(f"[cyan]Kind: {kind} | Rows: {len(df)}[/cyan]")
+        for skipped in df.attrs.get("skipped_tables", []):
+            console.print(f"[yellow]Skipped {skipped['workbook']} {skipped['sheet']}: {skipped['reason']}[/yellow]")
+
+        if summary:
+            console.print("\n[bold]Summary:[/bold]")
+            console.print(f"   Rows: {len(df):,}")
+            if len(df):
+                console.print(f"   Survey years: {', '.join(str(y) for y in sorted(df['survey_year'].unique()))}")
+                console.print(
+                    f"   Workbooks: {df['workbook'].nunique()} | Tables: {df.groupby('workbook')['table_id'].nunique().sum()}"
+                )
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    df.to_json(save, orient="records", indent=2)
+                else:
+                    df.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(df.to_json(orient="records", indent=2))
+        else:
+            # Not console.print: rich wraps at the terminal width, which corrupts
+            # the CSV when the output is piped.
+            click.echo(df.to_csv(index=False), nl=False)
+
+    except click.Abort:
+        raise
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        console.print("   - An older wave may use a table layout the module does not read: try --lenient")
+        raise click.Abort() from e
+
+
 @cli.group(name="education")
 def education():
     """Education statistics for Northern Ireland.

@@ -1127,3 +1127,128 @@ class TestLayoutErrors:
     def test_sheet_with_only_a_title(self):
         with pytest.raises(yp.YoungPeopleLayoutError, match="Not a table this module recognises"):
             yp.parse_table(_raw([["Table 9: Odd"], [], []]), "Table_9", _CONTEXT)
+
+
+class TestCli:
+    """``bolster dfc young-people``, with the data functions patched (no network)."""
+
+    @pytest.fixture
+    def run(self):
+        from click.testing import CliRunner
+
+        from bolster.cli import cli
+
+        def invoke(*args):
+            return CliRunner().invoke(cli, ["dfc", "young-people", *args])
+
+        return invoke
+
+    def test_help_documents_every_option(self, run):
+        result = run("--help")
+        assert result.exit_code == 0
+        for option in (
+            "--topic",
+            "--year",
+            "--workbook",
+            "--kind",
+            "--list-waves",
+            "--lenient",
+            "--format",
+            "--summary",
+        ):
+            assert option in result.output
+
+    def test_list_waves(self, run, monkeypatch):
+        monkeypatch.setattr(
+            yp,
+            "list_waves",
+            lambda topic, force_refresh=False: [
+                {"year": 2025, "topic": topic, "url": "https://x/2025"},
+                {"year": 2022, "topic": topic, "url": "https://x/2022"},
+            ],
+        )
+        result = run("--topic", "culture", "--list-waves")
+        assert result.exit_code == 0
+        assert "2025  https://x/2025" in result.output
+        assert "2022  https://x/2022" in result.output
+
+    def test_list_workbooks(self, run, monkeypatch):
+        monkeypatch.setattr(
+            yp,
+            "list_workbooks",
+            lambda topic, year, force_refresh=False: [
+                {"key": "experience-of-sport", "name": "experience-of-sport.ods"}
+            ],
+        )
+        result = run("--list-workbooks")
+        assert result.exit_code == 0
+        assert "experience-of-sport  experience-of-sport.ods" in result.output
+
+    def test_estimates_are_written_as_csv_to_stdout(self, run, monkeypatch):
+        frame = _estimates()
+        seen = {}
+
+        def fake(topic, year=None, workbook=None, force_refresh=False, strict=True):
+            seen.update(topic=topic, year=year, workbook=workbook, strict=strict)
+            return frame
+
+        monkeypatch.setattr(yp, "get_survey_tables", fake)
+        result = run("--year", "2022", "--workbook", "experience-of-sport")
+        assert result.exit_code == 0
+        assert seen == {"topic": "sport", "year": 2022, "workbook": "experience-of-sport", "strict": True}
+        assert frame.to_csv(index=False) in result.output
+
+    def test_comparisons_kind_uses_the_comparison_frame(self, run, monkeypatch):
+        monkeypatch.setattr(yp, "get_wave_comparisons", lambda *a, **k: _comparison())
+        result = run("--kind", "comparisons")
+        assert result.exit_code == 0
+        assert "comparison_year" in result.output
+        assert "no_significant_difference" not in result.output  # the fixture row is a "lower" one
+        assert "lower" in result.output
+
+    def test_json_output(self, run, monkeypatch):
+        monkeypatch.setattr(yp, "get_survey_tables", lambda *a, **k: _estimates())
+        result = run("--format", "json")
+        assert result.exit_code == 0
+        assert '"percent":98.0' in result.output
+        assert '"ci_lower":97.0' in result.output
+
+    def test_summary(self, run, monkeypatch):
+        monkeypatch.setattr(yp, "get_survey_tables", lambda *a, **k: _estimates())
+        result = run("--summary")
+        assert result.exit_code == 0
+        assert "Rows: 1" in result.output
+        assert "Survey years: 2025" in result.output
+        assert "Workbooks: 1 | Tables: 1" in result.output
+
+    def test_save_writes_a_csv_file(self, run, monkeypatch, tmp_path):
+        monkeypatch.setattr(yp, "get_survey_tables", lambda *a, **k: _estimates())
+        target = tmp_path / "out.csv"
+        result = run("--save", str(target))
+        assert result.exit_code == 0
+        assert pd.read_csv(target).loc[0, "percent"] == 98
+
+    def test_lenient_lists_the_skipped_tables(self, run, monkeypatch):
+        frame = _estimates()
+        frame.attrs["skipped_tables"] = [{"workbook": "w", "sheet": "Table_6", "reason": "not a table"}]
+        seen = {}
+
+        def fake(topic, year=None, workbook=None, force_refresh=False, strict=True):
+            seen["strict"] = strict
+            return frame
+
+        monkeypatch.setattr(yp, "get_survey_tables", fake)
+        result = run("--lenient")
+        assert result.exit_code == 0
+        assert seen["strict"] is False
+        assert "Skipped w Table_6: not a table" in result.output
+
+    def test_an_unrecognised_layout_aborts_and_suggests_lenient(self, run, monkeypatch):
+        def fail(*args, **kwargs):
+            raise yp.YoungPeopleLayoutError("w 2016 sheet Table_4: Unrecognised significance marker '-1'")
+
+        monkeypatch.setattr(yp, "get_wave_comparisons", fail)
+        result = run("--year", "2016", "--kind", "comparisons")
+        assert result.exit_code != 0
+        assert "Unrecognised significance marker" in result.output
+        assert "--lenient" in result.output
