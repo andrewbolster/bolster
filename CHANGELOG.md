@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.11.13\] - 2026-11-12
+
+- feat(racial-equality): add NI Racial Equality Indicators from PxStat (#2293)
+
 ## \[0.11.12\] - 2026-11-12
 
 - feat(health-visiting-reviews): add pre-school health visitor review statistics (#2290)
