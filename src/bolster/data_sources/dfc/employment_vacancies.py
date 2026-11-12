@@ -51,8 +51,10 @@ Reference Period: Quarterly from Q1 2022/23; annual from 2014/15
     combining breakdowns from different releases.
 
 .. note::
-    Area figures do not sum to the NI total: vacancies that cannot be placed in
-    an area are in the NI total only. In 2025/26 the districts cover 99.3% of it.
+    Area figures do not always sum to the NI total: vacancies that cannot be placed
+    in an area are in the NI total only. The areas of each geography cover 95.9% to
+    100% of it depending on the year (the districts 97.7% to 99.3%, and 99.3% in
+    2025/26), and never exceed it.
     The factsheet layout also differs between releases, and a release whose
     layout is not recognised raises an error instead of returning a partial
     frame.
@@ -544,7 +546,7 @@ def get_vacancies_by_geography(geography: str = "lgd") -> pd.DataFrame:
     Returns:
         Columns ``financial_year``, ``geography_code``, ``geography`` and ``vacancies``. The NI total
         row PxStat includes in every matrix is left out (see :func:`get_annual_vacancies`); the areas
-        sum to slightly less than it.
+        sum to no more than it, and usually a little less.
 
     Raises:
         VacanciesDataError: If ``geography`` is unknown.

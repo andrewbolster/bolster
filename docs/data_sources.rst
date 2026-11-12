@@ -1659,8 +1659,9 @@ deprivation quintile, plus a monthly view. NISRA PxStat gives annual totals by
 Local Government District, Assembly Area, Health and Social Care Trust (from
 2014/15) and District Electoral Area (from 2018/19).
 
-Area figures do not sum to the NI total, because vacancies that cannot be placed
-in an area are counted only in the total. The factsheet file name is not
+Area figures do not always sum to the NI total, because vacancies that cannot be
+placed in an area are counted only in the total (the areas cover between 95.9% and
+100% of it, depending on the year and geography). The factsheet file name is not
 predictable, so the module scrapes the DfC topic page for it, and a release
 whose layout is not recognised raises an error rather than returning a partial
 table.
