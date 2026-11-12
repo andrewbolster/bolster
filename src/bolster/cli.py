@@ -9603,6 +9603,139 @@ def dfc_child_maintenance_cmd(
         raise click.Abort() from e
 
 
+_VACANCY_FACTSHEET_DIMENSIONS = ("quarterly", "monthly", "vacancy-type", "soc", "sic", "jbo", "nimdm")
+_VACANCY_AREA_DIMENSIONS = ("annual", "lgd", "assembly-area", "hsct", "dea")
+
+
+@dfc.command(name="vacancies")
+@click.option(
+    "--dimension",
+    type=click.Choice(_VACANCY_FACTSHEET_DIMENSIONS + _VACANCY_AREA_DIMENSIONS, case_sensitive=False),
+    default="quarterly",
+    show_default=True,
+    help=(
+        "Series to fetch. Factsheet: quarterly (NI total by quarter), monthly, vacancy-type, soc, sic, jbo, "
+        "nimdm (current financial year). Annual from PxStat: annual (NI total), lgd, assembly-area, hsct, dea"
+    ),
+)
+@click.option("--release", help="Factsheet release as YYYY-MM (default: latest); factsheet dimensions only")
+@click.option("--list-releases", is_flag=True, help="List the available factsheet releases and exit")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show a summary instead of the full data")
+def dfc_vacancies_cmd(dimension, release, list_releases, output_format, force_refresh, save, summary):
+    """Employment vacancies notified to the Department for Communities.
+
+    Vacancy positions that employers notify to DfC through JobApplyNI. These are
+    notified vacancies, a subset of all vacancies, not a vacancy rate. Factsheet
+    series come from the quarterly DfC publication; annual series by area come
+    from NISRA PxStat, with financial years from 2014/15.
+
+    Examples:
+        Quarterly NI series::
+
+            bolster dfc vacancies
+
+        Vacancies by occupation in the latest release::
+
+            bolster dfc vacancies --dimension soc
+
+        Annual figures by district, saved as CSV::
+
+            bolster dfc vacancies --dimension lgd --save vacancies_lgd.csv
+
+        A factsheet from an earlier release::
+
+            bolster dfc vacancies --dimension vacancy-type --release 2024-02
+
+    Source:
+        https://www.communities-ni.gov.uk/topics/employment-vacancy-statistics
+    """
+    from rich.console import Console
+
+    from bolster.data_sources.dfc import employment_vacancies as vacancies
+
+    console = Console()
+    dimension = dimension.lower()
+
+    if list_releases:
+        try:
+            for publication in vacancies.list_publications(force_refresh=force_refresh):
+                console.print(f"   {publication['release']}  {publication['url']}")
+        except vacancies.VacanciesDataError as e:
+            console.print(f"[bold red]Error:[/bold red] {e}", style="red")
+            raise click.Abort() from e
+        return
+
+    if release and dimension in _VACANCY_AREA_DIMENSIONS:
+        raise click.UsageError("--release applies to factsheet dimensions only; annual PxStat series have no releases")
+
+    try:
+        with console.status(f"[bold green]Downloading employment vacancies ({dimension})..."):
+            if dimension == "quarterly":
+                df = vacancies.get_quarterly_vacancies(release=release, force_refresh=force_refresh)
+            elif dimension == "monthly":
+                df = vacancies.get_monthly_vacancies(release=release, force_refresh=force_refresh)
+            elif dimension in _VACANCY_FACTSHEET_DIMENSIONS:
+                df = vacancies.get_vacancy_breakdown(
+                    dimension.replace("-", "_"), release=release, force_refresh=force_refresh
+                )
+            elif dimension == "annual":
+                df = vacancies.get_annual_vacancies()
+            else:
+                df = vacancies.get_vacancies_by_geography(dimension.replace("-", "_"))
+
+        console.print("[green]Employment vacancies retrieved successfully[/green]")
+        console.print(f"[cyan]Dimension: {dimension} | Rows: {len(df)}[/cyan]")
+
+        if summary:
+            console.print("\n[bold]Summary:[/bold]")
+            console.print(f"   Rows: {len(df):,}")
+            for column in ("financial_year", "quarter_start", "month"):
+                if column in df.columns:
+                    console.print(f"   {column}: {df[column].min()} to {df[column].max()}")
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    df.astype(str).to_json(save, orient="records", indent=2)
+                else:
+                    df.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(df.astype(str).to_json(orient="records", indent=2))
+        else:
+            # Not console.print: rich wraps at the terminal width, which corrupts
+            # the CSV when the output is piped.
+            click.echo(df.to_csv(index=False), nl=False)
+
+    except click.Abort:
+        raise
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
 @cli.group(name="education")
 def education():
     """Education statistics for Northern Ireland.
