@@ -858,6 +858,30 @@ statistics from the Department of Health.
 
     $ bolster nisra child-protection
 
+Health Visiting Reviews
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Pre-school health visitor reviews (new baby, 6-8 weeks, 14-16 weeks, 6-9 months,
+1 year, 2-2.5 years) by outcome (early, on time, late, no contact) for Northern
+Ireland and each HSC Trust, from the Department of Health's *Healthy Child,
+Healthy Future* release, 2018/19 to the latest release. Each release has its own
+publication page and workbook; a year with no release raises
+``NISRADataNotFoundError`` and no other year is returned in its place.
+
+.. code-block:: python
+
+    from bolster.data_sources.health_ni import health_visiting_reviews as hvr
+
+    df = hvr.get_health_review_outcomes()  # newest release
+    df = hvr.get_health_review_outcomes(year=2022)  # the 2022/23 release
+    quarterly = hvr.get_quarterly_on_time_series()  # NI on-time % by quarter, 2017/18 Q1 onwards
+
+.. code-block:: console
+
+    $ bolster nisra health-visiting-reviews
+    $ bolster nisra health-visiting-reviews --year 2022
+    $ bolster nisra health-visiting-reviews --dataset quarterly-series
+
 HSC Workforce
 ~~~~~~~~~~~~~
 
@@ -1667,6 +1691,51 @@ last few years, and paying parent characteristics only a single quarter — so
     $ bolster dfc child-maintenance --list-tables
     $ bolster dfc child-maintenance --table enforcement
     $ bolster dfc child-maintenance --historical --summary
+
+----
+
+Communities — Employment Vacancies
+----------------------------------
+
+Vacancies notified to the Department for Communities through JobApplyNI. These
+are notified vacancies, a subset of all vacancies in the economy, not a vacancy
+rate. The quarterly factsheet gives the NI total by financial-year quarter from
+Q1 2022/23, and for the current financial year the split by vacancy type,
+occupation (SOC 2020), industry (SIC 2007), Jobs & Benefits Office and
+deprivation quintile, plus a monthly view. NISRA PxStat gives annual totals by
+Local Government District, Assembly Area, Health and Social Care Trust (from
+2014/15) and District Electoral Area (from 2018/19).
+
+Area figures do not always sum to the NI total, because vacancies that cannot be
+placed in an area are counted only in the total (the areas cover between 95.9% and
+100% of it, depending on the year and geography). The factsheet file name is not
+predictable, so the module scrapes the DfC topic page for it, and a release
+whose layout is not recognised raises an error rather than returning a partial
+table.
+
+.. code-block:: python
+
+    from bolster.data_sources.dfc import employment_vacancies
+
+    # NI vacancies by quarter, from the latest factsheet
+    quarterly = employment_vacancies.get_latest_data()
+
+    # The current financial year split by occupation
+    soc = employment_vacancies.get_vacancy_breakdown("soc")
+
+    # Annual figures by district from PxStat, and the NI total to compare
+    districts = employment_vacancies.get_vacancies_by_geography("lgd")
+    totals = employment_vacancies.get_annual_vacancies()
+
+    # An earlier release
+    older = employment_vacancies.get_vacancy_breakdown("vacancy_type", release="2024-02")
+
+.. code-block:: console
+
+    $ bolster dfc vacancies
+    $ bolster dfc vacancies --dimension soc
+    $ bolster dfc vacancies --dimension lgd --save vacancies_lgd.csv
+    $ bolster dfc vacancies --list-releases
 
 ----
 
