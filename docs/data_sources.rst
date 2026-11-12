@@ -1574,6 +1574,45 @@ publication page. Typed accessors match tables by title rather than number.
     $ bolster justice yja-workload --dataset custody-age
     $ bolster justice yja-workload --dataset all --year 2025 --format json
 
+Adult and Youth Reoffending
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Annual Department of Justice figures on one-year proven reoffending: of everyone
+given a non-custodial or diversionary disposal, or released from custody, in a
+financial year (the cohort), the share who committed a further offence within a
+year that was proven by a court outcome. The rate series runs from the 2010/11
+cohort for all offenders, adults and youths. The latest cohort is also split by
+age and gender, disposal, and baseline offence category. The bulletin is
+published about two and a half years after its cohort begins (the 2023/24
+cohort appeared in November 2026).
+
+The workbook URL changes every year, so the module finds it by scraping the
+publication page, and a cohort that is not published raises an error rather than
+returning another cohort. Rates are withheld (``NaN``) wherever the cohort is
+smaller than 50. Individual disposals do not sum to their group's total, because
+a person is counted once per group.
+
+.. code-block:: python
+
+    from bolster.data_sources.justice import reoffending
+
+    # Rate, cohort size and reoffenders per cohort: all, adult and youth
+    rates = reoffending.get_reoffending_rates()
+
+    # The latest cohort by age and gender, disposal, and baseline offence
+    by_age = reoffending.get_reoffending_by_age_gender()
+    by_disposal = reoffending.get_reoffending_by_disposal()
+    by_offence = reoffending.get_reoffending_by_offence_category()
+
+    # An earlier cohort's workbook (the 2022/23 cohort)
+    earlier = reoffending.get_reoffending_rates(cohort=2022)
+
+.. code-block:: console
+
+    $ bolster justice reoffending --summary
+    $ bolster justice reoffending --dataset disposal
+    $ bolster justice reoffending --dataset offence --cohort 2022 --format json
+
 First Time Entrants
 ~~~~~~~~~~~~~~~~~~~
 

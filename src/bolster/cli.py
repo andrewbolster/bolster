@@ -43,6 +43,7 @@ from .data_sources.justice import nicts_quarterly as justice_nicts_quarterly
 from .data_sources.justice import pbni_caseload as justice_pbni
 from .data_sources.justice import pps_statistical_bulletin as justice_pps_statistical_bulletin
 from .data_sources.justice import prosecutions_convictions as justice_prosecutions
+from .data_sources.justice import reoffending as justice_reoffending
 from .data_sources.justice import yja_workload as justice_yja_workload
 from .data_sources.metoffice import get_uk_precipitation
 from .data_sources.ni_house_price_index import build as get_ni_house_prices
@@ -11231,6 +11232,119 @@ def justice_yja_workload_cmd(dataset, year, list_tables, output_format, force_re
                 )
             elif "table_id" in data.columns:
                 console.print(f"   Tables: {data['table_id'].nunique()}")
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.astype(str).to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.astype(str).to_json(orient="records", indent=2))
+        else:
+            click.echo(data.to_csv(index=False), nl=False)
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@justice.command(name="reoffending")
+@click.option(
+    "--dataset",
+    type=click.Choice(["rates", "age-gender", "disposal", "offence"], case_sensitive=False),
+    default="rates",
+    help="Which table to extract (default: rates, the annual series for every cohort).",
+)
+@click.option(
+    "--cohort",
+    type=int,
+    help="Start of the cohort year whose workbook to read, e.g. 2023 for 2023/24 (default: latest)",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show summary statistics instead of full data")
+def justice_reoffending_cmd(dataset, cohort, output_format, force_refresh, save, summary):
+    r"""Adult and youth one-year proven reoffending rates for NI.
+
+    \b
+    Annual Department of Justice figures: of everyone given a non-custodial or
+    diversionary disposal, or released from custody, in a financial year (the
+    cohort), the share who committed a further offence within a year that was
+    proven by a court outcome. The annual series runs from the 2010/11 cohort;
+    the other tables cover one cohort by age and gender, disposal, and baseline
+    offence category. Rates are withheld where a cohort is smaller than 50.
+
+    Examples:
+        Annual rates for all offenders, adults and youths::
+
+            bolster justice reoffending
+
+        Latest cohort by disposal::
+
+            bolster justice reoffending --dataset disposal
+
+        The 2022/23 cohort's baseline offence categories, as JSON::
+
+            bolster justice reoffending --dataset offence --cohort 2022 --format json
+
+    Source:
+        https://www.justice-ni.gov.uk/publications/adult-and-youth-reoffending-northern-ireland-202324-cohort
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        with console.status("[bold green]Downloading reoffending data..."):
+            if dataset == "age-gender":
+                data = justice_reoffending.get_reoffending_by_age_gender(cohort=cohort, force_refresh=force_refresh)
+            elif dataset == "disposal":
+                data = justice_reoffending.get_reoffending_by_disposal(cohort=cohort, force_refresh=force_refresh)
+            elif dataset == "offence":
+                data = justice_reoffending.get_reoffending_by_offence_category(
+                    cohort=cohort, force_refresh=force_refresh
+                )
+            else:
+                data = justice_reoffending.get_reoffending_rates(cohort=cohort, force_refresh=force_refresh)
+
+        if data.empty:
+            console.print("[yellow]No data returned[/yellow]")
+            return
+
+        console.print("[green]Reoffending data retrieved successfully[/green]")
+        console.print(f"[cyan]Dataset: {dataset} | Rows: {len(data)}[/cyan]")
+
+        if summary:
+            console.print("\n[bold]Summary:[/bold]")
+            if "cohort" in data.columns:
+                console.print(f"   Coverage: {data['cohort'].iloc[0]} to {data['cohort'].iloc[-1]}")
+                latest = data[data["cohort_start"] == data["cohort_start"].max()]
+                for row in latest.itertuples():
+                    console.print(
+                        f"   {row.cohort} {row.group}: {row.rate_pct:.1f}% ({int(row.reoffenders):,} of {int(row.cohort_size):,})"
+                    )
             if not save:
                 return
 

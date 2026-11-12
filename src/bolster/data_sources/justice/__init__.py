@@ -17,6 +17,8 @@ and the Public Prosecution Service (PPS):
 - prosecutions_convictions: Annual court prosecutions, convictions and out of
   court disposals, including conviction rates by court tier and diversionary
   disposals by gender and age.
+- reoffending: Adult and youth one-year proven reoffending rates by cohort
+  (from 2010/11), age, gender, disposal and baseline offence category.
 - yja_workload: Youth Justice Agency annual workload statistics (referrals to the
   Youth Justice Service and children in Woodlands Juvenile Justice Centre,
   financial years from 2008/09).
@@ -24,12 +26,13 @@ and the Public Prosecution Service (PPS):
 Most have corresponding CLI commands under ``bolster justice ...``.
 """
 
-from . import mortgages, nicts_quarterly, pbni_caseload, prosecutions_convictions, yja_workload
+from . import mortgages, nicts_quarterly, pbni_caseload, prosecutions_convictions, reoffending, yja_workload
 
 __all__ = [
     "mortgages",
     "nicts_quarterly",
     "pbni_caseload",
     "prosecutions_convictions",
+    "reoffending",
     "yja_workload",
 ]
