@@ -795,13 +795,26 @@ def parse_table(raw: pd.DataFrame, sheet_name: str, context: dict[str, Any]) -> 
 # ---------------------------------------------------------------------------
 
 
+def _looks_like_comparison(raw: pd.DataFrame) -> bool:
+    """Whether a sheet is a comparison table: one of its header cells names a significant difference."""
+    for row in range(min(_HEADER_SEARCH_ROWS, len(raw))):
+        for column in range(raw.shape[1]):
+            text = _text(raw.iat[row, column])
+            if text and "significant" in text.lower():
+                return True
+    return False
+
+
 def _load(
-    topic: str, year: int | None, workbook: str | None, force_refresh: bool, strict: bool
-) -> tuple[pd.DataFrame, pd.DataFrame, list[dict]]:
-    """Download and parse the selected workbooks: estimates, comparisons and any skipped tables."""
+    topic: str, year: int | None, workbook: str | None, force_refresh: bool, strict: bool, comparisons: bool
+) -> tuple[pd.DataFrame, list[dict]]:
+    """Download the selected workbooks and parse their comparison tables or their estimate tables.
+
+    Only the sheets of the kind asked for are parsed, so a layout this module does not recognise
+    in one kind of table cannot stop the other kind being read.
+    """
     workbooks = select_workbooks(list_workbooks(topic, year, force_refresh), workbook)
-    estimates: list[pd.DataFrame] = []
-    comparisons: list[pd.DataFrame] = []
+    frames: list[pd.DataFrame] = []
     skipped: list[dict] = []
     for book in workbooks:
         path = download_file(book["url"], force_refresh=force_refresh)
@@ -812,23 +825,20 @@ def _load(
         context = {"survey_year": book["year"], "release_year": book["year"], "topic": topic, "workbook": book["key"]}
         for sheet in sheets:
             raw = parse_sheet(excel, sheet, header=None)
+            if _looks_like_comparison(raw) != comparisons:
+                continue
             try:
-                kind, frame = parse_table(raw, sheet, context)
+                _, frame = parse_table(raw, sheet, context)
             except YoungPeopleLayoutError as e:
                 if strict:
                     raise
                 skipped.append({"workbook": book["key"], "sheet": sheet, "reason": str(e)})
                 continue
-            (estimates if kind == "estimates" else comparisons).append(frame)
-    return (
-        pd.concat(estimates, ignore_index=True)[_ESTIMATE_COLUMNS]
-        if estimates
-        else pd.DataFrame(columns=_ESTIMATE_COLUMNS),
-        pd.concat(comparisons, ignore_index=True)[_COMPARISON_COLUMNS]
-        if comparisons
-        else pd.DataFrame(columns=_COMPARISON_COLUMNS),
-        skipped,
-    )
+            frames.append(frame)
+    columns = _COMPARISON_COLUMNS if comparisons else _ESTIMATE_COLUMNS
+    if not frames:
+        return pd.DataFrame(columns=columns), skipped
+    return pd.concat(frames, ignore_index=True)[columns], skipped
 
 
 def get_survey_tables(
@@ -859,7 +869,7 @@ def get_survey_tables(
         YoungPeopleDataNotFoundError: If the wave or workbook does not exist or cannot be downloaded.
         YoungPeopleLayoutError: If a table's layout is not recognised and ``strict`` is true.
     """
-    estimates, _, skipped = _load(topic, year, workbook, force_refresh, strict)
+    estimates, skipped = _load(topic, year, workbook, force_refresh, strict, comparisons=False)
     estimates.attrs["skipped_tables"] = skipped
     return estimates
 
@@ -885,14 +895,14 @@ def get_wave_comparisons(
         ``percent`` and ``base`` for each, ``change_points`` (this wave minus the previous),
         ``significance`` (``"lower"``, ``"higher"`` or ``"no_significant_difference"``, from the
         publisher's marker) and the raw ``marker``. Rows with no marker (a group too small to
-        compare) have ``significance`` ``None``.
+        compare) have no ``significance`` (a missing value).
 
     Raises:
         YoungPeopleDataNotFoundError: If the wave or workbook does not exist or cannot be downloaded.
         YoungPeopleLayoutError: If a table's layout is not recognised and ``strict`` is true.
         YoungPeopleValidationError: If a marker contradicts the sign of the change.
     """
-    _, comparisons, skipped = _load(topic, year, workbook, force_refresh, strict)
+    comparisons, skipped = _load(topic, year, workbook, force_refresh, strict, comparisons=True)
     comparisons.attrs["skipped_tables"] = skipped
     return comparisons
 
