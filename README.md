@@ -148,6 +148,7 @@ Economy and labour:
 [`ashe`](https://bolster.readthedocs.io/en/latest/data_sources.html#annual-survey-of-hours-and-earnings-ashe),
 [`nics_pay`](https://bolster.readthedocs.io/en/latest/data_sources.html#ni-civil-service-pay-statistics),
 [`quarterly_employment_survey`](https://bolster.readthedocs.io/en/latest/data_sources.html#quarterly-employment-survey),
+[`public_expenditure`](https://bolster.readthedocs.io/en/latest/data_sources.html#public-expenditure),
 [`composite_index`](https://bolster.readthedocs.io/en/latest/data_sources.html#composite-economic-index-nicei),
 [`index_of_production`](https://bolster.readthedocs.io/en/latest/data_sources.html#index-of-production-services),
 [`index_of_services`](https://bolster.readthedocs.io/en/latest/data_sources.html#index-of-production-services),

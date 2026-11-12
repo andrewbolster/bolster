@@ -26,6 +26,7 @@ Available modules:
     - population: Annual mid-year population estimates by age, sex, and geography
     - planning_statistics: NI Planning Activity Statistics - quarterly applications, by council
     - population_projections: Population projections by age, sex, and geography (2022-2072)
+    - public_expenditure: NI Executive spending by department, spending area and expenditure category (financial years)
     - registrar_general: Registrar General Quarterly Tables (quarterly births, deaths, marriages, LGD breakdowns)
     - school_leavers: School Leavers Survey - attainment and destinations by geography and equality group
     - teacher_vacancies_absence: Teacher vacancies, sickness absence and substitution costs (DE datavis report)
@@ -161,6 +162,7 @@ from . import (
     population,
     population_projections,
     public_confidence,
+    public_expenditure,
     quarterly_employment_survey,
     racial_equality_indicators,
     registrar_general,
@@ -201,6 +203,7 @@ __all__ = [
     "population",
     "population_projections",
     "public_confidence",
+    "public_expenditure",
     "quarterly_employment_survey",
     "racial_equality_indicators",
     "registrar_general",
