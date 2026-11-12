@@ -40,6 +40,11 @@ Reference Period: Cohorts 2010/11 - 2023/24 (financial years)
     instance only), so subtotal rows are kept in the disposal frame and must
     not be added to the individual rows.
 
+    In the 2010/11 cohort the adult and youth cohorts total 33,824 people against an overall
+    cohort of 33,815 (and 5,647 reoffenders against 5,646). Every later cohort sums exactly.
+    The workbook's notes sheet and cover sheet do not explain the difference, so it is
+    treated as unexplained and tolerated by :func:`validate_reoffending_rates`.
+
 Example:
     >>> from bolster.data_sources.justice import reoffending
     >>> df = reoffending.get_reoffending_rates()  # doctest: +SKIP
