@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.11.11\] - 2026-11-11
+
+- fix(translink): name the out-of-bounds vehicles in validation errors (#2261)
+
 ## \[0.11.10\] - 2026-10-28
 
 ## \[0.11.9\] - 2026-10-22
