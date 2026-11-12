@@ -25,6 +25,10 @@ be negative (receipts and credits) and are in cash terms, not real terms.
 ``department`` is the label NISRA publishes. It includes the pseudo-groups ``AME``
 (annually managed expenditure not allocated to a department) and ``Other``.
 
+The set of spending areas within a department can differ between years (an area can
+appear or disappear), so growth rates by spending area, and by department where its
+area set changed, are not always like for like. Compare areas present in both years.
+
 Original data source:
     https://www.nisra.gov.uk/statistics/business-economy-and-trade/ni-executive-spending
 
