@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.11.12\] - 2026-11-12
+
+- feat(health-visiting-reviews): add pre-school health visitor review statistics (#2290)
+
 ## \[0.11.11\] - 2026-11-11
 
 - fix(translink): name the out-of-bounds vehicles in validation errors (#2261)
