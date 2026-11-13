@@ -31,11 +31,11 @@ Code maps:
     (identical in every guide from 2013 to 2025). A code that is not in a guide is labelled
     ``"Unknown (code N)"`` and a blank cell ``"Not recorded"``, never dropped.
 
-    Engine size and gross weight are recorded only in some years. The vehicle files for 2015 and
-    2017-2022 contain no rows for codes 4 (motorcycle under 125cc), 5 (motorcycle 125cc and above) or
-    17 (goods 7.5 tonnes or over); the vehicles carry code 23 (motorcycle, engine size unknown) or code 24
-    (goods vehicle, gross weight unknown) instead. A series built on code 5 or code 17 alone therefore
-    falls to zero in those years.
+    Engine size and gross weight are recorded only in some years. The vehicle files for 2017-2022
+    contain no rows for codes 4 (motorcycle under 125cc), 5 (motorcycle 125cc and above) or 17 (goods
+    7.5 tonnes or over), and the 2015 file has none for codes 4 or 5 and one for code 17; the vehicles
+    carry code 23 (motorcycle, engine size unknown) or code 24 (goods vehicle, gross weight unknown)
+    instead. A series built on code 5 or code 17 alone therefore falls to zero in those years.
 
 HGV definition:
     The Department for Infrastructure counts a heavy goods vehicle as a goods vehicle exceeding 3.5
