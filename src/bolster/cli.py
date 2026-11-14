@@ -3104,7 +3104,7 @@ def nisra_births_cmd(event_type, output_format, force_refresh, save):
 @click.option(
     "--area",
     type=click.Choice(
-        ["all", "Northern Ireland", "Parliamentary Constituencies (2024)", "Health and Social Care Trusts"],
+        ["all", "Northern Ireland", "Local Government Districts"],
         case_sensitive=False,
     ),
     default="Northern Ireland",
@@ -3128,10 +3128,10 @@ def nisra_population_cmd(area, year, output_format, force_refresh, save):
     """NISRA Mid-Year Population Estimates.
 
     Retrieves annual mid-year population estimates for Northern Ireland with breakdowns by:
-    - Geography (NI overall, Parliamentary Constituencies, Health and Social Care Trusts)
+    - Geography (NI overall, Local Government Districts)
     - Sex (All persons, Males, Females)
     - Age (5-year age bands: 00-04, 05-09, ..., 90+)
-    - Year (1971-present for NI overall, 2021-present for sub-geographies)
+    - Year (1971-present for NI overall, 2001-present for Local Government Districts)
 
     Mid-year estimates are referenced to June 30th of each year.
 
@@ -3149,9 +3149,9 @@ def nisra_population_cmd(area, year, output_format, force_refresh, save):
 
         bolster nisra population --year 2024
 
-    Get Parliamentary Constituencies::
+    Get the 11 Local Government Districts::
 
-        bolster nisra population --area "Parliamentary Constituencies (2024)"
+        bolster nisra population --area "Local Government Districts"
 
     Save to file::
 
@@ -3166,7 +3166,8 @@ def nisra_population_cmd(area, year, output_format, force_refresh, save):
     - Published annually ~6 months after reference date
     - Reference date: June 30th of each year
     - Historical data for NI overall from 1971
-    - Sub-geography data from 2021 onwards
+    - Local Government District data from 2001 onwards
+    - The published file holds no Health and Social Care Trust or constituency estimates
     - Age bands: 5-year groups (00-04, 05-09, ..., 85-89, 90+)
     - Also includes custom age bands and broad age groups
 
@@ -3174,12 +3175,10 @@ def nisra_population_cmd(area, year, output_format, force_refresh, save):
     ----------------
     Northern Ireland
         NI overall (1971-present)
-    Parliamentary Constituencies (2024)
-        2024 parliamentary constituencies (2021-present)
-    Health and Social Care Trusts
-        Health & Social Care Trusts (2021-present)
+    Local Government Districts
+        The 11 Local Government Districts (2001-present)
     all
-        All geographic breakdowns
+        Every geographic breakdown in the file
 
     Returns:
     --------
