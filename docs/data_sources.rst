@@ -1799,6 +1799,67 @@ table.
 
 ----
 
+Communities — Young People: Culture, Arts, Heritage and Sport
+-------------------------------------------------------------
+
+Findings from the Young Persons' Behaviour and Attitudes Survey (YPBAS) of
+pupils in Years 8 to 12, which the Department for Communities publishes every
+three years (2016, 2019, 2022 and 2025) as two series: culture, arts and
+heritage (ten workbooks in 2025: the arts, museums and science centres, the
+public library service, heritage, Irish, Ulster-Scots and sign language), and
+sport. Figures are percentages of surveyed pupils by sex, year group, religious
+background, disability and free school meals, with a 95% confidence interval and
+the number of respondents (``base``) where the table gives them. The 2025
+tables also say that the weighting for sex, year group and religion changed, so
+those breakdowns need caution against earlier waves.
+
+Two frames are returned. ``get_survey_tables`` gives every estimate of a wave,
+and for the culture series a table of 2013 to 2025 engagement figures with one
+row per survey wave. ``get_wave_comparisons`` gives the tables that compare
+the wave with the previous one, with the publisher's marker of whether the
+difference is significant (``lower``, ``higher`` or ``no_significant_difference``).
+The marker symbols are not explained in the workbooks, so they are read from
+their direction against the figures, and ``marker_consistent`` is ``False`` for a
+row whose marker contradicts the figures (the 2022 sport release has one: the
+Protestant row of table 13, 69% against 65%, is marked lower).
+
+File names and publication slugs change between waves, so the module finds
+them by scraping the hub pages and never builds a URL from the year. The 2025
+wave of both series is read in full. Earlier waves are read as far as their
+layouts allow: in 2016 the sport comparison tables are not read, because their
+marker is a number (``-1``) that the workbook does not explain, and in each
+earlier culture wave the museums workbook has one table of counts (the class
+that visited a museum) that is not a percentage table. Strict mode (the
+default) raises an error naming a table that is not recognised; ``strict=False``
+skips it and lists it in ``frame.attrs["skipped_tables"]``.
+
+.. code-block:: python
+
+    from bolster.data_sources.dfc import young_people_culture_sport as yp
+
+    # Every sport estimate of the latest wave (2025)
+    sport = yp.get_survey_tables("sport")
+
+    # What changed since 2022, and whether the survey calls it significant
+    changes = yp.get_wave_comparisons("sport")
+
+    # One of the ten culture workbooks, by its exact key
+    heritage = yp.get_survey_tables("culture", workbook="experience-of-heritage")
+
+    # An earlier wave, and the waves available
+    sport_2022 = yp.get_survey_tables("sport", year=2022)
+    waves = yp.list_waves("culture")
+
+.. code-block:: console
+
+    $ bolster dfc young-people
+    $ bolster dfc young-people --kind comparisons
+    $ bolster dfc young-people --topic culture --workbook experience-of-heritage
+    $ bolster dfc young-people --year 2022 --save sport_2022.csv
+    $ bolster dfc young-people --topic culture --list-waves
+
+----
+
 Justice — PPS Statistical Bulletin
 ----------------------------------
 
