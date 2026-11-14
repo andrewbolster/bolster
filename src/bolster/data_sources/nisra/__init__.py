@@ -20,6 +20,7 @@ Available modules:
     - index_of_production: Quarterly Index of Production (IOP) — canonical module
     - labour_market: Quarterly Labour Force Survey statistics (employment, economic inactivity)
     - marriages: Monthly marriage registrations
+    - material_footprint: Consumption-based material footprint (total, four material groups, per capita), annual from 2001
     - migration: Official and derived migration estimates (demographic components)
     - neet: Young people (16-24) not in education, employment or training (NEET)
     - nics_pay: NI Civil Service pay statistics (median/quartile pay, gender and community pay gaps) from the NISRA datavis report
@@ -155,6 +156,7 @@ from . import (
     index_of_services,
     labour_market,
     marriages,
+    material_footprint,
     migration,
     neet,
     nics_pay,
@@ -196,6 +198,7 @@ __all__ = [
     "index_of_services",
     "labour_market",
     "marriages",
+    "material_footprint",
     "migration",
     "neet",
     "nics_pay",
