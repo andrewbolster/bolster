@@ -12,6 +12,8 @@ This module provides access to PSNI open data including:
 - Security Situation Statistics: Deaths, security-related incidents,
   paramilitary style attacks, firearms/explosives finds and Terrorism Act
   arrests, monthly from 1969 to present
+- Hate Crime: Sexual orientation, racist and sectarian incidents and crimes by
+  financial year and area (PxStat ``HATE*`` cubes)
 
 Data is sourced from OpenDataNI and the Police Ombudsman's Office under the
 Open Government Licence v3.0.
@@ -30,7 +32,7 @@ Example:
 See individual module docstrings for detailed documentation.
 """
 
-from . import motoring_offences, pace, road_safety_partnership, security_situation, stop_and_search
+from . import hate_crime, motoring_offences, pace, road_safety_partnership, security_situation, stop_and_search
 from ._base import (
     PSNIDataError,
     PSNIDataNotFoundError,
@@ -93,6 +95,8 @@ __all__ = [
     "road_safety_partnership",
     # Security Situation Statistics module
     "security_situation",
+    # Hate Crime module
+    "hate_crime",
     # Crime Statistics - Main functions
     "get_historical_crime_statistics",
     "get_latest_crime_statistics",
