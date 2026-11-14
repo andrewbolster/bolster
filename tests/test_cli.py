@@ -434,3 +434,34 @@ class TestNisraCommandsMatchTheirModules:
         result = CliRunner().invoke(cli, ["nisra", "population-projections", "--lgd"])
         assert result.exit_code != 0
         assert "No such option" in result.output
+
+
+class TestNisraPopulationCommand:
+    """The population command offers only the area groupings the published file contains."""
+
+    def test_help_lists_only_the_groupings_in_the_file(self):
+        result = CliRunner().invoke(cli, ["nisra", "population", "--help"])
+
+        assert result.exit_code == 0
+        assert "Local Government Districts" in result.output
+        assert "Parliamentary Constituenc" not in result.output
+        assert "Health and Social Care Trusts" not in result.output
+
+    def test_rejects_areas_the_file_does_not_hold(self):
+        for area in ("Health and Social Care Trusts", "Parliamentary Constituencies (2024)"):
+            result = CliRunner().invoke(cli, ["nisra", "population", "--area", area])
+
+            assert result.exit_code == 2, result.output
+            # click lists the choices lower-cased when the option is case-insensitive
+            assert "northern ireland" in result.output.lower()
+            assert "local government districts" in result.output.lower()
+
+    def test_passes_the_district_grouping_through(self):
+        import pandas as pd
+
+        frame = pd.DataFrame({"year": [2025], "population": [100], "area_name": ["Belfast"]})
+        with patch("bolster.cli.nisra_population.get_latest_population", return_value=frame) as get:
+            result = CliRunner().invoke(cli, ["nisra", "population", "--area", "Local Government Districts"])
+
+        assert result.exit_code == 0, result.output
+        assert get.call_args.kwargs["area"] == "Local Government Districts"

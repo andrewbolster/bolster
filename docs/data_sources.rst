@@ -115,10 +115,17 @@ Annual mid-year population estimates by age, sex, and Local Government District.
     from bolster.data_sources.nisra import population
 
     df = population.get_latest_population(area="Northern Ireland")
+    districts = population.get_latest_population(area="Local Government Districts")
+
+``area`` accepts the groupings the published file contains: ``"Northern Ireland"`` (1971
+onwards), ``"Local Government Districts"`` (2001 onwards) and ``"all"``. The file holds no Health
+and Social Care Trust or constituency estimates, and any other value raises
+``NISRAValidationError`` naming the groupings it does contain.
 
 .. code-block:: console
 
     $ bolster nisra population
+    $ bolster nisra population --area "Local Government Districts"
 
 Population Projections
 ~~~~~~~~~~~~~~~~~~~~~~

@@ -567,10 +567,10 @@ Every dataset module must have comprehensive docstrings:
     """NISRA Mid-Year Population Estimates Data Source.
 
     Provides access to mid-year population estimates for Northern Ireland with breakdowns by:
-    - Geography (Northern Ireland, Parliamentary Constituencies, Health and Social Care Trusts)
+    - Geography (Northern Ireland, Local Government Districts)
     - Sex (All persons, Males, Females)
     - Age (5-year age bands: 00-04, 05-09, ..., 85-89, 90+)
-    - Year (1971-present for NI overall, 2021-present for sub-geographies)
+    - Year (1971-present for Northern Ireland, 2001-present for Local Government Districts)
 
     Mid-year estimates are referenced to June 30th of each year.
 
@@ -613,8 +613,7 @@ All public functions must have complete docstrings with:
             Literal[
                 "all",
                 "Northern Ireland",
-                "Parliamentary Constituencies (2024)",
-                "Health and Social Care Trusts",
+                "Local Government Districts",
             ]
         ] = "all",
         force_refresh: bool = False,
