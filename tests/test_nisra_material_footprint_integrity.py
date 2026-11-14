@@ -81,6 +81,22 @@ class TestLatestData:
         assert mf.validate_per_capita(footprint, per_capita) is True
 
 
+class TestMaterialFootprintOnly:
+    """The footprint-only accessor agrees with the footprint rows of the combined table."""
+
+    @pytest.fixture(scope="class")
+    def footprint(self):
+        return mf.get_material_footprint()
+
+    def test_only_footprint_measure(self, footprint):
+        assert set(footprint["measure"]) == {mf.MEASURE_FOOTPRINT}
+
+    def test_matches_combined_table(self, footprint):
+        combined = mf.get_latest_data()
+        expected = combined[combined["measure"] == mf.MEASURE_FOOTPRINT].reset_index(drop=True)
+        pd.testing.assert_frame_equal(footprint.reset_index(drop=True), expected)
+
+
 class TestPopulationCrossValidation:
     """Figure 2's population denominator is NISRA's mid-year estimate, so it can be checked against the population module."""
 
