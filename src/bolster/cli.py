@@ -69,6 +69,7 @@ from .data_sources.nisra import index_of_production as nisra_iop
 from .data_sources.nisra import index_of_services as nisra_ios
 from .data_sources.nisra import labour_market as nisra_labour_market
 from .data_sources.nisra import marriages as nisra_marriages
+from .data_sources.nisra import material_footprint as nisra_material_footprint
 from .data_sources.nisra import migration as nisra_migration
 from .data_sources.nisra import neet as nisra_neet
 from .data_sources.nisra import planning_statistics as nisra_planning
@@ -8336,6 +8337,99 @@ def nisra_racial_equality_cmd(indicator, list_indicators, year, output_format, f
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
         console.print("\n[yellow]Troubleshooting:[/yellow]")
         console.print("   - Run with --list to see valid indicator names")
+        raise click.Abort() from e
+
+
+@nisra.command(name="material-footprint")
+@click.option(
+    "--measure",
+    type=click.Choice(["footprint", "per-capita", "all"], case_sensitive=False),
+    default="all",
+    help="Million tonnes by material, tonnes per person, or both (default: all)",
+)
+@click.option("--year", type=int, default=None, help="Only this year")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Bypass the page cache")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_material_footprint_cmd(measure, year, output_format, force_refresh, save):
+    r"""Northern Ireland's Material Footprint.
+
+    \b
+    A consumption-based measure of the primary raw materials needed to meet the
+    demand of Northern Ireland residents, wherever they are extracted: biomass,
+    metal ores, fossil fuels and non-metallic minerals, in million tonnes, annually
+    from 2001, plus tonnes per person. Output is one tidy row per figure.
+
+    Examples:
+        Everything::
+
+            bolster nisra material-footprint
+
+        Tonnes per person in 2023::
+
+            bolster nisra material-footprint --measure per-capita --year 2023
+
+        Material groups saved as JSON::
+
+            bolster nisra material-footprint --measure footprint --format json --save footprint.json
+
+    Source:
+        NISRA data-visualisation report linked from GOV.UK, produced by the
+        University of Leeds for Defra and the Department for the Economy.
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        with console.status("[bold green]Fetching material footprint..."):
+            data = nisra_material_footprint.get_latest_data(force_refresh=force_refresh)
+
+        wanted = {
+            "footprint": [nisra_material_footprint.MEASURE_FOOTPRINT],
+            "per-capita": [nisra_material_footprint.MEASURE_PER_CAPITA],
+        }.get(measure.lower())
+        if wanted is not None:
+            data = data[data["measure"].isin(wanted)]
+        if year is not None:
+            data = data[data["year"] == year]
+            if data.empty:
+                console.print(f"[yellow]No data found for year {year}[/yellow]")
+                return
+
+        console.print(f"[cyan]Rows: {len(data)} | Years: {data['year'].min()}-{data['year'].max()}[/cyan]")
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        else:
+            click.echo(data.to_csv(index=False), nl=False)
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - The latest edition's data page may be missing from GOV.UK")
+        console.print("   - Try again with --force-refresh to bypass cache")
         raise click.Abort() from e
 
 

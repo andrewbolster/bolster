@@ -660,6 +660,29 @@ managed expenditure.
 
     $ bolster nisra public-expenditure --view departments --include-provisional
 
+Material Footprint
+~~~~~~~~~~~~~~~~~~
+
+Northern Ireland's material footprint: a consumption-based measure of the primary raw
+materials (domestic and imported) needed to meet the demand of NI residents, annually
+from 2001, as a total and as biomass, metal ores, fossil fuels and non-metallic minerals
+(million tonnes), plus tonnes per person. It is not comparable with territorial measures
+such as greenhouse gas emissions or waste arisings. The report is found through the
+GOV.UK release for the latest edition only: if that edition has no data page, an error
+is raised and an older edition is not substituted. Each edition re-estimates earlier years.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import material_footprint
+
+    data = material_footprint.get_latest_data()  # year, material, measure, value
+    totals = material_footprint.get_material_footprint()
+    per_capita = material_footprint.get_per_capita()
+
+.. code-block:: console
+
+    $ bolster nisra material-footprint --measure per-capita --year 2023
+
 Registrar General Quarterly Tables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
