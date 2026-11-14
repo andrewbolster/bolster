@@ -14,6 +14,9 @@ published at https://www.communities-ni.gov.uk.
   household food security and food bank usage.
 - employment_vacancies: Vacancies notified to DfC, by quarter and month from
   the DfC factsheet, and by financial year and area from NISRA PxStat.
+- gambling_licensing: Annual gambling licences, permits and registrations by
+  category, plus registered businesses, employment, land-based turnover and
+  betting and gaming duty, from the DfC tables workbook for each release.
 
 Corresponding CLI commands live under ``bolster dfc ...``.
 """
@@ -22,7 +25,14 @@ from bolster.data_sources.dfc import (
     child_maintenance,
     employment_vacancies,
     family_resources_survey,
+    gambling_licensing,
     neighbourhood_renewal_profiles,
 )
 
-__all__ = ["child_maintenance", "employment_vacancies", "family_resources_survey", "neighbourhood_renewal_profiles"]
+__all__ = [
+    "child_maintenance",
+    "employment_vacancies",
+    "family_resources_survey",
+    "gambling_licensing",
+    "neighbourhood_renewal_profiles",
+]
