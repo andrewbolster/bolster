@@ -10001,6 +10001,147 @@ def dfc_vacancies_cmd(dimension, release, list_releases, output_format, force_re
         raise click.Abort() from e
 
 
+_GAMBLING_DATASETS = ("licences", "industry")
+
+
+@dfc.command(name="gambling")
+@click.option(
+    "--dataset",
+    type=click.Choice(_GAMBLING_DATASETS, case_sensitive=False),
+    default="licences",
+    show_default=True,
+    help="licences: permits, certificates and registrations by category. industry: businesses, employment, turnover, duty",
+)
+@click.option("--release", "release_year", type=int, help="Release year, e.g. 2025 (default: latest)")
+@click.option("--all-releases", is_flag=True, help="Stack every release, with a release column, to see revisions")
+@click.option("--list-releases", is_flag=True, help="List the available release years and exit")
+@click.option("--category", help="Licences only: keep one category, e.g. bingo_clubs")
+@click.option("--series", help="Industry only: keep one series, e.g. land_based_turnover")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show a summary instead of the full data")
+def dfc_gambling_cmd(
+    dataset, release_year, all_releases, list_releases, category, series, output_format, force_refresh, save, summary
+):
+    """Northern Ireland gambling licensing and industry data.
+
+    Annual statistics from the Department for Communities: amusement permits and
+    gaming machines, certificates, licences and registrations for gaming machines,
+    lotteries, bingo clubs, bookmaking offices and bookmakers, plus registered
+    gambling businesses, employment, land-based turnover and betting and gaming duty.
+    Each release carries a five-year window for the licence series, and the industry
+    series are revised between releases.
+
+    Examples:
+        Licences and permits in the latest release::
+
+            bolster dfc gambling
+
+        One category::
+
+            bolster dfc gambling --category bookmaking_offices
+
+        Industry series, saved as CSV::
+
+            bolster dfc gambling --dataset industry --save gambling_industry.csv
+
+        Turnover as published in every release, to see revisions::
+
+            bolster dfc gambling --dataset industry --series land_based_turnover --all-releases
+
+    Source:
+        https://www.communities-ni.gov.uk/topics/betting-gaming-lotteries-and-amusements
+    """
+    from rich.console import Console
+
+    from bolster.data_sources.dfc import gambling_licensing as gambling
+
+    console = Console()
+    dataset = dataset.lower()
+
+    if list_releases:
+        try:
+            for year in gambling.list_releases(force_refresh=force_refresh):
+                console.print(f"   {year}")
+        except gambling.GamblingDataError as e:
+            console.print(f"[bold red]Error:[/bold red] {e}", style="red")
+            raise click.Abort() from e
+        return
+
+    if release_year is not None and all_releases:
+        raise click.UsageError("--release and --all-releases cannot be used together")
+    if category and dataset != "licences":
+        raise click.UsageError("--category applies to the licences dataset only")
+    if series and dataset != "industry":
+        raise click.UsageError("--series applies to the industry dataset only")
+    if category and category not in gambling.list_categories():
+        raise click.UsageError(f"Unknown category {category!r}; choose from {gambling.list_categories()}")
+    if series and series not in gambling.list_series():
+        raise click.UsageError(f"Unknown series {series!r}; choose from {gambling.list_series()}")
+
+    try:
+        with console.status(f"[bold green]Downloading gambling {dataset} data..."):
+            if all_releases:
+                df = gambling.get_all_releases(force_refresh=force_refresh)[dataset]
+            elif dataset == "licences":
+                df = gambling.get_licences(release_year, force_refresh=force_refresh)
+            else:
+                df = gambling.get_industry(release_year, force_refresh=force_refresh)
+            if category:
+                df = df[df["category"] == category]
+            if series:
+                df = df[df["series"] == series]
+
+        console.print("[green]Gambling data retrieved successfully[/green]")
+        console.print(f"[cyan]Dataset: {dataset} | Rows: {len(df)}[/cyan]")
+
+        if summary:
+            console.print("\n[bold]Summary:[/bold]")
+            console.print(f"   Rows: {len(df):,}")
+            console.print(f"   Releases: {sorted(df['release'].unique().tolist())}")
+            console.print(f"   Years: {df['year'].min()} to {df['year'].max()}")
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    df.astype(str).to_json(save, orient="records", indent=2)
+                else:
+                    df.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(df.astype(str).to_json(orient="records", indent=2))
+        else:
+            # Not console.print: rich wraps at the terminal width, which corrupts
+            # the CSV when the output is piped.
+            click.echo(df.to_csv(index=False), nl=False)
+
+    except click.Abort:
+        raise
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
 @cli.group(name="education")
 def education():
     """Education statistics for Northern Ireland.

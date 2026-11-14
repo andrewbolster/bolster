@@ -561,18 +561,33 @@ class TestValidators:
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="session")
 def all_releases():
-    return g.list_releases()
+    """Release years for the whole session, doubling as a reachability probe.
+
+    The DfC site can answer 503 to CI runner IPs, and the shared session's retry ladder makes every
+    blocked call cost about 90 seconds. Probing once keeps a bad day cheap instead of timing the job out.
+    """
+    try:
+        return g.list_releases()
+    except g.GamblingDataNotFoundError as e:
+        pytest.skip(f"communities-ni.gov.uk unavailable: {e}")
+
+
+@pytest.fixture(autouse=True)
+def _require_dfc_site(request):
+    if request.node.get_closest_marker("integration"):
+        request.getfixturevalue("all_releases")
 
 
 @pytest.fixture(scope="class")
-def stacked():
+def stacked(all_releases):
     data = g.get_all_releases()
     licences = data["licences"].assign(permit_tier=data["licences"]["permit_tier"].astype("object").fillna("-"))
     return licences, data["industry"]
 
 
+@pytest.mark.integration
 class TestReleases:
     def test_releases_run_without_gaps_from_the_first(self, all_releases):
         assert all_releases[0] == g.FIRST_RELEASE
@@ -597,6 +612,7 @@ class TestReleases:
             assert g.validate_industry(g.get_industry(release))
 
 
+@pytest.mark.integration
 class TestLatestLicences:
     @pytest.fixture(scope="class")
     def licences(self):
@@ -665,6 +681,7 @@ class TestLatestLicences:
             assert (sub["granted"] <= sub["operational"]).all(), category
 
 
+@pytest.mark.integration
 class TestLatestIndustry:
     @pytest.fixture(scope="class")
     def industry(self):
@@ -702,6 +719,7 @@ class TestLatestIndustry:
         assert turnover[2023] < 0.3 * turnover[2017]
 
 
+@pytest.mark.integration
 class TestAcrossReleases:
     def test_licence_counts_are_never_revised(self, stacked):
         licences, _ = stacked
@@ -754,3 +772,52 @@ class TestAcrossReleases:
         licences, industry = stacked
         assert g.validate_licences(licences.assign(permit_tier=licences["permit_tier"].replace("-", pd.NA)))
         assert g.validate_industry(industry)
+
+
+class TestCli:
+    """The ``bolster dfc gambling`` command; usage errors need no network."""
+
+    def _invoke(self, *args):
+        from click.testing import CliRunner
+
+        from bolster.cli import cli
+
+        return CliRunner().invoke(cli, ["dfc", "gambling", *args])
+
+    def test_help_lists_the_options(self):
+        result = self._invoke("--help")
+        assert result.exit_code == 0
+        for option in ("--dataset", "--release", "--all-releases", "--list-releases", "--category", "--series"):
+            assert option in result.output
+
+    def test_release_with_all_releases_is_a_usage_error(self):
+        result = self._invoke("--release", "2025", "--all-releases")
+        assert result.exit_code == 2
+        assert "cannot be used together" in result.output
+
+    def test_category_with_the_industry_dataset_is_a_usage_error(self):
+        result = self._invoke("--dataset", "industry", "--category", "bingo_clubs")
+        assert result.exit_code == 2
+        assert "licences dataset only" in result.output
+
+    def test_series_with_the_licences_dataset_is_a_usage_error(self):
+        result = self._invoke("--series", "land_based_turnover")
+        assert result.exit_code == 2
+        assert "industry dataset only" in result.output
+
+    def test_unknown_category_is_a_usage_error_naming_the_choices(self):
+        result = self._invoke("--category", "casinos")
+        assert result.exit_code == 2
+        assert "bingo_clubs" in result.output
+
+    def test_unknown_series_is_a_usage_error_naming_the_choices(self):
+        result = self._invoke("--dataset", "industry", "--series", "casino_revenue")
+        assert result.exit_code == 2
+        assert "land_based_turnover" in result.output
+
+    @pytest.mark.integration
+    def test_industry_series_prints_csv(self, all_releases):
+        result = self._invoke("--dataset", "industry", "--series", "land_based_turnover", "--release", "2025")
+        assert result.exit_code == 0
+        assert "release,period,year,series,unit,value" in result.output
+        assert "land_based_turnover" in result.output

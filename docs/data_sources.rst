@@ -1799,6 +1799,51 @@ table.
 
 ----
 
+Communities — Gambling Licensing and Industry Data
+--------------------------------------------------
+
+Annual gambling statistics from the Department for Communities: amusement permits and the
+gaming machines they cover, certificates, licences and registrations for gaming machines,
+lotteries, society lotteries, bingo clubs, bookmaking offices and bookmakers, and the
+industry series for registered gambling businesses, people employed, land-based turnover and
+betting and gaming duty.
+
+Each release is one tables workbook, found by scraping that year's publication page (the
+file address contains an upload month that differs between releases). The licence tables
+carry a five-year window and licence counts are identical in every release that has a year.
+The industry series are revised: land-based turnover for 2022 is 228.1 pounds million in the
+2023 and 2024 releases and 185.8 in 2025. Amusement permits are named after the maximum
+prize, and the higher tier's maximum rose from 25 to 500 pounds on 29 January 2025, so the
+``permit_tier`` is ``"£25"`` to 2024 and ``"£500"`` in 2025. A release whose layout is not
+recognised raises an error instead of returning a partial frame.
+
+.. code-block:: python
+
+    from bolster.data_sources.dfc import gambling_licensing
+
+    # Licences and permits, and the industry series, from the latest release
+    licences = gambling_licensing.get_licences()
+    industry = gambling_licensing.get_industry()
+
+    # A specific release; a year with no publication page raises an error
+    licences_2024 = gambling_licensing.get_licences(release_year=2024)
+
+    # Every release stacked, to see revisions
+    revisions = gambling_licensing.get_all_releases()["industry"]
+
+    # What categories and series are available?
+    gambling_licensing.list_categories()
+    gambling_licensing.list_series()
+
+.. code-block:: console
+
+    $ bolster dfc gambling
+    $ bolster dfc gambling --category bookmaking_offices
+    $ bolster dfc gambling --dataset industry --series land_based_turnover --all-releases
+    $ bolster dfc gambling --list-releases
+
+----
+
 Justice — PPS Statistical Bulletin
 ----------------------------------
 
