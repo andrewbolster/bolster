@@ -56,6 +56,13 @@ Reference Period: Calendar years for licences, businesses, employment and turnov
     duty in both, and the module identifies the series from the table title.
 
 .. note::
+    Releases overlap. Licence and permit counts are identical in every release that carries
+    a year, but the industry series are revised: between the 2023 or 2024 release and the
+    2025 release, land-based turnover for 2022 fell from 228.1 to 185.8 pounds million and betting
+    and gaming duty for 2022-23 rose from 77 to 87 pounds million. :func:`get_all_releases` returns
+    every release with a ``release`` column so revisions can be seen and a release chosen.
+
+.. note::
     Turnover covers land-based operators only; online gambling is outside the series.
     Registered businesses are rounded to the nearest 5 and the employment and turnover
     figures come from samples (BRES and the Northern Ireland Annual Business Inquiry),
@@ -331,6 +338,8 @@ def _is_blank(value: object) -> bool:
 
 def _number(value: object, where: str) -> float:
     """Return a cell as a number, or raise naming where the cell is."""
+    if _is_blank(value):
+        raise GamblingValidationError(f"Missing value at {where}")
     if isinstance(value, bool):
         raise GamblingValidationError(f"Non-numeric value {value!r} at {where}")
     if isinstance(value, int | float):
@@ -468,15 +477,32 @@ def _parse_amusement_permits(sheet: pd.DataFrame, sheet_name: str, release: int)
 
 
 def _parse_period(value: object, where: str) -> tuple[str, int]:
-    """Return ``(period label, start year)`` for a calendar year or a financial year such as ``"2024-25"``."""
+    """Return ``(period label, start year)`` for a calendar year or a financial year.
+
+    Financial years are written ``"2000-2001"`` in older releases and ``"2000-01"`` in the newest;
+    both give the label ``"2000-01"``.
+
+    Raises:
+        GamblingValidationError: If the value is neither a year nor a financial year of consecutive years.
+
+    Example:
+        >>> _parse_period("2024", "x")
+        ('2024', 2024)
+        >>> _parse_period("2000-2001", "x")
+        ('2000-01', 2000)
+        >>> _parse_period("2024-25", "x")
+        ('2024-25', 2024)
+    """
     year = _as_year(value)
     if year is not None:
         return str(year), year
     match = _PERIOD_RE.match(str(value).strip())
     if not match or not match.group(2):
         raise GamblingValidationError(f"Unrecognised period {value!r} at {where}")
-    start = int(match.group(1))
-    return str(value).strip(), start
+    start, end = int(match.group(1)), match.group(2)
+    if (start + 1) % 100 != int(end[-2:]):
+        raise GamblingValidationError(f"Financial year {value!r} at {where} does not span consecutive years")
+    return f"{start}-{end[-2:]}", start
 
 
 def _parse_industry(sheet: pd.DataFrame, sheet_name: str, key: str, release: int) -> list[dict[str, Any]]:
