@@ -26,6 +26,23 @@ Geographic Coverage: Northern Ireland (11 policing districts)
 Reference Date: Date of collision occurrence
 Time Coverage: 2013 to present
 
+Code maps:
+    ``VEHICLE_TYPE_CODES`` and ``CASUALTY_CLASS_CODES`` reproduce the lists in PSNI's yearly Data Guides
+    (identical in every guide from 2013 to 2025). A code that is not in a guide is labelled
+    ``"Unknown (code N)"`` and a blank cell ``"Not recorded"``, never dropped.
+
+    Engine size and gross weight are recorded only in some years. The vehicle files for 2017-2022
+    contain no rows for codes 4 (motorcycle under 125cc), 5 (motorcycle 125cc and above) or 17 (goods
+    7.5 tonnes or over), and the 2015 file has none for codes 4 or 5 and one for code 17; the vehicles
+    carry code 23 (motorcycle, engine size unknown) or code 24 (goods vehicle, gross weight unknown)
+    instead. A series built on code 5 or code 17 alone therefore falls to zero in those years.
+
+HGV definition:
+    The Department for Infrastructure counts a heavy goods vehicle as a goods vehicle exceeding 3.5
+    tonnes, which is codes 16, 17 and 24 (``HGV_VEHICLE_TYPE_CODES``). ``get_hgv_ksi_casualties`` counts
+    killed or seriously injured casualties in collisions involving at least one such vehicle, which
+    reproduces DfI's published series for 2016-2025.
+
 Example:
     >>> from bolster.data_sources.psni import road_traffic_collisions
     >>> df = road_traffic_collisions.get_collisions()
@@ -82,37 +99,48 @@ SEVERITY_CODES = {
     3: "Slight",
 }
 
-# Casualty class codes (road user type)
+# Casualty class codes (road user type), as listed in PSNI's Data Guide (``c_class``)
 CASUALTY_CLASS_CODES = {
-    1: "Driver/Rider",
-    2: "Passenger (front)",
-    3: "Passenger (rear)",
-    4: "Passenger (other)",
+    1: "Driver",
+    2: "Pillion passenger",
+    3: "Vehicle passenger - front",
+    4: "Vehicle passenger - rear",
     5: "Pedestrian",
-    6: "Pillion passenger",
+    6: "Motorcyclist",
+    7: "Pedal cyclist",
 }
 
-# Vehicle type codes
+# Vehicle type codes, as listed in PSNI's Data Guide (``v_type`` and casualty ``c_vtype``)
 VEHICLE_TYPE_CODES = {
+    0: "Unknown",
     1: "Pedal cycle",
-    2: "Motorcycle 50cc or under",
-    3: "Motorcycle over 50cc and up to 125cc",
-    4: "Motorcycle over 125cc and up to 500cc",
-    5: "Motorcycle over 500cc",
+    2: "Motorcycle - moped",
+    4: "Motorcycle (under 125cc)",
+    5: "Motorcycle (125cc and above)",
+    6: "Invalid vehicle / other 3 wheeler",
+    7: "Car - taxi (hackney)",
     8: "Car",
-    9: "Taxi",
-    10: "Minibus (8-16 passengers)",
-    11: "Bus/Coach (17+ passengers)",
-    15: "Goods vehicle 3.5 tonnes mgw or under",
-    16: "Goods vehicle over 3.5 and under 7.5 tonnes mgw",
-    17: "Goods vehicle 7.5 tonnes mgw or over",
-    18: "Agricultural vehicle",
-    19: "Other motor vehicle",
-    20: "Other non-motor vehicle",
-    21: "Tram/Light rail",
-    22: "Mobility scooter",
-    23: "Electric scooter",
+    9: "Motor caravan",
+    14: "Other motor vehicle",
+    15: "Goods 3.5 tonnes or less",
+    16: "Goods exceeding 3.5 tonnes but less than 7.5 tonnes",
+    17: "Goods 7.5 tonnes or over",
+    18: "Car (used as taxi)",
+    19: "Minibus (8-16 passengers)",
+    20: "Bus or coach (17+ passengers)",
+    21: "Ridden horse",
+    22: "Other non motor vehicle",
+    23: "Motorcycle (engine size unknown)",
+    24: "Goods vehicle (gross weight unknown)",
+    25: "Agricultural vehicle",
 }
+
+# Goods vehicles exceeding 3.5 tonnes, the Department for Infrastructure's definition of an HGV;
+# code 24 is included because the gross weight is not recorded for many vehicles in some years.
+HGV_VEHICLE_TYPE_CODES = frozenset({16, 17, 24})
+
+# Label for a blank code cell
+NOT_RECORDED = "Not recorded"
 
 # Day of week codes
 DAY_OF_WEEK_CODES = {
@@ -157,6 +185,47 @@ ROAD_SURFACE_CODES = {
 }
 
 
+def _to_code(series: pd.Series) -> pd.Series:
+    """Coerce a code column to nullable integers; blanks and non-numeric text become ``<NA>``."""
+    return pd.to_numeric(series, errors="coerce").astype("Int64")
+
+
+def _decode_codes(codes: pd.Series, mapping: dict[int, str]) -> pd.Series:
+    """Label a code column using ``mapping`` without losing any row.
+
+    Args:
+        codes: Raw code column (integers, or text when the file has stray blank cells)
+        mapping: Code to label
+
+    Returns:
+        Series of labels: the mapped label, ``"Unknown (code N)"`` for a code that is not in
+        ``mapping``, and ``"Not recorded"`` for a blank cell
+
+    Example:
+        >>> _decode_codes(pd.Series(["8", "", "99"]), {8: "Car"}).tolist()
+        ['Car', 'Not recorded', 'Unknown (code 99)']
+    """
+    numeric = _to_code(codes)
+    labels = [
+        NOT_RECORDED if pd.isna(code) else mapping.get(int(code), f"Unknown (code {int(code)})") for code in numeric
+    ]
+    return pd.Series(labels, index=codes.index, dtype="object")
+
+
+def _is_collision_dataset(name: str) -> bool:
+    """Whether an OpenDataNI package is one of the yearly collision datasets.
+
+    The search also returns the Road Safety Partnership datasets, which are a different series.
+
+    Example:
+        >>> _is_collision_dataset("police-recorded-injury-road-traffic-collision-statistics-northern-ireland-2024")
+        True
+        >>> _is_collision_dataset("northern-ireland-road-safety-partnership-2011-2021")
+        False
+    """
+    return name.startswith("police-recorded-injury-road-traffic-collision-statistics")
+
+
 def _get_available_datasets() -> list[dict]:
     """Get list of available RTC datasets from OpenDataNI.
 
@@ -188,6 +257,9 @@ def _get_available_datasets() -> list[dict]:
             # Extract year from title or name
             title = pkg.get("title", "")
             name = pkg.get("name", "")
+
+            if not _is_collision_dataset(name):
+                continue
 
             # Try to extract year (e.g., "...2024" or "...2013")
             year = None
@@ -391,7 +463,11 @@ def get_casualties(
             - ref: int (collision reference number for linking)
             - vehicle_id: int
             - casualty_id: int
-            - casualty_class: str (road user type if decoded)
+            - casualty_class: str (road user type if decoded; see ``CASUALTY_CLASS_CODES``)
+            - casualty_class_code: Int64 (blank cells are ``<NA>``)
+            - vehicle_type: str (type of the casualty's vehicle if decoded; see ``VEHICLE_TYPE_CODES``)
+            - vehicle_type_code: Int64
+            - is_hgv: bool (the casualty's vehicle is a goods vehicle over 3.5 tonnes, if decoded)
             - sex_code: int
             - age_group: int
             - severity: str ('Fatal', 'Serious', 'Slight' if decoded)
@@ -428,16 +504,22 @@ def get_casualties(
     }
     df = df.rename(columns={k: v for k, v in column_mapping.items() if k in df.columns})
 
+    # Some years carry a stray blank in a code column, which loads the whole column as text
+    for code_column in ("casualty_class_code", "vehicle_type_code"):
+        if code_column in df.columns:
+            df[code_column] = _to_code(df[code_column])
+
     # Add decoded values
     if decode_values:
         if "severity_code" in df.columns:
             df["severity"] = df["severity_code"].map(SEVERITY_CODES)
 
         if "casualty_class_code" in df.columns:
-            df["casualty_class"] = df["casualty_class_code"].map(CASUALTY_CLASS_CODES)
+            df["casualty_class"] = _decode_codes(df["casualty_class_code"], CASUALTY_CLASS_CODES)
 
         if "vehicle_type_code" in df.columns:
-            df["vehicle_type"] = pd.to_numeric(df["vehicle_type_code"], errors="coerce").map(VEHICLE_TYPE_CODES)
+            df["vehicle_type"] = _decode_codes(df["vehicle_type_code"], VEHICLE_TYPE_CODES)
+            df["is_hgv"] = df["vehicle_type_code"].isin(HGV_VEHICLE_TYPE_CODES)
 
     logger.info(f"Loaded {len(df):,} casualties for {year}")
     return df
@@ -463,8 +545,9 @@ def get_vehicles(
             - year: int
             - ref: int (collision reference number for linking)
             - vehicle_id: int
-            - vehicle_type: str (if decoded)
-            - vehicle_type_code: int
+            - vehicle_type: str (if decoded; see ``VEHICLE_TYPE_CODES``)
+            - vehicle_type_code: Int64 (blank cells are ``<NA>``)
+            - is_hgv: bool (goods vehicle over 3.5 tonnes: codes 16, 17 and 24; if decoded)
             - driver_sex_code: int
             - driver_age_group: int
 
@@ -496,9 +579,14 @@ def get_vehicles(
     }
     df = df.rename(columns={k: v for k, v in column_mapping.items() if k in df.columns})
 
+    # Some years carry a stray blank in v_type, which loads the whole column as text
+    if "vehicle_type_code" in df.columns:
+        df["vehicle_type_code"] = _to_code(df["vehicle_type_code"])
+
     # Add decoded values
     if decode_values and "vehicle_type_code" in df.columns:
-        df["vehicle_type"] = df["vehicle_type_code"].map(VEHICLE_TYPE_CODES)
+        df["vehicle_type"] = _decode_codes(df["vehicle_type_code"], VEHICLE_TYPE_CODES)
+        df["is_hgv"] = df["vehicle_type_code"].isin(HGV_VEHICLE_TYPE_CODES)
 
     logger.info(f"Loaded {len(df):,} vehicles for {year}")
     return df
@@ -707,6 +795,64 @@ def get_casualties_by_road_user(
     result["fatality_rate"] = (result["fatal"] / result["casualties"] * 100).round(2)
 
     return result.sort_values("casualties", ascending=False).reset_index(drop=True)
+
+
+def get_hgv_ksi_casualties(
+    years: list[int] | None = None,
+    force_refresh: bool = False,
+) -> pd.DataFrame:
+    """Count killed or seriously injured casualties in collisions involving a heavy goods vehicle.
+
+    A collision counts when at least one of its vehicles is a goods vehicle over 3.5 tonnes (codes
+    16, 17 and 24; see ``HGV_VEHICLE_TYPE_CODES``). Every casualty in such a collision is counted,
+    whatever vehicle they were in, which is the Department for Infrastructure's basis for its
+    published series.
+
+    Args:
+        years: Years to include (default: all available)
+        force_refresh: If True, bypass cache and re-download
+
+    Returns:
+        DataFrame with columns:
+            - year: int
+            - ksi_casualties: int (fatal plus serious casualties in collisions involving an HGV)
+            - fatal: int
+            - serious: int
+            - all_ksi_casualties: int (fatal plus serious casualties in all collisions)
+            - hgv_share_pct: float (ksi_casualties as a percentage of all_ksi_casualties)
+
+    Raises:
+        PSNIDataNotFoundError: If a requested year has no data
+
+    Example:
+        >>> hgv = get_hgv_ksi_casualties([2024])
+        >>> int(hgv.loc[0, "ksi_casualties"])
+        44
+    """
+    if years is None:
+        years = sorted(set(get_available_years()))
+
+    rows = []
+    for year in sorted(years):
+        vehicles = get_vehicles(year, force_refresh=force_refresh)
+        casualties = get_casualties(year, force_refresh=force_refresh)
+
+        hgv_refs = set(vehicles.loc[vehicles["is_hgv"], "ref"])
+        ksi = casualties[casualties["severity_code"].isin([1, 2])]
+        involving_hgv = ksi[ksi["ref"].isin(hgv_refs)]
+        rows.append(
+            {
+                "year": year,
+                "ksi_casualties": len(involving_hgv),
+                "fatal": int((involving_hgv["severity_code"] == 1).sum()),
+                "serious": int((involving_hgv["severity_code"] == 2).sum()),
+                "all_ksi_casualties": len(ksi),
+            }
+        )
+
+    df = pd.DataFrame(rows)
+    df["hgv_share_pct"] = (df["ksi_casualties"] / df["all_ksi_casualties"] * 100).round(1)
+    return df
 
 
 def validate_data(df: pd.DataFrame, data_type: Literal["collision", "casualty", "vehicle"]) -> bool:
