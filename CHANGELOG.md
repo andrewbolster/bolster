@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.11.14\] - 2026-11-12
+
+- feat(public-expenditure): add NI Executive public expenditure module (#2292)
+- feat(racial-equality): add NI Racial Equality Indicators from PxStat (#2293)
+
 ## \[0.11.13\] - 2026-11-12
 
 - feat(racial-equality): add NI Racial Equality Indicators from PxStat (#2293)
