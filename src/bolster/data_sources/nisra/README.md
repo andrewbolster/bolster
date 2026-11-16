@@ -59,10 +59,10 @@ This module provides programmatic access to Northern Ireland Statistics and Rese
 - **Update Frequency**: Annual (published ~6 months after reference date)
 - **Mother Page**: https://www.nisra.gov.uk/statistics/people-and-communities/population
 - **Data Dimensions**:
-  - Geography (Northern Ireland, Parliamentary Constituencies, Health and Social Care Trusts)
+  - Geography (Northern Ireland, Local Government Districts)
   - Sex (All persons, Males, Females)
   - Age (5-year age bands: 00-04, 05-09, ..., 90+)
-  - Year (1971-present for NI overall, 2021-present for sub-geographies)
+  - Year (1971-present for NI overall, 2001-present for Local Government Districts)
 - **Key Functions**:
   - `get_latest_population()` - Automatically fetches most recent population estimates
   - `parse_population_file()` - Parse specific Excel file
