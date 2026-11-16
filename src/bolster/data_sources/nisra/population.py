@@ -1,10 +1,13 @@
 """NISRA Mid-Year Population Estimates Data Source.
 
 Provides access to mid-year population estimates for Northern Ireland with breakdowns by:
-- Geography (Northern Ireland, Parliamentary Constituencies, Health and Social Care Trusts)
+- Geography (Northern Ireland, Local Government Districts)
 - Sex (All persons, Males, Females)
 - Age (5-year age bands: 00-04, 05-09, ..., 85-89, 90+)
-- Year (1971-present for NI overall, 2021-present for sub-geographies)
+- Year (1971-present for Northern Ireland, 2001-present for Local Government Districts)
+
+The published file holds no Health and Social Care Trust or constituency estimates, and
+``area`` accepts only the groupings the file contains.
 
 Mid-year estimates are referenced to June 30th of each year.
 
@@ -34,6 +37,11 @@ Example:
     >>> ni_df = population.get_latest_population(area='Northern Ireland')
     >>> len(ni_df) > 0
     True
+
+    >>> # Get the 11 Local Government Districts
+    >>> lgd_df = population.get_latest_population(area='Local Government Districts')
+    >>> lgd_df['area_name'].nunique()
+    11
 """
 
 import logging
@@ -51,6 +59,30 @@ logger = logging.getLogger(__name__)
 
 # Base URL for population statistics
 POPULATION_BASE_URL = "https://www.nisra.gov.uk/statistics/population/mid-year-population-estimates"
+
+# The Flat sheet labels each geography as "<n>. <name> (<vintage>)", e.g. "2. Local Government Districts (LGD2014)"
+_AREA_NUMBER_PREFIX = re.compile(r"^\d+\.\s*")
+_AREA_VINTAGE_SUFFIX = re.compile(r"\s*\([^)]*\)\s*$")
+
+
+def _area_options(df: pd.DataFrame) -> dict[str, str]:
+    """Map each area grouping present in the file to the name accepted by ``area``.
+
+    The numbering and the geography vintage are dropped, so ``"2. Local Government
+    Districts (LGD2014)"`` is requested as ``"Local Government Districts"``. The options are
+    read from the file, so they always match what the publication contains.
+
+    Args:
+        df: The parsed Flat sheet, with its raw ``area`` column.
+
+    Returns:
+        Dict of accepted area name to the raw ``area`` value it selects.
+    """
+    options = {}
+    for raw in df["area"].dropna().unique():
+        name = _AREA_VINTAGE_SUFFIX.sub("", _AREA_NUMBER_PREFIX.sub("", str(raw))).strip()
+        options[name] = raw
+    return options
 
 
 def get_latest_population_publication_url() -> tuple[str, int]:
@@ -145,9 +177,7 @@ def parse_population_file(
     area: Literal[
         "all",
         "Northern Ireland",
-        "Parliamentary Constituencies (2024)",
-        "Health and Social Care Trusts",
-        "Parliamentary Constituencies (2008)",
+        "Local Government Districts",
     ]
     | None = "all",
 ) -> pd.DataFrame:
@@ -158,12 +188,11 @@ def parse_population_file(
 
     Args:
         file_path: Path to the population Excel file
-        area: Which geographic area(s) to return:
-            - "all": All geographic breakdowns
+        area: Which geographic area(s) to return. The accepted values are the groupings the
+            file contains:
+            - "all": Every grouping in the file
             - "Northern Ireland": NI overall only (1971-present)
-            - "Parliamentary Constituencies (2024)": 2024 constituencies (2021-present)
-            - "Health and Social Care Trusts": HSC Trusts (2021-present)
-            - "Parliamentary Constituencies (2008)": 2008 constituencies (2021-present)
+            - "Local Government Districts": The 11 districts (2001-present)
 
     Returns:
         DataFrame with columns:
@@ -178,7 +207,8 @@ def parse_population_file(
             - population: int (mid-year estimate)
 
     Raises:
-        NISRAValidationError: If file structure is unexpected
+        NISRAValidationError: If file structure is unexpected, or ``area`` names a grouping the
+            file does not contain (the message lists the groupings it does contain)
     """
     file_path = Path(file_path)
 
@@ -202,22 +232,14 @@ def parse_population_file(
 
     # Filter by area if specified
     if area and area != "all":
-        # Map user-friendly names to area column values
-        area_map = {
-            "Northern Ireland": "1. Northern Ireland",
-            "Parliamentary Constituencies (2024)": "2. Parliamentary Constituencies (2024)",
-            "Health and Social Care Trusts": "3. Health and Social Care Trusts",
-            "Parliamentary Constituencies (2008)": "4. Parliamentary Constituencies (2008)",
-        }
-
-        area_value = area_map.get(area)
-        if not area_value:
-            raise ValueError(f"Invalid area: {area}. Choose from: {list(area_map.keys())}")
+        options = _area_options(df)
+        area_value = options.get(area)
+        if area_value is None:
+            raise NISRAValidationError(
+                f"Unknown area {area!r}: the published file contains only {sorted(options)} (or 'all')"
+            )
 
         df = df[df["area"] == area_value].copy()
-
-        if df.empty:
-            raise NISRAValidationError(f"No data found for area: {area}")
 
     # Sort for consistent output
     return df.sort_values(["area", "year", "sex", "age_5"]).reset_index(drop=True)
@@ -227,9 +249,7 @@ def get_latest_population(
     area: Literal[
         "all",
         "Northern Ireland",
-        "Parliamentary Constituencies (2024)",
-        "Health and Social Care Trusts",
-        "Parliamentary Constituencies (2008)",
+        "Local Government Districts",
     ]
     | None = "all",
     force_refresh: bool = False,
@@ -240,7 +260,9 @@ def get_latest_population(
     from the NISRA website.
 
     Args:
-        area: Which geographic area(s) to return (default: "all")
+        area: Which geographic area(s) to return (default: "all"): "Northern Ireland"
+            (1971-present), "Local Government Districts" (2001-present) or "all". These are the
+            groupings in the published file; any other value raises ``NISRAValidationError``.
         force_refresh: If True, bypass cache and download fresh data
 
     Returns:
@@ -254,7 +276,8 @@ def get_latest_population(
 
     Raises:
         NISRADataNotFoundError: If latest publication cannot be found
-        NISRAValidationError: If file structure is unexpected
+        NISRAValidationError: If file structure is unexpected, or ``area`` is not a grouping in
+            the file
 
     Example:
         >>> df = get_latest_population()
