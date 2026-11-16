@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.11.15\] - 2026-11-16
+
+- feat(psni): add hate motivated incidents and crimes (PxStat HATE* cubes) (#2301)
+
 ## \[0.11.14\] - 2026-11-12
 
 - feat(public-expenditure): add NI Executive public expenditure module (#2292)
