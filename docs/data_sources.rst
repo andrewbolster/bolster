@@ -105,6 +105,33 @@ Hate-motivated crime in general is held in the separate ``HATE*`` PxStat cubes.
     $ bolster nisra racial-equality --list
     $ bolster nisra racial-equality --indicator prejudice --year 2025
 
+Respect Index
+~~~~~~~~~~~~~
+
+The share of adults who feel respected, from the Northern Ireland Life and Times survey
+and published annually by The Executive Office (2016 to the latest release). A person
+counts as respected only if they answered "Never" to all nine Everyday Discrimination
+Scale questions, so the index is a stringent measure. Each year is broken down by sex,
+age, religion and disability. Samples are about 1,150 to 1,350 adults a year, and the
+survey moved from in-person to web and telephone interviewing in 2020, so comparisons
+spanning 2020 mix modes. The workbook is found by scraping the hub page; PxStat's
+``RESPECTNI`` and ``RESPECTEQ`` cubes hold the same figures for 2016 to 2023 and are
+used only to cross-check it.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import respect_index
+
+    df = respect_index.get_latest_respect_index()
+    everyone = df[df["group_type"] == "all"]
+    questions = respect_index.get_question_responses()
+
+.. code-block:: console
+
+    $ bolster nisra respect-index --group-type all
+    $ bolster nisra respect-index --group-type age --year 2025
+    $ bolster nisra respect-index --table questions
+
 Population
 ~~~~~~~~~~
 
@@ -1099,6 +1126,39 @@ covers injury events rather than enforcement actions.
 
     $ bolster psni motoring-offences --list-tables
     $ bolster psni motoring-offences --table district
+
+Hate Motivated Incidents and Crimes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Police recorded sexual orientation, racist and sectarian incidents and crimes
+by financial year from 2004/05, read from the six PxStat ``HATE*`` cubes by
+Assembly Area, Health and Social Care Trust, urban/rural, Local Government
+District, District Electoral Area and ward (2014 boundaries). Only those three
+motivations are in the cubes, so totals are not all hate crime. Incidents
+start in 2007/08 and the Assembly Area, Health Trust and urban/rural cubes
+publish crimes only.
+
+Every cube carries a Northern Ireland total row, so area frames leave it out
+and :func:`~bolster.data_sources.psni.hate_crime.get_hate_crime_ni_totals`
+returns the totals on their own. The LGD, DEA and ward cubes add up exactly to
+Northern Ireland; the other three fall short by up to 9 crimes a year, which
+:func:`~bolster.data_sources.psni.hate_crime.get_unallocated` reports. The
+racist counts equal the ``RACEREI`` cube of
+:mod:`~bolster.data_sources.nisra.racial_equality_indicators`.
+
+.. code-block:: python
+
+    from bolster.data_sources.psni import hate_crime
+
+    districts = hate_crime.get_latest_hate_crime("lgd", motivation="racist", measure="crimes")
+    totals = hate_crime.get_hate_crime_ni_totals()
+    gap = hate_crime.get_unallocated("assembly_area")
+
+.. code-block:: console
+
+    $ bolster psni hate-crime --motivation racist --measure crimes
+    $ bolster psni hate-crime --ni-totals --format csv
+    $ bolster psni hate-crime --geography assembly_area --unallocated
 
 Police Ombudsman
 ~~~~~~~~~~~~~~~~
