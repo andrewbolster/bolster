@@ -285,3 +285,97 @@ class TestRTCAnnualSummary:
         """Test that annual summary is sorted by year."""
         years = annual_summary["year"].tolist()
         assert years == sorted(years), "Annual summary not sorted by year"
+
+
+class TestRTCAvailableYears:
+    """The year list covers the collision datasets only."""
+
+    def test_years_are_unique_and_contiguous(self):
+        years = road_traffic_collisions.get_available_years()
+        assert len(years) == len(set(years)), f"Duplicate years: {years}"
+        assert years == sorted(years, reverse=True)
+        # 2011 and the second 2020 entry came from the Road Safety Partnership datasets
+        assert min(years) >= 2013
+        assert years == list(range(max(years), min(years) - 1, -1)), f"Gap in years: {years}"
+
+
+class TestRTCCodeDecoding:
+    """Every code in every year's files decodes to a label in the PSNI Data Guide."""
+
+    YEARS = range(2013, 2026)
+
+    @pytest.mark.parametrize("year", YEARS)
+    def test_vehicle_type_decodes_in_every_year(self, year):
+        vehicles = road_traffic_collisions.get_vehicles(year)
+        labels = vehicles["vehicle_type"]
+        assert not labels.isna().any()
+        unlisted = sorted(set(labels[labels.str.startswith("Unknown (code")]))
+        assert not unlisted, f"{year}: vehicle type codes missing from the Data Guide: {unlisted}"
+        known = set(road_traffic_collisions.VEHICLE_TYPE_CODES.values()) | {road_traffic_collisions.NOT_RECORDED}
+        assert set(labels) <= known
+        # A few blank cells are normal (up to 22 rows in a year); a column that fails to decode is not
+        blank = (labels == road_traffic_collisions.NOT_RECORDED).mean()
+        assert blank < 0.01, f"{year}: {blank:.1%} of vehicle types are blank"
+
+    @pytest.mark.parametrize("year", YEARS)
+    def test_casualty_class_and_vehicle_type_decode_in_every_year(self, year):
+        casualties = road_traffic_collisions.get_casualties(year)
+        for column in ("casualty_class", "vehicle_type"):
+            labels = casualties[column]
+            assert not labels.isna().any(), f"{year}: {column} has NaN"
+            unlisted = sorted(set(labels[labels.str.startswith("Unknown (code")]))
+            assert not unlisted, f"{year}: {column} codes missing from the Data Guide: {unlisted}"
+
+    def test_pedal_cyclists_are_in_the_road_user_counts(self):
+        by_user = road_traffic_collisions.get_casualties_by_road_user(2024)
+        casualties = road_traffic_collisions.get_casualties(2024)
+        assert by_user["casualties"].sum() == len(casualties)
+        assert "Pedal cyclist" in set(by_user["casualty_class"])
+
+    def test_engine_size_and_weight_band_codes_are_absent_in_2017_to_2022(self):
+        """The module docstring says codes 4, 5 and 17 have no rows in these years; codes 23 and 24 carry them."""
+        for year in range(2017, 2023):
+            vehicles = road_traffic_collisions.get_vehicles(year, decode_values=False)
+            codes = set(vehicles["vehicle_type_code"].dropna())
+            assert not codes & {4, 5, 17}, f"{year}: codes 4, 5 or 17 now present"
+            assert {23, 24} <= codes, f"{year}: unknown size and weight codes missing"
+
+
+class TestRTCHgvKsiMatchesDfI:
+    """KSI casualties in collisions involving a goods vehicle over 3.5 tonnes match DfI's published series.
+
+    Source: Department for Infrastructure, "KSI casualties involving HGVs in Northern Ireland, 2016-2025"
+    (all collision and casualty data sourced from the PSNI Road Traffic Collision Statistics).
+    """
+
+    DFI_HGV_KSI = {2016: 28, 2017: 30, 2018: 34, 2019: 32, 2020: 34, 2021: 44, 2022: 57, 2023: 46, 2024: 44, 2025: 42}
+    DFI_HGV_KSI_TOTAL = 391
+    ALL_KSI_TOTAL = 8909  # all KSI casualties 2016-2025, from the same brief
+
+    @pytest.fixture(scope="class")
+    def hgv(self):
+        return road_traffic_collisions.get_hgv_ksi_casualties(sorted(self.DFI_HGV_KSI)).set_index("year")
+
+    def test_each_year_matches_dfi(self, hgv):
+        assert hgv["ksi_casualties"].to_dict() == self.DFI_HGV_KSI
+
+    def test_total_matches_dfi(self, hgv):
+        assert hgv["ksi_casualties"].sum() == self.DFI_HGV_KSI_TOTAL
+
+    def test_all_ksi_casualties_total(self, hgv):
+        assert hgv["all_ksi_casualties"].sum() == self.ALL_KSI_TOTAL
+
+    def test_fatal_plus_serious_equals_ksi(self, hgv):
+        assert (hgv["fatal"] + hgv["serious"] == hgv["ksi_casualties"]).all()
+
+    def test_code_17_alone_would_undercount(self):
+        """Documents why the definition includes codes 16 and 24: code 17 alone gives 122 for 2016-2025."""
+        total = 0
+        for year in sorted(self.DFI_HGV_KSI):
+            vehicles = road_traffic_collisions.get_vehicles(year, decode_values=False)
+            casualties = road_traffic_collisions.get_casualties(year, decode_values=False)
+            refs = set(vehicles.loc[vehicles["vehicle_type_code"] == 17, "ref"])
+            ksi = casualties[casualties["severity_code"].isin([1, 2])]
+            total += int(ksi["ref"].isin(refs).sum())
+        assert total == 122
+        assert total < self.DFI_HGV_KSI_TOTAL
