@@ -1,5 +1,12 @@
 # Changelog
 
+## \[0.11.15\] - 2026-11-16
+
+- fix(psni): correct road collision vehicle-type and casualty-class code maps (#2308)
+- fix(population): make area options match the published file (#2315)
+- feat(young-people-culture-sport): add YPBAS culture, arts, heritage and sport (#2303)
+- feat(respect-index): add NI Respect Index (Everyday Discrimination Scale) (#2302)
+
 ## \[0.11.14\] - 2026-11-12
 
 - feat(public-expenditure): add NI Executive public expenditure module (#2292)
