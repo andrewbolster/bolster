@@ -139,6 +139,7 @@ People and society:
 [`wellbeing`](https://bolster.readthedocs.io/en/latest/data_sources.html#wellbeing),
 [`public_confidence`](https://bolster.readthedocs.io/en/latest/data_sources.html#public-confidence-in-official-statistics),
 [`racial_equality_indicators`](https://bolster.readthedocs.io/en/latest/data_sources.html#racial-equality-indicators),
+[`respect_index`](https://bolster.readthedocs.io/en/latest/data_sources.html#respect-index),
 [`drug_related_deaths`](https://bolster.readthedocs.io/en/latest/data_sources.html#drug-related-deaths),
 [`armed_forces_veterans`](https://bolster.readthedocs.io/en/latest/data_sources.html#census-2021-uk-armed-forces-veterans)
 
@@ -191,7 +192,8 @@ Education:
 [`motoring_offences`](https://bolster.readthedocs.io/en/latest/data_sources.html#motoring-offences),
 [`road_safety_partnership`](https://bolster.readthedocs.io/en/latest/data_sources.html#road-safety-partnership) (safety camera detections),
 [`security_situation`](https://bolster.readthedocs.io/en/latest/data_sources.html#security-situation-statistics) (deaths, incidents, paramilitary attacks, arrests, 1969-present),
-[`breath_tests`](https://bolster.readthedocs.io/en/latest/data_sources.html#preliminary-breath-tests) (preliminary breath tests conducted, 2010-present)
+[`breath_tests`](https://bolster.readthedocs.io/en/latest/data_sources.html#preliminary-breath-tests) (preliminary breath tests conducted, 2010-present),
+[`hate_crime`](https://bolster.readthedocs.io/en/latest/data_sources.html#hate-motivated-incidents-and-crimes) (sexual orientation, racist and sectarian incidents and crimes by area down to ward, 2004/05-present)
 
 ### Department of Justice (`justice`)
 

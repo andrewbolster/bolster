@@ -77,6 +77,7 @@ from .data_sources.nisra import population_projections as nisra_projections
 from .data_sources.nisra import public_confidence as nisra_public_confidence
 from .data_sources.nisra import racial_equality_indicators as nisra_racial_equality
 from .data_sources.nisra import registrar_general as nisra_registrar_general
+from .data_sources.nisra import respect_index as nisra_respect_index
 from .data_sources.nisra import school_leavers as nisra_school_leavers
 from .data_sources.nisra import teacher_workforce as nisra_teacher_workforce
 from .data_sources.nisra import wellbeing as nisra_wellbeing
@@ -7211,6 +7212,158 @@ def psni_motoring_offences_cmd(table, list_tables, year, output_format, save, fo
         raise click.Abort() from e
 
 
+@psni.command(name="hate-crime")
+@click.option(
+    "--geography",
+    type=click.Choice(
+        ["assembly_area", "health_trust", "urban_rural", "lgd", "dea", "ward"],
+        case_sensitive=False,
+    ),
+    default="lgd",
+    help="Area breakdown (default: lgd). Use --list-geographies to see the cubes.",
+)
+@click.option(
+    "--motivation",
+    type=click.Choice(["sexual_orientation", "racist", "sectarian"], case_sensitive=False),
+    help="Only this motivation (default: all three)",
+)
+@click.option(
+    "--measure",
+    type=click.Choice(["crimes", "incidents"], case_sensitive=False),
+    help="Only crimes or only incidents (default: both where published)",
+)
+@click.option("--year", type=int, help="Financial year starting this year (default: latest for table output)")
+@click.option("--ni-totals", is_flag=True, help="Show the Northern Ireland totals instead of an area breakdown")
+@click.option("--unallocated", is_flag=True, help="Show crimes recorded in Northern Ireland but not placed in an area")
+@click.option("--list-geographies", is_flag=True, help="List the area breakdowns and exit")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--force-refresh", is_flag=True, help="Accepted for consistency; PxStat is always read live")
+def psni_hate_crime_cmd(
+    geography,
+    motivation,
+    measure,
+    year,
+    ni_totals,
+    unallocated,
+    list_geographies,
+    output_format,
+    save,
+    force_refresh,
+):
+    """PSNI hate motivated incidents and crimes.
+
+    Police recorded sexual orientation, racist and sectarian incidents and
+    crimes by financial year (from 2004/05) and area, read from the PxStat
+    HATE* cubes. Only those three motivations are in the cubes, so totals are
+    not all hate crime.
+
+    Args:
+        geography: Area breakdown
+        motivation: Filter to one motivation
+        measure: Filter to crimes or incidents
+        year: Financial year starting this year
+        ni_totals: Show Northern Ireland totals only
+        unallocated: Show crimes not placed in an area
+        list_geographies: List the area breakdowns and exit
+        output_format: Output format (table, csv, or json)
+        save: Save data to file (specify filename)
+        force_refresh: Ignored (PxStat is always read live)
+
+    Examples:
+        Racist crimes by district for the latest year::
+
+            bolster psni hate-crime --motivation racist --measure crimes
+
+        Northern Ireland totals for every year as CSV::
+
+            bolster psni hate-crime --ni-totals --format csv
+
+        Ward-level sectarian incidents in 2024/25::
+
+            bolster psni hate-crime --geography ward --motivation sectarian --measure incidents --year 2024
+
+        Crimes recorded in Northern Ireland but not placed in an Assembly Area::
+
+            bolster psni hate-crime --geography assembly_area --unallocated
+
+    Data Notes:
+        - Financial years from 2004/05; incidents from 2007/08
+        - Every cube includes a Northern Ireland row; area output leaves it out
+        - Assembly Area, Health Trust and urban/rural cubes publish crimes only
+        - LGD, DEA and ward cubes use the 2014 boundaries
+    """
+    from rich.table import Table
+
+    from bolster.data_sources.psni import hate_crime
+
+    console = Console()
+
+    if list_geographies:
+        console.print("\n[bold blue]Available geographies[/bold blue]\n")
+        for row in hate_crime.list_geographies().to_dict("records"):
+            console.print(f"  {row['geography']:14} {row['cube']:9} {row['title']}")
+        return
+
+    try:
+        console.print("\n[bold blue]🚔 PSNI hate motivated incidents and crimes[/bold blue]\n")
+
+        if unallocated:
+            df = hate_crime.get_unallocated(geography)
+            if motivation:
+                df = df[df["motivation"] == motivation]
+            if measure:
+                df = df[df["measure"] == measure]
+        elif ni_totals:
+            df = hate_crime.get_hate_crime_ni_totals(motivation=motivation, measure=measure)
+        else:
+            df = hate_crime.get_latest_hate_crime(geography, motivation=motivation, measure=measure)
+
+        if year is None and output_format == "table" and not df.empty:
+            year = int(df["year"].max())
+        if year is not None:
+            df = df[df["year"] == year]
+            if df.empty:
+                raise click.ClickException(f"No rows for financial year starting {year}")
+        df = df.reset_index(drop=True)
+
+        if output_format == "table":
+            rich_table = Table(show_header=True, header_style="bold cyan")
+            for col in df.columns:
+                rich_table.add_column(str(col))
+            for _, row in df.iterrows():
+                rich_table.add_row(*[str(v) for v in row.values])
+            console.print(rich_table)
+
+        elif output_format == "csv":
+            click.echo(df.to_csv(index=False), nl=False)
+
+        elif output_format == "json":
+            console.print(df.to_json(orient="records", indent=2))
+
+        if save:
+            if save.endswith(".json"):
+                df.to_json(save, orient="records", indent=2)
+            else:
+                df.to_csv(save, index=False)
+            console.print(f"\n[green]✅ Saved to {save}[/green]")
+
+        if output_format == "table":
+            console.print(f"\n[dim]{len(df):,} rows[/dim]")
+
+    except click.ClickException:
+        raise
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        raise click.Abort() from e
+
+
 @psni.command(name="breath-tests")
 @click.option(
     "--topic",
@@ -8336,6 +8489,103 @@ def nisra_racial_equality_cmd(indicator, list_indicators, year, output_format, f
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
         console.print("\n[yellow]Troubleshooting:[/yellow]")
         console.print("   - Run with --list to see valid indicator names")
+        raise click.Abort() from e
+
+
+@nisra.command(name="respect-index")
+@click.option(
+    "--table",
+    type=click.Choice(["index", "questions"], case_sensitive=False),
+    default="index",
+    help="Table to retrieve (default: index)",
+)
+@click.option(
+    "--group-type",
+    type=click.Choice(["all", "sex", "age", "religion", "disability"], case_sensitive=False),
+    default=None,
+    help="Only this kind of group (index table only)",
+)
+@click.option("--year", type=int, default=None, help="Only this survey year")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Re-discover and re-download the workbook")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_respect_index_cmd(table, group_type, year, output_format, force_refresh, save):
+    r"""A Respect Index for Northern Ireland (Everyday Discrimination Scale).
+
+    \b
+    The share of adults who feel respected, from the Northern Ireland Life and
+    Times survey. Someone counts as respected only if they answered "Never" to all
+    nine Everyday Discrimination Scale questions. Output is one row per survey
+    year and group.
+
+    Examples:
+        The whole series for all adults::
+
+            bolster nisra respect-index --group-type all
+
+        By age in the latest year::
+
+            bolster nisra respect-index --group-type age --year 2025
+
+        Answers to each of the nine questions::
+
+            bolster nisra respect-index --table questions
+
+    Source:
+        The Executive Office: https://www.executiveoffice-ni.gov.uk/topics/respect-index
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        with console.status("[bold green]Fetching the Respect Index..."):
+            data = nisra_respect_index.get_latest_data(table, force_refresh=force_refresh)
+
+        if group_type is not None:
+            if table != "index":
+                console.print("[yellow]--group-type applies to the index table only[/yellow]")
+                return
+            data = data[data["group_type"] == group_type]
+        if year is not None:
+            data = data[data["year"] == year]
+        if data.empty:
+            console.print("[yellow]No data found for those options[/yellow]")
+            return
+
+        console.print(f"[cyan]Rows: {len(data)} | Survey years: {data['year'].nunique()}[/cyan]")
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        else:
+            click.echo(data.to_csv(index=False), nl=False)
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to re-discover the workbook")
         raise click.Abort() from e
 
 
