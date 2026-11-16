@@ -14,6 +14,9 @@ published at https://www.communities-ni.gov.uk.
   household food security and food bank usage.
 - employment_vacancies: Vacancies notified to DfC, by quarter and month from
   the DfC factsheet, and by financial year and area from NISRA PxStat.
+- young_people_culture_sport: Triennial Young Persons' Behaviour and Attitudes Survey
+  findings on young people's experience of culture, arts, heritage and sport, by sex,
+  year group, religion, disability and free school meals.
 
 Corresponding CLI commands live under ``bolster dfc ...``.
 """
@@ -23,6 +26,13 @@ from bolster.data_sources.dfc import (
     employment_vacancies,
     family_resources_survey,
     neighbourhood_renewal_profiles,
+    young_people_culture_sport,
 )
 
-__all__ = ["child_maintenance", "employment_vacancies", "family_resources_survey", "neighbourhood_renewal_profiles"]
+__all__ = [
+    "child_maintenance",
+    "employment_vacancies",
+    "family_resources_survey",
+    "neighbourhood_renewal_profiles",
+    "young_people_culture_sport",
+]
