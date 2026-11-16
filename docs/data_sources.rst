@@ -105,6 +105,33 @@ Hate-motivated crime in general is held in the separate ``HATE*`` PxStat cubes.
     $ bolster nisra racial-equality --list
     $ bolster nisra racial-equality --indicator prejudice --year 2025
 
+Respect Index
+~~~~~~~~~~~~~
+
+The share of adults who feel respected, from the Northern Ireland Life and Times survey
+and published annually by The Executive Office (2016 to the latest release). A person
+counts as respected only if they answered "Never" to all nine Everyday Discrimination
+Scale questions, so the index is a stringent measure. Each year is broken down by sex,
+age, religion and disability. Samples are about 1,150 to 1,350 adults a year, and the
+survey moved from in-person to web and telephone interviewing in 2020, so comparisons
+spanning 2020 mix modes. The workbook is found by scraping the hub page; PxStat's
+``RESPECTNI`` and ``RESPECTEQ`` cubes hold the same figures for 2016 to 2023 and are
+used only to cross-check it.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import respect_index
+
+    df = respect_index.get_latest_respect_index()
+    everyone = df[df["group_type"] == "all"]
+    questions = respect_index.get_question_responses()
+
+.. code-block:: console
+
+    $ bolster nisra respect-index --group-type all
+    $ bolster nisra respect-index --group-type age --year 2025
+    $ bolster nisra respect-index --table questions
+
 Population
 ~~~~~~~~~~
 
