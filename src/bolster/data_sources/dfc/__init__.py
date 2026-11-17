@@ -17,6 +17,9 @@ published at https://www.communities-ni.gov.uk.
 - gambling_licensing: Annual gambling licences, permits and registrations by
   category, plus registered businesses, employment, land-based turnover and
   betting and gaming duty, from the DfC tables workbook for each release.
+- young_people_culture_sport: Triennial Young Persons' Behaviour and Attitudes Survey
+  findings on young people's experience of culture, arts, heritage and sport, by sex,
+  year group, religion, disability and free school meals.
 
 Corresponding CLI commands live under ``bolster dfc ...``.
 """
@@ -27,6 +30,7 @@ from bolster.data_sources.dfc import (
     family_resources_survey,
     gambling_licensing,
     neighbourhood_renewal_profiles,
+    young_people_culture_sport,
 )
 
 __all__ = [
@@ -35,4 +39,5 @@ __all__ = [
     "family_resources_survey",
     "gambling_licensing",
     "neighbourhood_renewal_profiles",
+    "young_people_culture_sport",
 ]
