@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.11.16\] - 2026-11-17
+
+- feat(gambling): add NI gambling licensing and industry data (#2314)
+
 ## \[0.11.15\] - 2026-11-16
 
 - fix(psni): correct road collision vehicle-type and casualty-class code maps (#2308)
