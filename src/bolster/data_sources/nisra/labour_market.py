@@ -469,6 +469,57 @@ def parse_economic_inactivity(file_path: str | Path) -> pd.DataFrame:
     return pd.DataFrame(records)
 
 
+_MONTH_ABBREVS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+# A month as it appears in NISRA filenames: the full name or the three-letter
+# abbreviation (``Sept`` is also accepted), in any letter case.
+_MONTH_TOKEN = (
+    r"jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?"
+    r"|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?"
+)
+
+_LFS_QUARTER_FILENAME = re.compile(
+    rf"(?<![a-z])({_MONTH_TOKEN})-({_MONTH_TOKEN})-(\d{{2}})(?!\d)",
+    re.IGNORECASE,
+)
+
+
+def _month_number(token: str) -> int:
+    """Return the month number (1-12) for a full month name or abbreviation such as ``Jul``."""
+    return [m.lower() for m in _MONTH_ABBREVS].index(token[:3].lower()) + 1
+
+
+def _parse_lfs_quarter_filename(filename: str) -> tuple[str, str]:
+    """Extract the year and quarter from an LFS quarterly tables filename.
+
+    The two months of the quarter may be full names (``July-September-25``) or
+    three-letter abbreviations (``Jul-Sep-26``), in any letter case, and the year is
+    two digits.
+
+    Args:
+        filename: File name, e.g. ``lmr-labour-force-survey-quarterly-tables-Jul-Sep-26.xlsx``.
+
+    Returns:
+        Tuple of (year, quarter), e.g. ``("2026", "Jul-Sep")``.
+
+    Raises:
+        NISRADataNotFoundError: If the filename holds no ``Month-Month-YY`` quarter.
+
+    Example:
+        >>> _parse_lfs_quarter_filename("lmr-labour-force-survey-quarterly-tables-Jul-Sep-26.xlsx")
+        ('2026', 'Jul-Sep')
+        >>> _parse_lfs_quarter_filename("lmr-labour-force-survey-quarterly-tables-July-September-25.xlsx")
+        ('2025', 'Jul-Sep')
+    """
+    match = _LFS_QUARTER_FILENAME.search(filename)
+    if not match:
+        raise NISRADataNotFoundError(f"Could not extract quarter and year from filename: {filename}")
+
+    first, second, year_suffix = match.groups()
+    quarter = f"{_MONTH_ABBREVS[_month_number(first) - 1]}-{_MONTH_ABBREVS[_month_number(second) - 1]}"
+    return f"20{year_suffix}", quarter
+
+
 def get_latest_lfs_publication_url(force_refresh: bool = False) -> tuple[str, str, str]:
     """Find the latest Labour Force Survey quarterly tables publication.
 
@@ -499,36 +550,9 @@ def get_latest_lfs_publication_url(force_refresh: bool = False) -> tuple[str, st
         force_refresh=force_refresh,
     )
 
-    # Extract quarter and year from filename
-    # Pattern: lmr-labour-force-survey-quarterly-tables-July-September-25.xlsx
+    # Extract quarter and year from filename, e.g. lmr-labour-force-survey-quarterly-tables-Jul-Sep-26.xlsx
     filename = excel_url.split("/")[-1]
-    match = re.search(
-        r"(January|February|March|April|May|June|July|August|September|October|November|December)-"
-        r"(January|February|March|April|May|June|July|August|September|October|November|December)-"
-        r"(\d{2})",
-        filename,
-    )
-
-    if not match:
-        raise NISRADataNotFoundError(f"Could not extract quarter and year from filename: {filename}")
-
-    month_to_abbrev = {
-        "January": "Jan",
-        "February": "Feb",
-        "March": "Mar",
-        "April": "Apr",
-        "May": "May",
-        "June": "Jun",
-        "July": "Jul",
-        "August": "Aug",
-        "September": "Sep",
-        "October": "Oct",
-        "November": "Nov",
-        "December": "Dec",
-    }
-
-    year = f"20{match.group(3)}"
-    quarter = f"{month_to_abbrev[match.group(1)]}-{month_to_abbrev[match.group(2)]}"
+    year, quarter = _parse_lfs_quarter_filename(filename)
     logger.info("Extracted quarter: %s %s from %s", quarter, year, filename)
     return (excel_url, year, quarter)
 
@@ -536,21 +560,6 @@ def get_latest_lfs_publication_url(force_refresh: bool = False) -> tuple[str, st
 # ============================================================================
 # Monthly Labour Market Report (LMR) Functions
 # ============================================================================
-
-_LMR_MONTH_NAMES = [
-    "january",
-    "february",
-    "march",
-    "april",
-    "may",
-    "june",
-    "july",
-    "august",
-    "september",
-    "october",
-    "november",
-    "december",
-]
 
 
 def get_latest_monthly_lmr_url(force_refresh: bool = False) -> tuple[str, int, int]:
@@ -640,7 +649,7 @@ def get_latest_monthly_lmr_url(force_refresh: bool = False) -> tuple[str, int, i
             # Extract year and month from filename, e.g. lmr-labour-force-survey-tables-july-2026.xlsx
             filename = excel_url.split("/")[-1]
             m = re.search(
-                r"lmr-labour-force-survey-tables-(" + "|".join(_LMR_MONTH_NAMES) + r")-(\d{4})\.xlsx",
+                rf"lmr-labour-force-survey-tables-({_MONTH_TOKEN})-(\d{{4}})\.xlsx",
                 filename.lower(),
             )
             if not m:  # pragma: no cover
@@ -649,7 +658,7 @@ def get_latest_monthly_lmr_url(force_refresh: bool = False) -> tuple[str, int, i
 
             month_name = m.group(1)
             year = int(m.group(2))
-            month_number = _LMR_MONTH_NAMES.index(month_name) + 1
+            month_number = _month_number(month_name)
             logger.info(f"Found monthly LMR Excel: {month_name} {year} at {excel_url}")
             return (excel_url, year, month_number)
 
