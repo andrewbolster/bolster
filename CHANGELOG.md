@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.11.17\] - 2026-11-17
+
+- fix(nisra): accept abbreviated month names in LFS quarterly filenames (#2322)
+- feat(gambling): add NI gambling licensing and industry data (#2314)
+
 ## \[0.11.16\] - 2026-11-17
 
 - feat(gambling): add NI gambling licensing and industry data (#2314)
