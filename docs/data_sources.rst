@@ -105,6 +105,33 @@ Hate-motivated crime in general is held in the separate ``HATE*`` PxStat cubes.
     $ bolster nisra racial-equality --list
     $ bolster nisra racial-equality --indicator prejudice --year 2025
 
+Respect Index
+~~~~~~~~~~~~~
+
+The share of adults who feel respected, from the Northern Ireland Life and Times survey
+and published annually by The Executive Office (2016 to the latest release). A person
+counts as respected only if they answered "Never" to all nine Everyday Discrimination
+Scale questions, so the index is a stringent measure. Each year is broken down by sex,
+age, religion and disability. Samples are about 1,150 to 1,350 adults a year, and the
+survey moved from in-person to web and telephone interviewing in 2020, so comparisons
+spanning 2020 mix modes. The workbook is found by scraping the hub page; PxStat's
+``RESPECTNI`` and ``RESPECTEQ`` cubes hold the same figures for 2016 to 2023 and are
+used only to cross-check it.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import respect_index
+
+    df = respect_index.get_latest_respect_index()
+    everyone = df[df["group_type"] == "all"]
+    questions = respect_index.get_question_responses()
+
+.. code-block:: console
+
+    $ bolster nisra respect-index --group-type all
+    $ bolster nisra respect-index --group-type age --year 2025
+    $ bolster nisra respect-index --table questions
+
 Population
 ~~~~~~~~~~
 
@@ -115,10 +142,17 @@ Annual mid-year population estimates by age, sex, and Local Government District.
     from bolster.data_sources.nisra import population
 
     df = population.get_latest_population(area="Northern Ireland")
+    districts = population.get_latest_population(area="Local Government Districts")
+
+``area`` accepts the groupings the published file contains: ``"Northern Ireland"`` (1971
+onwards), ``"Local Government Districts"`` (2001 onwards) and ``"all"``. The file holds no Health
+and Social Care Trust or constituency estimates, and any other value raises
+``NISRAValidationError`` naming the groupings it does contain.
 
 .. code-block:: console
 
     $ bolster nisra population
+    $ bolster nisra population --area "Local Government Districts"
 
 Population Projections
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -1123,6 +1157,39 @@ covers injury events rather than enforcement actions.
     $ bolster psni motoring-offences --list-tables
     $ bolster psni motoring-offences --table district
 
+Hate Motivated Incidents and Crimes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Police recorded sexual orientation, racist and sectarian incidents and crimes
+by financial year from 2004/05, read from the six PxStat ``HATE*`` cubes by
+Assembly Area, Health and Social Care Trust, urban/rural, Local Government
+District, District Electoral Area and ward (2014 boundaries). Only those three
+motivations are in the cubes, so totals are not all hate crime. Incidents
+start in 2007/08 and the Assembly Area, Health Trust and urban/rural cubes
+publish crimes only.
+
+Every cube carries a Northern Ireland total row, so area frames leave it out
+and :func:`~bolster.data_sources.psni.hate_crime.get_hate_crime_ni_totals`
+returns the totals on their own. The LGD, DEA and ward cubes add up exactly to
+Northern Ireland; the other three fall short by up to 9 crimes a year, which
+:func:`~bolster.data_sources.psni.hate_crime.get_unallocated` reports. The
+racist counts equal the ``RACEREI`` cube of
+:mod:`~bolster.data_sources.nisra.racial_equality_indicators`.
+
+.. code-block:: python
+
+    from bolster.data_sources.psni import hate_crime
+
+    districts = hate_crime.get_latest_hate_crime("lgd", motivation="racist", measure="crimes")
+    totals = hate_crime.get_hate_crime_ni_totals()
+    gap = hate_crime.get_unallocated("assembly_area")
+
+.. code-block:: console
+
+    $ bolster psni hate-crime --motivation racist --measure crimes
+    $ bolster psni hate-crime --ni-totals --format csv
+    $ bolster psni hate-crime --geography assembly_area --unallocated
+
 Police Ombudsman
 ~~~~~~~~~~~~~~~~
 
@@ -1819,6 +1886,67 @@ table.
     $ bolster dfc vacancies --dimension soc
     $ bolster dfc vacancies --dimension lgd --save vacancies_lgd.csv
     $ bolster dfc vacancies --list-releases
+
+----
+
+Communities — Young People: Culture, Arts, Heritage and Sport
+-------------------------------------------------------------
+
+Findings from the Young Persons' Behaviour and Attitudes Survey (YPBAS) of
+pupils in Years 8 to 12, which the Department for Communities publishes every
+three years (2016, 2019, 2022 and 2025) as two series: culture, arts and
+heritage (ten workbooks in 2025: the arts, museums and science centres, the
+public library service, heritage, Irish, Ulster-Scots and sign language), and
+sport. Figures are percentages of surveyed pupils by sex, year group, religious
+background, disability and free school meals, with a 95% confidence interval and
+the number of respondents (``base``) where the table gives them. The 2025
+tables also say that the weighting for sex, year group and religion changed, so
+those breakdowns need caution against earlier waves.
+
+Two frames are returned. ``get_survey_tables`` gives every estimate of a wave,
+and for the culture series a table of 2013 to 2025 engagement figures with one
+row per survey wave. ``get_wave_comparisons`` gives the tables that compare
+the wave with the previous one, with the publisher's marker of whether the
+difference is significant (``lower``, ``higher`` or ``no_significant_difference``).
+The marker symbols are not explained in the workbooks, so they are read from
+their direction against the figures, and ``marker_consistent`` is ``False`` for a
+row whose marker contradicts the figures (the 2022 sport release has one: the
+Protestant row of table 13, 69% against 65%, is marked lower).
+
+File names and publication slugs change between waves, so the module finds
+them by scraping the hub pages and never builds a URL from the year. The 2025
+wave of both series is read in full. Earlier waves are read as far as their
+layouts allow: in 2016 the sport comparison tables are not read, because their
+marker is a number (``-1``) that the workbook does not explain, and in each
+earlier culture wave the museums workbook has one table of counts (the class
+that visited a museum) that is not a percentage table. Strict mode (the
+default) raises an error naming a table that is not recognised; ``strict=False``
+skips it and lists it in ``frame.attrs["skipped_tables"]``.
+
+.. code-block:: python
+
+    from bolster.data_sources.dfc import young_people_culture_sport as yp
+
+    # Every sport estimate of the latest wave (2025)
+    sport = yp.get_survey_tables("sport")
+
+    # What changed since 2022, and whether the survey calls it significant
+    changes = yp.get_wave_comparisons("sport")
+
+    # One of the ten culture workbooks, by its exact key
+    heritage = yp.get_survey_tables("culture", workbook="experience-of-heritage")
+
+    # An earlier wave, and the waves available
+    sport_2022 = yp.get_survey_tables("sport", year=2022)
+    waves = yp.list_waves("culture")
+
+.. code-block:: console
+
+    $ bolster dfc young-people
+    $ bolster dfc young-people --kind comparisons
+    $ bolster dfc young-people --topic culture --workbook experience-of-heritage
+    $ bolster dfc young-people --year 2022 --save sport_2022.csv
+    $ bolster dfc young-people --topic culture --list-waves
 
 ----
 

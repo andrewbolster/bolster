@@ -78,6 +78,7 @@ from .data_sources.nisra import population_projections as nisra_projections
 from .data_sources.nisra import public_confidence as nisra_public_confidence
 from .data_sources.nisra import racial_equality_indicators as nisra_racial_equality
 from .data_sources.nisra import registrar_general as nisra_registrar_general
+from .data_sources.nisra import respect_index as nisra_respect_index
 from .data_sources.nisra import school_leavers as nisra_school_leavers
 from .data_sources.nisra import teacher_workforce as nisra_teacher_workforce
 from .data_sources.nisra import wellbeing as nisra_wellbeing
@@ -3105,7 +3106,7 @@ def nisra_births_cmd(event_type, output_format, force_refresh, save):
 @click.option(
     "--area",
     type=click.Choice(
-        ["all", "Northern Ireland", "Parliamentary Constituencies (2024)", "Health and Social Care Trusts"],
+        ["all", "Northern Ireland", "Local Government Districts"],
         case_sensitive=False,
     ),
     default="Northern Ireland",
@@ -3129,10 +3130,10 @@ def nisra_population_cmd(area, year, output_format, force_refresh, save):
     """NISRA Mid-Year Population Estimates.
 
     Retrieves annual mid-year population estimates for Northern Ireland with breakdowns by:
-    - Geography (NI overall, Parliamentary Constituencies, Health and Social Care Trusts)
+    - Geography (NI overall, Local Government Districts)
     - Sex (All persons, Males, Females)
     - Age (5-year age bands: 00-04, 05-09, ..., 90+)
-    - Year (1971-present for NI overall, 2021-present for sub-geographies)
+    - Year (1971-present for NI overall, 2001-present for Local Government Districts)
 
     Mid-year estimates are referenced to June 30th of each year.
 
@@ -3150,9 +3151,9 @@ def nisra_population_cmd(area, year, output_format, force_refresh, save):
 
         bolster nisra population --year 2024
 
-    Get Parliamentary Constituencies::
+    Get the 11 Local Government Districts::
 
-        bolster nisra population --area "Parliamentary Constituencies (2024)"
+        bolster nisra population --area "Local Government Districts"
 
     Save to file::
 
@@ -3167,7 +3168,8 @@ def nisra_population_cmd(area, year, output_format, force_refresh, save):
     - Published annually ~6 months after reference date
     - Reference date: June 30th of each year
     - Historical data for NI overall from 1971
-    - Sub-geography data from 2021 onwards
+    - Local Government District data from 2001 onwards
+    - The published file holds no Health and Social Care Trust or constituency estimates
     - Age bands: 5-year groups (00-04, 05-09, ..., 85-89, 90+)
     - Also includes custom age bands and broad age groups
 
@@ -3175,12 +3177,10 @@ def nisra_population_cmd(area, year, output_format, force_refresh, save):
     ----------------
     Northern Ireland
         NI overall (1971-present)
-    Parliamentary Constituencies (2024)
-        2024 parliamentary constituencies (2021-present)
-    Health and Social Care Trusts
-        Health & Social Care Trusts (2021-present)
+    Local Government Districts
+        The 11 Local Government Districts (2001-present)
     all
-        All geographic breakdowns
+        Every geographic breakdown in the file
 
     Returns:
     --------
@@ -7212,6 +7212,158 @@ def psni_motoring_offences_cmd(table, list_tables, year, output_format, save, fo
         raise click.Abort() from e
 
 
+@psni.command(name="hate-crime")
+@click.option(
+    "--geography",
+    type=click.Choice(
+        ["assembly_area", "health_trust", "urban_rural", "lgd", "dea", "ward"],
+        case_sensitive=False,
+    ),
+    default="lgd",
+    help="Area breakdown (default: lgd). Use --list-geographies to see the cubes.",
+)
+@click.option(
+    "--motivation",
+    type=click.Choice(["sexual_orientation", "racist", "sectarian"], case_sensitive=False),
+    help="Only this motivation (default: all three)",
+)
+@click.option(
+    "--measure",
+    type=click.Choice(["crimes", "incidents"], case_sensitive=False),
+    help="Only crimes or only incidents (default: both where published)",
+)
+@click.option("--year", type=int, help="Financial year starting this year (default: latest for table output)")
+@click.option("--ni-totals", is_flag=True, help="Show the Northern Ireland totals instead of an area breakdown")
+@click.option("--unallocated", is_flag=True, help="Show crimes recorded in Northern Ireland but not placed in an area")
+@click.option("--list-geographies", is_flag=True, help="List the area breakdowns and exit")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--force-refresh", is_flag=True, help="Accepted for consistency; PxStat is always read live")
+def psni_hate_crime_cmd(
+    geography,
+    motivation,
+    measure,
+    year,
+    ni_totals,
+    unallocated,
+    list_geographies,
+    output_format,
+    save,
+    force_refresh,
+):
+    """PSNI hate motivated incidents and crimes.
+
+    Police recorded sexual orientation, racist and sectarian incidents and
+    crimes by financial year (from 2004/05) and area, read from the PxStat
+    HATE* cubes. Only those three motivations are in the cubes, so totals are
+    not all hate crime.
+
+    Args:
+        geography: Area breakdown
+        motivation: Filter to one motivation
+        measure: Filter to crimes or incidents
+        year: Financial year starting this year
+        ni_totals: Show Northern Ireland totals only
+        unallocated: Show crimes not placed in an area
+        list_geographies: List the area breakdowns and exit
+        output_format: Output format (table, csv, or json)
+        save: Save data to file (specify filename)
+        force_refresh: Ignored (PxStat is always read live)
+
+    Examples:
+        Racist crimes by district for the latest year::
+
+            bolster psni hate-crime --motivation racist --measure crimes
+
+        Northern Ireland totals for every year as CSV::
+
+            bolster psni hate-crime --ni-totals --format csv
+
+        Ward-level sectarian incidents in 2024/25::
+
+            bolster psni hate-crime --geography ward --motivation sectarian --measure incidents --year 2024
+
+        Crimes recorded in Northern Ireland but not placed in an Assembly Area::
+
+            bolster psni hate-crime --geography assembly_area --unallocated
+
+    Data Notes:
+        - Financial years from 2004/05; incidents from 2007/08
+        - Every cube includes a Northern Ireland row; area output leaves it out
+        - Assembly Area, Health Trust and urban/rural cubes publish crimes only
+        - LGD, DEA and ward cubes use the 2014 boundaries
+    """
+    from rich.table import Table
+
+    from bolster.data_sources.psni import hate_crime
+
+    console = Console()
+
+    if list_geographies:
+        console.print("\n[bold blue]Available geographies[/bold blue]\n")
+        for row in hate_crime.list_geographies().to_dict("records"):
+            console.print(f"  {row['geography']:14} {row['cube']:9} {row['title']}")
+        return
+
+    try:
+        console.print("\n[bold blue]🚔 PSNI hate motivated incidents and crimes[/bold blue]\n")
+
+        if unallocated:
+            df = hate_crime.get_unallocated(geography)
+            if motivation:
+                df = df[df["motivation"] == motivation]
+            if measure:
+                df = df[df["measure"] == measure]
+        elif ni_totals:
+            df = hate_crime.get_hate_crime_ni_totals(motivation=motivation, measure=measure)
+        else:
+            df = hate_crime.get_latest_hate_crime(geography, motivation=motivation, measure=measure)
+
+        if year is None and output_format == "table" and not df.empty:
+            year = int(df["year"].max())
+        if year is not None:
+            df = df[df["year"] == year]
+            if df.empty:
+                raise click.ClickException(f"No rows for financial year starting {year}")
+        df = df.reset_index(drop=True)
+
+        if output_format == "table":
+            rich_table = Table(show_header=True, header_style="bold cyan")
+            for col in df.columns:
+                rich_table.add_column(str(col))
+            for _, row in df.iterrows():
+                rich_table.add_row(*[str(v) for v in row.values])
+            console.print(rich_table)
+
+        elif output_format == "csv":
+            click.echo(df.to_csv(index=False), nl=False)
+
+        elif output_format == "json":
+            console.print(df.to_json(orient="records", indent=2))
+
+        if save:
+            if save.endswith(".json"):
+                df.to_json(save, orient="records", indent=2)
+            else:
+                df.to_csv(save, index=False)
+            console.print(f"\n[green]✅ Saved to {save}[/green]")
+
+        if output_format == "table":
+            console.print(f"\n[dim]{len(df):,} rows[/dim]")
+
+    except click.ClickException:
+        raise
+    except Exception as e:
+        console.print(f"[bold red]❌ Error:[/bold red] {str(e)}", style="red")
+        raise click.Abort() from e
+
+
 @psni.command(name="breath-tests")
 @click.option(
     "--topic",
@@ -8337,6 +8489,103 @@ def nisra_racial_equality_cmd(indicator, list_indicators, year, output_format, f
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
         console.print("\n[yellow]Troubleshooting:[/yellow]")
         console.print("   - Run with --list to see valid indicator names")
+        raise click.Abort() from e
+
+
+@nisra.command(name="respect-index")
+@click.option(
+    "--table",
+    type=click.Choice(["index", "questions"], case_sensitive=False),
+    default="index",
+    help="Table to retrieve (default: index)",
+)
+@click.option(
+    "--group-type",
+    type=click.Choice(["all", "sex", "age", "religion", "disability"], case_sensitive=False),
+    default=None,
+    help="Only this kind of group (index table only)",
+)
+@click.option("--year", type=int, default=None, help="Only this survey year")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Re-discover and re-download the workbook")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_respect_index_cmd(table, group_type, year, output_format, force_refresh, save):
+    r"""A Respect Index for Northern Ireland (Everyday Discrimination Scale).
+
+    \b
+    The share of adults who feel respected, from the Northern Ireland Life and
+    Times survey. Someone counts as respected only if they answered "Never" to all
+    nine Everyday Discrimination Scale questions. Output is one row per survey
+    year and group.
+
+    Examples:
+        The whole series for all adults::
+
+            bolster nisra respect-index --group-type all
+
+        By age in the latest year::
+
+            bolster nisra respect-index --group-type age --year 2025
+
+        Answers to each of the nine questions::
+
+            bolster nisra respect-index --table questions
+
+    Source:
+        The Executive Office: https://www.executiveoffice-ni.gov.uk/topics/respect-index
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        with console.status("[bold green]Fetching the Respect Index..."):
+            data = nisra_respect_index.get_latest_data(table, force_refresh=force_refresh)
+
+        if group_type is not None:
+            if table != "index":
+                console.print("[yellow]--group-type applies to the index table only[/yellow]")
+                return
+            data = data[data["group_type"] == group_type]
+        if year is not None:
+            data = data[data["year"] == year]
+        if data.empty:
+            console.print("[yellow]No data found for those options[/yellow]")
+            return
+
+        console.print(f"[cyan]Rows: {len(data)} | Survey years: {data['year'].nunique()}[/cyan]")
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        else:
+            click.echo(data.to_csv(index=False), nl=False)
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to re-discover the workbook")
         raise click.Abort() from e
 
 
@@ -10092,6 +10341,147 @@ def dfc_vacancies_cmd(dimension, release, list_releases, output_format, force_re
         console.print("\n[yellow]Troubleshooting:[/yellow]")
         console.print("   - Check your internet connection")
         console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@dfc.command(name="young-people")
+@click.option(
+    "--topic",
+    type=click.Choice(["sport", "culture"], case_sensitive=False),
+    default="sport",
+    show_default=True,
+    help="Series: sport, or culture (culture, arts and heritage; ten workbooks)",
+)
+@click.option("--year", type=int, help="Survey wave, such as 2022 (default: the latest)")
+@click.option("--workbook", help="Workbook key, or part of one (default: every workbook of the wave)")
+@click.option(
+    "--kind",
+    type=click.Choice(["estimates", "comparisons"], case_sensitive=False),
+    default="estimates",
+    show_default=True,
+    help="estimates: every figure of the wave. comparisons: the tables comparing it with the previous wave",
+)
+@click.option("--list-waves", is_flag=True, help="List the survey waves of the topic and exit")
+@click.option("--list-workbooks", is_flag=True, help="List the workbooks of the wave and exit")
+@click.option("--lenient", is_flag=True, help="Skip tables with an unrecognised layout instead of stopping")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+@click.option("--summary", is_flag=True, help="Show a summary instead of the full data")
+def dfc_young_people_cmd(
+    topic, year, workbook, kind, list_waves, list_workbooks, lenient, output_format, force_refresh, save, summary
+):
+    """Young people's experience of culture, arts, heritage and sport.
+
+    Findings from the Young Persons' Behaviour and Attitudes Survey (YPBAS) of pupils in
+    Years 8 to 12, published by the Department for Communities every three years. Figures
+    are percentages of surveyed pupils, by sex, year group, religious background,
+    disability and free school meals, with confidence intervals and the number of respondents.
+
+    Examples:
+        Sport participation in the latest wave::
+
+            bolster dfc young-people
+
+        What changed since the previous wave, and whether the survey calls it significant::
+
+            bolster dfc young-people --kind comparisons
+
+        Culture, arts and heritage: one of its ten workbooks::
+
+            bolster dfc young-people --topic culture --workbook experience-of-heritage
+
+        An earlier wave, saved as CSV::
+
+            bolster dfc young-people --year 2022 --save sport_2022.csv
+
+        The waves available::
+
+            bolster dfc young-people --topic culture --list-waves
+
+    Source:
+        https://www.communities-ni.gov.uk/articles/experience-sport-northern-ireland
+        https://www.communities-ni.gov.uk/articles/culture-arts-and-heritage-statistics
+    """
+    from rich.console import Console
+
+    from bolster.data_sources.dfc import young_people_culture_sport as young_people
+
+    console = Console()
+    topic = topic.lower()
+
+    try:
+        if list_waves:
+            for wave in young_people.list_waves(topic, force_refresh=force_refresh):
+                console.print(f"   {wave['year']}  {wave['url']}")
+            return
+        if list_workbooks:
+            for book in young_people.list_workbooks(topic, year, force_refresh=force_refresh):
+                console.print(f"   {book['key']}  {book['name']}")
+            return
+
+        with console.status(f"[bold green]Downloading young people's {topic} data ({kind})..."):
+            if kind.lower() == "comparisons":
+                df = young_people.get_wave_comparisons(
+                    topic, year=year, workbook=workbook, force_refresh=force_refresh, strict=not lenient
+                )
+            else:
+                df = young_people.get_survey_tables(
+                    topic, year=year, workbook=workbook, force_refresh=force_refresh, strict=not lenient
+                )
+
+        console.print(f"[green]Young people's {topic} data retrieved successfully[/green]")
+        console.print(f"[cyan]Kind: {kind} | Rows: {len(df)}[/cyan]")
+        for skipped in df.attrs.get("skipped_tables", []):
+            console.print(f"[yellow]Skipped {skipped['workbook']} {skipped['sheet']}: {skipped['reason']}[/yellow]")
+
+        if summary:
+            console.print("\n[bold]Summary:[/bold]")
+            console.print(f"   Rows: {len(df):,}")
+            if len(df):
+                console.print(f"   Survey years: {', '.join(str(y) for y in sorted(df['survey_year'].unique()))}")
+                console.print(
+                    f"   Workbooks: {df['workbook'].nunique()} | Tables: {df.groupby('workbook')['table_id'].nunique().sum()}"
+                )
+            if not save:
+                return
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    df.to_json(save, orient="records", indent=2)
+                else:
+                    df.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(df.to_json(orient="records", indent=2))
+        else:
+            # Not console.print: rich wraps at the terminal width, which corrupts
+            # the CSV when the output is piped.
+            click.echo(df.to_csv(index=False), nl=False)
+
+    except click.Abort:
+        raise
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        console.print("   - An older wave may use a table layout the module does not read: try --lenient")
         raise click.Abort() from e
 
 
