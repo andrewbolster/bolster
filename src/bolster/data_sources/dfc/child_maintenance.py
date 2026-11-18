@@ -74,6 +74,7 @@ from bs4 import Tag  # noqa: TC002 (used inside `cast(...)`, evaluated at runtim
 
 from bolster.utils.cache import CachedDownloader, bind_download_file
 from bolster.utils.excel import parse_sheet
+from bolster.utils.text import MONTH_TOKEN_PATTERN, month_number
 from bolster.utils.web import fetch_soup, scrape_file_links
 
 logger = logging.getLogger(__name__)
@@ -82,25 +83,9 @@ logger = logging.getLogger(__name__)
 TOPIC_URL = "https://www.communities-ni.gov.uk/topics/child-maintenance-service-statistics"
 
 # Publication slugs end "...-data-<month>-<year>", optionally with a status
-# suffix ("-experimental", "-official-statistics-development")
-_SLUG_PERIOD_RE = re.compile(
-    r"data-(january|february|march|april|may|june|july|august|september|october|november|december)-(\d{4})"
-)
-
-_MONTH_NUMBERS = {
-    "january": 1,
-    "february": 2,
-    "march": 3,
-    "april": 4,
-    "may": 5,
-    "june": 6,
-    "july": 7,
-    "august": 8,
-    "september": 9,
-    "october": 10,
-    "november": 11,
-    "december": 12,
-}
+# suffix ("-experimental", "-official-statistics-development"). The month is a
+# full name or an abbreviation.
+_SLUG_PERIOD_RE = re.compile(rf"data-({MONTH_TOKEN_PATTERN})-(\d{{4}})", re.IGNORECASE)
 
 # Table titles -> table key, matched as casefolded substrings of the sheet's
 # "Table N. <title>" line. Sheet *numbers* are not stable: Paying Parent
@@ -615,7 +600,7 @@ def list_publications(topic_url: str = TOPIC_URL) -> list[dict]:
         if not match:
             continue
         url = urljoin(topic_url, href)
-        month = _MONTH_NUMBERS[match.group(1)]
+        month = month_number(match.group(1))
         publications[url] = {
             "url": url,
             "year": int(match.group(2)),

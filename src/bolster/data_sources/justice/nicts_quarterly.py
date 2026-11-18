@@ -59,6 +59,7 @@ from odf.opendocument import load as load_ods
 from odf.table import Table
 
 from bolster.utils.cache import CachedDownloader, bind_download_file
+from bolster.utils.text import MONTH_TOKEN_PATTERN, month_number
 from bolster.utils.web import scrape_file_links
 
 from ._base import _parse_value, _sheet_rows, _strip_note_refs
@@ -74,9 +75,13 @@ _NON_DATA_SHEETS = {"cover_sheet", "contents", "notes"}
 # Period column headers look like "2024 Total" or "2025 Q1"
 _PERIOD_RE = re.compile(r"^(\d{4})\s+(Total|Q[1-4])$")
 
-# Bulletin filenames encode their reporting quarter as a month range
-_FILENAME_PERIOD_RE = re.compile(r"(january|april|july|october)\s*to\s*(march|june|september|december)\D{0,4}(\d{4})")
-_MONTH_TO_QUARTER = {"january": 1, "april": 2, "july": 3, "october": 4}
+# Bulletin filenames encode their reporting quarter as a month range, with each
+# month a full name or an abbreviation ("july-to-september", "jul-to-sep")
+_MONTH = rf"(?<![a-z])({MONTH_TOKEN_PATTERN})(?![a-z])"
+_FILENAME_PERIOD_RE = re.compile(rf"{_MONTH}\s*to\s*{_MONTH}\D{{0,4}}(\d{{4}})", re.IGNORECASE)
+# A reporting quarter starts in January, April, July or October and ends two months later
+_QUARTER_FOR_START_MONTH = {1: 1, 4: 2, 7: 3, 10: 4}
+_QUARTER_END_MONTHS = frozenset({3, 6, 9, 12})
 
 # Bulletins are provisional but only republished quarterly
 _CACHE_TTL_HOURS = 24 * 90
@@ -240,10 +245,13 @@ def list_publications(base_url: str = PUBLICATION_URL) -> list[dict]:
         match = _FILENAME_PERIOD_RE.search(slug)
         if not match:
             continue
+        start_month, end_month = month_number(match.group(1)), month_number(match.group(2))
+        if start_month not in _QUARTER_FOR_START_MONTH or end_month not in _QUARTER_END_MONTHS:
+            continue
         publications[url] = {
             "url": url,
             "year": int(match.group(3)),
-            "quarter": _MONTH_TO_QUARTER[match.group(1)],
+            "quarter": _QUARTER_FOR_START_MONTH[start_month],
         }
 
     if not publications:

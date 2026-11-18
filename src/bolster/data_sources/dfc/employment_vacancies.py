@@ -76,6 +76,7 @@ from bolster.data_sources.nisra.pxstat import PxStatError, read_dataset
 from bolster.utils.cache import CachedDownloader, bind_download_file
 from bolster.utils.embedded_downloads import coerce_numeric
 from bolster.utils.excel import find_marker_row, parse_sheet
+from bolster.utils.text import MONTH_TOKEN_PATTERN, month_number
 from bolster.utils.web import fetch_soup, make_absolute_url, scrape_file_links
 
 logger = logging.getLogger(__name__)
@@ -83,32 +84,12 @@ logger = logging.getLogger(__name__)
 SITE_URL = "https://www.communities-ni.gov.uk"
 TOPIC_URL = f"{SITE_URL}/topics/employment-vacancy-statistics"
 
-# Factsheet publication slugs: "vacancies-statistical-factsheet-<month>-<year>"
+# Factsheet publication slugs: "vacancies-statistical-factsheet-<month>-<year>", the month as a
+# full name or abbreviation in any letter case
 _FACTSHEET_SLUG_RE = re.compile(
-    r"vacancies-statistical-factsheet-"
-    r"(january|february|march|april|may|june|july|august|september|october|november|december)-(\d{4})"
+    rf"vacancies-statistical-factsheet-({MONTH_TOKEN_PATTERN})-(\d{{4}})",
+    re.IGNORECASE,
 )
-
-_MONTH_NUMBERS = {
-    name: number
-    for number, name in enumerate(
-        (
-            "january",
-            "february",
-            "march",
-            "april",
-            "may",
-            "june",
-            "july",
-            "august",
-            "september",
-            "october",
-            "november",
-            "december",
-        ),
-        start=1,
-    )
-}
 
 # Financial-year quarter codes in the "Quarterly" sheet: "Q1 2223" is Q1 of 2022/23
 _QUARTER_CODE_RE = re.compile(r"^Q([1-4])\s*(\d{2})(\d{2})$")
@@ -256,7 +237,7 @@ def list_publications(force_refresh: bool = False) -> list[dict]:
         match = _FACTSHEET_SLUG_RE.search(href)
         if not match:
             continue
-        month, year = _MONTH_NUMBERS[match.group(1)], int(match.group(2))
+        month, year = month_number(match.group(1)), int(match.group(2))
         release = f"{year}-{month:02d}"
         publications.setdefault(
             release,
