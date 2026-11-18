@@ -29,7 +29,7 @@ src/bolster/
 │   ├── htmlwidgets.py  # extract_widgets, plotly_frame: Plotly data from R htmlwidgets pages
 │   ├── rss.py          # get_nisra_statistics_feed()
 │   ├── snapshots.py    # append_snapshot, read_snapshots: local sqlite store for polled live data
-│   ├── text.py         # clean_column_name
+│   ├── text.py         # clean_column_name, month_number, MONTH_TOKEN_PATTERN
 │   └── web.py          # HTTP session with retry logic; publication-link discovery
 └── cli.py              # Click-based CLI
 ```
@@ -210,6 +210,7 @@ rather than defining a local copy:
 | Function | Purpose |
 |----------|---------|
 | `clean_column_name(name)` (`utils.text`) | Header → snake_case (`"Total (No.)"` → `"total_no"`). Do source-specific pre-cleaning (footnote markers, `(%)` suffixes) first, then delegate the tail to this |
+| `MONTH_TOKEN_PATTERN`, `month_number(token)` (`utils.text`) | Parse the month in a publication slug or filename. The pattern is a regex fragment (no capture group) for a full name, three-letter abbreviation or `sept`; compile it with `re.IGNORECASE` and put `(?<![a-z])`/`(?![a-z])` around it where the month is not delimited by `-`. `month_number` returns 1-12 or raises `ValueError`. Never hard-code a full-month-name list: publishers switch spelling without notice |
 | `find_marker_row(sheet, predicate, max_rows=10)` (`utils.excel`) | Index of the first row in the first `max_rows` whose column 0 satisfies `predicate`, else `None`. Callers raise their own module error on `None` |
 | `load_workbook(url, download_file, **kwargs)` (`utils.cache`) | Download via the module's `download_file` and open as `pd.ExcelFile`; kwargs (`force_refresh`, `cache_ttl_hours`) pass through |
 

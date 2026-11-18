@@ -36,6 +36,7 @@ from bolster.data_sources.nisra._base import (
     download_file,
     make_absolute_url,
 )
+from bolster.utils.text import month_number
 from bolster.utils.web import session
 
 logger = logging.getLogger(__name__)
@@ -77,21 +78,6 @@ _SUPPRESSION_RE = re.compile(r"^\[[a-z]\]$", re.IGNORECASE)
 
 # Quarter-end column headings, e.g. "31 Mar 2017"
 _DATE_COLUMN_RE = re.compile(r"^\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4}$")
-
-_MONTHS = (
-    "january",
-    "february",
-    "march",
-    "april",
-    "may",
-    "june",
-    "july",
-    "august",
-    "september",
-    "october",
-    "november",
-    "december",
-)
 
 
 def strip_note_refs(text: str) -> str:
@@ -351,7 +337,9 @@ def list_dated_publications(index_url: str, slug_pattern: str) -> pd.DataFrame:
         index_url: Article page listing the series, e.g.
             ``https://www.health-ni.gov.uk/articles/staff-numbers``.
         slug_pattern: Regex matched against each publication href. It must
-            capture the month name and the four-digit year, in that order.
+            capture the month and the four-digit year, in that order. The month
+            may be a full name or an abbreviation (``march``, ``mar``, ``sept``) in
+            any letter case; a link whose first group is not a month is skipped.
 
     Returns:
         DataFrame with ``period`` (month-start Timestamp), ``title`` and
@@ -376,12 +364,16 @@ def list_dated_publications(index_url: str, slug_pattern: str) -> pd.DataFrame:
         match = pattern.search(href)
         if "/publications/" not in href or not match:
             continue
-        month, year = match.group(1).lower(), int(match.group(2))
+        try:
+            month = month_number(match.group(1))
+        except ValueError:
+            continue
+        year = int(match.group(2))
         url = urljoin(HEALTH_NI_BASE_URL, href)
         records.setdefault(
             url,
             {
-                "period": pd.Timestamp(year=year, month=_MONTHS.index(month) + 1, day=1),
+                "period": pd.Timestamp(year=year, month=month, day=1),
                 "title": link.get_text(strip=True),
                 "url": url,
             },
