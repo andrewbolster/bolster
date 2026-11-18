@@ -890,53 +890,69 @@ def get_quarterly_data(
 # ============================================================================
 
 
+_LGD_PUBLICATION_URL = LFS_BASE_URL + "/publications/labour-force-survey-tables-local-government-districts-2009-{year}"
+
+# Publication pages searched, newest first, starting at the current calendar year. A release for
+# year Y appears during year Y + 1, so the current year's page normally does not exist yet.
+_LGD_LOOKBACK_YEARS = 3
+
+
 def get_latest_lgd_employment_url() -> tuple[str, int]:
     """Get the URL of the latest LFS Local Government District tables publication.
 
-    Uses known URL pattern to construct the file URL. The LGD tables are published
-    annually but not listed on the main Labour Market page.
+    The LGD tables are published annually, one publication page per release year, and are not
+    listed on the main Labour Market page. The pages for the current year and the two years
+    before it are tried newest first. A page that does not exist (HTTP 404) means that year has
+    not been published, and the next older year is tried. Any other failure, and a page that
+    exists but links no workbook, raises instead of moving on to an older release.
 
     Returns:
-        Tuple of (excel_url, year)
+        Tuple of (excel_url, year) for the newest published release.
 
     Raises:
-        NISRADataNotFoundError: If unable to find the latest publication
+        NISRADataNotFoundError: If no publication page is found for any year searched, if a page
+            cannot be fetched, or if a page has no LGD tables workbook.
 
     Example:
         >>> url, year = get_latest_lgd_employment_url()
         >>> url.startswith('https://')
         True
     """
-    from datetime import datetime
+    from datetime import date
 
     logger.info("Fetching latest LFS LGD employment publication URL...")
 
-    # The LGD tables follow a predictable URL pattern
-    # We know the publication exists for 2024, try current year first then fall back
-    current_year = datetime.now().year
-    years_to_try = [current_year, current_year - 1, 2024]  # Try current, last year, and known 2024
+    current_year = date.today().year
+    pages_not_published: list[str] = []
 
-    for year in years_to_try:
-        # Construct the expected URL
-        # Pattern: https://www.nisra.gov.uk/publications/labour-force-survey-tables-local-government-districts-2009-YYYY
-        pub_url = f"{LFS_BASE_URL}/publications/labour-force-survey-tables-local-government-districts-2009-{year}"
+    for year in range(current_year, current_year - _LGD_LOOKBACK_YEARS, -1):
+        pub_url = _LGD_PUBLICATION_URL.format(year=year)
 
         try:
-            for link in scrape_file_links(pub_url, ".xlsx", base_url=LFS_BASE_URL):
-                if "labour" in link["url"].lower():
-                    logger.info(f"Found latest LFS LGD tables: {year} at {link['url']}")
-                    return link["url"], year
+            links = scrape_file_links(pub_url, ".xlsx", base_url=LFS_BASE_URL)
+        except Exception as exc:
+            if getattr(getattr(exc, "response", None), "status_code", None) == 404:
+                pages_not_published.append(pub_url)
+                continue
+            raise NISRADataNotFoundError(
+                f"Could not fetch the LFS Local Government District tables page for {year}: {pub_url} ({exc})"
+            ) from exc
 
-        except Exception:
-            continue
+        for link in links:
+            if "labour" in link["url"].lower():
+                logger.info(f"Found latest LFS LGD tables: {year} at {link['url']}")
+                return link["url"], year
 
-    # If all attempts fail, return the known 2024 file URL as fallback
-    fallback_url = (
-        "https://www.nisra.gov.uk/system/files/statistics/2025-07/"
-        "Labour%20Force%20Survey%20-%20Tables%20for%20Local%20Government%20Districts%202009%20to%202024.xlsx"
+        raise NISRADataNotFoundError(
+            f"The LFS Local Government District tables page for {year} exists but links no .xlsx workbook "
+            f"with 'labour' in its address: {pub_url}"
+        )
+
+    raise NISRADataNotFoundError(
+        "No LFS Local Government District tables publication was found for "
+        f"{current_year - _LGD_LOOKBACK_YEARS + 1} to {current_year}. Pages not found (HTTP 404): "
+        + ", ".join(pages_not_published)
     )
-    logger.warning(f"Could not find latest LGD publication via pattern, using known 2024 file: {fallback_url}")
-    return fallback_url, 2024
 
 
 def parse_employment_by_lgd(file_path: str | Path, year: int | None = None) -> pd.DataFrame:
