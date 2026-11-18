@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.11.18\] - 2026-11-18
+
+- fix: accept abbreviated month names in publication filename patterns (#2326)
+
 ## \[0.11.17\] - 2026-11-17
 
 - fix(nisra): accept abbreviated month names in LFS quarterly filenames (#2322)
