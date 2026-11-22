@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.11.19\] - 2026-11-22
+
+- fix(health_ni): match PxStat dimension labels regardless of case in disease prevalence (#2335)
+- fix: accept abbreviated month names in publication filename patterns (#2326)
+
 ## \[0.11.18\] - 2026-11-18
 
 - fix: accept abbreviated month names in publication filename patterns (#2326)
