@@ -25,13 +25,14 @@ Definitions that change how the numbers can be read (from the PxStat notes):
 - **Registrations** are counted in the year the registration was *paid*. The registration
   period was 15 months until August 2009 and has been 24 months since, which raised
   registration rates; registrations due to expire in 2020/21 to 2022/23 were extended
-  because of Covid-19.
+  because of Covid-19. Quarterly registrations are not additive across quarters: the March
+  quarter equals the annual figure for that year.
 - **Treatments** are counted in the year the claim was *paid*, not necessarily when the
   treatment took place. A filling or extraction is one tooth per visit.
-- **Dentists (annual)** are those on the dental list at 31 March, and a dentist working in
-  several locations is *proportioned across them*, so annual counts are fractional. They are
-  not the same measure as the quarterly "Headcount of Dentists", and the two should not be
-  reconciled.
+- **Dentists** are those on the dental list at 31 March, and a dentist working in several
+  locations is *proportioned across them*, so area values are fractional while the Northern
+  Ireland total is a whole number. The quarterly ``Headcount of Dentists`` for the March quarter
+  equals the annual count at 31 March exactly.
 
 Note:
     Not every claim is placed in an area, so the Northern Ireland row exceeds the sum of its
@@ -153,7 +154,8 @@ def get_latest_quarterly_data(force_refresh: bool = False) -> pd.DataFrame:
         NISRADataNotFoundError: If the newest workbook cannot be found or holds no tables.
     """
     path = download_file(find_latest_quarterly_url(), cache_ttl_hours=_CACHE_TTL_HOURS, force_refresh=force_refresh)
-    return parse_quarterly_workbook(pd.ExcelFile(path, engine="openpyxl"))
+    with pd.ExcelFile(path, engine="openpyxl") as workbook:
+        return parse_quarterly_workbook(workbook)
 
 
 def get_quarterly_table(title_pattern: str, level: str | None = None, force_refresh: bool = False) -> pd.DataFrame:
@@ -250,8 +252,8 @@ def get_quarterly_practices(level: str = "trust", force_refresh: bool = False) -
 def get_quarterly_dentists(level: str = "trust", force_refresh: bool = False) -> pd.DataFrame:
     """Get the quarterly headcount of dentists by geography.
 
-    This is a headcount. The annual PxStat dentist figures are a different measure (proportioned across
-    locations), see :func:`get_annual_dentists_and_surgeries`.
+    Dentists who work in several locations are proportioned across them, so area values are
+    fractional. The March quarter equals the annual count in :func:`get_annual_dentists_and_surgeries`.
 
     Args:
         level: ``"trust"``, ``"lgd"`` or ``"assembly_area"``.
@@ -307,14 +309,17 @@ def get_annual_dentists_and_surgeries(level: str = "trust") -> pd.DataFrame:
     """Get annual dentists and dental surgeries from PxStat.
 
     ``Dentists`` are those on the dental list at 31 March, with a dentist who works in several
-    locations proportioned across them, so the values are fractional.
+    locations proportioned across them, so area values are fractional (the Northern Ireland total is
+    whole). It equals the quarterly ``Headcount of Dentists`` for the March quarter.
 
     Args:
         level: ``"trust"``, ``"lgd"``, ``"assembly_area"`` or ``"dea"``.
 
     Returns:
         DataFrame with ``financial_year``, ``period``, ``area_code``, the geography column, ``measure``
-        (``Dentists``, ``Dental surgeries``), ``value`` and ``is_total``.
+        (``Dentists``, ``Dental surgeries``), ``value`` and ``is_total``. ``Dental surgeries`` is
+        published as ``0`` (not as a missing value) for every area in 2013/14-2016/17, before the
+        series began in 2017/18; treat those zeros as missing.
 
     Raises:
         ValueError: If ``level`` is not recognised.

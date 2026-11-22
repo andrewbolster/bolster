@@ -141,7 +141,8 @@ def get_latest_quarterly_data(force_refresh: bool = False) -> pd.DataFrame:
         NISRADataNotFoundError: If the newest workbook cannot be found or holds no tables.
     """
     path = download_file(find_latest_quarterly_url(), cache_ttl_hours=_CACHE_TTL_HOURS, force_refresh=force_refresh)
-    return parse_quarterly_workbook(pd.ExcelFile(path, engine="openpyxl"))
+    with pd.ExcelFile(path, engine="openpyxl") as workbook:
+        return parse_quarterly_workbook(workbook)
 
 
 def get_quarterly_table(title_pattern: str, level: str | None = None, force_refresh: bool = False) -> pd.DataFrame:
