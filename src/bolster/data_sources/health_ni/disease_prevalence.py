@@ -77,6 +77,24 @@ _STAT_NUMREG = "Numreg"
 _STAT_PREV = "Rawprevalence1000"
 
 
+def _resolve_column(raw: pd.DataFrame, label: str) -> str:
+    """Return the column of ``raw`` whose name matches ``label``, ignoring letter case.
+
+    PxStat sets the capitalisation of dimension labels itself (``Financial Year`` has been
+    published as ``Financial year``), so columns are matched by case-insensitive name.
+
+    Raises:
+        NISRADataNotFoundError: If no column matches, naming the label and the columns present.
+    """
+    wanted = label.casefold()
+    matches = [c for c in raw.columns if str(c).casefold() == wanted]
+    if not matches:
+        raise NISRADataNotFoundError(
+            f"Expected a column named {label!r} (any letter case) in the PxStat dataset; found {list(raw.columns)}"
+        )
+    return matches[0]
+
+
 def _pivot_prevalence(raw: pd.DataFrame, group_col: str, output_col: str) -> pd.DataFrame:
     """Pivot a disease prevalence matrix to wide format.
 
@@ -89,8 +107,9 @@ def _pivot_prevalence(raw: pd.DataFrame, group_col: str, output_col: str) -> pd.
         DataFrame with columns: financial_year, year, {output_col}, disease,
         registered_patients, prevalence_per_1000.
     """
-    fy_col = "Financial Year"
-    disease_col = "Disease"
+    fy_col = _resolve_column(raw, "Financial Year")
+    disease_col = _resolve_column(raw, "Disease")
+    group_col = _resolve_column(raw, group_col)
 
     pivot = raw.pivot_table(
         index=[fy_col, group_col, disease_col],
@@ -137,8 +156,8 @@ def get_ni_prevalence(force_refresh: bool = False) -> pd.DataFrame:
     """
     raw = read_dataset(_MATRIX_NI)
     # DISPREVNI has no geographic dimension — pivot directly
-    fy_col = "Financial Year"
-    disease_col = "Disease"
+    fy_col = _resolve_column(raw, "Financial Year")
+    disease_col = _resolve_column(raw, "Disease")
 
     pivot = raw.pivot_table(
         index=[fy_col, disease_col],
