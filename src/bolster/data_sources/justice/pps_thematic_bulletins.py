@@ -1116,8 +1116,9 @@ def get_historical_data(
     """Stitch several bulletins of a series into one long series.
 
     Bulletins are read newest-first and overlapping years are resolved in
-    favour of the more recent publication. A bulletin that cannot be read
-    raises: a missing year is never skipped silently.
+    favour of the more recent publication. Bulletins published only as PDF
+    (hate crime before 2018/19) have no workbook to read: they are left out and
+    named in a warning. A workbook that cannot be parsed raises.
 
     Args:
         series: ``"sexual_offences"`` or ``"hate_crime"``.
@@ -1138,7 +1139,12 @@ def get_historical_data(
         True
     """
     _check_series(series)
-    publications = [p for p in list_publications(series, force_refresh=force_refresh) if p["kind"] == "bulletin"]
+    publications = []
+    for publication in list_publications(series, force_refresh=force_refresh):
+        if any(w["kind"] == "tables" for w in find_workbooks(publication["url"], force_refresh=force_refresh)):
+            publications.append(publication)
+        else:
+            logger.warning(f"{publication['title']} has no workbook (PDF only); leaving it out")
 
     def fetch_one(publication: dict) -> pd.DataFrame:
         url = find_tables_workbook(publication["url"], force_refresh=force_refresh)
