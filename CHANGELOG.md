@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.11.20\] - 2026-11-22
+
+- feat(justice): read PPS thematic bulletins (sexual offences, hate crime) (#2334)
+
 ## \[0.11.19\] - 2026-11-22
 
 - fix(health_ni): match PxStat dimension labels regardless of case in disease prevalence (#2335)
