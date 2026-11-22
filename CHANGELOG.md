@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.11.20\] - 2026-11-22
+
+- feat(health-ni): add ophthalmic and dental services statistics (#2333)
+
 ## \[0.11.19\] - 2026-11-22
 
 - fix(health_ni): match PxStat dimension labels regardless of case in disease prevalence (#2335)
