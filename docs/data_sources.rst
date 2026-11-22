@@ -1058,6 +1058,37 @@ Government District, or GP Federation.
     $ bolster nisra gms --view list-topics
     $ bolster nisra gms --view by-practice --cadence quarterly
 
+NI General Ophthalmic and Dental Services Statistics
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+NHS sight tests, vouchers, repairs and replacements, dental registrations and
+treatments, and the practices, practitioners and dentists behind them,
+published by the Business Services Organisation / Family Practitioner Services
+(BSO/FPS).  Quarterly series (from 2017/18, marked provisional) come from the
+GOV.UK workbooks; annual series (ophthalmic from 2017/18, dental from 2013/14)
+come from PxStat.  The two reconcile exactly: four quarters of activity equal
+the annual figure, and areas plus ``Unknown`` equal Northern Ireland.  Dental
+registrations are a snapshot, not additive across quarters.
+
+.. code-block:: python
+
+    from bolster.data_sources.health_ni import dental_services, ophthalmic_services
+
+    sight_tests = ophthalmic_services.get_quarterly_activity("sight_tests", "trust")
+    by_age = ophthalmic_services.get_quarterly_activity("sight_tests", "age_sex")
+    gap = ophthalmic_services.get_annual_unallocated("trust")
+
+    registrations = dental_services.get_quarterly_registrations("lgd")
+    fillings = dental_services.get_quarterly_treatments("fillings", "trust")
+    dentists = dental_services.get_annual_dentists_and_surgeries("trust")
+
+.. code-block:: console
+
+    $ bolster nisra ophthalmic --measure vouchers --level lgd
+    $ bolster nisra ophthalmic --view unallocated
+    $ bolster nisra dental --view treatments --measure fillings
+    $ bolster nisra dental --view annual-registrations
+
 ----
 
 PSNI
