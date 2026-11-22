@@ -14,6 +14,8 @@ and the Public Prosecution Service (PPS):
   (annual and quarterly snapshots of people under probation supervision).
 - pps_statistical_bulletin: PPS casework statistics covering files received,
   prosecution and diversion decisions, timeliness, and court outcomes.
+- pps_thematic_bulletins: PPS thematic bulletins on cases involving sexual
+  offences (with its 2015/16-to-date trends workbook) and hate crime.
 - prosecutions_convictions: Annual court prosecutions, convictions and out of
   court disposals, including conviction rates by court tier and diversionary
   disposals by gender and age.
