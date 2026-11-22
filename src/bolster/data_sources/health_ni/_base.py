@@ -36,13 +36,19 @@ from bolster.data_sources.nisra._base import (
     download_file,
     make_absolute_url,
 )
+from bolster.utils.excel import parse_sheet
 from bolster.utils.text import month_number
 from bolster.utils.web import session
 
 logger = logging.getLogger(__name__)
 
 __all__ = [
+    "GOVUK_CONTENT_API_URL",
+    "GOVUK_SEARCH_API_URL",
     "HEALTH_NI_BASE_URL",
+    "excel_sheet_rows",
+    "find_govuk_xlsx_attachment",
+    "find_latest_govuk_publication",
     "NISRADataNotFoundError",
     "NISRAValidationError",
     "clear_cache",
@@ -509,3 +515,91 @@ def find_latest_xlsx(article_url: str, keyword: str | None = None) -> str:
             return make_absolute_url(href, HEALTH_NI_BASE_URL)
 
     raise NISRADataNotFoundError(f"No .xlsx link found on {pub_url}")
+
+
+# ---------------------------------------------------------------------------
+# GOV.UK-published workbooks (BSO Family Practitioner Services and similar)
+# ---------------------------------------------------------------------------
+
+GOVUK_SEARCH_API_URL = "https://www.gov.uk/api/search.json"
+GOVUK_CONTENT_API_URL = "https://www.gov.uk/api/content"
+
+# Trailing hint cell on the title row of BSO/FPS sheets whose table is wider than the screen.
+_SCROLL_HINT_PREFIX = "<<"
+
+
+def find_latest_govuk_publication(query: str, prefix: str, *, label: str = "GOV.UK") -> dict:
+    """Find and fetch the GOV.UK Content API record for the newest matching publication.
+
+    Publication URLs and the asset hashes of the files attached to them change
+    every release, so they are discovered through the GOV.UK Search and Content
+    APIs rather than built from a template.
+
+    Args:
+        query: Free-text GOV.UK Search API query.
+        prefix: Required URL prefix a search result's link must start with.
+        label: Name of the series, used in the error message (for example ``"GMS"``).
+
+    Returns:
+        The Content API JSON for the most recently published match.
+
+    Raises:
+        NISRADataNotFoundError: If no publication matches ``prefix``.
+    """
+    response = session.get(
+        GOVUK_SEARCH_API_URL,
+        params={"q": query, "count": 50, "fields": "title,link,public_timestamp"},
+        timeout=30,
+    )
+    response.raise_for_status()
+
+    matches = [r for r in response.json().get("results", []) if r.get("link", "").startswith(prefix)]
+    if not matches:
+        raise NISRADataNotFoundError(f"No {label} publications found matching prefix {prefix!r}")
+    matches.sort(key=lambda r: r.get("public_timestamp", ""), reverse=True)
+
+    content = session.get(f"{GOVUK_CONTENT_API_URL}{matches[0]['link']}", timeout=30)
+    content.raise_for_status()
+    return content.json()
+
+
+def find_govuk_xlsx_attachment(content: dict, keywords: tuple[str, ...]) -> str:
+    """Find an ``.xlsx`` attachment whose title contains every keyword.
+
+    Args:
+        content: A GOV.UK Content API record.
+        keywords: Case-insensitive substrings the attachment title must all contain.
+
+    Returns:
+        The attachment's absolute URL.
+
+    Raises:
+        NISRADataNotFoundError: If no attachment matches.
+    """
+    for attachment in content.get("details", {}).get("attachments", []):
+        url = attachment.get("url", "")
+        title = attachment.get("title", "")
+        if url.lower().endswith(".xlsx") and all(kw.lower() in title.lower() for kw in keywords):
+            return url
+    raise NISRADataNotFoundError(f"No .xlsx attachment matching {keywords} found")
+
+
+def excel_sheet_rows(workbook: pd.ExcelFile, sheet_name: str, *, strip_scroll_hint: bool = False) -> list[list[str]]:
+    """Convert one Excel sheet to trimmed string rows for :func:`parse_stacked_tables`.
+
+    Args:
+        workbook: An open workbook.
+        sheet_name: The sheet to read.
+        strip_scroll_hint: Drop the ``"<<Scroll left for previous years data"`` cell that BSO/FPS puts
+            at the end of a wide table's title row. Without this the title row is wider than one cell,
+            so it is not recognised as a ``Table N: ...`` marker and a sheet holding a single table
+            yields no tables at all.
+
+    Returns:
+        One list of stripped strings per row, with trailing blank cells removed.
+    """
+    raw = parse_sheet(workbook, sheet_name, header=None).fillna("")
+    rows = [[str(cell).strip() for cell in row] for row in raw.itertuples(index=False, name=None)]
+    if strip_scroll_hint:
+        rows = [[cell for cell in row if not cell.startswith(_SCROLL_HINT_PREFIX)] for row in rows]
+    return [trim_row(row) for row in rows]

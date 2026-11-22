@@ -5,6 +5,7 @@ Data published by the Department of Health at https://www.health-ni.gov.uk.
 Modules:
     - cancer_waiting_times: Cancer treatment waiting times (14-day, 31-day, 62-day targets)
     - child_protection: Children's Social Care child protection statistics
+    - dental_services: BSO/FPS General Dental Services statistics (registrations, treatments, practices, dentists)
     - diagnostic_waiting_times: Quarterly diagnostic waiting times by HSC Trust
     - disease_prevalence: Annual GP disease register sizes and prevalence per 1,000 patients
     - elective_waiting_times: Elective and outpatient waiting times
@@ -13,6 +14,7 @@ Modules:
     - health_visiting_reviews: Pre-school health visitor reviews (early/on time/late/no contact) by HSC Trust
     - hsc_recruitment: Active recruitment (vacancy) statistics for the HSC workforce
     - hsc_workforce: Quarterly HSC workforce size, composition and turnover
+    - ophthalmic_services: BSO/FPS General Ophthalmic Services statistics (sight tests, vouchers, practices, practitioners)
     - hospital_activity: Hospital bed activity (available/occupied beds,
       admissions), independent-sector activity and theatre usage -- distinct
       from elective_waiting_times, which covers patients queued for treatment
@@ -21,6 +23,7 @@ Modules:
 from bolster.data_sources.health_ni import (
     cancer_waiting_times,
     child_protection,
+    dental_services,
     diagnostic_waiting_times,
     disease_prevalence,
     elective_waiting_times,
@@ -30,11 +33,13 @@ from bolster.data_sources.health_ni import (
     hospital_activity,
     hsc_recruitment,
     hsc_workforce,
+    ophthalmic_services,
 )
 
 __all__ = [
     "cancer_waiting_times",
     "child_protection",
+    "dental_services",
     "diagnostic_waiting_times",
     "disease_prevalence",
     "elective_waiting_times",
@@ -44,4 +49,5 @@ __all__ = [
     "hospital_activity",
     "hsc_recruitment",
     "hsc_workforce",
+    "ophthalmic_services",
 ]
