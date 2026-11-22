@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.11.21\] - 2026-11-22
+
+- fix: raise instead of silently substituting hard-coded releases; add explicit allow_fallback opt-in (#2339)
+- feat(justice): read PPS thematic bulletins (sexual offences, hate crime) (#2334)
+
 ## \[0.11.20\] - 2026-11-22
 
 - feat(justice): read PPS thematic bulletins (sexual offences, hate crime) (#2334)
