@@ -60,23 +60,24 @@ from collections.abc import Set as AbstractSet
 
 import pandas as pd
 
-from bolster.utils.excel import parse_sheet
-from bolster.utils.web import session
-
 from ._base import (
+    GOVUK_CONTENT_API_URL,
+    GOVUK_SEARCH_API_URL,
     NISRADataNotFoundError,
     NISRAValidationError,
     download_file,
+    excel_sheet_rows,
+    find_govuk_xlsx_attachment,
+    find_latest_govuk_publication,
     parse_stacked_tables,
     parse_value,
     strip_note_refs,
-    trim_row,
 )
 
 logger = logging.getLogger(__name__)
 
-SEARCH_API_URL = "https://www.gov.uk/api/search.json"
-CONTENT_API_URL = "https://www.gov.uk/api/content"
+SEARCH_API_URL = GOVUK_SEARCH_API_URL
+CONTENT_API_URL = GOVUK_CONTENT_API_URL
 
 _QUARTERLY_PREFIX = "/government/statistics/general-medical-services-statistics-for-ni-quarter"
 _ANNUAL_PREFIX = "/government/statistics/fps-general-medical-services-statistics-for-ni"
@@ -192,21 +193,7 @@ def _find_latest_publication(query: str, prefix: str) -> dict:
     Raises:
         NISRADataNotFoundError: If no publication matches ``prefix``.
     """
-    response = session.get(
-        SEARCH_API_URL,
-        params={"q": query, "count": 50, "fields": "title,link,public_timestamp"},
-        timeout=30,
-    )
-    response.raise_for_status()
-
-    matches = [r for r in response.json().get("results", []) if r.get("link", "").startswith(prefix)]
-    if not matches:
-        raise NISRADataNotFoundError(f"No GMS publications found matching prefix {prefix!r}")
-    matches.sort(key=lambda r: r.get("public_timestamp", ""), reverse=True)
-
-    content = session.get(f"{CONTENT_API_URL}{matches[0]['link']}", timeout=30)
-    content.raise_for_status()
-    return content.json()
+    return find_latest_govuk_publication(query, prefix, label="GMS")
 
 
 def _find_attachment_url(content: dict, keywords: tuple[str, ...]) -> str:
@@ -222,12 +209,7 @@ def _find_attachment_url(content: dict, keywords: tuple[str, ...]) -> str:
     Raises:
         NISRADataNotFoundError: If no attachment matches.
     """
-    for attachment in content.get("details", {}).get("attachments", []):
-        url = attachment.get("url", "")
-        title = attachment.get("title", "")
-        if url.lower().endswith(".xlsx") and all(kw.lower() in title.lower() for kw in keywords):
-            return url
-    raise NISRADataNotFoundError(f"No .xlsx attachment matching {keywords} found")
+    return find_govuk_xlsx_attachment(content, keywords)
 
 
 def find_latest_quarterly_url() -> str:
@@ -279,8 +261,7 @@ def find_latest_registered_patients_url() -> str:
 
 def _sheet_rows(workbook: pd.ExcelFile, sheet_name: str) -> list[list[str]]:
     """Convert one Excel sheet to trimmed string rows for parse_stacked_tables."""
-    raw = parse_sheet(workbook, sheet_name, header=None).fillna("")
-    return [trim_row([str(cell).strip() for cell in row]) for row in raw.itertuples(index=False, name=None)]
+    return excel_sheet_rows(workbook, sheet_name)
 
 
 def _data_sheets(workbook: pd.ExcelFile, *, skip: AbstractSet[str] = frozenset[str]()) -> list[str]:

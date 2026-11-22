@@ -181,7 +181,9 @@ Education:
 [`child_protection`](https://bolster.readthedocs.io/en/latest/data_sources.html#child-protection),
 [`health_visiting_reviews`](https://bolster.readthedocs.io/en/latest/data_sources.html#health-visiting-reviews) (pre-school health visitor reviews by HSC Trust),
 [`hsc_workforce`](https://bolster.readthedocs.io/en/latest/data_sources.html#hsc-workforce) / [`hsc_recruitment`](https://bolster.readthedocs.io/en/latest/data_sources.html#hsc-workforce),
-[`gms`](https://bolster.readthedocs.io/en/latest/data_sources.html#ni-general-medical-services-gms-statistics) (GP practices/GPs/patients by trust, LGD or GP federation, funding, access equity)
+[`gms`](https://bolster.readthedocs.io/en/latest/data_sources.html#ni-general-medical-services-gms-statistics) (GP practices/GPs/patients by trust, LGD or GP federation, funding, access equity),
+[`ophthalmic_services`](https://bolster.readthedocs.io/en/latest/data_sources.html#ni-general-ophthalmic-and-dental-services-statistics) (sight tests, vouchers, repairs, practices and practitioners by trust, LGD or age/sex; quarterly and annual),
+[`dental_services`](https://bolster.readthedocs.io/en/latest/data_sources.html#ni-general-ophthalmic-and-dental-services-statistics) (dental registrations, treatments, practices and dentists by trust, LGD, assembly area or age/sex; quarterly and annual)
 
 ### PSNI — Police Service of Northern Ireland
 

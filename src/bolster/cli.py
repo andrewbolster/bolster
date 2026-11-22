@@ -31,12 +31,14 @@ from .data_sources.ecb_interest_rates import get_rate_changes as get_ecb_rate_ch
 from .data_sources.electricity_renewables import get_latest_data as get_electricity_data
 from .data_sources.eoni import get_results as get_ni_election_results
 from .data_sources.health_ni import cancer_waiting_times as nisra_cancer
+from .data_sources.health_ni import dental_services as nisra_dental
 from .data_sources.health_ni import diagnostic_waiting_times as nisra_diagnostic
 from .data_sources.health_ni import disease_prevalence as nisra_disease_prevalence
 from .data_sources.health_ni import emergency_care_waiting_times as nisra_emergency
 from .data_sources.health_ni import gms as nisra_gms
 from .data_sources.health_ni import hsc_recruitment as nisra_hsc_recruitment
 from .data_sources.health_ni import hsc_workforce as nisra_hsc_workforce
+from .data_sources.health_ni import ophthalmic_services as nisra_ophthalmic
 from .data_sources.justice import first_time_entrants as justice_first_time_entrants
 from .data_sources.justice import mortgages as justice_mortgages
 from .data_sources.justice import nicts_quarterly as justice_nicts_quarterly
@@ -9545,6 +9547,246 @@ def nisra_gms_cmd(view, cadence, topic, level, output_format, force_refresh, sav
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
         console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@nisra.command(name="ophthalmic")
+@click.option(
+    "--view",
+    type=click.Choice(
+        ["activity", "practices", "practitioners", "annual-activity", "annual-practices", "unallocated"],
+        case_sensitive=False,
+    ),
+    default="activity",
+    show_default=True,
+    help="Which breakdown to return (views starting 'annual-' and 'unallocated' read PxStat)",
+)
+@click.option(
+    "--measure",
+    type=click.Choice(["sight_tests", "vouchers", "repairs_replacements"], case_sensitive=False),
+    default="sight_tests",
+    show_default=True,
+    help="Quarterly activity measure (--view activity only)",
+)
+@click.option(
+    "--level",
+    type=click.Choice(["trust", "lgd", "age_sex", "assembly_area", "dea"], case_sensitive=False),
+    default="trust",
+    show_default=True,
+    help="Breakdown: quarterly activity takes trust, lgd or age_sex; quarterly practices trust or lgd; "
+    "annual views trust, lgd, assembly_area or dea",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download of the quarterly workbook even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_ophthalmic_cmd(view, measure, level, output_format, force_refresh, save):
+    r"""NI General Ophthalmic Services (GOS) Statistics (BSO/FPS).
+
+    \b
+    NHS sight tests, vouchers, repairs and replacements, and the practices and
+    practitioners that claim for them. Quarterly figures run from Q1 2017/18 and
+    are marked provisional by the publisher; annual figures (from PxStat) run
+    2017/18 to present. Counts are of claims paid in the period.
+
+    Examples:
+        Quarterly sight tests by Health Trust::
+
+            bolster nisra ophthalmic
+
+        Quarterly vouchers by Local Government District::
+
+            bolster nisra ophthalmic --measure vouchers --level lgd
+
+        Sight tests by gender and age group::
+
+            bolster nisra ophthalmic --level age_sex
+
+        Quarterly practice counts::
+
+            bolster nisra ophthalmic --view practices
+
+        Annual activity by Assembly Area::
+
+            bolster nisra ophthalmic --view annual-activity --level assembly_area
+
+        Activity in the Northern Ireland total but in no area::
+
+            bolster nisra ophthalmic --view unallocated
+
+    Data source:
+        https://www.gov.uk/government/collections/general-ophthalmic-services-statistics-for-northern-ireland
+    """
+    console = Console()
+    level_value = level.lower()
+
+    try:
+        with console.status("[bold green]Downloading ophthalmic services statistics...[/bold green]"):
+            if view == "activity":
+                data = nisra_ophthalmic.get_quarterly_activity(
+                    measure.lower(), level_value, force_refresh=force_refresh
+                )
+            elif view == "practices":
+                data = nisra_ophthalmic.get_quarterly_practices(level_value, force_refresh=force_refresh)
+            elif view == "practitioners":
+                data = nisra_ophthalmic.get_quarterly_practitioners(force_refresh=force_refresh)
+            elif view == "annual-activity":
+                data = nisra_ophthalmic.get_annual_activity(level_value)
+            elif view == "annual-practices":
+                data = nisra_ophthalmic.get_annual_practices(level_value)
+            else:
+                data = nisra_ophthalmic.get_annual_unallocated(level_value)
+
+        if data.empty:
+            console.print("[yellow]No data found for the specified options[/yellow]")
+            return
+
+        console.print("[green]Ophthalmic services data retrieved successfully[/green]")
+        console.print(f"[cyan]Rows: {len(data):,}[/cyan]")
+
+        _emit_hsc_frame(console, data, output_format, save, f"Ophthalmic services ({view})")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check the --view and --level combination is one the view supports")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@nisra.command(name="dental")
+@click.option(
+    "--view",
+    type=click.Choice(
+        [
+            "registrations",
+            "treatments",
+            "practices",
+            "dentists",
+            "annual-registrations",
+            "annual-treatments",
+            "annual-dentists",
+            "unallocated",
+        ],
+        case_sensitive=False,
+    ),
+    default="registrations",
+    show_default=True,
+    help="Which breakdown to return (views starting 'annual-' and 'unallocated' read PxStat)",
+)
+@click.option(
+    "--measure",
+    type=click.Choice(["fillings", "extractions", "x_rays", "crowns"], case_sensitive=False),
+    default="fillings",
+    show_default=True,
+    help="Quarterly treatment measure (--view treatments only)",
+)
+@click.option(
+    "--level",
+    type=click.Choice(["trust", "lgd", "assembly_area", "age_sex", "dea"], case_sensitive=False),
+    default="trust",
+    show_default=True,
+    help="Breakdown: quarterly registrations take trust, lgd, assembly_area or age_sex; quarterly treatments "
+    "trust, lgd or age_sex; quarterly practices and dentists trust, lgd or assembly_area; annual views trust, lgd, "
+    "assembly_area or dea",
+)
+@click.option(
+    "--series",
+    type=click.Choice(["treatments", "registrations", "dentists_and_surgeries"], case_sensitive=False),
+    default="treatments",
+    show_default=True,
+    help="Annual series to compare with its Northern Ireland total (--view unallocated only)",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download of the quarterly workbook even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_dental_cmd(view, measure, level, series, output_format, force_refresh, save):
+    r"""NI General Dental Services (GDS) Statistics (BSO/FPS).
+
+    \b
+    NHS dental registrations, treatments (fillings, extractions, crowns and
+    X-rays), and the practices and dentists that provide them. Quarterly figures
+    run from Q1 2017/18 and are marked provisional by the publisher; annual
+    figures (from PxStat) run 2013/14 to present. Quarterly registrations are a
+    snapshot, not additive across quarters.
+
+    Examples:
+        Quarterly registrations by Health Trust::
+
+            bolster nisra dental
+
+        Quarterly fillings by Local Government District::
+
+            bolster nisra dental --view treatments --measure fillings --level lgd
+
+        Registrations by gender and age group::
+
+            bolster nisra dental --level age_sex
+
+        Quarterly dental practices by Assembly Area::
+
+            bolster nisra dental --view practices --level assembly_area
+
+        Annual registrations by age band::
+
+            bolster nisra dental --view annual-registrations
+
+        Treatments in the Northern Ireland total but in no area::
+
+            bolster nisra dental --view unallocated --series treatments
+
+    Data source:
+        https://www.gov.uk/government/collections/general-dental-services-statistics-for-northern-ireland
+    """
+    console = Console()
+    level_value = level.lower()
+
+    try:
+        with console.status("[bold green]Downloading dental services statistics...[/bold green]"):
+            if view == "registrations":
+                data = nisra_dental.get_quarterly_registrations(level_value, force_refresh=force_refresh)
+            elif view == "treatments":
+                data = nisra_dental.get_quarterly_treatments(measure.lower(), level_value, force_refresh=force_refresh)
+            elif view == "practices":
+                data = nisra_dental.get_quarterly_practices(level_value, force_refresh=force_refresh)
+            elif view == "dentists":
+                data = nisra_dental.get_quarterly_dentists(level_value, force_refresh=force_refresh)
+            elif view == "annual-registrations":
+                data = nisra_dental.get_annual_registrations(level_value)
+            elif view == "annual-treatments":
+                data = nisra_dental.get_annual_treatments(level_value)
+            elif view == "annual-dentists":
+                data = nisra_dental.get_annual_dentists_and_surgeries(level_value)
+            else:
+                data = nisra_dental.get_annual_unallocated(series.lower(), level_value)
+
+        if data.empty:
+            console.print("[yellow]No data found for the specified options[/yellow]")
+            return
+
+        console.print("[green]Dental services data retrieved successfully[/green]")
+        console.print(f"[cyan]Rows: {len(data):,}[/cyan]")
+
+        _emit_hsc_frame(console, data, output_format, save, f"Dental services ({view})")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check the --view and --level combination is one the view supports")
         console.print("   - Check your internet connection")
         console.print("   - Try again with --force-refresh to bypass cache")
         raise click.Abort() from e
