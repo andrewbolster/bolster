@@ -2035,6 +2035,44 @@ Suppressed cells (small-count disclosure control) come back as ``NaN`` in
 
 ----
 
+Justice — PPS Thematic Bulletins
+--------------------------------
+
+The Public Prosecution Service's two thematic bulletins: cases involving sexual
+offences, and cases involving hate crime. Both publish a ``Tables`` workbook
+each year with the prior year restated; sexual offences also publishes an
+``Overall Trends`` workbook running from 2015/16.
+
+Every table comes back in one tidy shape, and a table that does not add up to
+its own stated totals is refused with ``PPSValidationError``. Pass
+``strict=False`` to skip unreadable sheets with a warning instead. Suppressed
+cells (``-``, ``#``, ``*``) come back as ``NaN`` in ``value`` with the symbol in
+``marker``; ``unit`` is ``count``, ``days`` or ``proportion`` (0-1).
+
+.. code-block:: python
+
+    from bolster.data_sources.justice import pps_thematic_bulletins as pps
+
+    # Every table in the latest hate crime bulletin
+    df = pps.get_latest_data("hate_crime")
+
+    # One table: sexual offences decisions, with the leaf rows
+    decisions = pps.get_latest_data("sexual_offences", table="4a")
+
+    # Files received, decisions, timeliness and court outcomes from 2015/16
+    trends = pps.get_overall_trends()
+
+    # Several bulletins stitched into one series
+    history = pps.get_historical_data("sexual_offences", max_publications=5)
+
+.. code-block:: console
+
+    $ bolster justice pps-thematic-bulletins hate-crime --list-tables
+    $ bolster justice pps-thematic-bulletins sexual-offences --table 4a --year 2024/25
+    $ bolster justice pps-thematic-bulletins sexual-offences --trends
+
+----
+
 Translink
 ---------
 

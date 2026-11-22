@@ -42,6 +42,7 @@ from .data_sources.justice import mortgages as justice_mortgages
 from .data_sources.justice import nicts_quarterly as justice_nicts_quarterly
 from .data_sources.justice import pbni_caseload as justice_pbni
 from .data_sources.justice import pps_statistical_bulletin as justice_pps_statistical_bulletin
+from .data_sources.justice import pps_thematic_bulletins as justice_pps_thematic_bulletins
 from .data_sources.justice import prosecutions_convictions as justice_prosecutions
 from .data_sources.justice import reoffending as justice_reoffending
 from .data_sources.justice import yja_workload as justice_yja_workload
@@ -11786,6 +11787,123 @@ def justice_pps_statistical_bulletin_cmd(
         else:
             click.echo(data.to_csv(index=False), nl=False)
 
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@justice.command(name="pps-thematic-bulletins")
+@click.argument("series", type=click.Choice(["sexual-offences", "hate-crime"], case_sensitive=False))
+@click.option(
+    "--table",
+    default="all",
+    help="Table key such as '4a' or '3a', or 'all' (default). Use --list-tables to see the options.",
+)
+@click.option("--list-tables", is_flag=True, help="List available table keys and exit")
+@click.option("--trends", is_flag=True, help="Sexual offences only: the 2015/16-to-date Overall Trends workbook")
+@click.option("--year", help="Filter to a financial year, e.g. '2024/25'")
+@click.option("--historical", is_flag=True, help="Stitch several annual bulletins into one series")
+@click.option(
+    "--max-publications",
+    type=int,
+    default=5,
+    help="Number of annual bulletins to combine when --historical is set (default: 5)",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["csv", "json"], case_sensitive=False),
+    default="csv",
+    help="Output format (default: csv)",
+)
+@click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
+@click.option("--save", help="Save data to file (specify filename)")
+def justice_pps_thematic_bulletins_cmd(
+    series, table, list_tables, trends, year, historical, max_publications, output_format, force_refresh, save
+):
+    r"""Public Prosecution Service thematic bulletins.
+
+    \b
+    Cases involving sexual offences, and cases involving hate crime: decisions,
+    timeliness and court outcomes. Each bulletin restates the prior financial
+    year. Tables that do not add up to their stated totals are refused.
+
+    Examples:
+        Tables available for hate crime::
+
+            bolster justice pps-thematic-bulletins hate-crime --list-tables
+
+        Sexual offences decisions (table 4a) for one year::
+
+            bolster justice pps-thematic-bulletins sexual-offences --table 4a --year 2024/25
+
+        The sexual offences series from 2015/16::
+
+            bolster justice pps-thematic-bulletins sexual-offences --trends
+
+        Hate crime across five bulletins::
+
+            bolster justice pps-thematic-bulletins hate-crime --historical --format json
+
+    Source:
+        https://www.ppsni.gov.uk/thematic-bulletins-sexual-offences
+        https://www.ppsni.gov.uk/node/516
+    """
+    from rich.console import Console
+
+    console = Console()
+    series = series.replace("-", "_")
+
+    try:
+        if list_tables:
+            with console.status("[bold green]Downloading PPS thematic bulletin..."):
+                tables = justice_pps_thematic_bulletins.list_tables(series, force_refresh=force_refresh)
+            console.print("[bold]Available tables:[/bold]")
+            for name in tables:
+                console.print(f"   {name.split(':')[-1]}")
+            return
+
+        with console.status("[bold green]Downloading PPS thematic bulletin..."):
+            if trends:
+                if series != "sexual_offences":
+                    raise click.UsageError("--trends is only published for sexual-offences")
+                data = justice_pps_thematic_bulletins.get_overall_trends(force_refresh=force_refresh)
+            elif historical:
+                data = justice_pps_thematic_bulletins.get_historical_data(
+                    series, max_publications=max_publications, force_refresh=force_refresh
+                )
+                if table != "all":
+                    data = data[data["table"] == f"{series}:{table.lower()}"]
+            else:
+                data = justice_pps_thematic_bulletins.get_latest_data(series, table=table, force_refresh=force_refresh)
+
+        if year:
+            data = data[data["financial_year"] == year]
+
+        if data.empty:
+            console.print("[yellow]No data matches the requested filters[/yellow]")
+            return
+
+        console.print(f"[cyan]{series} | Rows: {len(data)} | Tables: {data['table'].nunique()}[/cyan]")
+
+        if save:
+            if output_format == "json" or save.endswith(".json"):
+                data.astype(str).to_json(save, orient="records", indent=2)
+            else:
+                data.to_csv(save, index=False)
+            console.print(f"[green]Saved to: {save}[/green]")
+            return
+
+        if output_format == "json":
+            click.echo(data.astype(str).to_json(orient="records", indent=2))
+        else:
+            click.echo(data.to_csv(index=False), nl=False)
+
+    except click.UsageError:
+        raise
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
         console.print("\n[yellow]Troubleshooting:[/yellow]")
