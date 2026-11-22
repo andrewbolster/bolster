@@ -194,16 +194,26 @@ class TestPublicationDiscovery:
 
 
 class TestPublicationDiscoveryFallback:
-    """Scraping lives in utils.web; this module only owns the .ods/.xlsx retry and fallback."""
+    """Scraping lives in utils.web; this module only owns the .ods/.xlsx retry and the opt-in fallback."""
 
-    def test_falls_back_when_both_extensions_fail(self):
+    def test_raises_when_both_extensions_fail(self):
+        with (
+            patch(
+                "bolster.data_sources.nisra.housing_bulletin.find_publication_link",
+                side_effect=Exception("Network error"),
+            ) as mock_find,
+            pytest.raises(hb.NISRADataNotFoundError, match="allow_fallback=True"),
+        ):
+            hb.get_latest_publication_url()
+
+        assert [call.kwargs["file_extension"] for call in mock_find.call_args_list] == [".ods", ".xlsx"]
+
+    def test_pinned_edition_only_with_allow_fallback(self):
         with patch(
             "bolster.data_sources.nisra.housing_bulletin.find_publication_link",
             side_effect=Exception("Network error"),
-        ) as mock_find:
-            assert hb.get_latest_publication_url() == hb._FALLBACK_URL
-
-        assert [call.kwargs["file_extension"] for call in mock_find.call_args_list] == [".ods", ".xlsx"]
+        ):
+            assert hb.get_latest_publication_url(allow_fallback=True) == hb._FALLBACK_URL
 
     def test_xlsx_used_when_ods_unavailable(self):
         xlsx_url = "https://www.communities-ni.gov.uk/system/files/ni-housing-bulletin.xlsx"

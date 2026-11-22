@@ -102,6 +102,16 @@ from .data_sources.translink.vehicles import get_live_vehicles
 from .data_sources.wikipedia import get_ni_executive_basic_table
 from .utils.rss import filter_entries, get_nisra_statistics_feed, parse_rss_feed
 
+allow_fallback_option = click.option(
+    "--allow-fallback",
+    is_flag=True,
+    default=False,
+    help=(
+        "If the latest release cannot be found, serve the module's pinned earlier release instead of failing. "
+        "The output then has fallback_used, requested_period and served_period columns."
+    ),
+)
+
 
 @click.group()
 @click.version_option(version=__version__, prog_name="bolster")
@@ -6799,7 +6809,8 @@ def psni_ombudsman_cmd(breakdown, output_format, save, force_refresh):
 )
 @click.option("--save", help="Save data to file (specify filename)")
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
-def psni_stop_search_cmd(year, district, output_format, save, force_refresh):
+@allow_fallback_option
+def psni_stop_search_cmd(year, district, output_format, save, force_refresh, allow_fallback):
     """PSNI Stop and Search Statistics (2017/18 onwards).
 
     Retrieves individual stop and search records for Northern Ireland covering:
@@ -6845,7 +6856,7 @@ def psni_stop_search_cmd(year, district, output_format, save, force_refresh):
             )
 
         console.print("\n[bold blue]Stop and Search Statistics[/bold blue]\n")
-        df = stop_and_search.get_latest_stop_and_search(force_refresh=force_refresh)
+        df = stop_and_search.get_latest_stop_and_search(force_refresh=force_refresh, allow_fallback=allow_fallback)
 
         if year:
             df = df[df["financial_year"] == year]
@@ -7732,7 +7743,8 @@ def nisra_planning_statistics_cmd(dimension, financial_year, output_format, forc
 )
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
-def nisra_housing_stock_cmd(geo, year_filter, output_format, force_refresh, save):  # pragma: no cover
+@allow_fallback_option
+def nisra_housing_stock_cmd(geo, year_filter, output_format, force_refresh, save, allow_fallback):  # pragma: no cover
     """NI Housing Stock Statistics (Department of Finance / Land and Property Services).
 
     Annual dwelling counts by property type (converted apartment, purpose built
@@ -7763,7 +7775,9 @@ def nisra_housing_stock_cmd(geo, year_filter, output_format, force_refresh, save
 
     try:
         with console.status(f"[bold green]Downloading housing stock data (geo={geo})..."):
-            data = nisra_housing_stock.get_latest_housing_stock(geo=geo, force_refresh=force_refresh)
+            data = nisra_housing_stock.get_latest_housing_stock(
+                geo=geo, force_refresh=force_refresh, allow_fallback=allow_fallback
+            )
 
         if year_filter is not None:
             if "year" in data.columns:
@@ -7814,7 +7828,8 @@ def nisra_housing_stock_cmd(geo, year_filter, output_format, force_refresh, save
 )
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
-def nisra_homelessness_cmd(section, output_format, force_refresh, save):  # pragma: no cover
+@allow_fallback_option
+def nisra_homelessness_cmd(section, output_format, force_refresh, save, allow_fallback):  # pragma: no cover
     """NI Homelessness Bulletin Statistics (DfC / NIHE).
 
     Biannual homelessness presentations and acceptances by Local Government
@@ -7845,7 +7860,9 @@ def nisra_homelessness_cmd(section, output_format, force_refresh, save):  # prag
 
     try:
         with console.status(f"[bold green]Downloading homelessness data (section={section})..."):
-            data = nisra_homelessness.get_latest_data(section=section, force_refresh=force_refresh)
+            data = nisra_homelessness.get_latest_data(
+                section=section, force_refresh=force_refresh, allow_fallback=allow_fallback
+            )
 
         console.print("[green]Homelessness data retrieved successfully[/green]")
         console.print(f"[cyan]Rows: {len(data)}[/cyan]")
@@ -7890,7 +7907,8 @@ def nisra_homelessness_cmd(section, output_format, force_refresh, save):  # prag
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
 @click.option("--summary", is_flag=True, help="Show summary statistics instead of full data")
-def nisra_housing_bulletin_cmd(table, list_tables, output_format, force_refresh, save, summary):
+@allow_fallback_option
+def nisra_housing_bulletin_cmd(table, list_tables, output_format, force_refresh, save, summary, allow_fallback):
     r"""NI Housing Bulletin (DfC, quarterly).
 
     \b
@@ -7937,7 +7955,9 @@ def nisra_housing_bulletin_cmd(table, list_tables, output_format, force_refresh,
             return
 
         with console.status(f"[bold green]Downloading housing bulletin table '{table}'..."):
-            data = nisra_housing_bulletin.get_latest_data(table=table, force_refresh=force_refresh)
+            data = nisra_housing_bulletin.get_latest_data(
+                table=table, force_refresh=force_refresh, allow_fallback=allow_fallback
+            )
 
         console.print("[green]Housing bulletin data retrieved successfully[/green]")
         console.print(f"[cyan]Table: {table} | Rows: {len(data)}[/cyan]")
@@ -8099,7 +8119,8 @@ def nisra_baby_names_cmd(year, sex, top_n, output_format, force_refresh, save):
 )
 @click.option("--force-refresh", is_flag=True, help="Force re-download even if cached")
 @click.option("--save", help="Save data to file (specify filename)")
-def nisra_work_quality_cmd(indicator, year, output_format, force_refresh, save):
+@allow_fallback_option
+def nisra_work_quality_cmd(indicator, year, output_format, force_refresh, save, allow_fallback):
     r"""NISRA Work Quality Statistics for Northern Ireland.
 
     \b
@@ -8130,13 +8151,17 @@ def nisra_work_quality_cmd(indicator, year, output_format, force_refresh, save):
 
     try:
         with console.status("[bold green]Downloading NISRA work quality data..."):
-            data = nisra_work_quality.get_latest_work_quality(force_refresh=force_refresh)
+            data = nisra_work_quality.get_latest_work_quality(
+                force_refresh=force_refresh, allow_fallback=allow_fallback
+            )
 
         if indicator is not None:
             data = data[data["indicator"] == indicator]
             if data.empty:
                 console.print(f"[yellow]No data found for indicator '{indicator}'[/yellow]")
-                all_data = nisra_work_quality.get_latest_work_quality(force_refresh=False)
+                all_data = nisra_work_quality.get_latest_work_quality(
+                    force_refresh=False, allow_fallback=allow_fallback
+                )
                 available = all_data["indicator"].unique()
                 console.print(f"[dim]Available indicators: {', '.join(sorted(available))}[/dim]")
                 return

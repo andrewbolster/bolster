@@ -37,20 +37,28 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import pandas as pd
-from bs4 import BeautifulSoup, Tag
+from bs4 import Tag  # noqa: TC002 (used inside `cast(...)`, evaluated at runtime)
 
 from bolster.utils.excel import parse_sheet
-from bolster.utils.web import session
+from bolster.utils.fallback import PinnedRelease, ResolvedUrl, mark_fallback, resolve_url
+from bolster.utils.web import fetch_soup, make_absolute_url, scrape_file_links
 
-from ._base import NISRAValidationError, download_file
+from ._base import NISRADataNotFoundError, NISRAValidationError, download_file
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# ─── Fallback URLs (2026 edition) ─────────────────────────────────────────────
-_SOURCE_PAGE = "https://www.finance-ni.gov.uk/topics/housing-stock-statistics"
+# ─── Pinned 2026 edition, served only with allow_fallback=True ────────────────
+_SITE_ROOT = "https://www.finance-ni.gov.uk"
+_SOURCE_PAGE = f"{_SITE_ROOT}/topics/housing-stock-statistics"
+_PUBLICATION_HREF = "/publications/annual-housing-stock-statistics"
+
+_PINNED_EDITION = "2026 edition"
 
 _FALLBACK_URLS: dict[str, str] = {
     "lgd": (
@@ -92,63 +100,82 @@ _OUTPUT_COLUMNS = [
 ]
 
 
-def get_latest_publication_url(geo: str = "lgd") -> str:
+def _scrape_publication_url(geo: str) -> str:
+    """Find the most recent Excel link for ``geo`` on the annual housing stock publication page.
+
+    The topic page links to the publication page, which holds the workbooks.
+    """
+    publication_pages = [
+        make_absolute_url(cast("str", a_tag["href"]), _SITE_ROOT)
+        for a_tag in cast("list[Tag]", fetch_soup(_SOURCE_PAGE).find_all("a", href=True))
+        if _PUBLICATION_HREF in cast("str", a_tag["href"]).lower()
+    ]
+    if not publication_pages:
+        raise NISRADataNotFoundError(f"no link containing {_PUBLICATION_HREF!r} on the topic page")
+
+    candidates: list[str] = []
+    for link in scrape_file_links(publication_pages[0], ".xlsx", base_url=_SITE_ROOT):
+        lower = link["url"].lower()
+        if (
+            geo == "lgd"
+            and "soa" not in lower
+            and "ward" not in lower
+            or geo == "ward"
+            and "ward" in lower
+            or geo == "soa"
+            and "soa" in lower
+        ):
+            candidates.append(link["url"])
+
+    if not candidates:
+        raise NISRADataNotFoundError(f"no {geo} .xlsx link on {publication_pages[0]}")
+
+    # Prefer the most recently dated URL (year is usually in the path)
+    candidates.sort(key=lambda u: re.findall(r"\d{4}", u) or ["0000"], reverse=True)
+    logger.info("Discovered %s URL from %s: %s", geo, publication_pages[0], candidates[0])
+    return candidates[0]
+
+
+def _resolve_publication_url(geo: str, allow_fallback: bool) -> ResolvedUrl:
+    """Resolve the Excel URL for ``geo``, serving the pinned edition only if allowed."""
+    if geo not in _FALLBACK_URLS:
+        raise ValueError(f"Unknown geo type {geo!r}. Use 'lgd', 'ward', or 'soa'.")
+
+    return resolve_url(
+        lambda: _scrape_publication_url(geo),
+        allow_fallback=allow_fallback,
+        pinned=PinnedRelease(_FALLBACK_URLS[geo], _PINNED_EDITION),
+        error_cls=NISRADataNotFoundError,
+        what=f"the latest housing stock ({geo}) workbook",
+        searched=f"{_SOURCE_PAGE}, then the {_PUBLICATION_HREF} page it links to (.xlsx links for geo={geo!r})",
+    )
+
+
+def get_latest_publication_url(geo: str = "lgd", allow_fallback: bool = False) -> str:
     """Scrape the DoF NI housing stock page for the latest Excel download URL.
 
-    Attempts to find the most recent Excel link on the source page.  Falls back
-    to the hardcoded 2026 URL if scraping fails or returns no match.
+    Finds the most recently dated Excel link for ``geo`` on the annual housing
+    stock publication page linked from the source page.
 
     Args:
         geo: Geography type — 'lgd' (default), 'ward', or 'soa'.
+        allow_fallback: If ``True``, return the pinned 2026 edition URL when the
+            page cannot be read or has no matching link. If ``False`` (default),
+            raise instead.
 
     Returns:
         Absolute URL of the Excel file.
+
+    Raises:
+        ValueError: If ``geo`` is not one of ``'lgd'``, ``'ward'``, ``'soa'``.
+        NISRADataNotFoundError: If no link is found and ``allow_fallback`` is ``False``.
 
     Example:
         >>> url = get_latest_publication_url('lgd')
         >>> url.endswith('.xlsx')
         True
     """
-    if geo not in _FALLBACK_URLS:
-        raise ValueError(f"Unknown geo type {geo!r}. Use 'lgd', 'ward', or 'soa'.")
-
-    try:
-        response = session.get(_SOURCE_PAGE, timeout=30)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.content, "html.parser")
-
-        candidates: list[str] = []
-        for a_tag in cast("list[Tag]", soup.find_all("a", href=True)):
-            href = cast("str", a_tag["href"])
-            if ".xlsx" not in href.lower():
-                continue
-            # Make absolute
-            if href.startswith("/"):
-                href = f"https://www.finance-ni.gov.uk{href}"
-
-            lower = href.lower()
-            if (
-                geo == "lgd"
-                and "soa" not in lower
-                and "ward" not in lower
-                or geo == "ward"
-                and "ward" in lower
-                or geo == "soa"
-                and "soa" in lower
-            ):
-                candidates.append(href)
-
-        if candidates:
-            # Prefer the most recently dated URL (year is usually in the path)
-            candidates.sort(key=lambda u: re.findall(r"\d{4}", u) or ["0000"], reverse=True)
-            logger.info("Discovered %s URL from source page: %s", geo, candidates[0])
-            return candidates[0]
-
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("Could not scrape %s for %s URL: %s", _SOURCE_PAGE, geo, exc)
-
-    logger.info("Using fallback URL for geo=%s", geo)
-    return _FALLBACK_URLS[geo]
+    return _resolve_publication_url(geo, allow_fallback).url
 
 
 def _extract_year_from_title(title: str) -> int | None:
@@ -340,7 +367,9 @@ def parse_lgd_file(file_path: str | object) -> pd.DataFrame:
     return result
 
 
-def get_latest_housing_stock(geo: str = "lgd", force_refresh: bool = False) -> pd.DataFrame:
+def get_latest_housing_stock(
+    geo: str = "lgd", force_refresh: bool = False, allow_fallback: bool = False
+) -> pd.DataFrame:
     """Download and return NI housing stock data in long format.
 
     Args:
@@ -350,6 +379,12 @@ def get_latest_housing_stock(geo: str = "lgd", force_refresh: bool = False) -> p
             - ``'soa'``: Super Output Area level.
         force_refresh: If ``True``, bypass the local file cache and
             re-download the source file.
+        allow_fallback: If ``True``, serve the pinned 2026 edition when the
+            latest workbook cannot be found; the result then carries
+            ``fallback_used``, ``requested_period`` and ``served_period``
+            columns, ``df.attrs["fallback"]`` and emits a
+            :class:`~bolster.utils.fallback.FallbackWarning`. If ``False``
+            (default), raise instead.
 
     Returns:
         Long-format DataFrame.  For ``geo='lgd'`` the columns are:
@@ -370,34 +405,46 @@ def get_latest_housing_stock(geo: str = "lgd", force_refresh: bool = False) -> p
 
     Raises:
         ValueError: If ``geo`` is not one of ``'lgd'``, ``'ward'``, ``'soa'``.
-        NISRADataNotFoundError: If the source file cannot be downloaded.
+        NISRADataNotFoundError: If the latest workbook cannot be found and
+            ``allow_fallback`` is ``False``, or the source file cannot be downloaded.
 
     Example:
         >>> df = get_latest_housing_stock(geo='lgd')
         >>> set(df.columns) >= {'year', 'lgd_code', 'lgd_name', 'total'}
         True
     """
-    if geo not in _FALLBACK_URLS:
-        raise ValueError(f"Unknown geo type {geo!r}. Use 'lgd', 'ward', or 'soa'.")
-
-    url = get_latest_publication_url(geo)
-    file_path = download_file(url, cache_ttl_hours=24, force_refresh=force_refresh)
+    resolved = _resolve_publication_url(geo, allow_fallback)
+    file_path = download_file(resolved.url, cache_ttl_hours=24, force_refresh=force_refresh)
 
     if geo == "lgd":
-        return parse_lgd_file(file_path)
+        df = parse_lgd_file(file_path)
+    else:
+        # Ward and SOA files have a different multi-column layout; return raw for now
+        # (they are downloaded and cached; a future enhancement can parse them fully)
+        logger.warning(
+            "Full parsing for geo=%r is not yet implemented; returning raw sheet data from first data tab.",
+            geo,
+        )
+        df = _first_table_sheet(file_path)
 
-    # Ward and SOA files have a different multi-column layout; return raw for now
-    # (they are downloaded and cached; a future enhancement can parse them fully)
-    logger.warning(
-        "Full parsing for geo=%r is not yet implemented; returning raw sheet data from first data tab.",
-        geo,
+    if resolved.fallback_reason is None:
+        return df
+    return mark_fallback(
+        df,
+        requested="latest published edition",
+        served=_PINNED_EDITION,
+        reason=resolved.fallback_reason,
+        served_url=resolved.url,
     )
+
+
+def _first_table_sheet(file_path: str | Path) -> pd.DataFrame:
+    """Raw contents of the first ``Table*`` sheet, or an empty frame if there is none."""
     xl = pd.ExcelFile(file_path, engine="openpyxl")
     for sheet_name in xl.sheet_names:
         if sheet_name in _SKIP_SHEETS or not sheet_name.startswith("Table"):
             continue
         return parse_sheet(xl, sheet_name, header=None)
-
     return pd.DataFrame()
 
 

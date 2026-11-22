@@ -71,6 +71,7 @@ from typing import cast
 import openpyxl
 import pandas as pd
 
+from bolster.utils.fallback import PinnedRelease, fallback_not_found_message, mark_fallback
 from bolster.utils.web import session
 
 from ._base import NISRADataNotFoundError, NISRAValidationError, download_file
@@ -106,25 +107,12 @@ _INDICATOR_SHEETS: dict[str, str] = {
 _OVERALL_TABLE_SUFFIX = "a"
 
 
-def get_work_quality_publication_url() -> tuple[str, int]:
-    """Get the URL of the latest Work Quality Excel file and publication year.
+def _resolve_publication(allow_fallback: bool) -> tuple[str, int, str | None]:
+    """Find the latest workbook URL, its publication year and, if the match was loose, why.
 
-    Scrapes the NISRA work quality index page to discover the most recent
-    publication link, then follows to the publication page to find the Excel file.
-
-    Returns:
-        Tuple of (excel_url, year) e.g.
-        ("https://www.nisra.gov.uk/system/files/.../work-quality-2025.xlsx", 2025)
-
-    Raises:
-        NISRADataNotFoundError: If unable to find the publication or Excel file
-
-    Example:
-        >>> url, year = get_work_quality_publication_url()
-        >>> url.startswith('https://')
-        True
-        >>> year >= 2025
-        True
+    The workbook is the ``.xlsx`` link whose path contains ``work-quality``. With
+    ``allow_fallback`` the first ``.xlsx`` link on the publication page is used
+    when none does, and the third element says so.
     """
     from bs4 import BeautifulSoup, Tag
 
@@ -169,27 +157,63 @@ def get_work_quality_publication_url() -> tuple[str, int]:
 
     pub_soup = BeautifulSoup(pub_response.content, "html.parser")
 
-    excel_url: str | None = None
+    workbooks: list[str] = []
     for a_tag in cast("list[Tag]", pub_soup.find_all("a", href=True)):
         href = cast("str", a_tag["href"])
-        if ".xlsx" in href.lower() and "work-quality" in href.lower():
-            excel_url = href if href.startswith("http") else f"{NISRA_BASE_URL}{href}"
-            break
+        if ".xlsx" in href.lower():
+            workbooks.append(href if href.startswith("http") else f"{NISRA_BASE_URL}{href}")
 
-    if excel_url is None:
-        # Fallback: any .xlsx link on the publication page
-        for a_tag in cast("list[Tag]", pub_soup.find_all("a", href=True)):
-            href = cast("str", a_tag["href"])
-            if ".xlsx" in href.lower():
-                excel_url = href if href.startswith("http") else f"{NISRA_BASE_URL}{href}"
-                logger.warning(f"Using fallback Excel link (no 'work-quality' in path): {excel_url}")
-                break
+    matching = [url for url in workbooks if "work-quality" in url.lower()]
+    if matching:
+        logger.info(f"Found Work Quality Excel URL: {matching[0]}")
+        return matching[0], latest_year, None
 
-    if excel_url is None:
+    if not workbooks:
         raise NISRADataNotFoundError(f"Could not find Excel file on Work Quality publication page: {pub_url}")
 
-    logger.info(f"Found Work Quality Excel URL: {excel_url}")
-    return excel_url, latest_year
+    if not allow_fallback:
+        raise NISRADataNotFoundError(
+            fallback_not_found_message(
+                f"the Work Quality {latest_year} workbook",
+                searched=f"{pub_url} (.xlsx links whose path contains 'work-quality'; "
+                f"{len(workbooks)} other .xlsx link(s) found: {', '.join(workbooks)})",
+                pinned=PinnedRelease(workbooks[0], "the first .xlsx link on the publication page"),
+            )
+        )
+
+    reason = f"no .xlsx link with 'work-quality' in its path on {pub_url}"
+    logger.warning(f"Using the first Excel link on the publication page ({reason}): {workbooks[0]}")
+    return workbooks[0], latest_year, reason
+
+
+def get_work_quality_publication_url(allow_fallback: bool = False) -> tuple[str, int]:
+    """Get the URL of the latest Work Quality Excel file and publication year.
+
+    Scrapes the NISRA work quality index page to discover the most recent
+    publication link, then follows to the publication page to find the Excel file
+    whose path contains ``work-quality``.
+
+    Args:
+        allow_fallback: If ``True``, use the first ``.xlsx`` link on the publication
+            page when none has ``work-quality`` in its path. If ``False`` (default),
+            raise instead.
+
+    Returns:
+        Tuple of (excel_url, year) e.g.
+        ("https://www.nisra.gov.uk/system/files/.../work-quality-2025.xlsx", 2025)
+
+    Raises:
+        NISRADataNotFoundError: If unable to find the publication or Excel file
+
+    Example:
+        >>> url, year = get_work_quality_publication_url()
+        >>> url.startswith('https://')
+        True
+        >>> year >= 2025
+        True
+    """
+    url, year, _ = _resolve_publication(allow_fallback)
+    return url, year
 
 
 def _normalise_year_label(raw: str | int | float) -> str | None:
@@ -401,7 +425,7 @@ def parse_work_quality_file(file_path: str | Path, year: int) -> pd.DataFrame:
     return df
 
 
-def get_latest_work_quality(force_refresh: bool = False) -> pd.DataFrame:
+def get_latest_work_quality(force_refresh: bool = False, allow_fallback: bool = False) -> pd.DataFrame:
     """Download and parse the latest Work Quality publication.
 
     Automatically discovers the current publication URL by scraping the NISRA
@@ -410,6 +434,10 @@ def get_latest_work_quality(force_refresh: bool = False) -> pd.DataFrame:
 
     Args:
         force_refresh: If True, bypass cache and re-download the file.
+        allow_fallback: If True, accept the first ``.xlsx`` link on the publication page when none has
+            ``work-quality`` in its path; the result is then marked (``fallback_used``,
+            ``requested_period`` and ``served_period`` columns, ``df.attrs["fallback"]``, a
+            :class:`~bolster.utils.fallback.FallbackWarning`). If False (default), raise.
 
     Returns:
         DataFrame with columns:
@@ -429,9 +457,18 @@ def get_latest_work_quality(force_refresh: bool = False) -> pd.DataFrame:
         >>> bool(df['year'].max() >= 2025)
         True
     """
-    excel_url, year = get_work_quality_publication_url()
+    excel_url, year, fallback_reason = _resolve_publication(allow_fallback)
     file_path = download_file(excel_url, cache_ttl_hours=90 * 24, force_refresh=force_refresh)
-    return parse_work_quality_file(file_path, year)
+    df = parse_work_quality_file(file_path, year)
+    if fallback_reason is None:
+        return df
+    return mark_fallback(
+        df,
+        requested=f"Work Quality {year} workbook (path containing 'work-quality')",
+        served=excel_url,
+        reason=fallback_reason,
+        served_url=excel_url,
+    )
 
 
 def validate_work_quality_data(df: pd.DataFrame) -> bool:

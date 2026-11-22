@@ -108,6 +108,57 @@ If a source has no stable mother page to discover from, that's a reason
 not to build the module at all, not a reason to hardcode a point-in-time
 URL.
 
+### Fallbacks: strict by default, explicit opt-in
+
+A `get_latest_*` function returns the data that was asked for or raises an
+error naming what is missing. It never quietly substitutes a different
+release, year or file (a pinned URL, an earlier year, the first `.xlsx` on a
+page) for the one it could not find.
+
+Where a module keeps a pinned earlier release, serving it is opt-in through
+one flag, `allow_fallback: bool = False`, threaded through the URL-discovery
+function and every public function that calls it. Use the helpers in
+`bolster.utils.fallback` so every module behaves the same way:
+
+```python
+from bolster.utils.fallback import PinnedRelease, mark_fallback, resolve_url
+
+resolved = resolve_url(
+    _scrape_publication_url,  # raises on any failed discovery
+    allow_fallback=allow_fallback,
+    pinned=PinnedRelease(_FALLBACK_URL, "Jan-Mar 2026 bulletin"),
+    error_cls=NISRADataNotFoundError,
+    what="the latest housing bulletin tables workbook",
+    searched=f"{_HUB_URL} (latest publication, a .ods then a .xlsx link)",
+)
+df = parse(download_file(resolved.url))
+if resolved.fallback_reason is not None:
+    df = mark_fallback(
+        df,
+        requested="latest published bulletin",
+        served="Jan-Mar 2026 bulletin",
+        reason=resolved.fallback_reason,
+        served_url=resolved.url,
+    )
+```
+
+- Default (`allow_fallback=False`): a failed discovery raises the provider's
+  not-found error. The message says what could not be found, where it looked,
+  and that the pinned release can be used with `allow_fallback=True`.
+- `allow_fallback=True`: the pinned release is served and the result says so,
+  through a `FallbackWarning`, a log warning, `df.attrs["fallback"]` and the
+  columns `fallback_used`, `requested_period` and `served_period`. The columns
+  exist only when a fallback was taken, so a normal result keeps its schema.
+- When discovery succeeds, nothing is marked and the flag has no effect.
+- Expose the flag on the CLI command as `--allow-fallback` (the shared
+  `allow_fallback_option` in `cli.py`), off by default.
+- Docstrings describe the behaviour as it is; do not narrate how it used to work.
+
+An alternative link to the *same* release on the same page (for example a
+second link pattern for the same workbook) is not a fallback in this sense and
+needs no flag. Anything that could return a different release, period or
+dataset does.
+
 ### Function naming
 
 All public functions follow these prefixes:
