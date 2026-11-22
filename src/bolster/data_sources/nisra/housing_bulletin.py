@@ -35,11 +35,12 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 import pandas as pd
 
 from bolster.utils.excel import parse_sheet
+from bolster.utils.fallback import PinnedRelease, ResolvedUrl, mark_fallback, resolve_url
 from bolster.utils.web import find_publication_link
 
 from ._base import NISRADataNotFoundError, NISRAValidationError, download_file
@@ -53,7 +54,9 @@ logger = logging.getLogger(__name__)
 _SITE_ROOT = "https://www.communities-ni.gov.uk"
 _HUB_URL = f"{_SITE_ROOT}/articles/northern-ireland-housing-bulletin"
 
+# Pinned edition, served only with allow_fallback=True.
 _FALLBACK_URL = f"{_SITE_ROOT}/system/files/2026-05/ni-housing-bulletin-jan-mar26-tables_0.ods"
+_PINNED_EDITION = "Jan-Mar 2026 bulletin"
 
 _SHEET_STARTS = "T1_1"
 _SHEET_COMPLETIONS = "T1_2"
@@ -89,19 +92,9 @@ _QUARTER_ALIASES = {
 }
 
 
-def get_latest_publication_url() -> str:
-    """Scrape the DfC hub page for the latest housing bulletin tables URL.
-
-    Falls back to a hardcoded edition URL if scraping fails.
-
-    Returns:
-        Absolute URL of the ``.ods`` tables workbook.
-
-    Example:
-        >>> url = get_latest_publication_url()
-        >>> 'communities-ni.gov.uk' in url
-        True
-    """
+def _scrape_publication_url() -> str:
+    """Find the tables workbook (``.ods``, else ``.xlsx``) on the latest bulletin's page."""
+    failures: list[str] = []
     for extension in (".ods", ".xlsx"):
         try:
             file_url = find_publication_link(
@@ -111,13 +104,46 @@ def get_latest_publication_url() -> str:
                 base_url=_SITE_ROOT,
             )
         except Exception as exc:  # noqa: BLE001
-            logger.warning("Could not scrape %s for a %s bulletin: %s", _HUB_URL, extension, exc)
+            failures.append(f"{extension}: {exc}")
             continue
         logger.info("Discovered housing bulletin URL: %s", file_url)
         return file_url
+    raise NISRADataNotFoundError("; ".join(failures))
 
-    logger.info("Using fallback housing bulletin URL")
-    return _FALLBACK_URL
+
+def _resolve_publication_url(allow_fallback: bool) -> ResolvedUrl:
+    """Resolve the workbook URL, serving the pinned edition only if allowed."""
+    return resolve_url(
+        _scrape_publication_url,
+        allow_fallback=allow_fallback,
+        pinned=PinnedRelease(_FALLBACK_URL, _PINNED_EDITION),
+        error_cls=NISRADataNotFoundError,
+        what="the latest housing bulletin tables workbook",
+        searched=f"{_HUB_URL} (latest publication under /publications/northern-ireland-housing-bulletin, "
+        "a .ods then a .xlsx link)",
+    )
+
+
+def get_latest_publication_url(allow_fallback: bool = False) -> str:
+    """Scrape the DfC hub page for the latest housing bulletin tables URL.
+
+    Args:
+        allow_fallback: If ``True``, return the pinned Jan-Mar 2026 edition URL
+            when the hub page cannot be read or has no tables workbook. If
+            ``False`` (default), raise instead.
+
+    Returns:
+        Absolute URL of the ``.ods`` (or ``.xlsx``) tables workbook.
+
+    Raises:
+        NISRADataNotFoundError: If no workbook is found and ``allow_fallback`` is ``False``.
+
+    Example:
+        >>> url = get_latest_publication_url()
+        >>> 'communities-ni.gov.uk' in url
+        True
+    """
+    return _resolve_publication_url(allow_fallback).url
 
 
 def _load_sheet(file_path: str | Path, sheet: str) -> pd.DataFrame:
@@ -346,11 +372,15 @@ def normalise_lgd(name: object) -> str:
     return text
 
 
-def get_social_housing_starts(force_refresh: bool = False) -> pd.DataFrame:
+def get_social_housing_starts(force_refresh: bool = False, allow_fallback: bool = False) -> pd.DataFrame:
     """Social Housing Development Programme new dwelling starts (table 1.1).
 
     Args:
         force_refresh: If ``True``, bypass the local cache and re-download.
+        allow_fallback: If ``True``, serve the pinned Jan-Mar 2026 bulletin when the latest one
+            cannot be found; the result is then marked (``fallback_used``, ``requested_period`` and
+            ``served_period`` columns, ``df.attrs["fallback"]``, a
+            :class:`~bolster.utils.fallback.FallbackWarning`). If ``False`` (default), raise.
 
     Returns:
         Long-format DataFrame with columns:
@@ -368,15 +398,20 @@ def get_social_housing_starts(force_refresh: bool = False) -> pd.DataFrame:
         >>> set(df['tenure']) >= {'Shared', 'Self-Contained', 'All'}
         True
     """
-    raw = _load_sheet(_download(force_refresh), _SHEET_STARTS)
-    return _parse_supply_sheet(raw, "starts")
+    source = _download(force_refresh, allow_fallback)
+    raw = _load_sheet(source.path, _SHEET_STARTS)
+    return _finish(_parse_supply_sheet(raw, "starts"), source)
 
 
-def get_social_housing_completions(force_refresh: bool = False) -> pd.DataFrame:
+def get_social_housing_completions(force_refresh: bool = False, allow_fallback: bool = False) -> pd.DataFrame:
     """Social Housing Development Programme new dwelling completions (table 1.2).
 
     Args:
         force_refresh: If ``True``, bypass the local cache and re-download.
+        allow_fallback: If ``True``, serve the pinned Jan-Mar 2026 bulletin when the latest one
+            cannot be found; the result is then marked (``fallback_used``, ``requested_period`` and
+            ``served_period`` columns, ``df.attrs["fallback"]``, a
+            :class:`~bolster.utils.fallback.FallbackWarning`). If ``False`` (default), raise.
 
     Returns:
         Long-format DataFrame shaped as :func:`get_social_housing_starts`, with
@@ -387,15 +422,20 @@ def get_social_housing_completions(force_refresh: bool = False) -> pd.DataFrame:
         >>> 'completions' in df.columns
         True
     """
-    raw = _load_sheet(_download(force_refresh), _SHEET_COMPLETIONS)
-    return _parse_supply_sheet(raw, "completions")
+    source = _download(force_refresh, allow_fallback)
+    raw = _load_sheet(source.path, _SHEET_COMPLETIONS)
+    return _finish(_parse_supply_sheet(raw, "completions"), source)
 
 
-def get_dwelling_stock_by_tenure(force_refresh: bool = False) -> pd.DataFrame:
+def get_dwelling_stock_by_tenure(force_refresh: bool = False, allow_fallback: bool = False) -> pd.DataFrame:
     """Estimated dwelling stock by tenure and district (table 1.3).
 
     Args:
         force_refresh: If ``True``, bypass the local cache and re-download.
+        allow_fallback: If ``True``, serve the pinned Jan-Mar 2026 bulletin when the latest one
+            cannot be found; the result is then marked (``fallback_used``, ``requested_period`` and
+            ``served_period`` columns, ``df.attrs["fallback"]``, a
+            :class:`~bolster.utils.fallback.FallbackWarning`). If ``False`` (default), raise.
 
     Returns:
         DataFrame with one row per LGD plus a ``'Northern Ireland'`` total, and
@@ -408,26 +448,34 @@ def get_dwelling_stock_by_tenure(force_refresh: bool = False) -> pd.DataFrame:
         >>> len(df)
         12
     """
-    raw = _load_sheet(_download(force_refresh), _SHEET_STOCK)
-    return _parse_lgd_table(
-        raw,
-        header_row=2,
-        columns={
-            1: "total_stock",
-            2: "occupied_stock",
-            3: "owner_occupied",
-            4: "private_rented",
-            5: "social_rented",
-            6: "rent_free",
-        },
+    source = _download(force_refresh, allow_fallback)
+    raw = _load_sheet(source.path, _SHEET_STOCK)
+    return _finish(
+        _parse_lgd_table(
+            raw,
+            header_row=2,
+            columns={
+                1: "total_stock",
+                2: "occupied_stock",
+                3: "owner_occupied",
+                4: "private_rented",
+                5: "social_rented",
+                6: "rent_free",
+            },
+        ),
+        source,
     )
 
 
-def get_waiting_list_trend(force_refresh: bool = False) -> pd.DataFrame:
+def get_waiting_list_trend(force_refresh: bool = False, allow_fallback: bool = False) -> pd.DataFrame:
     """Social housing waiting list and allocations by quarter (table 2.1).
 
     Args:
         force_refresh: If ``True``, bypass the local cache and re-download.
+        allow_fallback: If ``True``, serve the pinned Jan-Mar 2026 bulletin when the latest one
+            cannot be found; the result is then marked (``fallback_used``, ``requested_period`` and
+            ``served_period`` columns, ``df.attrs["fallback"]``, a
+            :class:`~bolster.utils.fallback.FallbackWarning`). If ``False`` (default), raise.
 
     Returns:
         DataFrame with columns **financial_year**, **quarter**,
@@ -444,7 +492,8 @@ def get_waiting_list_trend(force_refresh: bool = False) -> pd.DataFrame:
         >>> set(df['quarter']) == {'Apr-Jun', 'Jul-Sep', 'Oct-Dec', 'Jan-Mar'}
         True
     """
-    raw = _load_sheet(_download(force_refresh), _SHEET_WAITING_LIST_TREND)
+    source = _download(force_refresh, allow_fallback)
+    raw = _load_sheet(source.path, _SHEET_WAITING_LIST_TREND)
     columns = {
         1: "total_applicants",
         2: "applicants_in_housing_stress",
@@ -473,14 +522,18 @@ def get_waiting_list_trend(force_refresh: bool = False) -> pd.DataFrame:
             record[name] = _clean_number(raw.iat[row_idx, col])
         records.append(record)
 
-    return pd.DataFrame(records)
+    return _finish(pd.DataFrame(records), source)
 
 
-def get_waiting_list_by_district(force_refresh: bool = False) -> pd.DataFrame:
+def get_waiting_list_by_district(force_refresh: bool = False, allow_fallback: bool = False) -> pd.DataFrame:
     """Social housing waiting list by district (table 2.2).
 
     Args:
         force_refresh: If ``True``, bypass the local cache and re-download.
+        allow_fallback: If ``True``, serve the pinned Jan-Mar 2026 bulletin when the latest one
+            cannot be found; the result is then marked (``fallback_used``, ``requested_period`` and
+            ``served_period`` columns, ``df.attrs["fallback"]``, a
+            :class:`~bolster.utils.fallback.FallbackWarning`). If ``False`` (default), raise.
 
     Returns:
         DataFrame with columns **lgd**, **total_applicants**,
@@ -492,23 +545,31 @@ def get_waiting_list_by_district(force_refresh: bool = False) -> pd.DataFrame:
         >>> bool(df.set_index('lgd').loc['Belfast', 'total_applicants'] > 0)
         True
     """
-    raw = _load_sheet(_download(force_refresh), _SHEET_WAITING_LIST_LGD)
-    return _parse_lgd_table(
-        raw,
-        header_row=2,
-        columns={
-            1: "total_applicants",
-            2: "applicants_in_housing_stress",
-            3: "applicants_with_fda_status",
-        },
+    source = _download(force_refresh, allow_fallback)
+    raw = _load_sheet(source.path, _SHEET_WAITING_LIST_LGD)
+    return _finish(
+        _parse_lgd_table(
+            raw,
+            header_row=2,
+            columns={
+                1: "total_applicants",
+                2: "applicants_in_housing_stress",
+                3: "applicants_with_fda_status",
+            },
+        ),
+        source,
     )
 
 
-def get_allocations_by_district(force_refresh: bool = False) -> pd.DataFrame:
+def get_allocations_by_district(force_refresh: bool = False, allow_fallback: bool = False) -> pd.DataFrame:
     """Social housing allocations by district (table 2.3).
 
     Args:
         force_refresh: If ``True``, bypass the local cache and re-download.
+        allow_fallback: If ``True``, serve the pinned Jan-Mar 2026 bulletin when the latest one
+            cannot be found; the result is then marked (``fallback_used``, ``requested_period`` and
+            ``served_period`` columns, ``df.attrs["fallback"]``, a
+            :class:`~bolster.utils.fallback.FallbackWarning`). If ``False`` (default), raise.
 
     Returns:
         DataFrame with columns **lgd**, **allocations_to_applicants**,
@@ -520,24 +581,32 @@ def get_allocations_by_district(force_refresh: bool = False) -> pd.DataFrame:
         >>> 'total_allocations' in df.columns
         True
     """
-    raw = _load_sheet(_download(force_refresh), _SHEET_ALLOCATIONS_LGD)
-    return _parse_lgd_table(
-        raw,
-        header_row=2,
-        columns={
-            1: "allocations_to_applicants",
-            2: "allocations_to_nihe_transfers",
-            3: "allocations_to_housing_association_transfers",
-            4: "total_allocations",
-        },
+    source = _download(force_refresh, allow_fallback)
+    raw = _load_sheet(source.path, _SHEET_ALLOCATIONS_LGD)
+    return _finish(
+        _parse_lgd_table(
+            raw,
+            header_row=2,
+            columns={
+                1: "allocations_to_applicants",
+                2: "allocations_to_nihe_transfers",
+                3: "allocations_to_housing_association_transfers",
+                4: "total_allocations",
+            },
+        ),
+        source,
     )
 
 
-def get_new_dwelling_sales(force_refresh: bool = False) -> pd.DataFrame:
+def get_new_dwelling_sales(force_refresh: bool = False, allow_fallback: bool = False) -> pd.DataFrame:
     """New dwelling sales and average prices over time (table 3.1).
 
     Args:
         force_refresh: If ``True``, bypass the local cache and re-download.
+        allow_fallback: If ``True``, serve the pinned Jan-Mar 2026 bulletin when the latest one
+            cannot be found; the result is then marked (``fallback_used``, ``requested_period`` and
+            ``served_period`` columns, ``df.attrs["fallback"]``, a
+            :class:`~bolster.utils.fallback.FallbackWarning`). If ``False`` (default), raise.
 
     Returns:
         DataFrame with columns:
@@ -554,7 +623,8 @@ def get_new_dwelling_sales(force_refresh: bool = False) -> pd.DataFrame:
         >>> df['financial_year'].min()
         '2005/06'
     """
-    raw = _load_sheet(_download(force_refresh), _SHEET_SALES_TREND)
+    source = _download(force_refresh, allow_fallback)
+    raw = _load_sheet(source.path, _SHEET_SALES_TREND)
 
     records: list[dict[str, object]] = []
     for row_idx in range(4, raw.shape[0]):
@@ -578,10 +648,10 @@ def get_new_dwelling_sales(force_refresh: bool = False) -> pd.DataFrame:
             }
         )
 
-    return pd.DataFrame(records)
+    return _finish(pd.DataFrame(records), source)
 
 
-def get_new_dwelling_sales_by_district(force_refresh: bool = False) -> pd.DataFrame:
+def get_new_dwelling_sales_by_district(force_refresh: bool = False, allow_fallback: bool = False) -> pd.DataFrame:
     """New dwelling sales and average prices by district and sector (table 3.2).
 
     Covers the most recent quarter only; the reporting quarter is returned in
@@ -589,6 +659,10 @@ def get_new_dwelling_sales_by_district(force_refresh: bool = False) -> pd.DataFr
 
     Args:
         force_refresh: If ``True``, bypass the local cache and re-download.
+        allow_fallback: If ``True``, serve the pinned Jan-Mar 2026 bulletin when the latest one
+            cannot be found; the result is then marked (``fallback_used``, ``requested_period`` and
+            ``served_period`` columns, ``df.attrs["fallback"]``, a
+            :class:`~bolster.utils.fallback.FallbackWarning`). If ``False`` (default), raise.
 
     Returns:
         Long-format DataFrame with columns **lgd**, **sector** (``'Private'``,
@@ -600,7 +674,8 @@ def get_new_dwelling_sales_by_district(force_refresh: bool = False) -> pd.DataFr
         >>> set(df['sector']) == {'Private', 'Public', 'All'}
         True
     """
-    raw = _load_sheet(_download(force_refresh), _SHEET_SALES_LGD)
+    source = _download(force_refresh, allow_fallback)
+    raw = _load_sheet(source.path, _SHEET_SALES_LGD)
     quarter = normalise_quarter(raw.iat[4, 1])
     sectors = {1: "Private", 3: "Public", 5: "All"}
 
@@ -624,14 +699,18 @@ def get_new_dwelling_sales_by_district(force_refresh: bool = False) -> pd.DataFr
                 }
             )
 
-    return pd.DataFrame(records)
+    return _finish(pd.DataFrame(records), source)
 
 
-def get_affordable_warmth(force_refresh: bool = False) -> pd.DataFrame:
+def get_affordable_warmth(force_refresh: bool = False, allow_fallback: bool = False) -> pd.DataFrame:
     """Affordable Warmth Scheme activity by quarter (table 4.1).
 
     Args:
         force_refresh: If ``True``, bypass the local cache and re-download.
+        allow_fallback: If ``True``, serve the pinned Jan-Mar 2026 bulletin when the latest one
+            cannot be found; the result is then marked (``fallback_used``, ``requested_period`` and
+            ``served_period`` columns, ``df.attrs["fallback"]``, a
+            :class:`~bolster.utils.fallback.FallbackWarning`). If ``False`` (default), raise.
 
     Returns:
         DataFrame with columns **financial_year**, **quarter**, **approvals**,
@@ -643,7 +722,8 @@ def get_affordable_warmth(force_refresh: bool = False) -> pd.DataFrame:
         >>> bool(df['approvals'].sum() > 0)
         True
     """
-    raw = _load_sheet(_download(force_refresh), _SHEET_AFFORDABLE_WARMTH)
+    source = _download(force_refresh, allow_fallback)
+    raw = _load_sheet(source.path, _SHEET_AFFORDABLE_WARMTH)
     columns = {
         1: "approvals",
         2: "approvals_value",
@@ -670,7 +750,7 @@ def get_affordable_warmth(force_refresh: bool = False) -> pd.DataFrame:
             record[name] = _clean_number(raw.iat[row_idx, col])
         records.append(record)
 
-    return pd.DataFrame(records)
+    return _finish(pd.DataFrame(records), source)
 
 
 _TABLES: dict[str, Callable[..., pd.DataFrame]] = {
@@ -699,12 +779,16 @@ def list_tables() -> list[str]:
     return sorted(_TABLES)
 
 
-def get_latest_data(table: str = "stock", force_refresh: bool = False) -> pd.DataFrame:
+def get_latest_data(table: str = "stock", force_refresh: bool = False, allow_fallback: bool = False) -> pd.DataFrame:
     """Fetch one table from the latest bulletin by name.
 
     Args:
         table: One of the names returned by :func:`list_tables`.
         force_refresh: If ``True``, bypass the local cache and re-download.
+        allow_fallback: If ``True``, serve the pinned Jan-Mar 2026 bulletin when the latest one
+            cannot be found; the result is then marked (``fallback_used``, ``requested_period`` and
+            ``served_period`` columns, ``df.attrs["fallback"]``, a
+            :class:`~bolster.utils.fallback.FallbackWarning`). If ``False`` (default), raise.
 
     Returns:
         The requested DataFrame.
@@ -720,12 +804,34 @@ def get_latest_data(table: str = "stock", force_refresh: bool = False) -> pd.Dat
     accessor = _TABLES.get(table)
     if accessor is None:
         raise NISRADataNotFoundError(f"Unknown table {table!r}. Available: {', '.join(list_tables())}")
-    return accessor(force_refresh=force_refresh)
+    return accessor(force_refresh=force_refresh, allow_fallback=allow_fallback)
 
 
-def _download(force_refresh: bool = False) -> str | Path:
+class _Source(NamedTuple):
+    """A downloaded workbook and, if the pinned edition was served, why."""
+
+    path: str | Path
+    fallback_reason: str | None
+
+
+def _download(force_refresh: bool = False, allow_fallback: bool = False) -> _Source:
     """Download the latest bulletin workbook, caching for a week."""
-    return download_file(get_latest_publication_url(), cache_ttl_hours=24 * 7, force_refresh=force_refresh)
+    resolved = _resolve_publication_url(allow_fallback)
+    path = download_file(resolved.url, cache_ttl_hours=24 * 7, force_refresh=force_refresh)
+    return _Source(path, resolved.fallback_reason)
+
+
+def _finish(df: pd.DataFrame, source: _Source) -> pd.DataFrame:
+    """Mark ``df`` as built from the pinned edition if that is where it came from."""
+    if source.fallback_reason is None:
+        return df
+    return mark_fallback(
+        df,
+        requested="latest published bulletin",
+        served=_PINNED_EDITION,
+        reason=source.fallback_reason,
+        served_url=_FALLBACK_URL,
+    )
 
 
 def validate_data(df: pd.DataFrame, required_columns: set[str] | None = None) -> bool:

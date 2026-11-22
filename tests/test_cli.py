@@ -6,6 +6,7 @@ from datetime import UTC
 from unittest.mock import patch
 
 import click
+import pytest
 from click.testing import CliRunner
 
 from bolster.cli import cli
@@ -465,3 +466,42 @@ class TestNisraPopulationCommand:
 
         assert result.exit_code == 0, result.output
         assert get.call_args.kwargs["area"] == "Local Government Districts"
+
+
+class TestAllowFallbackFlag:
+    """Commands backed by a pinned fallback release expose ``--allow-fallback``, off by default."""
+
+    # (command, function to patch, frame the fake returns)
+    CASES = [
+        (
+            ["psni", "stop-search", "--format", "csv"],
+            "bolster.data_sources.psni.stop_and_search.get_latest_stop_and_search",
+            {"financial_year": ["2024/25"], "legislation": ["PACE"]},
+        ),
+        (
+            ["nisra", "housing-stock"],
+            "bolster.cli.nisra_housing_stock.get_latest_housing_stock",
+            {"year": [2026], "total": [1]},
+        ),
+        (["nisra", "homelessness"], "bolster.cli.nisra_homelessness.get_latest_data", {"year": ["2025/26"]}),
+        (["nisra", "housing-bulletin"], "bolster.cli.nisra_housing_bulletin.get_latest_data", {"lgd": ["Belfast"]}),
+        (["nisra", "work-quality"], "bolster.cli.nisra_work_quality.get_latest_work_quality", {"year": [2025]}),
+    ]
+
+    @pytest.mark.parametrize(("command", "target", "frame"), CASES)
+    def test_help_documents_the_flag(self, command, target, frame):
+        result = CliRunner().invoke(cli, [*command[:2], "--help"])
+
+        assert result.exit_code == 0
+        assert "--allow-fallback" in result.output
+
+    @pytest.mark.parametrize(("command", "target", "frame"), CASES)
+    @pytest.mark.parametrize("flag", [[], ["--allow-fallback"]])
+    def test_flag_reaches_the_data_function(self, command, target, frame, flag):
+        import pandas as pd
+
+        with patch(target, return_value=pd.DataFrame(frame)) as get:
+            result = CliRunner().invoke(cli, [*command, *flag])
+
+        assert result.exit_code == 0, result.output
+        assert get.call_args.kwargs["allow_fallback"] is bool(flag)

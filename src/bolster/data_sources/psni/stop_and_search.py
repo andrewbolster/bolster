@@ -36,9 +36,10 @@ import logging
 
 import pandas as pd
 
+from bolster.utils.fallback import PinnedRelease, ResolvedUrl, mark_fallback, resolve_url
 from bolster.utils.web import session
 
-from ._base import PSNIValidationError, download_file
+from ._base import PSNIDataNotFoundError, PSNIValidationError, download_file
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,8 @@ OPENDATANI_API = "https://admin.opendatani.gov.uk/api/3/action"
 # Stable dataset identifier on OpenDataNI
 DATASET_ID = "421d96c1-fa5b-43e7-914c-b9a13e163d33"
 
-# Fallback URL confirmed working as of 2025 — used if CKAN API is unavailable
+# Pinned 2017/18-2024/25 release, served only with allow_fallback=True
+PINNED_RELEASE = "2017/18 to 2024/25 extract"
 FALLBACK_CSV_URL = (
     "https://admin.opendatani.gov.uk/dataset/421d96c1-fa5b-43e7-914c-b9a13e163d33"
     "/resource/73fcba18-4616-4a60-91ea-873f69f6d063"
@@ -93,15 +95,58 @@ AGE_GROUP_ORDER = [
 ]
 
 
-def get_latest_dataset_url() -> str:
+def _discover_dataset_url() -> str:
+    """Ask the OpenDataNI CKAN API for the stop and search CSV resource URL."""
+    resp = session.get(
+        f"{OPENDATANI_API}/package_show",
+        params={"id": DATASET_ID},
+        headers={"User-Agent": "bolster/1.0"},
+        timeout=30,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+
+    if not data.get("success"):
+        raise PSNIDataNotFoundError("the CKAN API returned an unsuccessful response")
+
+    for resource in data.get("result", {}).get("resources", []):
+        if resource.get("format", "").upper() == "CSV":
+            url = resource.get("url", "")
+            if url:
+                logger.info(f"Found CSV resource via CKAN API: {url}")
+                return url
+
+    raise PSNIDataNotFoundError("the dataset has no CSV resource")
+
+
+def _resolve_dataset_url(allow_fallback: bool) -> ResolvedUrl:
+    """Resolve the CSV URL, serving the pinned release only if allowed."""
+    return resolve_url(
+        _discover_dataset_url,
+        allow_fallback=allow_fallback,
+        pinned=PinnedRelease(FALLBACK_CSV_URL, PINNED_RELEASE),
+        error_cls=PSNIDataNotFoundError,
+        what="the latest PSNI stop and search CSV",
+        searched=f"{OPENDATANI_API}/package_show?id={DATASET_ID} (the dataset's CSV resource)",
+    )
+
+
+def get_latest_dataset_url(allow_fallback: bool = False) -> str:
     """Query the OpenDataNI CKAN API to find the latest Stop and Search CSV URL.
 
     Fetches resource metadata for the stop-and-search dataset from the OpenDataNI
-    CKAN API and returns the download URL for the CSV resource. Falls back to the
-    known direct URL if the API request fails.
+    CKAN API and returns the download URL for the CSV resource.
+
+    Args:
+        allow_fallback: If ``True``, return the pinned 2017/18-2024/25 CSV URL when
+            the API request fails or lists no CSV resource. If ``False`` (default),
+            raise instead.
 
     Returns:
         Download URL for the latest stop and search CSV file.
+
+    Raises:
+        PSNIDataNotFoundError: If no CSV is found and ``allow_fallback`` is ``False``.
 
     Example:
         >>> url = get_latest_dataset_url()
@@ -110,34 +155,7 @@ def get_latest_dataset_url() -> str:
         >>> url.endswith(".csv")
         True
     """
-    try:
-        resp = session.get(
-            f"{OPENDATANI_API}/package_show",
-            params={"id": DATASET_ID},
-            headers={"User-Agent": "bolster/1.0"},
-            timeout=30,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-
-        if not data.get("success"):
-            logger.warning("OpenDataNI CKAN API returned unsuccessful response; falling back to known URL")
-            return FALLBACK_CSV_URL
-
-        resources = data.get("result", {}).get("resources", [])
-        for resource in resources:
-            if resource.get("format", "").upper() == "CSV":
-                url = resource.get("url", "")
-                if url:
-                    logger.info(f"Found CSV resource via CKAN API: {url}")
-                    return url
-
-        logger.warning("No CSV resource found via CKAN API; falling back to known URL")
-        return FALLBACK_CSV_URL
-
-    except Exception as e:
-        logger.warning(f"CKAN API request failed ({e}); falling back to known URL")
-        return FALLBACK_CSV_URL
+    return _resolve_dataset_url(allow_fallback).url
 
 
 def _parse_stop_and_search(file_path: str) -> pd.DataFrame:
@@ -194,7 +212,7 @@ def _parse_stop_and_search(file_path: str) -> pd.DataFrame:
     return df
 
 
-def get_latest_stop_and_search(force_refresh: bool = False) -> pd.DataFrame:
+def get_latest_stop_and_search(force_refresh: bool = False, allow_fallback: bool = False) -> pd.DataFrame:
     """Download and return the latest PSNI Stop and Search dataset.
 
     Fetches the current stop and search data from OpenDataNI, caches it
@@ -208,6 +226,10 @@ def get_latest_stop_and_search(force_refresh: bool = False) -> pd.DataFrame:
 
     Args:
         force_refresh: If True, bypass the local cache and re-download the data.
+        allow_fallback: If True, serve the pinned 2017/18-2024/25 CSV when the latest one cannot be
+            found; the result is then marked (``fallback_used``, ``requested_period`` and
+            ``served_period`` columns, ``df.attrs["fallback"]``, a
+            :class:`~bolster.utils.fallback.FallbackWarning`). If False (default), raise.
 
     Returns:
         DataFrame with columns:
@@ -223,7 +245,8 @@ def get_latest_stop_and_search(force_refresh: bool = False) -> pd.DataFrame:
             - gender (category): subject gender
 
     Raises:
-        PSNIDataNotFoundError: If the download fails.
+        PSNIDataNotFoundError: If the latest CSV cannot be found and ``allow_fallback`` is False,
+            or the download fails.
         PSNIValidationError: If the downloaded file does not match the expected schema.
 
     Example:
@@ -233,9 +256,18 @@ def get_latest_stop_and_search(force_refresh: bool = False) -> pd.DataFrame:
         >>> sorted(df['financial_year'].cat.categories.tolist())  # doctest: +SKIP
         ['2017/18', '2018/19', '2019/20', '2020/21', '2021/22', '2022/23', '2023/24', '2024/25']
     """
-    url = get_latest_dataset_url()
-    file_path = download_file(url, cache_ttl_hours=CACHE_TTL_HOURS, force_refresh=force_refresh)
-    return _parse_stop_and_search(str(file_path))
+    resolved = _resolve_dataset_url(allow_fallback)
+    file_path = download_file(resolved.url, cache_ttl_hours=CACHE_TTL_HOURS, force_refresh=force_refresh)
+    df = _parse_stop_and_search(str(file_path))
+    if resolved.fallback_reason is None:
+        return df
+    return mark_fallback(
+        df,
+        requested="latest published release",
+        served=PINNED_RELEASE,
+        reason=resolved.fallback_reason,
+        served_url=resolved.url,
+    )
 
 
 def validate_stop_and_search(df: pd.DataFrame) -> bool:

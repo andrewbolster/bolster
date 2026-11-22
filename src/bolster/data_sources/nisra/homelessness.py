@@ -37,6 +37,7 @@ import pandas as pd
 from bs4 import Tag  # noqa: TC002 (used inside `cast(...)`, evaluated at runtime)
 
 from bolster.utils.excel import parse_sheet
+from bolster.utils.fallback import PinnedRelease, ResolvedUrl, mark_fallback, resolve_url
 from bolster.utils.web import fetch_soup, make_absolute_url, scrape_file_links
 
 from ._base import NISRADataNotFoundError, NISRAValidationError, download_file  # noqa: F401
@@ -50,6 +51,8 @@ _SITE_ROOT = "https://www.communities-ni.gov.uk"
 
 _HUB_URL = f"{_SITE_ROOT}/articles/northern-ireland-homelessness-bulletin"
 
+# Pinned edition, served only with allow_fallback=True.
+_PINNED_EDITION = "Oct-Mar 2025/26 bulletin"
 _FALLBACK_URL = (
     "https://www.communities-ni.gov.uk/system/files/2026-06/ni-homelessness-bulletin-oct-mar-2026-tables.xlsx"
 )
@@ -74,55 +77,74 @@ _KNOWN_LGDS = {
 }
 
 
-def get_latest_publication_url() -> str:
+def _scrape_publication_url() -> str:
+    """Find the most recent tables workbook on the DfC homelessness hub page."""
+    candidates = [
+        link["url"]
+        for link in scrape_file_links(_HUB_URL, ".xlsx", base_url=_SITE_ROOT)
+        if "homelessness-bulletin" in link["url"].lower() and "tables" in link["url"].lower()
+    ]
+
+    if not candidates:
+        # Try following the first publication link on the hub page
+        for a_tag in cast("list[Tag]", fetch_soup(_HUB_URL).find_all("a", href=True)):
+            href = cast("str", a_tag["href"])
+            if "homelessness-bulletin" in href.lower() and "publications" in href.lower():
+                pub_url = make_absolute_url(href, _SITE_ROOT)
+                candidates = [
+                    link["url"]
+                    for link in scrape_file_links(pub_url, ".xlsx", base_url=_SITE_ROOT)
+                    if "table" in link["url"].lower()
+                ]
+                if candidates:
+                    break
+
+    if not candidates:
+        raise NISRADataNotFoundError("no tables .xlsx link on the hub page or its first publication page")
+
+    # Prefer the most recent by embedded date in path (YYYY-MM)
+    def _date_key(u: str) -> str:
+        m = re.search(r"/(\d{4}-\d{2})/", u)
+        return m.group(1) if m else "0000-00"
+
+    candidates.sort(key=_date_key, reverse=True)
+    logger.info("Discovered homelessness bulletin URL: %s", candidates[0])
+    return candidates[0]
+
+
+def _resolve_publication_url(allow_fallback: bool) -> ResolvedUrl:
+    """Resolve the workbook URL, serving the pinned edition only if allowed."""
+    return resolve_url(
+        _scrape_publication_url,
+        allow_fallback=allow_fallback,
+        pinned=PinnedRelease(_FALLBACK_URL, _PINNED_EDITION),
+        error_cls=NISRADataNotFoundError,
+        what="the latest homelessness bulletin tables workbook",
+        searched=f"{_HUB_URL} (.xlsx links containing 'homelessness-bulletin' and 'tables', "
+        "then the first publication page linked from the hub)",
+    )
+
+
+def get_latest_publication_url(allow_fallback: bool = False) -> str:
     """Scrape the DfC hub page for the latest homelessness bulletin Excel URL.
 
-    Falls back to the hardcoded 2025/26 Oct–Mar edition URL if scraping fails.
+    Args:
+        allow_fallback: If ``True``, return the pinned Oct–Mar 2025/26 edition URL
+            when the hub page cannot be read or has no tables workbook. If
+            ``False`` (default), raise instead.
 
     Returns:
         Absolute URL of the Excel tables file.
+
+    Raises:
+        NISRADataNotFoundError: If no workbook is found and ``allow_fallback`` is ``False``.
 
     Example:
         >>> url = get_latest_publication_url()
         >>> 'communities-ni.gov.uk' in url
         True
     """
-    try:
-        candidates = [
-            link["url"]
-            for link in scrape_file_links(_HUB_URL, ".xlsx", base_url=_SITE_ROOT)
-            if "homelessness-bulletin" in link["url"].lower() and "tables" in link["url"].lower()
-        ]
-
-        if not candidates:
-            # Try following the first publication link on the hub page
-            for a_tag in cast("list[Tag]", fetch_soup(_HUB_URL).find_all("a", href=True)):
-                href = cast("str", a_tag["href"])
-                if "homelessness-bulletin" in href.lower() and "publications" in href.lower():
-                    pub_url = make_absolute_url(href, _SITE_ROOT)
-                    candidates = [
-                        link["url"]
-                        for link in scrape_file_links(pub_url, ".xlsx", base_url=_SITE_ROOT)
-                        if "table" in link["url"].lower()
-                    ]
-                    if candidates:
-                        break
-
-        if candidates:
-            # Prefer the most recent by embedded date in path (YYYY-MM)
-            def _date_key(u: str) -> str:
-                m = re.search(r"/(\d{4}-\d{2})/", u)
-                return m.group(1) if m else "0000-00"
-
-            candidates.sort(key=_date_key, reverse=True)
-            logger.info("Discovered homelessness bulletin URL: %s", candidates[0])
-            return candidates[0]
-
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("Could not scrape %s for homelessness URL: %s", _HUB_URL, exc)
-
-    logger.info("Using fallback homelessness bulletin URL")
-    return _FALLBACK_URL
+    return _resolve_publication_url(allow_fallback).url
 
 
 def _parse_lgd_period_sheet(sheet_df: pd.DataFrame, value_col_name: str) -> pd.DataFrame:
@@ -302,6 +324,7 @@ def parse_acceptances(file_path: str | Path) -> pd.DataFrame:
 def get_latest_data(
     section: str = "presentations",
     force_refresh: bool = False,
+    allow_fallback: bool = False,
 ) -> pd.DataFrame:
     """Download and return the latest NI homelessness bulletin data.
 
@@ -312,6 +335,10 @@ def get_latest_data(
             - ``'acceptances'``: Households accepted as homeless by LGD and period.
             - ``'all'``: Both sections combined with a ``'section'`` column.
         force_refresh: If ``True``, bypass the local cache and re-download.
+        allow_fallback: If ``True``, serve the pinned Oct–Mar 2025/26 bulletin when the latest
+            one cannot be found; the result is then marked (``fallback_used``, ``requested_period``
+            and ``served_period`` columns, ``df.attrs["fallback"]``, a
+            :class:`~bolster.utils.fallback.FallbackWarning`). If ``False`` (default), raise.
 
     Returns:
         Long-format DataFrame. For ``section='presentations'``, columns are:
@@ -329,7 +356,8 @@ def get_latest_data(
 
     Raises:
         ValueError: If ``section`` is not one of the accepted values.
-        NISRADataNotFoundError: If the source file cannot be downloaded.
+        NISRADataNotFoundError: If the latest workbook cannot be found and
+            ``allow_fallback`` is ``False``, or the source file cannot be downloaded.
 
     Example:
         >>> df = get_latest_data()
@@ -342,24 +370,34 @@ def get_latest_data(
     if section not in valid:
         raise ValueError(f"section must be one of {sorted(valid)!r}, got {section!r}")
 
-    url = get_latest_publication_url()
-    file_path = download_file(url, cache_ttl_hours=24 * 7, force_refresh=force_refresh)
+    resolved = _resolve_publication_url(allow_fallback)
+    file_path = download_file(resolved.url, cache_ttl_hours=24 * 7, force_refresh=force_refresh)
 
     if section == "presentations":
-        return parse_presentations(file_path)
-    if section == "acceptances":
-        return parse_acceptances(file_path)
+        df = parse_presentations(file_path)
+    elif section == "acceptances":
+        df = parse_acceptances(file_path)
+    else:
+        # section == 'all'
+        pres = parse_presentations(file_path)
+        pres["section"] = "presentations"
+        pres = pres.rename(columns={"presentations": "count"})
 
-    # section == 'all'
-    pres = parse_presentations(file_path)
-    pres["section"] = "presentations"
-    pres = pres.rename(columns={"presentations": "count"})
+        acc = parse_acceptances(file_path)
+        acc["section"] = "acceptances"
+        acc = acc.rename(columns={"acceptances": "count"})
 
-    acc = parse_acceptances(file_path)
-    acc["section"] = "acceptances"
-    acc = acc.rename(columns={"acceptances": "count"})
+        df = pd.concat([pres, acc], ignore_index=True)
 
-    return pd.concat([pres, acc], ignore_index=True)
+    if resolved.fallback_reason is None:
+        return df
+    return mark_fallback(
+        df,
+        requested="latest published bulletin",
+        served=_PINNED_EDITION,
+        reason=resolved.fallback_reason,
+        served_url=resolved.url,
+    )
 
 
 def validate_data(df: pd.DataFrame, section: str = "presentations") -> bool:

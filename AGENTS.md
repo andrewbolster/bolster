@@ -25,6 +25,7 @@ src/bolster/
 │   ├── cache.py        # CachedDownloader, bind_download_file, load_workbook
 │   ├── embedded_downloads.py  # read_tables: figures/tables from base64 data: download links
 │   ├── excel.py        # find_marker_row
+│   ├── fallback.py     # resolve_url, mark_fallback: strict-by-default pinned fallbacks (allow_fallback)
 │   ├── fuzzy.py        # fuzzy_match: stdlib fuzzy ranking of candidate strings
 │   ├── htmlwidgets.py  # extract_widgets, plotly_frame: Plotly data from R htmlwidgets pages
 │   ├── rss.py          # get_nisra_statistics_feed()
@@ -201,6 +202,18 @@ them instead of re-implementing the year walk.
 |----------|---------|
 | `fuzzy_match(query, candidates, n=5, cutoff=0.6)` (`utils.fuzzy`) | Rank candidate strings against a query (stdlib `difflib`, no extra dependency); a substring match scores `1.0`. Returns `(candidate, score)` pairs, best first |
 | `snapshot_db_path(name)`, `append_snapshot(db_path, table, df)`, `read_snapshots(db_path, table, ...)` (`utils.snapshots`) | Append DataFrames from a repeatedly-polled live feed to a sqlite store under `~/.cache/bolster/snapshots/<name>.db`. For feeds with no historical API; used by `translink.lateness` |
+
+### Pinned fallbacks (`utils/fallback.py`)
+
+A module never substitutes a different release for the one it could not find. If it keeps a pinned earlier
+release, that is served only with `allow_fallback=True` (see STYLE_GUIDE.md, "Fallbacks: strict by default,
+explicit opt-in"). Use these rather than catching the discovery error and returning a constant:
+
+| Function | Purpose |
+|----------|---------|
+| `resolve_url(discover, *, allow_fallback, pinned, error_cls, what, searched)` | Run `discover()`; on failure raise `error_cls` with the standard message (default) or serve the `PinnedRelease` (opt-in). Returns a `ResolvedUrl` whose `fallback_reason` is `None` unless the pinned release was used |
+| `mark_fallback(df, *, requested, served, reason, served_url=None)` | Call only when a fallback was taken: emits `FallbackWarning`, logs a warning, sets `df.attrs["fallback"]` and adds the `fallback_used`, `requested_period`, `served_period` columns |
+| `fallback_not_found_message(what, *, searched, detail=None, pinned=None)` | The standard "could not find X; searched Y; pass `allow_fallback=True` to use the pinned release" text, for modules that raise their own error |
 
 ### Spreadsheet helpers (`utils/text.py`, `utils/excel.py`, `utils/cache.py`)
 
