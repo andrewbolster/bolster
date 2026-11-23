@@ -246,7 +246,7 @@ dev = [
     "httpx",
     "pytest-cov",
     "pytest-mock",
-    "ruff==0.17.5",
+    "ruff==0.17.6",
     "ty==0.0.99",
     "bandit>=1.7",
     "nbmake",
