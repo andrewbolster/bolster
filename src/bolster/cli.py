@@ -1954,7 +1954,11 @@ def nisra():
 @click.option("--limit", "-n", default=20, help="Number of entries to show (default: 20)")
 @click.option("--filter", "-f", "title_filter", help="Filter entries by title (case-insensitive)")
 @click.option("--days", "-d", type=int, help="Show entries from last N days")
-@click.option("--check-coverage", is_flag=True, help="Show which datasets have modules implemented")
+@click.option(
+    "--check-coverage",
+    is_flag=True,
+    help="Show which publications an implemented module already covers (matched against the real module catalogue)",
+)
 def nisra_feed(limit: int, title_filter: str, days: int, check_coverage: bool):
     """Show recent NISRA publications from RSS feed.
 
@@ -1969,57 +1973,21 @@ def nisra_feed(limit: int, title_filter: str, days: int, check_coverage: bool):
 
         bolster nisra feed --days 7           # Last week only
 
-        bolster nisra feed --check-coverage   # Show implementation status
+        bolster nisra feed --check-coverage   # Match each title against the implemented modules
+
+    With ``--check-coverage`` each publication is labelled ``covered`` (a module serves it),
+    ``possible overlap`` (a module looks related; check the one named) or ``not covered``,
+    by matching its title against the module names, docstrings and CLI commands.
     """
     from datetime import datetime, timedelta
 
     from rich.console import Console
     from rich.table import Table
 
+    from bolster.utils.coverage import COVERED, NOT_COVERED, POSSIBLE_OVERLAP, build_catalogue, match_title
     from bolster.utils.rss import filter_entries, get_nisra_statistics_feed
 
     console = Console()
-
-    # Known implemented modules (keywords that map to our modules)
-    implemented_keywords = {
-        "death": "deaths",
-        "birth": "births",
-        "marriage": "marriages",
-        "civil partnership": "civil-partnerships",
-        "labour market": "labour-market",
-        "labour force": "labour-market",
-        "population": "population",
-        "migration": "migration",
-        "occupancy": "occupancy",
-        "tourism": "visitors",
-        "visitor": "visitors",
-        "index of services": "index-of-services",
-        "index of production": "index-of-production",
-        "construction output": "construction-output",
-        "ashe": "ashe",
-        "hours and earnings": "ashe",
-        "composite economic index": "composite-index",
-        "nicei": "composite-index",
-        "wellbeing": "wellbeing",
-        "cancer waiting": "cancer-waiting-times",
-        "planning": "planning-statistics",
-        "emergency care": "emergency-care",
-        "elective": "elective-waiting-times",
-        "outpatient": "elective-waiting-times",
-        "inpatient and day case activity": "hospital-activity",
-        "hospital activity": "hospital-activity",
-        "pay in the northern ireland civil service": "nics-pay",
-        "teacher vacancies, sickness absence": "teacher-vacancies-absence",
-        "quarterly employment survey": "quarterly-employment-survey",
-        "claimant count": "claimant-count",
-        "claimant": "claimant-count",
-        "stillbirth": "stillbirths",
-        "registrar general": "registrar-general",
-        "baby names": "baby-names",
-        "work quality": "work-quality",
-        "workless households": "workless-households",
-        "working and workless households": "workless-households",
-    }
 
     with console.status("Fetching NISRA RSS feed..."):
         feed = get_nisra_statistics_feed(limit=limit)
@@ -2046,32 +2014,39 @@ def nisra_feed(limit: int, title_filter: str, days: int, check_coverage: bool):
     table.add_column("Date", style="cyan", width=10)
     table.add_column("Title", style="white")
 
+    catalogue = None
     if check_coverage:
-        table.add_column("Module", style="green", width=20)
+        table.add_column("Coverage", width=34)
+        table.add_column("Score", justify="right", width=5)
+        catalogue = build_catalogue(cli)
+    tally = {COVERED: 0, POSSIBLE_OVERLAP: 0, NOT_COVERED: 0}
 
     for entry in entries:
         date_str = entry.published.strftime("%Y-%m-%d") if entry.published else "N/A"
         title = entry.title[:75] + "..." if len(entry.title) > 75 else entry.title
 
-        if check_coverage:
-            # Check if we have a module for this
-            module = None
-            title_lower = entry.title.lower()
-            for keyword, mod_name in implemented_keywords.items():
-                if keyword in title_lower:
-                    module = mod_name
-                    break
-            module_str = f"[green]✓ {module}[/green]" if module else "[dim]-[/dim]"
-            table.add_row(date_str, title, module_str)
+        if catalogue is not None:
+            match = match_title(entry.title, catalogue)
+            tally[match.label] += 1
+            name = match.entry.name if match.entry else ""
+            if match.label == COVERED:
+                coverage_cell = f"[green]✓ {name}[/green]"
+            elif match.label == POSSIBLE_OVERLAP:
+                coverage_cell = f"[yellow]? {name}[/yellow]"
+            else:
+                coverage_cell = "[dim]-[/dim]"
+            table.add_row(date_str, title, coverage_cell, f"{match.score:.2f}" if match.entry else "")
         else:
             table.add_row(date_str, title)
 
     console.print(table)
 
     if check_coverage:
-        # Summary
-        covered = sum(1 for e in entries if any(kw in e.title.lower() for kw in implemented_keywords))
-        console.print(f"\n[green]Covered: {covered}[/green] | [yellow]Not covered: {len(entries) - covered}[/yellow]")
+        console.print(
+            f"\n[green]Covered: {tally[COVERED]}[/green] | "
+            f"[yellow]Possible overlap: {tally[POSSIBLE_OVERLAP]}[/yellow] | "
+            f"Not covered: {tally[NOT_COVERED]}"
+        )
 
 
 @nisra.command(name="deaths")
