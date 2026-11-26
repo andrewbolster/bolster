@@ -54,6 +54,7 @@ from .data_sources.ni_water import get_postcode_to_water_supply_zone, get_water_
 from .data_sources.niassembly import members as niassembly_members
 from .data_sources.niassembly import questions as niassembly_questions
 from .data_sources.niassembly import votes as niassembly_votes
+from .data_sources.nisra import annual_business_inquiry as nisra_annual_business_inquiry
 from .data_sources.nisra import armed_forces_veterans as nisra_armed_forces_veterans
 from .data_sources.nisra import ashe as nisra_ashe
 from .data_sources.nisra import baby_names as nisra_baby_names
@@ -2934,6 +2935,133 @@ def nisra_business_register_cmd(level, output_format, force_refresh, save):
         console.print("\n[yellow]Troubleshooting:[/yellow]")
         console.print("   - Check your internet connection")
         console.print("   - Try again with --force-refresh to bypass cache")
+        raise click.Abort() from e
+
+
+@nisra.command(name="annual-business-inquiry")
+@click.option(
+    "--level",
+    type=click.Choice(["sector", "sic2"], case_sensitive=False),
+    default="sector",
+    show_default=True,
+    help="Industry breakdown: SIC section (sector) or two-digit SIC division (sic2)",
+)
+@click.option(
+    "--measure",
+    type=click.Choice(["turnover", "purchases", "gva"], case_sensitive=False),
+    default=None,
+    help="Measure to show (default: all three)",
+)
+@click.option("--year", type=int, default=None, help="Reference year (default: the latest year)")
+@click.option("--all-years", is_flag=True, help="Return every year instead of one")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_annual_business_inquiry_cmd(level, measure, year, all_years, output_format, save):
+    """NI Annual Business Inquiry (ABI) - turnover, purchases and approximate GVA by industry.
+
+    A sample survey of the financial performance of Northern Ireland businesses, with a 95%
+    confidence interval and coefficient of variation for each estimate. Money is in pounds
+    sterling, millions (nominal). Suppressed estimates are blank.
+
+    Examples:
+        Latest year by industry section::
+
+            bolster nisra annual-business-inquiry
+
+        Latest year by two-digit SIC division, GVA only::
+
+            bolster nisra annual-business-inquiry --level sic2 --measure gva
+
+        A specific year::
+
+            bolster nisra annual-business-inquiry --year 2019
+
+        Every year, saved to file::
+
+            bolster nisra annual-business-inquiry --all-years --save abi.csv
+
+    Data Notes:
+        - Source: NISRA PxStat matrices ABI01 (sector) and ABI02 (sic2)
+        - Reference years: 2008-present, revised with each release
+        - Published annually in November
+        - Join on the code columns (sector_code, sic2_code), not the labels
+
+    Source:
+        https://www.nisra.gov.uk/statistics/business-statistics/annual-business-inquiry
+    """
+    if all_years and year is not None:
+        raise click.UsageError("--year and --all-years cannot be used together")
+
+    console = Console()
+    level = level.lower()
+    measure = measure.lower() if measure else None
+
+    try:
+        with console.status("[bold green]Downloading Annual Business Inquiry data..."):
+            if all_years or year is not None:
+                getters = {
+                    "sector": nisra_annual_business_inquiry.get_by_sector,
+                    "sic2": nisra_annual_business_inquiry.get_by_sic2,
+                }
+                data = getters[level](year=year, measure=measure)
+            else:
+                data = nisra_annual_business_inquiry.get_latest_data(level=level)
+                if measure:
+                    data = data[data["measure"] == measure].reset_index(drop=True)
+
+        if data.empty:
+            console.print("[yellow]No data found[/yellow]")
+            return
+
+        years = sorted(data["year"].unique())
+        console.print("[green]Annual Business Inquiry data retrieved successfully[/green]")
+        console.print(f"[cyan]Rows: {len(data)}[/cyan]")
+        console.print(f"[dim]Reference year: {years[0]}" + (f" to {years[-1]}[/dim]" if len(years) > 1 else "[/dim]"))
+
+        if save:
+            try:
+                if output_format == "json" or save.endswith(".json"):
+                    data.to_json(save, orient="records", indent=2)
+                else:
+                    data.to_csv(save, index=False)
+                console.print(f"[green]Saved to: {save}[/green]")
+                return
+            except PermissionError:
+                console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+                return
+            except Exception as e:
+                console.print(f"[red]Error saving file: {e}[/red]")
+                return
+
+        if output_format == "json":
+            click.echo(data.to_json(orient="records", indent=2))
+        elif output_format == "csv":
+            click.echo(data.to_csv(index=False), nl=False)
+        else:
+            from rich.table import Table
+
+            rich_table = Table(title=f"NI Annual Business Inquiry — {level}")
+            for col in data.columns:
+                rich_table.add_column(col, style="white")
+            for _, row in data.head(20).iterrows():
+                rich_table.add_row(
+                    *["" if pd.isna(v) else (f"{v:,.1f}" if isinstance(v, float) else str(v)) for v in row]
+                )
+            console.print(rich_table)
+            if len(data) > 20:
+                console.print(f"[dim]... and {len(data) - 20} more rows (use --format csv to see all)[/dim]")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - The data comes from the NISRA PxStat API (ws-data.nisra.gov.uk)")
         raise click.Abort() from e
 
 

@@ -4,10 +4,14 @@ Live tests run against the NISRA PxStat API (matrices ABI01 and ABI02). Offline 
 fixtures through the same code paths by replacing ``read_dataset``.
 """
 
+from unittest.mock import patch
+
 import numpy as np
 import pandas as pd
 import pytest
+from click.testing import CliRunner
 
+from bolster.cli import cli
 from bolster.data_sources.nisra import annual_business_inquiry as abi
 from bolster.data_sources.nisra._base import NISRADataError, NISRADataNotFoundError, NISRAValidationError
 
@@ -373,3 +377,93 @@ class TestValidateData:
     def test_unknown_level_raises(self, good):
         with pytest.raises(ValueError, match="level"):
             abi.validate_data(good, level="lgd")
+
+
+class TestCli:
+    @pytest.fixture
+    def frame(self):
+        return abi._tidy(_raw(years=(2023, 2024)), "RUSECTION", "sector_code", "sector")
+
+    def _run(self, *args, **returns):
+        targets = {name: returns.get(name) for name in ("get_latest_data", "get_by_sector", "get_by_sic2")}
+        with (
+            patch(
+                "bolster.cli.nisra_annual_business_inquiry.get_latest_data", return_value=targets["get_latest_data"]
+            ) as latest,
+            patch(
+                "bolster.cli.nisra_annual_business_inquiry.get_by_sector", return_value=targets["get_by_sector"]
+            ) as sector,
+            patch("bolster.cli.nisra_annual_business_inquiry.get_by_sic2", return_value=targets["get_by_sic2"]) as sic2,
+        ):
+            result = CliRunner().invoke(cli, ["nisra", "annual-business-inquiry", *args])
+        return result, latest, sector, sic2
+
+    def test_help_lists_the_options(self):
+        result = CliRunner().invoke(cli, ["nisra", "annual-business-inquiry", "--help"])
+        assert result.exit_code == 0
+        for option in ("--level", "--measure", "--year", "--all-years", "--format", "--save"):
+            assert option in result.output
+
+    def test_default_serves_the_latest_year_and_says_which(self, frame):
+        latest_year = frame[frame["year"] == 2024].reset_index(drop=True)
+        result, latest, sector, sic2 = self._run("--format", "csv", get_latest_data=latest_year)
+        assert result.exit_code == 0, result.output
+        latest.assert_called_once_with(level="sector")
+        sector.assert_not_called()
+        sic2.assert_not_called()
+        assert "Reference year: 2024" in result.output
+        assert "2024,turnover,ALL,All industries,101.0,91.0,111.0,5.0" in result.output
+
+    def test_measure_filters_the_latest_data_case_insensitively(self, frame):
+        latest_year = frame[frame["year"] == 2024].reset_index(drop=True)
+        result, *_ = self._run("--measure", "GVA", "--format", "csv", get_latest_data=latest_year)
+        assert result.exit_code == 0, result.output
+        assert ",gva," in result.output
+        assert ",turnover," not in result.output
+
+    def test_year_and_level_call_the_matching_getter(self, frame):
+        result, latest, sector, sic2 = self._run(
+            "--level", "sic2", "--year", "2023", "--measure", "gva", "--format", "csv", get_by_sic2=frame
+        )
+        assert result.exit_code == 0, result.output
+        sic2.assert_called_once_with(year=2023, measure="gva")
+        latest.assert_not_called()
+        sector.assert_not_called()
+
+    def test_all_years_asks_for_no_year(self, frame):
+        result, _, sector, _ = self._run("--all-years", "--format", "csv", get_by_sector=frame)
+        assert result.exit_code == 0, result.output
+        sector.assert_called_once_with(year=None, measure=None)
+        assert "Reference year: 2023 to 2024" in result.output
+
+    def test_year_and_all_years_conflict(self):
+        result, *_ = self._run("--year", "2023", "--all-years")
+        assert result.exit_code == 2
+        assert "cannot be used together" in result.output
+
+    def test_saves_csv_and_json(self, frame, tmp_path):
+        latest_year = frame[frame["year"] == 2024].reset_index(drop=True)
+        csv_path = tmp_path / "abi.csv"
+        result, *_ = self._run("--save", str(csv_path), get_latest_data=latest_year)
+        assert result.exit_code == 0, result.output
+        assert pd.read_csv(csv_path).shape == latest_year.shape
+        json_path = tmp_path / "abi.json"
+        result, *_ = self._run("--save", str(json_path), get_latest_data=latest_year)
+        assert result.exit_code == 0, result.output
+        assert len(pd.read_json(json_path)) == len(latest_year)
+
+    def test_table_output_blanks_suppressed_cells(self, frame):
+        suppressed = frame[frame["year"] == 2024].reset_index(drop=True)
+        suppressed.loc[0, VALUE_COLUMNS] = np.nan
+        result, *_ = self._run(get_latest_data=suppressed)
+        assert result.exit_code == 0, result.output
+        assert "nan" not in result.output.lower()
+
+    def test_unavailable_year_is_reported_and_aborts(self):
+        with patch(
+            "bolster.cli.nisra_annual_business_inquiry.get_by_sector",
+            side_effect=NISRADataNotFoundError("The Annual Business Inquiry has no data for 1999"),
+        ):
+            result = CliRunner().invoke(cli, ["nisra", "annual-business-inquiry", "--year", "1999"])
+        assert result.exit_code != 0
+        assert "no data for 1999" in result.output

@@ -444,6 +444,26 @@ legal status, and Local Government District.
 
     $ bolster nisra business-register
 
+Annual Business Inquiry (ABI)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+NI Annual Business Inquiry — a sample survey giving turnover, purchases and approximate GVA by
+industry section and by two-digit SIC division, each with a 95% confidence interval and
+coefficient of variation. Suppressed estimates are ``NaN``. Join on the code columns
+(``sector_code``, ``sic2_code``), not the labels. This is a different statistic from the
+Business Register above, which counts registered businesses.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import annual_business_inquiry
+
+    df = annual_business_inquiry.get_latest_data()  # latest year, all measures, by section
+    gva = annual_business_inquiry.get_by_sic2(measure="gva")  # every year, by SIC division
+
+.. code-block:: console
+
+    $ bolster nisra annual-business-inquiry --level sic2 --measure gva
+
 Planning Statistics
 ~~~~~~~~~~~~~~~~~~~
 
