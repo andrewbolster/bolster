@@ -15,6 +15,7 @@ Available modules:
     - deaths: Weekly death registrations with demographic, geographic, and place breakdowns
     - deprivation: NI Multiple Deprivation Measure 2017 (NIMDM) — SOA-level overall and domain deprivation ranks
     - drug_related_deaths: Annual drug-related and drug misuse deaths by year, age, gender, and substance
+    - economic_trade_statistics: Annual sales and purchases by trade partner, industry, size band and LGD (NIETS)
     - highest_qualification: Highest qualification level held & lifelong learning participation (LFS, annual)
     - index_of_services: Quarterly Index of Services (IOS) — canonical module
     - index_of_production: Quarterly Index of Production (IOP) — canonical module
@@ -148,6 +149,7 @@ from . import (
     deaths,
     deprivation,
     drug_related_deaths,
+    economic_trade_statistics,
     highest_qualification,
     homelessness,
     housing_bulletin,
@@ -191,6 +193,7 @@ __all__ = [
     "deaths",
     "deprivation",
     "drug_related_deaths",
+    "economic_trade_statistics",
     "highest_qualification",
     "homelessness",
     "housing_bulletin",
