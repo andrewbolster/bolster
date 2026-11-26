@@ -5,6 +5,7 @@ including births, deaths, labour market, population, migration, economic indicat
 and tourism statistics.
 
 Available modules:
+    - annual_business_inquiry: Annual Business Inquiry (ABI) — turnover, purchases and approximate GVA by industry, with confidence intervals
     - armed_forces_veterans: Census 2021 UK Armed Forces Veterans for Northern Ireland (one-off static snapshot)
     - ashe: Annual Survey of Hours and Earnings (employee earnings statistics)
     - births: Monthly birth registrations by registration and occurrence date
@@ -137,6 +138,7 @@ Examples:
 """
 
 from . import (
+    annual_business_inquiry,
     armed_forces_veterans,
     ashe,
     baby_names,
@@ -180,6 +182,7 @@ from . import (
 )
 
 __all__ = [
+    "annual_business_inquiry",
     "armed_forces_veterans",
     "ashe",
     "baby_names",
