@@ -393,6 +393,56 @@ class TestNisraFeedDays:
         assert "Ancient Gadgets" not in result.output
 
 
+class TestNisraFeedCoverage:
+    """`bolster nisra feed --check-coverage` matches titles against the real module catalogue."""
+
+    @staticmethod
+    def _feed(*titles: str):
+        from datetime import datetime
+
+        from bolster.utils.rss import Feed, FeedEntry
+
+        now = datetime.now(UTC)
+        return Feed(
+            title="NISRA",
+            link="https://example.com",
+            entries=[
+                FeedEntry(title=title, link=f"https://example.com/{i}", published=now) for i, title in enumerate(titles)
+            ],
+        )
+
+    def _run(self, *titles: str) -> str:
+        with patch("bolster.utils.rss.get_nisra_statistics_feed", return_value=self._feed(*titles)):
+            result = CliRunner().invoke(cli, ["nisra", "feed", "--check-coverage"], env={"COLUMNS": "200"})
+        assert result.exit_code == 0, result.output
+        return result.output
+
+    def test_labels_covered_overlap_and_uncovered_titles(self):
+        output = self._run(
+            "NI Labour Market statistics: November 2026",
+            "Time Taken To Register a Death in NI, 2025",
+            "Widget Fabrication Output Report 2026",
+        )
+        assert "✓ nisra/labour_market" in output
+        assert "Covered: 1 " in output
+        assert "Possible overlap: " in output and "Not covered: " in output
+
+    def test_a_title_sharing_only_a_generic_word_is_not_marked_covered_by_that_module(self):
+        """The old keyword map matched the substring 'death' and called this covered."""
+        output = self._run("Time Taken To Register a Death in NI, 2025")
+        assert "✓ nisra/deaths" not in output
+        assert "Covered: 0 " in output
+
+    def test_without_the_flag_the_coverage_columns_are_absent(self):
+        with patch(
+            "bolster.utils.rss.get_nisra_statistics_feed",
+            return_value=self._feed("NI Labour Market statistics: November 2026"),
+        ):
+            result = CliRunner().invoke(cli, ["nisra", "feed"], env={"COLUMNS": "200"})
+        assert result.exit_code == 0, result.output
+        assert "Coverage" not in result.output and "Covered:" not in result.output
+
+
 class TestListSources:
     def test_uncategorised_commands_fall_through_to_other(self):
         """A command missing from the category map must still be listed, not dropped."""

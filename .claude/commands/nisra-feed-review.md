@@ -62,6 +62,9 @@ Extract the module names. This is your "already implemented" set.
 uv run bolster nisra feed --limit 50
 ```
 
+Add `--check-coverage` to label each title `covered`, `possible overlap` or `not covered` against the real module
+catalogue. Treat it as a first pass: it cannot see PxStat-only series or open issues, so still compare against Step 1a.
+
 If this returns 403 or fails, fall back to:
 - `WebFetch` on `https://www.nisra.gov.uk/published-releases`
 - `WebSearch` for "NISRA new statistics site:gov.uk OR site:nisra.gov.uk" filtered to the past 2 weeks

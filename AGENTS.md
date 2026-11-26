@@ -23,6 +23,7 @@ src/bolster/
 │   └── dva.py          # Driver and Vehicle Agency
 ├── utils/
 │   ├── cache.py        # CachedDownloader, bind_download_file, load_workbook
+│   ├── coverage.py     # build_catalogue, match_title: label a publication title covered / possible overlap / not covered
 │   ├── embedded_downloads.py  # read_tables: figures/tables from base64 data: download links
 │   ├── excel.py        # find_marker_row
 │   ├── fallback.py     # resolve_url, mark_fallback: strict-by-default pinned fallbacks (allow_fallback)
@@ -202,6 +203,19 @@ them instead of re-implementing the year walk.
 |----------|---------|
 | `fuzzy_match(query, candidates, n=5, cutoff=0.6)` (`utils.fuzzy`) | Rank candidate strings against a query (stdlib `difflib`, no extra dependency); a substring match scores `1.0`. Returns `(candidate, score)` pairs, best first |
 | `snapshot_db_path(name)`, `append_snapshot(db_path, table, df)`, `read_snapshots(db_path, table, ...)` (`utils.snapshots`) | Append DataFrames from a repeatedly-polled live feed to a sqlite store under `~/.cache/bolster/snapshots/<name>.db`. For feeds with no historical API; used by `translink.lateness` |
+
+### Feed coverage (`utils/coverage.py`)
+
+`bolster nisra feed --check-coverage` asks whether an implemented module already serves a publication. The answer is
+derived from the real catalogue (module paths, leading docstring lines and public `get_*` names under `data_sources/`,
+plus the Click command tree), not from a hand-kept keyword list, so a new module is picked up with no further edit.
+
+| Function | Purpose |
+|----------|---------|
+| `build_catalogue(group=None, root=None)` | Catalogue of module entries (read as text; nothing is imported) and, when a Click `group` is given, command entries. Token weights are `log(1 + N/df)` |
+| `match_title(title, catalogue)` | `Match(label, score, entry, shared, alternatives)`. `covered` needs most of the title's weight in one entry and two shared tokens (or the whole module name in the title); `possible overlap` names the entry for a human to judge; otherwise `not covered`. Thresholds are constants at the top of the module |
+
+A matcher is a triage aid: confirm a `covered` or `possible overlap` result against the module before dropping a candidate.
 
 ### Pinned fallbacks (`utils/fallback.py`)
 
