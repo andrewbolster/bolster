@@ -13,6 +13,7 @@ from click.testing import CliRunner
 
 from bolster.cli import cli
 from bolster.data_sources.nisra import annual_business_inquiry as abi
+from bolster.data_sources.nisra import business_register, index_of_production
 from bolster.data_sources.nisra._base import NISRADataError, NISRADataNotFoundError, NISRAValidationError
 
 VALUE_COLUMNS = ["value", "ci_lower", "ci_upper", "cv_pct"]
@@ -467,3 +468,62 @@ class TestCli:
             result = CliRunner().invoke(cli, ["nisra", "annual-business-inquiry", "--year", "1999"])
         assert result.exit_code != 0
         assert "no data for 1999" in result.output
+
+
+# Business-register industry groups against ABI section codes. Production and "other services"
+# span several sections, trade spans three register groups, and the register has no counterpart
+# for ABI-excluded sections K and O.
+REGISTER_TO_ABI = {
+    "A": ["Agriculture, forestry & fishing"],
+    "B-E": ["Production"],
+    "F": ["Construction"],
+    "G": ["Motor trades", "Wholesale", "Retail"],
+    "H": ["Transport & storage (inc. postal)"],
+    "I": ["Accommodation & food services"],
+    "J": ["Information & communication"],
+    "L": ["Property"],
+    "M": ["Professional, scientific & technical"],
+    "N": ["Business administration and support services"],
+    "P": ["Education"],
+    "Q": ["Health"],
+    "R-S": ["Arts, entertainment, recreation and other services"],
+}
+REGISTER_ONLY = {"Finance & insurance", "Public administration and defence"}
+
+
+def _abi_codes(key):
+    return {"B-E": list("BCDE"), "R-S": ["R", "S"]}.get(key, [key])
+
+
+class TestCrossValidation:
+    @pytest.fixture(scope="class")
+    def sector(self):
+        return abi.get_by_sector()
+
+    def test_production_turnover_growth_tracks_the_index_of_production(self, sector):
+        index = index_of_production.get_latest_iop().groupby("year")["ni_index"].mean().pct_change()
+        turnover = (
+            sector[(sector["measure"] == "turnover") & sector["sector_code"].isin(list("BCDE"))]
+            .groupby("year")["value"]
+            .sum()
+            .pct_change()
+        )
+        joined = pd.concat([turnover.rename("abi"), index.rename("index")], axis=1, join="inner").dropna()
+        assert len(joined) >= 10
+        assert joined["abi"].corr(joined["index"]) > 0.3
+
+    def test_register_groups_map_to_abi_sections_except_finance_and_public_administration(self, sector):
+        groups = set(business_register.get_businesses_by_industry()["industry_group"]) - {"All Industries"}
+        mapped = {group for groups_for_key in REGISTER_TO_ABI.values() for group in groups_for_key}
+        assert mapped <= groups
+        assert groups - mapped == REGISTER_ONLY
+        codes = set(sector["sector_code"])
+        assert all(set(_abi_codes(key)) <= codes for key in REGISTER_TO_ABI)
+        assert not {"K", "O"} & codes
+
+    def test_mapped_sections_account_for_the_all_industries_turnover(self, sector):
+        latest = sector[(sector["year"] == sector["year"].max()) & (sector["measure"] == "turnover")]
+        mapped_codes = [code for key in REGISTER_TO_ABI for code in _abi_codes(key)]
+        mapped = latest[latest["sector_code"].isin(mapped_codes)]["value"].sum()
+        total = latest[latest["sector_code"] == "ALL"]["value"].iloc[0]
+        assert mapped / total == pytest.approx(1.0, abs=0.02)
