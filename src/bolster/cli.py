@@ -2967,7 +2967,8 @@ def nisra_annual_business_inquiry_cmd(level, measure, year, all_years, output_fo
 
     A sample survey of the financial performance of Northern Ireland businesses, with a 95%
     confidence interval and coefficient of variation for each estimate. Money is in pounds
-    sterling, millions (nominal). Suppressed estimates are blank.
+    sterling, millions, as published (no inflation adjustment is applied). Suppressed estimates
+    are blank.
 
     Examples:
         Latest year by industry section::

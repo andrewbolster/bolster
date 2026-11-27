@@ -26,7 +26,7 @@ Published as: Results from the Northern Ireland Annual Business Inquiry.
 
 Output shape:
     Every function returns one row per year, measure and industry code. Money is in pounds
-    sterling, millions (nominal, not adjusted for inflation).
+    sterling, millions, as published; no inflation adjustment is applied.
 
     - ``year``: reference year (int)
     - ``measure``: ``"turnover"``, ``"purchases"`` or ``"gva"``
