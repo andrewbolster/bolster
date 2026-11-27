@@ -33,8 +33,19 @@ columns are:
   so not a whole number)
 
 Suppressed cells are ``NaN`` in every statistic column and are never imputed. Suppression is heavy
-at the finest cuts (SIC 2007 divisions, countries, and industry by destination), so check
-``value_gbp_m.isna()`` before summing, and do not read a sum of non-suppressed cells as a total.
+at the finest cuts, so check ``value_gbp_m.isna()`` before summing, and do not read a sum of
+non-suppressed cells as a total. Share of ``value_gbp_m`` cells that are suppressed, over all years,
+as at the 2025 data release (the rate changes as the matrices are re-published):
+
+==========================  ==========  ==================
+Getter                      Cells       Suppressed
+==========================  ==========  ==================
+``get_by_partner``          2,250       39%
+``get_by_industry``         12,960      27%
+``get_by_sic2``             21,360      45%
+``get_by_size_band``        3,600       3%
+``get_by_lgd``              2,640       4%
+==========================  ==========  ==================
 
 Flows and destinations
 ----------------------
