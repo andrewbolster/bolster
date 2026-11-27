@@ -156,6 +156,7 @@ Economy and labour:
 [`index_of_services`](https://bolster.readthedocs.io/en/latest/data_sources.html#index-of-production-services),
 [`construction_output`](https://bolster.readthedocs.io/en/latest/data_sources.html#construction-output),
 [`business_register`](https://bolster.readthedocs.io/en/latest/data_sources.html#business-register-idbr),
+[`annual_business_inquiry`](https://bolster.readthedocs.io/en/latest/data_sources.html#annual-business-inquiry-abi),
 [`planning_statistics`](https://bolster.readthedocs.io/en/latest/data_sources.html#planning-statistics),
 [`housing_stock`](https://bolster.readthedocs.io/en/latest/data_sources.html#housing-stock),
 [`housing_bulletin`](https://bolster.readthedocs.io/en/latest/data_sources.html#housing-bulletin),
