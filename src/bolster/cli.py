@@ -2988,8 +2988,7 @@ def nisra_annual_business_inquiry_cmd(level, measure, year, all_years, output_fo
 
     Data Notes:
         - Source: NISRA PxStat matrices ABI01 (sector) and ABI02 (sic2)
-        - Reference years: 2008-present, revised with each release
-        - Published annually in November
+        - Reference years: 2008-present
         - Join on the code columns (sector_code, sic2_code), not the labels
 
     Source:

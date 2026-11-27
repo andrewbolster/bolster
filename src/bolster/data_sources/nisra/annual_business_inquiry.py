@@ -12,12 +12,13 @@ Data Source:
     - ``ABI01`` -- by industry section (SIC 2007 sections A-S that the survey covers, plus ``ALL``)
     - ``ABI02`` -- by SIC 2007 two-digit division (plus ``ALL``)
 
-    The reporting-unit matrix ``ABIRU`` is not used. It is published on a different cycle and ends
-    at an earlier year than ``ABI01`` and ``ABI02``, so it cannot be combined with them by year.
+    The reporting-unit matrix ``ABIRU`` is not used. It stops at an earlier year than ``ABI01`` and
+    ``ABI02`` and has a different layout (a single section dimension, no turnover, purchases or
+    GVA parameter), so it cannot be combined with them by year.
 
     Publication page: https://www.nisra.gov.uk/statistics/business-statistics/annual-business-inquiry
 
-Update Frequency: Annual. Each release adds the latest reference year and may revise earlier years.
+Update Frequency: Annual; each release adds the latest reference year.
 
 Geographic Coverage: Northern Ireland (no sub-regional breakdown).
 
@@ -35,8 +36,9 @@ Output shape:
     - ``ci_lower``, ``ci_upper``: 95% confidence interval bounds, same unit as ``value``
     - ``cv_pct``: coefficient of variation, percent
 
-    Approximate GVA can be negative for a division, a confidence interval can extend below zero,
-    and ``cv_pct`` takes the sign of its value. Turnover and purchases values are never negative.
+    Approximate GVA can be negative for a division and a confidence interval can extend below
+    zero. ``cv_pct`` is usually positive even when ``value`` is negative. Turnover and purchases
+    values are never negative.
 
 Suppression:
     Cells NISRA suppresses for disclosure control are NaN, never zero. In the division matrix some
