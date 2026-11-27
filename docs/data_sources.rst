@@ -694,6 +694,31 @@ managed expenditure.
 
     $ bolster nisra public-expenditure --view departments --include-provisional
 
+Economic Trade Statistics (NIETS)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Annual estimates of sales by, and purchases of, Northern Ireland businesses by trade
+partner (Northern Ireland, Great Britain, Ireland, the rest of the EU, the rest of the
+world, and the external and export/import totals), from 2011, in pounds sterling
+(millions) with 95% confidence intervals and coefficients of variation. Published as the
+Broad Economy Sales and Exports Statistics (BESES) before December 2022. Five PxStat
+matrices (``NIETS01`` to ``NIETS05``) give cuts by country, industry section, SIC 2007
+division, business size band and Local Government District. Cells are keyed by code columns
+(join on those, not the labels, whose letter case differs between matrices), suppressed
+cells are ``NaN`` and never imputed, and a year that is not published raises an error
+instead of serving another year. The 11 districts do not add up to the NI total.
+
+.. code-block:: python
+
+    from bolster.data_sources.nisra import economic_trade_statistics as niets
+
+    by_industry = niets.get_by_industry(year="latest", flow="sales", destination="ALL")
+    by_district = niets.get_by_lgd(flow="sales", destination="EXPORT")
+
+.. code-block:: console
+
+    $ bolster nisra economic-trade-statistics --table lgd --flow sales --destination ALL
+
 Material Footprint
 ~~~~~~~~~~~~~~~~~~
 

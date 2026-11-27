@@ -2346,6 +2346,173 @@ def nisra_drug_related_deaths_cmd(dimension, output_format, force_refresh, save)
         raise click.Abort() from e
 
 
+@nisra.command(name="economic-trade-statistics")
+@click.option(
+    "--table",
+    type=click.Choice(["partner", "industry", "sic2", "size-band", "lgd"], case_sensitive=False),
+    default="industry",
+    show_default=True,
+    help="Which cut to retrieve (see below).",
+)
+@click.option("--year", default="latest", show_default=True, help="A year, 'latest' (newest year), or 'all'.")
+@click.option(
+    "--flow",
+    type=click.Choice(["sales", "purchases"], case_sensitive=False),
+    default=None,
+    help="Sales or purchases (default: both).",
+)
+@click.option(
+    "--destination",
+    default=None,
+    help="Trade partner code: ALL, NI, GB, IE, REU, ROW, EXTERN, EXPORT (sales only) or IMPORT (purchases only). "
+    "Default: all codes. Not available for --table partner.",
+)
+@click.option(
+    "--transaction",
+    type=click.Choice(["goods", "services", "all"], case_sensitive=False),
+    default=None,
+    help="Goods, services or all transactions (default: all three). Only for --table industry and size-band.",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "csv", "json"], case_sensitive=False),
+    default="table",
+    show_default=True,
+    help="Output format.",
+)
+@click.option("--save", help="Save data to file (specify filename)")
+def nisra_economic_trade_statistics_cmd(table, year, flow, destination, transaction, output_format, save):
+    r"""NISRA Northern Ireland Economic Trade Statistics (NIETS).
+
+    \b
+    Annual estimates of sales by, and purchases of, Northern Ireland businesses
+    by trade partner, in GBP millions, with 95% confidence intervals and
+    coefficients of variation. Formerly the Broad Economy Sales and Exports
+    Statistics (BESES). Suppressed cells are empty, never imputed.
+
+    \b
+    Tables:
+        partner     Country of the trade partner outside the UK (NIETS01)
+        industry    Destination, goods/services and 17 industry sections (NIETS02, 15 MB)
+        sic2        Destination and SIC 2007 two-digit divisions (NIETS03, 19 MB)
+        size-band   Destination, goods/services and employment size band (NIETS04)
+        lgd         Destination and Local Government District (NIETS05)
+
+    The 11 districts in the lgd table do not add up to the NI total.
+
+    Examples:
+        Latest year of all-industry sales by destination::
+
+            bolster nisra economic-trade-statistics --flow sales --format csv
+
+        Exports by industry section::
+
+            bolster nisra economic-trade-statistics --flow sales --destination EXPORT --transaction all
+
+        Sales by district across all years, saved to a file::
+
+            bolster nisra economic-trade-statistics --table lgd --year all --flow sales --destination ALL --save lgd.csv
+
+    Source:
+        https://www.nisra.gov.uk/statistics/business-statistics/broad-economy-sales-and-exports-statistics
+    """
+    from rich.table import Table
+
+    from bolster.data_sources.nisra import economic_trade_statistics as niets
+
+    key = table.lower().replace("-", "_")
+    getters = {
+        "partner": niets.get_by_partner,
+        "industry": niets.get_by_industry,
+        "sic2": niets.get_by_sic2,
+        "size_band": niets.get_by_size_band,
+        "lgd": niets.get_by_lgd,
+    }
+    year_arg: int | str | None
+    if year.lower() == "latest":
+        year_arg = "latest"
+    elif year.lower() == "all":
+        year_arg = None
+    else:
+        try:
+            year_arg = int(year)
+        except ValueError as e:
+            raise click.BadParameter("must be a year, 'latest' or 'all'", param_hint="--year") from e
+
+    kwargs: dict[str, str | int | None] = {"year": year_arg, "flow": flow}
+    if destination is not None:
+        if key == "partner":
+            raise click.UsageError("--destination is not available for --table partner (it has no destination code)")
+        kwargs["destination"] = destination
+    if transaction is not None:
+        if key not in ("industry", "size_band"):
+            raise click.UsageError("--transaction is only available for --table industry and size-band")
+        kwargs["transaction"] = transaction
+
+    console = Console()
+    try:
+        with console.status(f"[bold green]Downloading NISRA economic trade statistics ({table})..."):
+            data = getters[key](**kwargs)
+    except ValueError as e:
+        raise click.UsageError(str(e)) from e
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}", style="red")
+        console.print("\n[yellow]Troubleshooting:[/yellow]")
+        console.print("   - Check your internet connection")
+        console.print("   - Visit the NISRA website to verify data availability")
+        raise click.Abort() from e
+
+    console.print(f"[green]Economic trade statistics ({table}) retrieved successfully[/green]")
+    console.print(f"[cyan]Rows: {len(data)}[/cyan]")
+    if not data.empty:
+        years = sorted(data["year"].unique())
+        console.print(f"[dim]Years: {years[0]}" + (f" - {years[-1]}" if len(years) > 1 else "") + "[/dim]")
+        suppressed = int(data["value_gbp_m"].isna().sum())
+        console.print(f"[dim]Suppressed (empty) values: {suppressed} of {len(data)}[/dim]")
+
+    if save:
+        try:
+            if output_format == "json" or save.endswith(".json"):
+                data.to_json(save, orient="records", indent=2)
+            else:
+                data.to_csv(save, index=False)
+            console.print(f"[green]Saved to: {save}[/green]")
+        except PermissionError:
+            console.print(f"[red]Error: Permission denied writing to {save}[/red]")
+        except Exception as e:
+            console.print(f"[red]Error saving file: {e}[/red]")
+        return
+
+    if output_format == "table":
+        # The table is a summary that fits a terminal; csv and json carry every column.
+        summary_columns = {
+            "partner": ["year", "flow", "country", "value_gbp_m", "cv_pct"],
+            "industry": ["year", "flow", "transaction", "destination", "industry_code", "value_gbp_m", "cv_pct"],
+            "sic2": ["year", "flow", "destination", "sic2_code", "value_gbp_m", "cv_pct"],
+            "size_band": ["year", "flow", "transaction", "destination", "size_band", "value_gbp_m", "cv_pct"],
+            "lgd": ["year", "flow", "destination", "lgd", "value_gbp_m", "cv_pct"],
+        }[key]
+        shown = data[[c for c in summary_columns if c in data.columns]]
+        rich_table = Table(title=f"Economic trade statistics - {table}", show_header=True, header_style="bold cyan")
+        for col in shown.columns:
+            rich_table.add_column(str(col), justify="right" if col in ("value_gbp_m", "cv_pct") else "left")
+        for _, row in shown.head(50).iterrows():
+            rich_table.add_row(
+                *["" if pd.isna(v) else (f"{v:,.2f}" if isinstance(v, float) else str(v)) for v in row.values]
+            )
+        console.print(rich_table)
+        if len(data) > 50:
+            console.print(f"\n[yellow]Showing first 50 of {len(data)} rows; narrow with --flow/--destination[/yellow]")
+        console.print(
+            "[dim]Summary view: use --format csv or json for confidence intervals, labels and business counts.[/dim]"
+        )
+    elif output_format == "csv":
+        click.echo(data.to_csv(index=False))
+    else:
+        click.echo(data.to_json(orient="records", indent=2))
+
+
 @nisra.command(name="school-leavers")
 @click.option(
     "--dimension",
