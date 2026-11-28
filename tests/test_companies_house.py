@@ -2,15 +2,18 @@
 """Tests for companies_house module."""
 
 import contextlib
+import types
 
 import pytest
 
+from bolster.data_sources import companies_house
 from bolster.data_sources.companies_house import (
     companies_house_record_might_be_farset,
     get_basic_company_data_url,
     get_companies_house_records_that_might_be_in_farset,
     query_basic_company_data,
 )
+from bolster.utils.web import LinkNotFoundError
 
 
 class TestFarsetHeuristicFunction:
@@ -451,3 +454,42 @@ class TestHeuristicLogic:
                 "RegAddress.AddressLine2": "",
             }
             assert companies_house_record_might_be_farset(record) is False, f"Should return False for: {address}"
+
+
+class TestBasicCompanyDataUrlDiscovery:
+    """Offline tests for finding the bulk download link, with a fake session in place of the live site."""
+
+    @staticmethod
+    def _fake_session(body: str, status_code: int = 200) -> types.SimpleNamespace:
+        response = types.SimpleNamespace(content=body.encode(), status_code=status_code)
+        return types.SimpleNamespace(get=lambda url, **kwargs: response)
+
+    def test_returns_the_first_one_file_link_as_an_absolute_url(self, monkeypatch):
+        page = (
+            "<html><body>"
+            '<a href="BasicCompanyData-part1_1.zip">part</a>'
+            '<a href="BasicCompanyDataAsOneFile-2026-11-01.zip">one file</a>'
+            '<a href="BasicCompanyDataAsOneFile-2026-10-01.zip">older</a>'
+            "</body></html>"
+        )
+        monkeypatch.setattr(companies_house, "session", self._fake_session(page))
+        assert (
+            get_basic_company_data_url()
+            == "https://download.companieshouse.gov.uk/BasicCompanyDataAsOneFile-2026-11-01.zip"
+        )
+
+    def test_maintenance_page_raises_a_clear_error_not_unbound_local(self, monkeypatch):
+        page = "<html><body><h1>Service Unavailable</h1><p>The service is temporarily unavailable.</p></body></html>"
+        monkeypatch.setattr(companies_house, "session", self._fake_session(page))
+        with pytest.raises(LinkNotFoundError) as exc:
+            get_basic_company_data_url()
+        message = str(exc.value)
+        assert "BasicCompanyDataAsOneFile" in message
+        assert "HTTP 200" in message
+        assert "maintenance" in message
+
+    def test_page_with_other_links_only_raises(self, monkeypatch):
+        page = '<html><body><a href="BasicCompanyData-part1_1.zip">part</a></body></html>'
+        monkeypatch.setattr(companies_house, "session", self._fake_session(page, status_code=200))
+        with pytest.raises(LinkNotFoundError):
+            get_basic_company_data_url()

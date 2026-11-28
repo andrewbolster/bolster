@@ -32,7 +32,7 @@ import bs4
 from tqdm.auto import tqdm
 
 from bolster import always, dict_concat_safe
-from bolster.utils.web import download_extract_zip, session
+from bolster.utils.web import LinkNotFoundError, download_extract_zip, make_absolute_url, session
 
 logger = logging.getLogger(__name__)
 
@@ -41,17 +41,23 @@ def get_basic_company_data_url() -> str:
     """Parse the companies house website to get the current URL for the 'BasicCompanyData'.
 
     Currently uses the 'one file' method but it could be split into the multi files for memory efficiency
-    """
-    base_url = "http://download.companieshouse.gov.uk/en_output.html"
-    # TODO: Network integration testing - requires active Companies House website
-    s = bs4.BeautifulSoup(session.get(base_url).content, features="lxml")  # pragma: no cover
-    for a in cast("list[bs4.Tag]", s.find_all("a")):  # pragma: no cover
-        href = cast("str", a.get("href") or "")  # pragma: no cover
-        if href.startswith("BasicCompanyDataAsOneFile"):  # pragma: no cover
-            url = f"http://download.companieshouse.gov.uk/{href}"  # pragma: no cover
-            break  # assume first time lucky  # pragma: no cover
 
-    return url  # pragma: no cover
+    Raises:
+        LinkNotFoundError: if the bulk download page has no ``BasicCompanyDataAsOneFile`` link, for example
+            while Companies House is serving its "Service Unavailable" page.
+    """
+    origin = "https://download.companieshouse.gov.uk"
+    base_url = f"{origin}/en_output.html"
+    response = session.get(base_url)
+    soup = bs4.BeautifulSoup(response.content, features="lxml")
+    for a in cast("list[bs4.Tag]", soup.find_all("a")):
+        href = cast("str", a.get("href") or "")
+        if href.startswith("BasicCompanyDataAsOneFile"):
+            return make_absolute_url(href, origin)  # the first match is the current snapshot
+    raise LinkNotFoundError(
+        f"No 'BasicCompanyDataAsOneFile' link on {base_url} (HTTP {response.status_code}, "
+        f"{len(response.content)} bytes). Companies House may be serving a maintenance page; try again later."
+    )
 
 
 def query_basic_company_data(query_func: Callable[..., bool] = always) -> Iterator[dict]:
